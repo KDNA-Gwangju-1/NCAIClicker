@@ -6,7 +6,8 @@ on:
   # 보드에서 카드를 드래그해 Status 만 바꾸면 이슈 이벤트가 발생하지 않는다.
   # 그래서 아래 세 가지를 함께 건다.
   push:
-    branches: [main]
+    # 기능 작업은 Develop 으로 모인다. main 만 걸어두면 이 트리거가 사실상 죽는다.
+    branches: [main, Develop]
   schedule:
     # GitHub 의 예약 실행은 부하에 따라 자주 지연되거나 건너뛴다. 정시성을 기대하지 말 것.
     - cron: "*/30 * * * *"
