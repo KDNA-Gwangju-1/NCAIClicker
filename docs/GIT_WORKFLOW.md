@@ -71,7 +71,7 @@ feature/<이니셜>-<모듈>-<이슈번호>-<설명>
 - **새로 만드는 파일·폴더 이름은 ASCII만.** 팀에 macOS 사용자가 있어 한글 파일명은
   NFD/NFC 차이로 git이 다른 파일로 인식한다 (`AGENTS.md` "명명"). 커밋 메시지·문서 내용은 한국어 그대로 쓴다.
 - `core.quotepath` 를 `false` 로 두면 git 출력에서 한국어가 깨지지 않는다 (PC마다 1회):
-  `git config --global core.quotepath false` 그 작업은 팀에게 존재하지 않는 것과 같다.
+  `git config --global core.quotepath false`
 
 ## 3. 이슈
 
