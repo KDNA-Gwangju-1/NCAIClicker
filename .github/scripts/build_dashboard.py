@@ -229,14 +229,23 @@ def render(items):
   .badge {{ background:#ddf4ff; color:#0969da; border-radius:999px; padding:1px 6px; }}
   @media (prefers-color-scheme: dark) {{ .badge {{ background:#0d419d33; color:#79c0ff; }} }}
   .empty {{ color:#8b949e; font-size:0.8rem; padding:12px 4px; text-align:center; }}
-  .lanes {{ display:flex; gap:16px; flex-wrap:wrap; margin-bottom:28px; }}
-  .lane {{ flex:1 1 380px; background:#ffffff; border-radius:10px; padding:14px 16px; box-shadow:0 1px 2px rgba(0,0,0,0.06); }}
+  .tabs {{ display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid #d0d7de; }}
+  @media (prefers-color-scheme: dark) {{ .tabs {{ border-color:#30363d; }} }}
+  .tab {{ background:none; border:none; border-bottom:2px solid transparent; padding:8px 14px; font-size:0.9rem; font-weight:600; color:#57606a; cursor:pointer; font-family:inherit; display:flex; align-items:center; gap:6px; }}
+  .tab:hover {{ color:#1f2328; }}
+  @media (prefers-color-scheme: dark) {{ .tab {{ color:#8b949e; }} .tab:hover {{ color:#e6edf3; }} }}
+  .tab.active {{ color:#0969da; border-bottom-color:#0969da; }}
+  @media (prefers-color-scheme: dark) {{ .tab.active {{ color:#79c0ff; border-bottom-color:#79c0ff; }} }}
+  .lanes {{ display:flex; gap:16px; flex-wrap:wrap; }}
+  .lane {{ flex:1 1 420px; min-width:0; background:#ffffff; border-radius:10px; padding:14px 16px; box-shadow:0 1px 2px rgba(0,0,0,0.06); }}
+  .lane-body {{ max-height:62vh; overflow-y:auto; }}
   @media (prefers-color-scheme: dark) {{ .lane {{ background:#161b22; }} }}
   .lane h2 {{ font-size:0.95rem; margin:0 0 2px; display:flex; align-items:center; gap:8px; }}
   .lane-ready h2 {{ color:#1a7f37; }}
   .lane-blocked h2 {{ color:#9a6700; }}
   .lane-hint {{ color:#6b7280; font-size:0.75rem; margin:0 0 10px; }}
   .dep-row {{ display:flex; align-items:baseline; gap:8px; padding:5px 6px; border-radius:6px; text-decoration:none; color:inherit; font-size:0.82rem; }}
+  .dep-title {{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }}
   .dep-row:hover {{ background:#f6f8fa; }}
   @media (prefers-color-scheme: dark) {{ .dep-row:hover {{ background:#0d1117; }} }}
   .dep-no {{ font-weight:700; min-width:46px; color:#0969da; }}
@@ -249,19 +258,50 @@ def render(items):
   <h1>NCAIClicker 진행 현황</h1>
   <div class="sub">{done}/{total} 완료 ({pct}%) · 마지막 갱신 {now} · <a href="{PROJECT_URL}" target="_blank" rel="noopener">칸반 보드 원본 열기</a></div>
   <div class="progress-wrap"><div class="progress-bar" style="width:{pct}%"></div></div>
-  <div class="lanes">
-    <section class="lane lane-ready">
-      <h2>지금 착수 가능 <span class="count">{len(ready)}</span></h2>
-      <p class="lane-hint">선행 작업이 모두 끝난 카드다. 담당이 다르면 동시에 진행한다.</p>
-      {ready_html}
-    </section>
-    <section class="lane lane-blocked">
-      <h2>대기 중 <span class="count">{len(blocked)}</span></h2>
-      <p class="lane-hint">무엇을 기다리는지 오른쪽에 적혀 있다. 선행이 닫히면 위 칸으로 자동으로 올라온다.</p>
-      {blocked_html}
-    </section>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" role="tab" data-panel="order">작업 순서 <span class="count">{len(ready)}</span></button>
+    <button class="tab" role="tab" data-panel="board">칸반 보드 <span class="count">{total}</span></button>
   </div>
-  <div class="board">{columns_html}</div>
+
+  <div id="order" class="panel">
+    <div class="lanes">
+      <section class="lane lane-ready">
+        <h2>지금 착수 가능 <span class="count">{len(ready)}</span></h2>
+        <p class="lane-hint">선행이 모두 끝난 카드다. 담당이 다르면 동시에 진행한다.</p>
+        <div class="lane-body">{ready_html}</div>
+      </section>
+      <section class="lane lane-blocked">
+        <h2>대기 중 <span class="count">{len(blocked)}</span></h2>
+        <p class="lane-hint">무엇을 기다리는지 옆에 적혀 있다. 선행이 닫히면 왼쪽으로 자동으로 올라온다.</p>
+        <div class="lane-body">{blocked_html}</div>
+      </section>
+    </div>
+  </div>
+
+  <div id="board" class="panel" hidden>
+    <div class="board">{columns_html}</div>
+  </div>
+
+<script>
+  var tabs = document.querySelectorAll('.tab');
+  tabs.forEach(function (t) {{
+    t.addEventListener('click', function () {{
+      tabs.forEach(function (x) {{ x.classList.remove('active'); }});
+      t.classList.add('active');
+      document.querySelectorAll('.panel').forEach(function (p) {{ p.hidden = true; }});
+      document.getElementById(t.dataset.panel).hidden = false;
+      try {{ localStorage.setItem('ncai-tab', t.dataset.panel); }} catch (e) {{}}
+    }});
+  }});
+  try {{
+    var saved = localStorage.getItem('ncai-tab');
+    if (saved) {{
+      var btn = document.querySelector('.tab[data-panel="' + saved + '"]');
+      if (btn) btn.click();
+    }}
+  }} catch (e) {{}}
+</script>
 </body>
 </html>"""
 

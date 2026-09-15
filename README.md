@@ -79,6 +79,7 @@ Cursor 등 도구를 가리지 않는 공통 진입점입니다. 문서를 통�
 | [3D 에셋 파이프라인](docs/ASSET_PIPELINE.md) | 에셋을 **어떻게 만들고 끼우나** |
 | [Git 작업 흐름](docs/GIT_WORKFLOW.md) | 브랜치·커밋·PR을 **어떻게 하나** |
 | [작업 흐름 도식](docs/WORKFLOW_DIAGRAMS.md) | 전체 구조를 **그림으로** |
+| [진행 현황 대시보드](https://kdna-gwangju-1.github.io/NCAIClicker/) | **지금 뭘 집을 수 있나** — 선행 자동 계산 |
 | [기술 문서](docs/TECH_NOTES/) | 이 기능이 **실제로 어떻게 구현됐나** (+ C4 도식) |
 | [배포 체크리스트](docs/RELEASE_CHECKLIST.md) | 빌드 전에 **뭘 확인하나** |
 | [서드파티 라이선스](docs/THIRD_PARTY.md) | 외부 에셋 **출처와 라이선스** |
@@ -88,7 +89,19 @@ Cursor 등 도구를 가리지 않는 공통 진입점입니다. 문서를 통�
 
 [![진행 현황](https://kdna-gwangju-1.github.io/NCAIClicker/badge.svg)](https://kdna-gwangju-1.github.io/NCAIClicker/)
 
-이미지를 클릭하면 카드별 상세 보드로 이동합니다. **이슈 변경 시와 `main`·`Develop` 에 push 할 때** 자동 갱신됩니다. (30분 예약 실행도 걸려 있으나 GitHub 이 자주 건너뛰므로 신뢰하지 않는다. 즉시 갱신이 필요하면 Actions 탭에서 Run workflow 를 누른다.)
+**[→ 진행 현황 대시보드 열기](https://kdna-gwangju-1.github.io/NCAIClicker/)**
+
+대시보드에 탭이 둘 있습니다.
+
+| 탭 | 무엇을 보나 |
+|---|---|
+| **작업 순서** | **지금 착수 가능** — 선행이 전부 끝나 바로 집을 수 있는 카드 / **대기 중** — 무엇을 기다리는지 |
+| **칸반 보드** | Todo · In Progress · Done 컬럼별 카드 |
+
+선행 관계는 이슈 본문의 `**선행**:` 줄에서 **자동으로 계산**합니다. 선행 이슈를 닫으면
+그 다음 카드가 "지금 착수 가능"으로 알아서 올라옵니다 — 라벨을 붙이거나 카드를 옮길 필요가 없습니다.
+
+이미지를 클릭해도 같은 곳으로 갑니다. **이슈 변경 시와 `main`·`Develop` 에 push 할 때** 자동 갱신됩니다. (30분 예약 실행도 걸려 있으나 GitHub 이 자주 건너뛰므로 신뢰하지 않는다. 즉시 갱신이 필요하면 Actions 탭에서 Run workflow 를 누른다.)
 
 - [칸반 보드 원본](https://github.com/orgs/KDNA-Gwangju-1/projects/2/views/2)
 
