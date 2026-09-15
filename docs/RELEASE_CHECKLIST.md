@@ -1,6 +1,6 @@
 # 배포 전 세팅 체크리스트
 
-Day 7 최종 빌드 직전에 몰아서 하면 반드시 사고가 난다. **오늘 미리 잡을 수 있는 것**과 **빌드 직전에만 가능한 것**을 나눠 적는다.
+작업 8.3 최종 빌드 직전에 몰아서 하면 반드시 사고가 난다. **오늘 미리 잡을 수 있는 것**과 **빌드 직전에만 가능한 것**을 나눠 적는다.
 
 체크박스가 비어 있으면 아직 안 된 것이다. 완료하면 이 문서에서 체크한다.
 
@@ -45,7 +45,7 @@ git config --global merge.unityyamlmerge.driver '"C:/Program Files/Unity/Hub/Edi
 
 ---
 
-## 3. Player Settings — 오늘 잡고 Day 7에 재확인
+## 3. Player Settings — 오늘 잡고 작업 8.2 에서 재확인
 
 - [x] Product Name = `NCAIClicker`, Company Name = `KDNA-Gwangju-1` 설정 완료
   - 저장 경로가 `%USERPROFILE%/AppData/LocalLow/KDNA-Gwangju-1/NCAIClicker/` 로 정해졌다. **바꾸려면 세이브가 생기기 전인 지금뿐이다** — 저장 기능이 붙은 뒤에 바꾸면 기존 세이브를 못 읽는다
