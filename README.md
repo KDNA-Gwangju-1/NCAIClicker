@@ -37,8 +37,8 @@ flowchart LR
 | ⑤ | **사람이 검수** — Unity에서 직접 돌려봅니다 | 쎄하면 `/verify-docs` |
 | ⑥ | 공용 계약 위반 점검 | `convention-checker` |
 | ⑦ | 기술 문서 작성·갱신 | `/tech-note` |
-| ⑧ | **`Develop`** 으로 PR → 이슈 **In Review** | `/pr` |
-| ⑨ | 리뷰어 1명 승인 → Squash merge → 브랜치 삭제 → **Done** | |
+| ⑧ | **`Develop`** 으로 PR | `/pr` |
+| ⑨ | 본인이 확인 → Squash merge → 브랜치 삭제 → **Done** | |
 
 기억할 것 셋:
 

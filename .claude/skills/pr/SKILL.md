@@ -19,8 +19,8 @@ disable-model-invocation: true
 8. PR 제목과 본문을 써서 보여 주고 **승인을 받는다.** 본문은 `.github/PULL_REQUEST_TEMPLATE.md`
    양식을 그대로 채운다. 체크리스트 항목을 **확인하지 않고 체크하지 않는다.**
 9. 승인을 받으면 push 하고 `gh pr create --base Develop` 로 PR을 만든다. **대상은 `main` 이 아니다.**
-10. 만든 PR 주소를 알려 주고, **이슈 상태를 In Review 로 바꾼다.**
+10. 만든 PR 주소를 알려 준다. 이슈 상태는 **In Progress 그대로** 둔다 — 머지된 뒤에 Done 으로 바꾼다.
 
-**머지는 하지 않는다.** 리뷰어 최소 1명의 승인이 필요하고, 머지는 사람이 한다.
+**머지는 하지 않는다.** 리뷰도 머지도 사람이 한다.
 
 이 파일과 `docs/GIT_WORKFLOW.md` 의 내용이 다르면 `GIT_WORKFLOW.md` 를 따른다.

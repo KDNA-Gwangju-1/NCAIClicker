@@ -40,7 +40,7 @@ flowchart LR
     end
     subgraph P4["통합"]
         direction TB
-        C8["⑧ PR → Develop<br/>/pr"] --> C9["⑨ 리뷰 1명<br/>Squash merge"]
+        C8["⑧ PR → Develop<br/>/pr"] --> C9["⑨ 본인 확인<br/>Squash merge"]
     end
 
     C2 --> C3

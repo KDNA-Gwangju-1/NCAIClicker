@@ -12,17 +12,16 @@ PROJECT_NUMBER = 2
 REPO = "KDNA-Gwangju-1/NCAIClicker"
 PROJECT_URL = f"https://github.com/orgs/{OWNER}/projects/{PROJECT_NUMBER}"
 
-# Status 가 비어 있는 카드는 Ready 가 아니라 "미착수"로 센다.
-# Ready 는 "선행이 끝나 지금 집을 수 있는 작업"이라는 의미로만 쓴다.
+# Status 가 비어 있는 카드는 "미착수"로 센다 — 보드에서 Todo 로 옮기지 않은 카드다.
+# 리뷰는 각자 하고 타인에게 요청하지 않으므로 In Review 컬럼은 두지 않는다.
+# 막힌 작업은 컬럼이 아니라 blocked 라벨로 표시한다 — 어느 컬럼에 있든 보이게 하려는 것.
 NO_STATUS = "미착수"
-COLUMNS = [NO_STATUS, "Ready", "In Progress", "In Review", "Done", "Blocked"]
+COLUMNS = [NO_STATUS, "Todo", "In Progress", "Done"]
 COLUMN_COLORS = {
     NO_STATUS: "#9ca3af",
-    "Ready": "#0969da",
+    "Todo": "#0969da",
     "In Progress": "#d97706",
-    "In Review": "#7c3aed",
     "Done": "#16a34a",
-    "Blocked": "#dc2626",
 }
 
 QUERY = """
@@ -158,7 +157,7 @@ def render_svg(items):
     for item in items:
         if not item.get("content"):
             continue
-        # 상세 보드(render_html)와 같은 기준을 쓴다. 한쪽만 Ready 로 세면
+        # 상세 보드(render_html)와 같은 기준을 쓴다. 한쪽만 다른 기본값을 쓰면
         # 배지와 보드가 서로 다른 숫자를 보여준다.
         status = field_value(item, "Status") or NO_STATUS
         columns[status] = columns.get(status, 0) + 1
