@@ -1,0 +1,31 @@
+# 5명 + 에이전트가 같은 포맷으로 코드를 쓰기 위한 최소 규칙.
+# Rider / Visual Studio / VS Code 모두 별도 플러그인 없이 인식한다.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{csv,md}]
+trim_trailing_whitespace = false
+
+[*.{json,yml,yaml}]
+indent_size = 2
+
+[*.cs]
+# 네이밍 — 이것만 맞춰도 PR 리뷰에서 스타일 논쟁이 사라진다
+dotnet_naming_rule.private_field.symbols = private_fields
+dotnet_naming_rule.private_field.style = camel_underscore
+dotnet_naming_rule.private_field.severity = suggestion
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_style.camel_underscore.capitalization = camel_case
+dotnet_naming_style.camel_underscore.required_prefix = _
+
+csharp_new_line_before_open_brace = all
+csharp_prefer_braces = true:suggestion
+dotnet_style_require_accessibility_modifiers = always:suggestion

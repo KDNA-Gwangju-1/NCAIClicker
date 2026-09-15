@@ -1,0 +1,39 @@
+# 줄바꿈: 저장소에는 LF로 저장하고 체크아웃 시 OS에 맞춘다.
+* text=auto
+
+# Unity 텍스트 에셋 — 스마트 병합(UnityYAMLMerge) 대상
+# ※ 팀원 각자 1회 설정 필요. docs/RELEASE_CHECKLIST.md 2절 참고
+*.unity     merge=unityyamlmerge eol=lf
+*.prefab    merge=unityyamlmerge eol=lf
+*.asset     merge=unityyamlmerge eol=lf
+*.mat       merge=unityyamlmerge eol=lf
+*.anim      merge=unityyamlmerge eol=lf
+*.controller merge=unityyamlmerge eol=lf
+*.physicMaterial2D merge=unityyamlmerge eol=lf
+*.meta      merge=unityyamlmerge eol=lf
+
+# 밸런스 CSV — diff가 읽혀야 하므로 반드시 텍스트로 취급
+*.csv       text eol=lf
+
+# 코드/문서
+*.cs        text diff=csharp eol=lf
+*.md        text eol=lf
+*.json      text eol=lf
+*.shader    text eol=lf
+
+# 바이너리 (diff 시도 금지)
+*.png       binary
+*.jpg       binary
+*.psd       binary
+*.wav       binary
+*.mp3       binary
+*.ogg       binary
+*.ttf       binary
+*.otf       binary
+*.fbx       binary
+*.unitypackage binary
+
+# Git LFS — 팀 합의 후 주석을 해제한다 (전원 git-lfs 설치 필수)
+# *.png  filter=lfs diff=lfs merge=lfs -text
+# *.psd  filter=lfs diff=lfs merge=lfs -text
+# *.wav  filter=lfs diff=lfs merge=lfs -text

@@ -40,3 +40,13 @@
 # OS generated
 .DS_Store
 Thumbs.db
+
+# Claude Code - 개인 설정/캐시는 커밋하지 않음 (팀 공용 규칙은 CLAUDE.md 와 .claude/settings.json 만)
+.claude/settings.local.json
+.claude/cache/
+.claude/locks/
+.claude/**/__pycache__/
+
+# 원작 조사용 유튜브 자막 — 타인의 저작물이므로 저장소에 올리지 않는다.
+# 조사 결과는 docs/research/ORIGINAL_GAME_NOTES.md 에 정리한다.
+research/transcripts/
