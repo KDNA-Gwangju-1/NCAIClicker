@@ -1,0 +1,5 @@
+id,display_name,hp,coin_mult,break_bonus,stamina_restore,move_speed,turn_interval_sec,note
+normal,일반형,3,1.0,1,0,2.0,1.5,기본 수입원
+anchor,거치형,12,1.6,10,0,0.2,4.0,멀어도 갈 만한 고가치 목표
+runner,고속형,1,0.6,0,0,5.0,0.4,쫓을 가치가 있는지 판단하게 만드는 미끼
+tourist,회복형,10,0.2,0,8,0.8,3.0,부수면 스태미나 8 회복. 코인은 거의 안 나온다

@@ -1,0 +1,8 @@
+key,value,unit,note
+due_days,5,day,청구서 도착 시 주어지는 납부 기한. 단계가 오르면 짧아진다
+loan_unlock_bill_index,2,count,대출은 두 번째 청구서부터 이용 가능
+loan_interest_rate,0.10,ratio,빌린 금액에 더해 갚아야 하는 이자
+loan_daily_cut_min,0.05,ratio,상환 전까지 매일 징수되는 수입 비율의 하한
+loan_daily_cut_max,0.10,ratio,상한. 징수분은 부채를 줄이지 않는다
+loan_cooldown_days,5,day,완제 후 재대출까지 기다려야 하는 일수
+loan_max_concurrent,1,count,동시에 유지할 수 있는 대출 건수

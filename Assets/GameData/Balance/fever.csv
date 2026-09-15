@@ -1,0 +1,7 @@
+key,value,unit,note
+gauge_max,100,point,
+gauge_per_hit,0.8,point/hit,약 125회 타격에 1회 발동 = 런당 2~3회
+gauge_decay_per_sec,4.0,point/sec,2초간 타격이 없으면 감소 시작
+decay_grace_sec,2.0,sec,
+duration_sec,5.0,sec,
+coin_multiplier,3.0,ratio,
