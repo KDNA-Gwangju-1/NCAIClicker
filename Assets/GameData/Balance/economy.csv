@@ -1,7 +1,8 @@
 key,value,unit,note
-base_hit_power,1.0,coin,타격 1회 기본 코인. 대상별 coin_mult 를 곱한다
+base_hit_power,1.0,hp/hit,호버 타격 1회에 깎는 내구도. 코인은 파괴 시에만 지급한다
+hover_swing_interval_sec,0.15,sec,대상 유무와 무관한 호버 망치 스윙 간격
 auto_hammer_count_init,0,count,자동 망치 초기 보유량. 업그레이드로 증가
-auto_hammer_power,0.6,coin,자동 망치 타격당 코인. 호버 타격보다 낮게 유지한다
+auto_hammer_power,0.6,hp/hit,자동 망치 타격 1회에 깎는 내구도
 auto_hammer_hits_per_sec,1.0,hit/sec,자동 망치 1기당 초당 타격 횟수
 hit_radius_bonus,25,percent,피격 콜라이더를 외형보다 넓히는 비율 (GDD 4절)
 spawn_interval_sec,7.0,sec,부서진 자리에 새 저금통이 등장하기까지 걸리는 시간

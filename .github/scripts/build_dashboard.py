@@ -26,11 +26,12 @@ COLUMN_COLORS = {
 }
 
 QUERY = """
-query($owner: String!, $number: Int!) {
+query($owner: String!, $number: Int!, $cursor: String) {
   organization(login: $owner) {
     projectV2(number: $number) {
       title
-      items(first: 100) {
+      items(first: 100, after: $cursor) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           content {
             ... on Issue {
@@ -59,16 +60,26 @@ query($owner: String!, $number: Int!) {
 
 
 def fetch_items():
-    result = subprocess.run(
-        ["gh", "api", "graphql", "-f", f"query={QUERY}", "-F", f"owner={OWNER}", "-F", f"number={PROJECT_NUMBER}"],
-        capture_output=True, text=True, check=True,
-    )
-    data = json.loads(result.stdout)
-    return data["data"]["organization"]["projectV2"]["items"]["nodes"]
+    items, cursor = [], None
+    while True:
+        command = ["gh", "api", "graphql", "-f", f"query={QUERY}", "-F", f"owner={OWNER}", "-F", f"number={PROJECT_NUMBER}"]
+        if cursor:
+            command += ["-f", f"cursor={cursor}"]
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        data = json.loads(result.stdout)
+        page = data["data"]["organization"]["projectV2"]["items"]
+        items.extend(page["nodes"])
+        if not page["pageInfo"]["hasNextPage"]:
+            return items
+        next_cursor = page["pageInfo"]["endCursor"]
+        if not next_cursor or next_cursor == cursor:
+            raise ValueError("Projects pagination returned no new cursor")
+        cursor = next_cursor
 
 
 TASK_RE = re.compile(r"^([0-9]+(?:[.][0-9]+)*)\s")
-DEP_RE = re.compile(r"[*][*]선행[*][*]:\s*(.+)")
+DEP_RE = re.compile(r"^[ \t]*[*][*]선행[*][*]:[ \t]*([^\r\n]*)", re.MULTILINE)
+NUMBER_RE = re.compile(r"[0-9]+(?:[.][0-9]+)*")
 
 
 def task_no(item):
@@ -90,27 +101,49 @@ def parse_deps(body, all_numbers, issue_to_task):
     '3.x'                  → 3 으로 시작하는 모든 작업 (묶음 전체)
     '#12'                  → 12번 이슈의 작업 번호
     """
-    m = DEP_RE.search(body or "")
-    if not m:
+    matches = DEP_RE.findall(body or "")
+    if len(matches) != 1:
         return [], False
-    raw = m.group(1).strip()
-    if raw.startswith("없음") or raw in ("-", "—", "(없음)", "N/A"):
+    raw = matches[0].strip()
+    if re.fullmatch(r"없음(?:[ \t]+[—–-][ \t]+[^,]+)?", raw) or raw in ("-", "—", "(없음)", "N/A"):
         return [], True
+    if not raw:
+        return [], False
     deps = []
     for token in raw.split(","):
-        token = token.strip().rstrip(".")
+        token = token.strip()
         if not token:
-            continue
-        if token.startswith("#"):
+            return [], False
+        if re.fullmatch(r"#[0-9]+", token):
             mapped = issue_to_task.get(token[1:])
-            if mapped:
-                deps.append(mapped)
-        elif token.endswith(".x") or token.endswith(".*"):
+            if not mapped:
+                return [], False
+            deps.append(mapped)
+        elif re.fullmatch(r"[0-9]+(?:[.][0-9]+)*[.][x*]", token):
             prefix = token[:-2] + "."
-            deps += [n for n in all_numbers if n.startswith(prefix)]
-        elif TASK_RE.match(token + " "):
+            matched = [n for n in all_numbers if n.startswith(prefix)]
+            if not matched:
+                return [], False
+            deps.extend(matched)
+        elif "~" in token:
+            endpoints = token.split("~")
+            if len(endpoints) != 2 or not all(NUMBER_RE.fullmatch(p.strip()) for p in endpoints):
+                return [], False
+            start, end = [p.strip().split(".") for p in endpoints]
+            if start[:-1] != end[:-1] or int(start[-1]) > int(end[-1]):
+                return [], False
+            count = int(end[-1]) - int(start[-1]) + 1
+            if count > len(all_numbers):
+                return [], False
+            expanded = [".".join(start[:-1] + [str(i)]) for i in range(int(start[-1]), int(end[-1]) + 1)]
+            if any(n not in all_numbers for n in expanded):
+                return [], False
+            deps.extend(expanded)
+        elif NUMBER_RE.fullmatch(token):
             deps.append(token)
-    return deps, True
+        else:
+            return [], False
+    return list(dict.fromkeys(deps)), True
 
 
 def dependency_report(items):
@@ -206,7 +239,7 @@ def render(items):
     unparsed_block = f'''
       <section class="lane lane-warn">
         <h2>선행 확인 필요 <span class="count">{len(unparsed)}</span></h2>
-        <p class="lane-hint">본문에 <code>**선행**:</code> 줄이 없어 판정하지 못했다.
+        <p class="lane-hint">선행 줄이 없거나 형식·이슈 참조를 확인하지 못했다.
           형식은 <code>.github/ISSUE_TEMPLATE/task.md</code> 참고.</p>
         <div class="lane-body">{unparsed_html}</div>
       </section>''' if unparsed else ""

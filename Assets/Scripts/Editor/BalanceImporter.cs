@@ -19,22 +19,26 @@ namespace NCAIClicker.EditorTools
         private const string CsvDir = "Assets/GameData/Balance";
         private const string OutputPath = "Assets/GameData/Generated/BalanceData.asset";
 
-        // BALANCE.md 2절의 역산 가정. 파산 도달 가능성 검사에 쓴다.
-        private const float AssumedHoverUptime = 0.60f;
-        private const float AssumedMoveSpeed = 3.0f;
-        private const float AutoSwingInterval = 0.15f;
+        private static readonly List<string> _errors = new List<string>();
+        private static string _csvDirectory;
 
-        private static readonly List<string> Errors = new List<string>();
-
-        // 단축키 Ctrl+Shift+I. %#b 는 Unity 의 Build 창과 충돌하므로 쓰지 않는다.
         [MenuItem("NCAI/밸런스 CSV 임포트 %#i")]
         public static void Import()
         {
-            Errors.Clear();
+            if (!TryImport(CsvDir, OutputPath, out var error))
+            {
+                Debug.LogError(error);
+            }
+        }
 
-            var data = AssetDatabase.LoadAssetAtPath<BalanceData>(OutputPath);
-            var isNew = data == null;
-            if (isNew) data = ScriptableObject.CreateInstance<BalanceData>();
+        /// <summary>임시 객체에서 검증한 뒤 성공할 때만 기존 에셋에 반영한다.</summary>
+        public static bool TryImport(string csvDirectory, string outputPath, out string error)
+        {
+            _errors.Clear();
+            _csvDirectory = csvDirectory;
+            error = null;
+            var existing = AssetDatabase.LoadAssetAtPath<BalanceData>(outputPath);
+            var data = ScriptableObject.CreateInstance<BalanceData>();
 
             try
             {
@@ -52,7 +56,8 @@ namespace NCAIClicker.EditorTools
                 data.Economy = new EconomyConfig
                 {
                     BaseHitPower = Req(economy, "base_hit_power"),
-                    AutoHammerCountInit = (int)Req(economy, "auto_hammer_count_init"),
+                    HoverSwingIntervalSec = Req(economy, "hover_swing_interval_sec"),
+                    AutoHammerCountInit = ReqInt(economy, "auto_hammer_count_init"),
                     AutoHammerPower = Req(economy, "auto_hammer_power"),
                     AutoHammerHitsPerSec = Req(economy, "auto_hammer_hits_per_sec"),
                     HitRadiusBonusPercent = Req(economy, "hit_radius_bonus"),
@@ -76,13 +81,13 @@ namespace NCAIClicker.EditorTools
                 var bills = ReadKeyValue("bills.csv");
                 data.Bill = new BillConfig
                 {
-                    DueDays = (int)Req(bills, "due_days"),
-                    LoanUnlockBillIndex = (int)Req(bills, "loan_unlock_bill_index"),
+                    DueDays = ReqInt(bills, "due_days"),
+                    LoanUnlockBillIndex = ReqInt(bills, "loan_unlock_bill_index"),
                     LoanInterestRate = Req(bills, "loan_interest_rate"),
                     LoanDailyCutMin = Req(bills, "loan_daily_cut_min"),
                     LoanDailyCutMax = Req(bills, "loan_daily_cut_max"),
-                    LoanCooldownDays = (int)Req(bills, "loan_cooldown_days"),
-                    LoanMaxConcurrent = (int)Req(bills, "loan_max_concurrent"),
+                    LoanCooldownDays = ReqInt(bills, "loan_cooldown_days"),
+                    LoanMaxConcurrent = ReqInt(bills, "loan_max_concurrent"),
                 };
 
                 data.Targets = ReadRows("targets.csv", r => new TargetDef
@@ -126,35 +131,49 @@ namespace NCAIClicker.EditorTools
             }
             catch (Exception e)
             {
-                Errors.Add("임포트 중단: " + e.Message);
+                _errors.Add("임포트 중단: " + e.Message);
             }
 
             Validate(data);
 
-            if (Errors.Count > 0)
+            if (_errors.Count > 0)
             {
-                Debug.LogError("[밸런스 임포트] 실패 — 아래 문제를 고치고 다시 실행하세요.\n  " +
-                               string.Join("\n  ", Errors));
-                if (isNew) UnityEngine.Object.DestroyImmediate(data);
-                return;
+                error = "[밸런스 임포트] 실패 — 기존 에셋은 변경하지 않았습니다.\n  " +
+                        string.Join("\n  ", _errors);
+                UnityEngine.Object.DestroyImmediate(data);
+                return false;
             }
 
-            if (isNew)
+            // CSV 오류가 없는 것을 확인하기 전에는 기존 객체에 절대 대입하지 않는다.
+            if (existing == null)
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(OutputPath));
-                AssetDatabase.CreateAsset(data, OutputPath);
+                var parent = Path.GetDirectoryName(outputPath).Replace('\\', '/');
+                if (!AssetDatabase.IsValidFolder(parent))
+                {
+                    error = "[밸런스 임포트] 출력 폴더가 없습니다: " + parent;
+                    UnityEngine.Object.DestroyImmediate(data);
+                    return false;
+                }
+                data.name = Path.GetFileNameWithoutExtension(outputPath);
+                AssetDatabase.CreateAsset(data, outputPath);
+                existing = data;
             }
             else
             {
-                EditorUtility.SetDirty(data);
+                // 이름과 GUID를 유지한다. 씬·프리팹은 같은 에셋을 계속 참조한다.
+                data.name = existing.name;
+                EditorUtility.CopySerialized(data, existing);
+                UnityEngine.Object.DestroyImmediate(data);
             }
 
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-
+            EditorUtility.SetDirty(existing);
+            AssetDatabase.SaveAssetIfDirty(existing);
             Debug.Log(string.Format(
-                "[밸런스 임포트] 완료 — 대상 {0}종, 업그레이드 {1}종, 단계 {2}개\n{3}",
-                data.Targets.Count, data.Upgrades.Count, data.Stages.Count, DescribeRun(data)));
+                "[밸런스 임포트] 완료 — 대상 {0}종, 업그레이드 {1}종, 단계 {2}개. " +
+                "회복 제외 기본 런 {3:0.0}초 (실제 수입·납부 가능성은 플레이 검증 필요)",
+                existing.Targets.Count, existing.Upgrades.Count, existing.Stages.Count,
+                existing.Stamina.Max / existing.Stamina.IdleDrainPerSec));
+            return true;
         }
 
         /// <summary>
@@ -169,7 +188,7 @@ namespace NCAIClicker.EditorTools
                 var target = data.Upgrades.Find(u => u.Id == upgradeId);
                 if (target == null)
                 {
-                    Errors.Add("upgrade_effects.csv: upgrade_id '" + upgradeId +
+                    _errors.Add("upgrade_effects.csv: upgrade_id '" + upgradeId +
                                "' 에 해당하는 업그레이드가 upgrades.csv 에 없습니다.");
                     continue;
                 }
@@ -177,7 +196,7 @@ namespace NCAIClicker.EditorTools
                 StatId stat;
                 if (!TryParseEnum(row.ContainsKey("stat") ? row["stat"] : "", out stat))
                 {
-                    Errors.Add("upgrade_effects.csv: 알 수 없는 stat '" +
+                    _errors.Add("upgrade_effects.csv: 알 수 없는 stat '" +
                                (row.ContainsKey("stat") ? row["stat"] : "") +
                                "'. 쓸 수 있는 값: " + string.Join(", ", EnumNamesSnake<StatId>()));
                     continue;
@@ -186,7 +205,7 @@ namespace NCAIClicker.EditorTools
                 EffectType type;
                 if (!TryParseEnum(row.ContainsKey("effect_type") ? row["effect_type"] : "", out type))
                 {
-                    Errors.Add("upgrade_effects.csv: 알 수 없는 effect_type '" +
+                    _errors.Add("upgrade_effects.csv: 알 수 없는 effect_type '" +
                                (row.ContainsKey("effect_type") ? row["effect_type"] : "") +
                                "'. 쓸 수 있는 값: " + string.Join(", ", EnumNamesSnake<EffectType>()));
                     continue;
@@ -202,7 +221,7 @@ namespace NCAIClicker.EditorTools
 
             foreach (var u in data.Upgrades)
                 if (u.Effects.Count == 0)
-                    Errors.Add("upgrade_effects.csv: '" + u.Id + "' 에 효과가 하나도 없습니다. " +
+                    _errors.Add("upgrade_effects.csv: '" + u.Id + "' 에 효과가 하나도 없습니다. " +
                                "효과가 없는 업그레이드는 사도 아무 일이 일어나지 않습니다.");
         }
 
@@ -242,84 +261,87 @@ namespace NCAIClicker.EditorTools
 
         private static void Validate(BalanceData d)
         {
-            if (Errors.Count > 0) return;
+            if (_errors.Count > 0) return;
 
             if (d.Stamina.Max <= 0)
-                Errors.Add("stamina.csv: max_stamina 는 0보다 커야 합니다.");
+                _errors.Add("stamina.csv: max_stamina 는 0보다 커야 합니다.");
             if (d.Stamina.IdleDrainPerSec <= 0)
-                Errors.Add("stamina.csv: idle_drain_per_sec 가 0이면 방치로 런이 끝나지 않습니다 (GDD 4절).");
+                _errors.Add("stamina.csv: idle_drain_per_sec 가 0이면 방치로 런이 끝나지 않습니다 (GDD 4절).");
 
             foreach (var s in d.Stages)
             {
                 var sum = s.NormalRatio + s.AnchorRatio + s.RunnerRatio + s.TouristRatio;
                 if (Mathf.Abs(sum - 1f) > 0.001f)
-                    Errors.Add(string.Format(
+                    _errors.Add(string.Format(
                         "stages.csv: {0}단계 출현 비율 합이 {1:0.###} 입니다. 1이어야 합니다.", s.Stage, sum));
                 if (s.GoalCoin <= 0)
-                    Errors.Add(string.Format("stages.csv: {0}단계 goal_coin 이 0 이하입니다.", s.Stage));
+                    _errors.Add(string.Format("stages.csv: {0}단계 goal_coin 이 0 이하입니다.", s.Stage));
             }
 
             if (d.Bill.LoanDailyCutMax > 1f)
-                Errors.Add("bills.csv: loan_daily_cut_max 가 1을 넘으면 수입이 음수가 됩니다.");
+                _errors.Add("bills.csv: loan_daily_cut_max 가 1을 넘으면 수입이 음수가 됩니다.");
 
             var ids = new HashSet<string>();
             foreach (var t in d.Targets)
                 if (!ids.Add(t.Id))
-                    Errors.Add(string.Format("targets.csv: id '{0}' 가 중복입니다.", t.Id));
+                    _errors.Add(string.Format("targets.csv: id '{0}' 가 중복입니다.", t.Id));
 
-            // 마감일 안에 청구 금액을 모을 수 있는지 — BALANCE.md 4절 체크리스트를 코드로 옮긴 것
-            foreach (var st in d.Stages)
+            var stageNumbers = new HashSet<int>();
+            foreach (var stage in d.Stages)
             {
-                var days = st.DueDays > 0 ? st.DueDays : d.Bill.DueDays;
-                if (days <= 0)
-                {
-                    Errors.Add(string.Format("stages.csv: {0}단계 due_days 가 0 이하입니다.", st.Stage));
-                    continue;
-                }
-
-                // 하루에 단계 목표만큼 번다고 보고, 마감일 안에 청구 금액을 낼 수 있는지 본다.
-                var earnable = (double)st.GoalCoin * days;
-                if (st.BillAmount > earnable)
-                    Errors.Add(string.Format(
-                        "stages.csv: {0}단계 청구 금액 {1} 이 {2}일간 벌 수 있는 최대치 {3:0} 을 넘습니다. " +
-                        "마감일을 늘리거나 금액을 낮추세요.", st.Stage, st.BillAmount, days, earnable));
-                else if (st.BillAmount > earnable * 0.5)
-                    Debug.LogWarning(string.Format(
-                        "[밸런스 임포트] {0}단계 청구 금액이 {1}일 수입의 {2:0}% 입니다. " +
-                        "업그레이드 여력이 없어 성장이 멈출 수 있습니다 (docs/BALANCE.md 3절).",
-                        st.Stage, days, 100.0 * st.BillAmount / earnable));
+                if (stage.Stage <= 0 || !stageNumbers.Add(stage.Stage))
+                    _errors.Add("stages.csv: stage 는 중복 없는 양의 정수여야 합니다.");
+                if (stage.DueDays < 0 || (stage.DueDays == 0 && d.Bill.DueDays <= 0))
+                    _errors.Add("stages.csv: due_days 는 양수 또는 기본값을 쓰는 0이어야 합니다.");
+                if (stage.BillAmount <= 0 || stage.SpawnCount <= 0)
+                    _errors.Add("stages.csv: bill_amount 와 spawn_count 는 양수여야 합니다.");
+                if (stage.NormalRatio < 0 || stage.AnchorRatio < 0 || stage.RunnerRatio < 0 || stage.TouristRatio < 0)
+                    _errors.Add("stages.csv: 출현 비율은 음수일 수 없습니다.");
             }
+            for (var stageNumber = 1; stageNumber <= d.Stages.Count; stageNumber++)
+                if (!stageNumbers.Contains(stageNumber))
+                    _errors.Add("stages.csv: stage 는 1부터 연속이어야 합니다.");
+
+            var upgradeIds = new HashSet<string>();
+            var sortOrders = new HashSet<int>();
+            foreach (var upgrade in d.Upgrades)
+            {
+                if (string.IsNullOrWhiteSpace(upgrade.Id) || !upgradeIds.Add(upgrade.Id))
+                    _errors.Add("upgrades.csv: id 가 비었거나 중복입니다.");
+                if (upgrade.SortOrder <= 0 || !sortOrders.Add(upgrade.SortOrder))
+                    _errors.Add("upgrades.csv: sort_order 는 중복 없는 양의 정수여야 합니다.");
+                if (upgrade.InitCost <= 0 || upgrade.MaxLevel <= 0 || upgrade.CostGrowth < 0)
+                    _errors.Add("upgrades.csv: 비용·레벨 범위를 확인하세요.");
+            }
+            foreach (var target in d.Targets)
+            {
+                if (string.IsNullOrWhiteSpace(target.Id) || target.Hp <= 0 || target.CoinMult < 0 ||
+                    target.BreakBonus < 0 || target.StaminaRestore < 0 || target.MoveSpeed < 0 || target.TurnIntervalSec <= 0)
+                    _errors.Add("targets.csv: id 및 체력·보상·이동 수치 범위를 확인하세요.");
+            }
+            foreach (var requiredId in new[] { "normal", "anchor", "runner", "tourist" })
+                if (!ids.Contains(requiredId))
+                    _errors.Add("targets.csv: 단계 출현 비율에 대응하는 대상이 없습니다: " + requiredId);
+
+            if (d.Economy.BaseHitPower <= 0 || d.Economy.HoverSwingIntervalSec <= 0 ||
+                d.Economy.AutoHammerCountInit < 0 || d.Economy.AutoHammerPower <= 0 ||
+                d.Economy.AutoHammerHitsPerSec <= 0 || d.Economy.SpawnIntervalSec < 0 ||
+                d.Economy.HitRadiusBonusPercent < 0 || d.Economy.CoinBonusMultiplier <= 0 ||
+                d.Economy.UpgradeCostGrowth < 1 || d.Economy.StageGoalGrowth < 1)
+                _errors.Add("economy.csv: 타격·스폰·배율 수치 범위를 확인하세요.");
+            if (d.Stamina.MoveDrainPerUnit != 0 || d.Stamina.HitDrainPerSwing != 0 || d.Stamina.FeverDrainMultiplier != 1)
+                _errors.Add("stamina.csv: MVP는 시간 감소만 사용합니다. 이동·타격 소모는 0, 피버 감소 배율은 1이어야 합니다.");
+            if (d.Fever.GaugeMax <= 0 || d.Fever.GaugePerHit <= 0 || d.Fever.GaugeDecayPerSec < 0 ||
+                d.Fever.DecayGraceSec < 0 || d.Fever.DurationSec <= 0 || d.Fever.CoinMultiplier < 1)
+                _errors.Add("fever.csv: 게이지·지속 시간·배율 범위를 확인하세요.");
+            if (d.Bill.DueDays <= 0 || d.Bill.LoanUnlockBillIndex < 1 || d.Bill.LoanCooldownDays < 0 ||
+                d.Bill.LoanMaxConcurrent != 1 || d.Bill.LoanDailyCutMin < 0 || d.Bill.LoanDailyCutMax >= 1)
+                _errors.Add("bills.csv: 납부·대출 범위를 확인하세요. 징수율은 0 이상 1 미만, 동시 대출은 1건입니다.");
 
             if (d.Bill.LoanDailyCutMin > d.Bill.LoanDailyCutMax)
-                Errors.Add("bills.csv: loan_daily_cut_min 이 loan_daily_cut_max 보다 큽니다.");
+                _errors.Add("bills.csv: loan_daily_cut_min 이 loan_daily_cut_max 보다 큽니다.");
             if (d.Bill.LoanInterestRate < 0f)
-                Errors.Add("bills.csv: loan_interest_rate 가 음수입니다.");
-        }
-
-        /// <summary>BALANCE.md 2절과 동일한 가정으로 런 길이를 추정한다.</summary>
-        private static float EstimateRunLength(BalanceData d)
-        {
-            var perSec = d.Stamina.IdleDrainPerSec
-                         + d.Stamina.MoveDrainPerUnit * AssumedMoveSpeed
-                         + AssumedHoverUptime / AutoSwingInterval * d.Stamina.HitDrainPerSwing;
-            return perSec <= 0 ? float.MaxValue : d.Stamina.Max / perSec;
-        }
-
-        private static string DescribeRun(BalanceData d)
-        {
-            var active = EstimateRunLength(d);
-            var idle = d.Stamina.Max / d.Stamina.IdleDrainPerSec;
-            var gap = 100f * (1f - active / idle);
-
-            // 이동·타격 소모가 0이면 플레이 성향과 무관하게 런 길이가 같다.
-            // 그때 "0% 단축"을 찍는 것은 의미가 없으므로 문구를 바꾼다.
-            if (gap < 0.5f)
-                return string.Format(
-                    "예상 런 길이: {0:0.0}초 (시간 기반 — 플레이 성향과 무관하게 일정)", active);
-
-            return string.Format(
-                "예상 런 길이: 적극 플레이 {0:0.0}초 / 완전 방치 {1:0.0}초 ({2:0}% 단축)",
-                active, idle, gap);
+                _errors.Add("bills.csv: loan_interest_rate 가 음수입니다.");
         }
 
         // ---------- CSV 읽기 ----------
@@ -332,7 +354,10 @@ namespace NCAIClicker.EditorTools
                 string k;
                 if (!r.TryGetValue("key", out k) || string.IsNullOrEmpty(k.Trim())) continue;
                 string v;
-                dict[k.Trim()] = r.TryGetValue("value", out v) ? v : "";
+                if (dict.ContainsKey(k.Trim()))
+                    _errors.Add(fileName + ": 키가 중복입니다: " + k.Trim());
+                else
+                    dict[k.Trim()] = r.TryGetValue("value", out v) ? v : "";
             }
             return dict;
         }
@@ -343,35 +368,44 @@ namespace NCAIClicker.EditorTools
             foreach (var r in ReadCsv(fileName))
             {
                 try { result.Add(map(r)); }
-                catch (Exception e) { Errors.Add(fileName + ": 행 변환 실패 — " + e.Message); }
+                catch (Exception e) { _errors.Add(fileName + ": 행 변환 실패 — " + e.Message); }
             }
-            if (result.Count == 0) Errors.Add(fileName + ": 읽어들인 행이 없습니다.");
+            if (result.Count == 0) _errors.Add(fileName + ": 읽어들인 행이 없습니다.");
             return result;
         }
 
         private static List<Dictionary<string, string>> ReadCsv(string fileName)
         {
             var rows = new List<Dictionary<string, string>>();
-            var path = Path.Combine(CsvDir, fileName);
+            var path = Path.Combine(_csvDirectory, fileName);
 
             if (!File.Exists(path))
             {
-                Errors.Add(fileName + " 을 찾을 수 없습니다 (" + path + ").");
+                _errors.Add(fileName + " 을 찾을 수 없습니다 (" + path + ").");
                 return rows;
             }
 
             var lines = File.ReadAllLines(path, Encoding.UTF8);
             if (lines.Length < 2)
             {
-                Errors.Add(fileName + ": 헤더 외에 데이터가 없습니다.");
+                _errors.Add(fileName + ": 헤더 외에 데이터가 없습니다.");
                 return rows;
             }
 
             var header = SplitCsvLine(lines[0]);
+            var headerNames = new HashSet<string>();
+            foreach (var name in header)
+                if (string.IsNullOrWhiteSpace(name) || !headerNames.Add(name.Trim()))
+                    _errors.Add(fileName + ": 빈 헤더 또는 중복 헤더가 있습니다.");
             for (var i = 1; i < lines.Length; i++)
             {
                 if (string.IsNullOrEmpty(lines[i].Trim())) continue;
                 var cells = SplitCsvLine(lines[i]);
+                if (cells.Count != header.Count)
+                {
+                    _errors.Add(fileName + ": " + (i + 1) + "행의 열 수가 헤더와 다릅니다.");
+                    continue;
+                }
                 var row = new Dictionary<string, string>();
                 for (var c = 0; c < header.Count; c++)
                     row[header[c].Trim()] = c < cells.Count ? cells[c].Trim() : "";
@@ -405,6 +439,7 @@ namespace NCAIClicker.EditorTools
                     sb.Append(ch);
                 }
             }
+            if (inQuotes) _errors.Add("CSV의 닫히지 않은 따옴표가 있습니다. 셀 안 줄바꿈은 지원하지 않습니다.");
             cells.Add(sb.ToString());
             return cells;
         }
@@ -417,7 +452,7 @@ namespace NCAIClicker.EditorTools
             string raw;
             if (!d.TryGetValue(key, out raw))
             {
-                Errors.Add("필수 키 '" + key + "' 가 없습니다.");
+                _errors.Add("필수 키 '" + key + "' 가 없습니다.");
                 return 0f;
             }
             return ToFloat(raw, key);
@@ -426,13 +461,31 @@ namespace NCAIClicker.EditorTools
         private static float ToFloat(string s, string ctx = null)
         {
             float v;
-            if (float.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out v)) return v;
-            Errors.Add("숫자로 읽을 수 없습니다: '" + s + "'" + (ctx == null ? "" : " (" + ctx + ")"));
+            if (float.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out v) &&
+                !float.IsNaN(v) && !float.IsInfinity(v)) return v;
+            _errors.Add("숫자로 읽을 수 없습니다: '" + s + "'" + (ctx == null ? "" : " (" + ctx + ")"));
             return 0f;
         }
 
-        private static int ToInt(string s) { return Mathf.RoundToInt(ToFloat(s)); }
+        private static int ReqInt(Dictionary<string, string> data, string key)
+        {
+            if (data.TryGetValue(key, out var value)) return ToInt(value);
+            _errors.Add("필수 키 '" + key + "' 가 없습니다.");
+            return 0;
+        }
 
-        private static long ToLong(string s) { return (long)Math.Round((double)ToFloat(s)); }
+        private static int ToInt(string value)
+        {
+            if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result)) return result;
+            _errors.Add("정수로 읽을 수 없습니다: '" + value + "'");
+            return 0;
+        }
+
+        private static long ToLong(string value)
+        {
+            if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result)) return result;
+            _errors.Add("64비트 정수로 읽을 수 없습니다: '" + value + "'");
+            return 0;
+        }
     }
 }

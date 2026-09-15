@@ -73,7 +73,7 @@ flowchart LR
   events{{"GameEvents<br/>(정적 이벤트)"}}
 
   input --> hit
-  hit -- "OnHitLanded 발행<br/>(가공 전 원시값)" --> events
+  hit -- "OnTargetBroken 발행<br/>(가공 전 파괴 보상)" --> events
   events -- "구독" --> econ
 ```
 
@@ -118,3 +118,9 @@ Mermaid는 구조도 말고도 쓸모가 많다 — `sequenceDiagram`(호출 순
 **이게 기술 문서를 계속 쌓으라는 진짜 이유다.** 대조할 기준이 없으면 "쎄하다"는 느낌을
 확인할 방법이 없다. 놓친 것이 누적되면 나중에는 걷잡을 수 없이 커지고, 규모가 커진 뒤에는
 AI에게 시켜도 제대로 못 고친다.
+
+## 구현된 기능 문서
+
+- [밸런스 임포트](balance-import.md) — 검증 후 반영, GUID 보존, 회귀 검증
+- [진행 대시보드](project-dashboard.md) — 선행 파서와 전체 페이지 조회
+- [초기 PC 설정](project-setup.md) — 창·리로드·검증 범위

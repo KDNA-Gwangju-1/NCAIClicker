@@ -84,139 +84,176 @@ AudioManager     SFX/BGM
 
 ## 2. 공용 인터페이스
 
-작업 1.2.1 에서 아래 시그니처를 고정한다.
+2026-09-16 초기 세팅 정정(#46). 아래는 **구현 전 계약**이며 현재 게임 매니저가 구현됐다는 뜻이 아니다.
+다른 매니저 구현 클래스를 직접 참조하지 않는다. 요청·조회는 아래 인터페이스로, 상태 변화는 3절 이벤트로 전달한다.
 
 ```csharp
 public enum HitSource { Hover, AutoHammer }
 
-public readonly struct HitInfo {
-    public readonly HitSource Source;   // 연출·정확도 집계 구분용 (스태미나는 타격과 무관하게 시간으로 닳는다)
-    public readonly long RawCoin;       // 배율·페널티 적용 전 원시 획득량
-    public readonly Vector3 WorldPos;   // 숫자 팝업·파티클 위치 (3D 씬이므로 높이가 필요하다)
+public readonly struct HitInfo
+{
+    public HitSource Source { get; }
+    public float Damage { get; }       // 내구도를 깎는 양. 코인과 무관
+    public Vector3 WorldPos { get; }
+    public HitInfo(HitSource source, float damage, Vector3 worldPos)
+    {
+        Source = source;
+        Damage = damage;
+        WorldPos = worldPos;
+    }
 }
 
-public interface IHittable {
-    void OnHit(HitInfo info);      // 호버 자동 스윙 및 자동 망치가 호출
+public interface IHittable
+{
+    void OnHit(HitInfo info);
     bool IsAlive { get; }
 }
 
-// 코인은 타격마다가 아니라 **대상이 파괴될 때** 한 번에 지급한다 (GDD 4절).
-// 타격은 내구도만 깎는다. 다 못 부수고 런이 끝난 대상은 0원이다.
-public readonly struct BreakInfo {
-    public readonly string TargetId;     // targets.csv 의 id
-    public readonly long RawCoin;        // hp × coin_mult + break_bonus, 배율 적용 전
-    public readonly float StaminaRestore; // 회복형이 돌려주는 스태미나. 그 외는 0
-    public readonly Vector3 WorldPos;
+public readonly struct BreakInfo
+{
+    public string TargetId { get; }
+    public decimal RawCoin { get; }    // 최대 hp × coin_mult + break_bonus
+    public float StaminaRestore { get; }
+    public Vector3 WorldPos { get; }
+    public BreakInfo(string targetId, decimal rawCoin, float staminaRestore, Vector3 worldPos)
+    {
+        TargetId = targetId;
+        RawCoin = rawCoin;
+        StaminaRestore = staminaRestore;
+        WorldPos = worldPos;
+    }
 }
 
-public interface IBillService {
-    int CurrentDay { get; }        // 런 1회 = 하루
-    int DaysLeft { get; }          // 현재 청구서 마감까지 남은 일수. 0 에서 미납이면 파산
-    float LoanDailyCut { get; }    // 대출 상환 전까지 매일 징수되는 수입 비율 (0 이면 대출 없음)
-    bool TryPay(Bill bill);        // 조기 납부 포함
-    bool TryTakeLoan(long amount); // 두 번째 청구서부터, 동시 1건
+public interface IBillService
+{
+    int CurrentDay { get; }
+    int DaysLeft { get; }              // max(0, DueDay - CurrentDay + 1)
+    float LoanDailyCut { get; }        // 대출이 없으면 0
+    bool TryPay(Bill bill);
+    bool TryTakeLoan(long amount);     // 두 번째 청구서부터, 동시 1건
+    bool TryRepayLoan();               // 전액 상환. 재대출 쿨다운 시작
 }
 
-public interface IEconomyService {
-    // amount 는 반드시 '가공 전 원시값'. 피버 배율과 대출 징수는
-    // EconomyManager 내부에서만 적용한다 (아래 계약 참고).
-    void AddCoin(long amount);
+public interface IEconomyService
+{
+    void AddCoin(decimal rawAmount);   // 파괴 보상만. 배율·징수 전 값
+    void AddLoanPrincipal(long amount);// 원금 입금. 배율·징수·RunCoin 집계 제외
     bool TrySpendCoin(long amount);
-    long CurrentCoin { get; }      // 누적 보유 코인
-    long RunCoin { get; }          // 이번 런에서 획득한 코인 (단계 목표 판정 기준)
+    long CurrentCoin { get; }
+    long RunCoin { get; }              // 이번 런 순수입의 정수 부분. 지출·대출 제외
 }
 
-public interface ISaveService {
+public interface ISaveService
+{
     SaveData Load();
     void Save(SaveData data);
 }
 
 [Serializable]
-public class Bill {
-    public long Amount;    // 청구 금액
-    public int IssuedDay;  // 도착한 날짜
-    public int DueDay;     // 이 날이 끝날 때까지 미납이면 파산
+public class Bill
+{
+    public long Amount;
+    public int IssuedDay;
+    public int DueDay;                 // IssuedDay + 기한 - 1, 이 날 종료 전에 납부
     public bool IsPaid;
 }
 
 [Serializable]
-public class Loan {
-    public long Principal;   // 빌린 금액
-    public long Owed;        // 상환해야 할 총액 (원금 + 이자)
-    public float DailyCut;   // 매일 징수되는 수입 비율. 이 징수분은 Owed 를 줄이지 않는다
-    public int RepaidDay;    // 완제한 날짜. 이후 쿨다운 동안 재대출 불가
+public class Loan
+{
+    public long Principal;
+    public long Owed;
+    public float DailyCut;             // 대출 시 1회 결정. 미상환 기간에 고정
 }
+
+public enum ResumePoint { MainMenu, Result, PerkSelection }
 
 [Serializable]
-public class SaveData {
-    public int Version = 1;       // 마이그레이션 판단용, 필드 추가 시 증가
+public class SaveData
+{
+    public int Version = 2;
     public long TotalCoin;
-    public int StageIndex;
+    public string CoinRemainder = "0"; // decimal을 InvariantCulture 문자열로 저장
+    public int StageIndex;             // 배열 인덱스: 0부터. StageDef.Stage는 1부터
     public long BestRunCoin;
-    public int[] UpgradeLevels;   // 인덱스 = upgrades.csv 의 sort_order 순서 (현재 4종)
+    public int[] UpgradeLevels;        // upgrades.csv sort_order 순
+    public int CurrentDay = 1;
+    public int BillIndex = 1;
+    public Bill ActiveBill;
+    public Loan ActiveLoan;            // 없으면 null
+    public int LastLoanRepaidDay = -1;  // 대출 객체를 지워도 쿨다운 유지
+    public ResumePoint ResumePoint;
+    public long LastRunCoin;
+    public int LastCompletedDay;
+    public bool WasBankrupt;
+    public bool IsCompleted;
+    public string[] OfferedPerkIds;    // 선택 화면을 다시 열어도 같은 후보
+    public string[] PendingPerkIds;    // 결과 화면에서 선택한 다음 런 효과
 }
 ```
 
-### 코인 배율 적용 계약
+### 저장 경계
 
-피버 배율과 대출 징수를 **호출측과 EconomyManager 양쪽에서 적용하는 이중 적용**은 코어 플레이과 성장·저장 경계에서 가장 나기 쉬운 버그다. 계약을 한쪽으로 고정한다.
+- 날짜·청구서·대출·쿨다운·퍼크 후보·선택 대기·소수 잔여를 **하나의 스냅샷**으로 저장한다.
+- 메뉴/결과 화면에서 구매·납부·대출·상환·퍼크 선택을 완료한 직후와 런 시작 직전에 저장한다.
+- 런 도중 종료하면 **그 런의 시작 스냅샷**으로 복귀한다. 그날의 수입·지출·납부·대출·퍼크 변경을 전부 함께 되돌린다. 씬의 대상 위치·남은 내구도는 저장하지 않는다. 중간 상태 일부만 저장해 재실행으로 빚만 지워지는 일을 막는다.
+- 하루 종료 처리가 끝나면 결과와 다음 행동 상태를 함께 저장한다. 로드 시 `LastCompletedDay`를 다시 정산하지 않는다.
+- 저장은 임시 파일 작성 후 교체한다. JSON 오류·지원하지 않는 버전은 원본을 백업하고 경고 후 초기화한다. 버전 1은 회차 정보가 없으므로 성장·코인은 유지하고 하루/청구서/대출을 기본값으로 보완한다.
+- 파산 시 보유 코인·소수 잔여·단계·날짜·청구서·대출·퍼크를 새 회차 값으로 초기화한다. 영구 업그레이드와 최고 기록은 유지한다. 파산 결과는 `WasBankrupt`와 `LastCompletedDay`로 별도 표시한다.
 
-- 호출측(PiggyManager, 자동 망치)은 `HitInfo.RawCoin`에 **가공 전 원시값만** 담아 넘긴다.
-- 피버 배율, 보너스 배율, 대출 징수는 **EconomyManager 내부에서만** 순서대로 적용한다.
-- 최종 지급액은 `OnCoinEarned` 이벤트로 방송하며, UI는 이 값만 표시한다 — UI가 배율을 다시 곱하지 않는다.
+### 코인 계산·정산 계약
 
-```text
-지급액 = RawCoin × 피버 배율 × 보너스 배율 × (1 - 대출 일일 징수율)
-```
+1. 호버/자동 망치는 `HitInfo.Damage`만 전달한다. 대상의 현재 내구도는 `float`로 계산하여 작은 자동 망치 피해도 누적한다.
+2. 대상이 살아 있음 → 파괴됨으로 바뀔 때 `OnTargetBroken`을 **한 번만** 발행한다. 원시 보상은 초기 최대 내구도로 계산하며 마지막 남은 내구도를 쓰지 않는다.
+3. EconomyManager가 파괴 이벤트를 받아 `AddCoin`을 호출한다. 호출측은 피버·보너스·대출 계수를 곱하지 않는다. 같은 파괴에서 이벤트와 직접 입금을 동시에 호출하지 않는다.
+4. decimal로 `rawAmount × 피버 × 보너스 × (1 - 대출 징수율)`을 계산한다. CSV의 float 배율은 곱하기 **전에** decimal로 변환한다.
+5. 지갑은 `기존 소수 잔여 + 순수입`의 정수 부분만 입금하고 소수는 보관한다. `RunCoin`은 **이번 런 순수입만 별도로 합산한 뒤** 정수 부분을 표시한다. 전날 잔여, 대출 원금, 업그레이드·청구서 지출은 단계 목표에 영향을 주지 않는다.
+6. `OnCoinEarned`는 이번에 지갑에 들어간 정수 증분, `OnBalanceChanged`는 지갑 현재값, `OnRunCoinChanged`는 런 순수입 정수값이다. UI는 목적에 맞는 이벤트를 쓰며 배율을 재적용하지 않는다.
+7. 바닥 코인은 연출만 담당한다. 런 종료 시 연출을 회수해도 재지급하지 않는다. 소수 잔여는 회차 안에서 이월·저장하고 파산 시 버린다.
+8. 대출 원금은 `AddLoanPrincipal`로 입금한다. 이자 포함 상환액은 소수 부분을 올림해 정수로 확정한다. 수입 징수는 부채를 줄이지 않는다.
 
-`OnBankrupt`와 `OnStaminaDepleted`는 **둘 다 GameManager만 구독해 Result로 전이시킨다.** 다른 매니저가 각자 구독해 정리 로직을 돌리면 종료 처리 순서가 매번 달라져 "파산했는데 코인이 100% 정산되는" 류의 버그가 난다. 종료 절차는 GameManager가 단독으로 순서를 정해 호출한다.
+### 하루 종료 순서
 
-**근거**: 타격 판정(`IHittable`)과 재화 처리(`IEconomyService`)를 인터페이스로 분리해두면, 코어 플레이과 성장·저장 담당자가 서로의 구현 세부사항 없이도 각자 프리팹·스크립트를 독립적으로 작업할 수 있다. `ISaveService`는 UI·연출의 결과 화면이 저장 로직 내부 구현을 몰라도 되게 한다.
+GameManager만 `OnStaminaDepleted`와 `OnBankrupt`를 구독해 종료 순서를 조정한다.
+입력·스윙 중지 → 확정된 파괴 보상 처리 완료 → 런 목표 판정 → 마감일이면 납부/대출 선택 →
+미납 확정 시 파산 → 결과 스냅샷 저장 순이다. 마감 판정 전에 납부 기회를 제공한다.
+`OnDayEnded`는 날짜당 한 번만 발행한다. 다음 날 시작 때 날짜를 증가시키며,
+이미 발행한 청구서의 금액·마감은 단계 상승으로 소급 변경하지 않는다.
+청구서는 동시에 한 장이며, 납부 후 다음 청구서는 **다음 날 시작 시** 당시 단계값으로 발행한다.
+게임 시작과 파산 재시작에도 첫 청구서를 발행한다.
 
 ## 3. 이벤트 버스
 
-정적 클래스 하나(`GameEvents`)에 C# `event Action<T>`를 모아 사용한다.
+기존 공유 이름 `GameEvents.On...`은 유지한다. 발행 메서드는 `Publish...`로 구분하고 이벤트를 클래스 밖에서 직접 Invoke하지 않는다.
 
-```csharp
-public static class GameEvents {
-    // --- 경제 ---
-    public static event Action<long> OnCoinEarned;   // 최종 지급액 (배율 적용 후). UI 는 이 값만 표시
-    public static event Action<Bill> OnBillIssued;
-    public static event Action<Bill> OnBillPaid;
-    public static event Action<int> OnDayEnded;      // 인자 = 종료된 날짜
-    public static event Action<int> OnBillDueSoon;   // 인자 = 남은 일수 (HUD 경고용)
-    public static event Action OnBankrupt;           // 마감일 미납 — 회차 종료
+| 이벤트 | 인자 | 용도 |
+|---|---|---|
+| `OnCoinEarned` | `long` | 지갑 정수 입금 증분, 파괴 수입만 |
+| `OnBalanceChanged` | `long` | 입금·지출·대출·로드 후 지갑 현재값 |
+| `OnRunCoinChanged` | `long` | 런 순수입 현재값, 런 시작 시 0 |
+| `OnBillIssued`, `OnBillPaid` | `Bill` | 청구서 발행/납부 |
+| `OnDayEnded` | `int` | 완료된 날짜 |
+| `OnBillDueSoon` | `int` | 남은 일수 |
+| `OnBankrupt` | 없음 | 마감 선택 후 미납 확정 |
+| `OnTargetBroken` | `BreakInfo` | 파괴 보상의 유일한 출처 |
+| `OnSwingResolved` | `HitSource, bool` | 소스와 적중 여부. 정확도는 Hover만, 피버는 적중만 |
+| `OnStaminaChanged` | `float, float` | 현재/최대 스태미나 |
+| `OnStaminaRestored` | `float` | 실제 회복된 양. 명령이 아니므로 재회복하지 않는다 |
+| `OnStaminaDepleted` | 없음 | 런 종료 요청 |
+| `OnFeverGaugeChanged` | `float, float` | 현재/최대 피버 게이지 |
+| `OnFeverStart`, `OnFeverEnd` | 없음 | 피버 상태 변화 |
 
-    // --- 타격 ---
-    public static event Action<BreakInfo> OnTargetBroken;  // 대상 파괴. 코인 지급의 유일한 출처
-    public static event Action<bool> OnSwingResolved;      // 스윙 1회 결과. true = 적중
-                                                           // 정확도(적중/전체 스윙) 집계용
+선언은 `public static event Action<...>` 형식이다. 피버는 두 소스의 적중을 받아도 되지만,
+자동 망치를 정확도 분모·분자에 넣지 않는다. UI는 구독 후 공용 조회 인터페이스로 초기 상태를 한 번 읽는다.
+게이지 값이 실제로 바뀐 경우에만 발행하고, 지속 감소로 매 프레임 바뀌면 UI 갱신을 묶는다.
 
-    // --- 스태미나 ---
-    public static event Action<float, float> OnStaminaChanged;  // (현재값, 최대값) HUD 숫자 병기용
-    public static event Action<float> OnStaminaRestored;        // 회복형 파괴 등으로 회복된 양
-    public static event Action OnStaminaDepleted;
+### 구독과 초기화
 
-    // --- 피버 ---
-    public static event Action<float, float> OnFeverGaugeChanged; // (현재값, 최대값) 하단 게이지용
-    public static event Action OnFeverStart;
-    public static event Action OnFeverEnd;
-}
-```
-
-> `OnStaminaChanged` 와 `OnFeverGaugeChanged` 는 **매 프레임 쏘지 않는다.** 값이 실제로 바뀐
-> 프레임에만 발행하고, 그마저 잦으면 UI 쪽에서 0.1초 간격으로 묶어 갱신한다. 게이지는 사람 눈에
-> 그 이상 빠를 필요가 없고, 매 프레임 이벤트는 GC 스파이크의 흔한 원인이다.
-
-**근거**: 메시징 프레임워크(예: UniRx, MessagePipe)를 새로 들이는 대신 C# 기본 이벤트만으로 "직접 참조 차단" 요구를 만족시킬 수 있다. 새 패키지 의존성을 늘리지 않는 편이 7일 일정에 안전하다.
-
-### 구독 해제 규칙 (필수)
-
-정적 이벤트는 씬을 다시 로드해도 구독이 남는다. 5명이 각자 구독하는 구조에서 이를 방치하면 **코인이 2배로 지급되거나, 파괴된 오브젝트를 참조해 `MissingReferenceException`이 뜨는** 증상으로 나타난다. 원인 추적이 오래 걸리는 부류의 버그이므로 규칙으로 강제한다.
-
-- 구독은 `OnEnable`, 해제는 `OnDisable`에 **쌍으로** 작성한다. `Start`에서 구독하고 해제를 생략하지 않는다.
-- `GameEvents`에 모든 이벤트를 `null`로 되돌리는 `ResetAll()`을 두고, GameManager가 런 시작 직전에 호출한다.
-- Editor의 **Enter Play Mode Options(도메인 리로드 비활성화)를 켜지 않는다.** 켜면 정적 상태가 플레이 세션 사이에 그대로 남아 같은 증상이 재현된다.
+- 구독은 `OnEnable`, 해제는 `OnDisable`에 쌍으로 작성한다.
+- `ResetAll()`은 `RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)`에서 **최초 구독 전에 한 번만** 실행한다. `BeforeSceneLoad` 매니저 생성보다 앞선다.
+- **런 시작·재도전·씬 전환에서는 ResetAll을 호출하지 않는다.** DontDestroyOnLoad 매니저가 계속 활성 상태이면 OnEnable이 다시 실행되지 않기 때문이다.
+- 런별 수치만 별도 초기화한다. 정적 구독 목록을 런 데이터처럼 지우지 않는다.
+- Enter Play Mode Options를 끄고 도메인/씬 리로드를 유지한다.
 
 ## 4. 타격 대상 AI — FSM 채택
 
@@ -235,7 +272,7 @@ Idle → Moving → (호버 감지) BeingHit → (조건 충족) Fleeing → Mov
 | 시점 | 방법 | 목적 |
 |---|---|---|
 | 작업 7.1 (1차 통합 빌드 직후) | Unity Profiler CPU/Rendering 모듈 | Canvas 리빌드 과다, 드로우콜·그림자 캐스터 과다, `Update()` 남용 등 흔한 실수 조기 발견 |
-| 작업 7.3 (배포 후보 빌드) | Development Build + Profiler, Frame Debugger, Memory 모듈 | 드로우콜 수, GC 스파이크(파티클·숫자 팝업 인스턴스화) 정식 점검 |
+| 작업 7.4 (배포 후보 빌드 후) | Development Build + Profiler, Frame Debugger, Memory 모듈 | 드로우콜 수, GC 스파이크(파티클·숫자 팝업 인스턴스화) 정식 점검 |
 
 **성능 예산** (킥오프에서 팀 합의):
 - 1920×1080 기준 60fps 유지

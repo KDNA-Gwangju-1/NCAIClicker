@@ -43,6 +43,7 @@ namespace NCAIClicker.Data
     public class EconomyConfig
     {
         public float BaseHitPower;
+        public float HoverSwingIntervalSec;
         public int AutoHammerCountInit;
         public float AutoHammerPower;
         public float AutoHammerHitsPerSec;

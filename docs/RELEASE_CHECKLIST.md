@@ -20,7 +20,7 @@
 
 ### 체크리스트
 
-- [ ] 폰트 파일을 `Assets/Fonts/` 에 배치 (`.ttf`/`.otf`)
+- [ ] 폰트 파일을 `Assets/ThirdParty/Fonts/` 원본 및 `Assets/Materials/Fonts/` 생성 TMP 에셋 에 배치 (`.ttf`/`.otf`)
 - [ ] TextMeshPro Font Asset 생성 — **Atlas Population Mode 를 `Dynamic` 으로**
   - 한글은 완성형만 11,172자다. Static 아틀라스로 전부 구우면 텍스처가 수십 MB가 되고 빌드가 무거워진다. Dynamic은 실제로 쓰인 글자만 런타임에 채운다.
   - 단, Dynamic은 첫 등장 시 아틀라스를 갱신하므로 **인게임 중 처음 뜨는 문구에서 한 프레임 튈 수 있다.** HUD에 쓰는 고정 문구("스태미나", "코인", 숫자 0~9)는 Static 아틀라스로 미리 구워두고, 나머지를 Dynamic으로 두는 혼합이 가장 안전하다.
@@ -47,14 +47,14 @@ git config --global merge.unityyamlmerge.driver '"C:/Program Files/Unity/Hub/Edi
 
 ## 3. Player Settings — 오늘 잡고 작업 8.2 에서 재확인
 
-- [x] Product Name = `NCAIClicker`, Company Name = `KDNA-Gwangju-1` 설정 완료
-  - 저장 경로가 `%USERPROFILE%/AppData/LocalLow/KDNA-Gwangju-1/NCAIClicker/` 로 정해졌다. **바꾸려면 세이브가 생기기 전인 지금뿐이다** — 저장 기능이 붙은 뒤에 바꾸면 기존 세이브를 못 읽는다
+- [x] Product Name = `NCAIClicker`, Company Name = `NCAITeamTwo` 설정 완료
+  - 저장 경로가 `%USERPROFILE%/AppData/LocalLow/NCAITeamTwo/NCAIClicker/` 로 정해졌다. **바꾸려면 세이브가 생기기 전인 지금뿐이다** — 저장 기능이 붙은 뒤에 바꾸면 기존 세이브를 못 읽는다
 - [x] 게임명 확정 — `NCAIClicker`
 - [ ] 아이콘 (Default Icon)
-- [ ] 해상도: Fullscreen Mode = `Windowed` 또는 `Fullscreen Window`, 기본 해상도 1920×1080
-- [ ] Resizable Window 허용 여부 결정 — 16:9 고정이라면 꺼두는 편이 HUD 깨짐을 막는다
+- [x] 기본 PC 창: Windowed, 1920×1080, native resolution 사용 해제 (ProjectSetup 적용)
+- [x] Resizable Window 및 Alt+Enter 전체화면 전환 해제. 다른 화면 비율·작은 모니터에서 16:9 유지와 HUD 배치는 최종 빌드에서 별도 검증한다
 - [ ] Scripting Backend: Mono (기본). IL2CPP는 빌드가 훨씬 오래 걸려 7일 일정에 불리하다. 성능 문제가 실측으로 확인되기 전에는 바꾸지 않는다
-- [ ] Unity Personal 라이선스면 스플래시 화면은 끌 수 없다 — 시연 영상 길이 계산에 포함할 것
+- [ ] 스플래시 표시 여부는 현재 Unity 버전·라이선스에서 확인한다. 예전 Unity Personal 제한을 현재 버전에 그대로 적용하지 않는다
 
 ### URP 렌더러
 
@@ -71,7 +71,7 @@ git config --global merge.unityyamlmerge.driver '"C:/Program Files/Unity/Hub/Edi
 
 ## 4. 서드파티 라이선스 고지 — 오늘
 
-폰트, 효과음, 스프라이트 중 외부에서 가져온 것은 전부 출처와 라이선스를 기록한다. **에셋스토어 무료 에셋도 예외가 아니다.**
+폰트, 효과음, 모델·텍스처 중 외부에서 가져온 것은 전부 출처와 라이선스를 기록한다. **에셋스토어 무료 에셋도 예외가 아니다.**
 
 - [ ] `LICENSES/` 폴더에 각 라이선스 전문 파일 배치 (예: `LICENSES/NanumGothic-OFL.txt`)
 - [ ] `docs/THIRD_PARTY.md` 에 표로 정리: 이름 / 출처 URL / 라이선스 / 용도
@@ -109,3 +109,5 @@ git config --global merge.unityyamlmerge.driver '"C:/Program Files/Unity/Hub/Edi
 - [ ] 게임 재실행 후 성장 데이터 유지
 - [ ] 1920×1080 외 해상도(1280×720, 2560×1440)에서 HUD 안 깨짐
 - [ ] 치명적 런타임 오류 없음
+
+초기 설정 재적용: `NCAI > PC 초기 설정 적용`. Company/Product Name과 씬은 이 도구에서 변경하지 않는다.

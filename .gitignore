@@ -46,6 +46,7 @@ Thumbs.db
 .claude/cache/
 .claude/locks/
 .claude/**/__pycache__/
+__pycache__/
 
 # 원작 조사용 유튜브 자막 — 타인의 저작물이므로 저장소에 올리지 않는다.
 # 조사 결과는 docs/research/ORIGINAL_GAME_NOTES.md 에 정리한다.

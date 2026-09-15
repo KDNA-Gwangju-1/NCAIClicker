@@ -1,5 +1,5 @@
 upgrade_id,stat,effect_type,value_per_level,note
-strong_hammer,base_hit_power,add,0.35,레벨당 타격 코인 +0.35
+strong_hammer,base_hit_power,add,0.35,레벨당 타격 피해량 +0.35
 strong_hammer,hit_radius,percent,2,레벨당 피격 판정 반경 +2%
 auto_hammer,auto_hammer_count,add,1,레벨당 자동 망치 +1기
 fever_boost,fever_duration,add,0.5,레벨당 피버 지속 +0.5초

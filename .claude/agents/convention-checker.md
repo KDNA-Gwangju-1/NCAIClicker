@@ -37,11 +37,11 @@ tools: Read, Grep, Glob
 5. **`Assets/GameData/Generated/BalanceData.asset` 직접 편집 흔적**.
 6. **네이밍** (`AGENTS.md` "명명", `.editorconfig`)
    - private 필드 `_camelCase`, 클래스·메서드·프로퍼티 `PascalCase`
-   - **`public` 필드가 있으면 위반** — getter 프로퍼티나 `[SerializeField] private` 로 바꾼다
+   - public 필드 허용 여부는 `AGENTS.md` 명명 절의 **직렬화 데이터 예외까지** 읽고 판단한다. 규칙을 이 파일에 별도로 복제하지 않는다
    - 인터페이스 `I` 접두어, 메서드는 동사로 시작, `bool` 반환·필드는 질문형/동사 접두어
    - 이벤트는 동사구, 발생 메서드는 `On` 접두어
    - **파일명·폴더명에 한글이나 공백이 있으면 위반** (macOS NFD 문제). 문서·에셋 포함
-7. **스크립트 배치** — `Assets/Scripts/Runtime/<모듈>/` 규칙(AGENTS.md "명명과 배치")에 맞는가.
+7. **스크립트 배치** — `AGENTS.md` 폴더 배치 절을 따른다. Editor 전용 코드는 `Assets/Scripts/Editor/`, 런타임은 `Assets/Scripts/Runtime/`이며 빈 모듈 폴더를 미리 만들지 않는다.
 8. **씬·프리팹 파일을 텍스트로 직접 수정한 흔적** — `.unity`/`.prefab` diff가 있으면 보고한다.
 9. **타격 대상 프리팹 구조** — 로직은 루트, 메시는 `Visual` 자식.
 

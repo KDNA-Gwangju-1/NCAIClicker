@@ -35,7 +35,7 @@ NCAI 과정 팀 프로젝트. 5명이 7일간 Unity로 만드는 **시간 제한
 
 ### 코드
 
-- 매니저는 싱글톤, 통신은 `GameEvents` 정적 이벤트. 스크립트 간 직접 참조 금지.
+- 매니저는 싱글톤을 출발점으로 삼고, 상태 변화는 `GameEvents` 정적 이벤트로 알린다. 다른 매니저 구현 클래스를 직접 참조하지 않는다. 요청·조회는 ARCHITECTURE의 공용 인터페이스를 사용하고, 초기화·종료 순서는 GameManager가 조정한다.
 - 정적 이벤트는 `OnEnable` 구독 / `OnDisable` 해제를 **쌍으로** 쓴다. 빠뜨리면 코인이 두 배로 들어오는 버그가 난다.
 - 코인 배율과 대출 징수는 **EconomyManager 안에서만** 적용한다. 호출측은 가공 전 원시값만 넘긴다.
 - Editor의 Enter Play Mode Options(도메인 리로드 비활성화)를 켜지 않는다.
@@ -84,6 +84,7 @@ Assets/
   (`IsGameOver`, `HasStartedTurn`), `bool` 필드도 동사 접두어를 쓴다 (`isDead`, `_isFeverActive`).
 - **public 필드를 만들지 않는다.** 밖에서 읽어야 하면 getter 프로퍼티로 연다
   (`public int Score { get; private set; }`). 인스펙터 노출은 `[SerializeField] private` 로 한다.
+  - **직렬화 데이터만 예외**: CSV 산출물 `BalanceData` 및 그 `[Serializable]` 데이터 클래스, 저장 DTO는 Unity 직렬화용 public 필드를 허용한다. 런타임 매니저·컴포넌트에는 적용하지 않는다. 생성 밸런스 데이터는 런타임에서 읽기만 하며 업그레이드 결과는 별도 상태에 계산한다.
 - 이벤트는 상태 변화를 나타내는 동사구로 (`DoorOpened`), 발생시키는 메서드는 `On` 접두어로
   (`OnDoorOpened`). 델리게이트는 `System.Action` 을 쓴다.
 - 에셋 파일도 `PascalCase` 로 짓는다 (`HammerBase.fbx`, `CoinPickup.wav`). 공백·한글·숫자 접두 금지.
