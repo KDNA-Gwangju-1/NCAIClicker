@@ -2,6 +2,7 @@
 """Fetch the KDNA-Gwangju-1/NCAIClicker project board via GraphQL and render a static HTML kanban dashboard."""
 import html
 import json
+import re
 import os
 import subprocess
 import sys
@@ -37,6 +38,7 @@ query($owner: String!, $number: Int!) {
               number
               url
               state
+              body
               assignees(first: 5) { nodes { login } }
             }
           }
@@ -63,6 +65,76 @@ def fetch_items():
     )
     data = json.loads(result.stdout)
     return data["data"]["organization"]["projectV2"]["items"]["nodes"]
+
+
+TASK_RE = re.compile(r"^([0-9]+(?:[.][0-9]+)*)\s")
+DEP_RE = re.compile(r"[*][*]선행[*][*]:\s*(.+)")
+
+
+def task_no(item):
+    """카드 제목 앞의 작업 번호. '2.3 커서 조준...' → '2.3'"""
+    c = item.get("content") or {}
+    m = TASK_RE.match(c.get("title") or "")
+    return m.group(1) if m else None
+
+
+def parse_deps(body, all_numbers):
+    """이슈 본문의 **선행** 줄을 작업 번호 목록으로 푼다.
+
+    '없음 — 바로 착수 가능' → []
+    '1.3.2, 2.3'           → ['1.3.2', '2.3']
+    '3.x'                  → 3 으로 시작하는 모든 작업 (묶음 전체)
+    """
+    m = DEP_RE.search(body or "")
+    if not m:
+        return []
+    raw = m.group(1).strip()
+    if raw.startswith("없음") or raw in ("-", "—", "(없음)"):
+        return []
+    deps = []
+    for token in raw.split(","):
+        token = token.strip()
+        if not token:
+            continue
+        if token.endswith(".x") or token.endswith(".*"):
+            prefix = token[:-2] + "."
+            deps += [n for n in all_numbers if n.startswith(prefix)]
+        elif TASK_RE.match(token + " "):
+            deps.append(token)
+    return deps
+
+
+def dependency_report(items):
+    """선행이 전부 끝난 카드(착수 가능)와 아직 막힌 카드를 나눈다.
+
+    GitHub Projects 에는 의존성 기능이 없다. 이슈 본문의 **선행** 줄을 읽어
+    여기서 직접 계산한다 — 사람이 라벨이나 컬럼을 손으로 옮기지 않아도 되게 하려는 것.
+    """
+    by_no = {}
+    for it in items:
+        n = task_no(it)
+        if n:
+            by_no[n] = it
+    all_numbers = list(by_no)
+
+    def is_done(n):
+        it = by_no.get(n)
+        if not it:
+            return False  # 이슈가 없는 선행은 안 끝난 것으로 본다
+        c = it.get("content") or {}
+        return c.get("state") == "CLOSED" or field_value(it, "Status") == "Done"
+
+    ready, blocked = [], []
+    for n, it in by_no.items():
+        if is_done(n):
+            continue
+        c = it.get("content") or {}
+        waiting = [d for d in parse_deps(c.get("body"), all_numbers) if not is_done(d)]
+        (blocked if waiting else ready).append((n, it, sorted(set(waiting))))
+
+    ready.sort(key=lambda x: [int(p) for p in x[0].split(".")])
+    blocked.sort(key=lambda x: [int(p) for p in x[0].split(".")])
+    return ready, blocked
 
 
 def field_value(item, field_name):
@@ -96,6 +168,22 @@ def render(items):
           <div class="card-title">#{c['number']} {html.escape(c['title'])}</div>
           <div class="card-meta">{badge}<span class="assignee">{html.escape(assignees)}</span></div>
         </a>"""
+
+    ready, blocked = dependency_report(items)
+
+    def dep_row(no, item, waiting):
+        c = item["content"]
+        who = ", ".join(a["login"] for a in c["assignees"]["nodes"]) or "미배정"
+        wait = ("<span class=\"wait\">← " + html.escape(", ".join(waiting)) + " 대기</span>") if waiting else ""
+        return f"""
+        <a class="dep-row" href="{html.escape(c['url'])}" target="_blank" rel="noopener">
+          <span class="dep-no">{html.escape(no)}</span>
+          <span class="dep-title">{html.escape(c['title'].split(' ', 1)[-1])}</span>
+          <span class="dep-who">{html.escape(who)}</span>{wait}
+        </a>"""
+
+    ready_html = "".join(dep_row(n, it, w) for n, it, w in ready) or '<div class="empty">없음</div>'
+    blocked_html = "".join(dep_row(n, it, w) for n, it, w in blocked) or '<div class="empty">없음</div>'
 
     columns_html = ""
     for name in COLUMNS:
@@ -141,12 +229,38 @@ def render(items):
   .badge {{ background:#ddf4ff; color:#0969da; border-radius:999px; padding:1px 6px; }}
   @media (prefers-color-scheme: dark) {{ .badge {{ background:#0d419d33; color:#79c0ff; }} }}
   .empty {{ color:#8b949e; font-size:0.8rem; padding:12px 4px; text-align:center; }}
+  .lanes {{ display:flex; gap:16px; flex-wrap:wrap; margin-bottom:28px; }}
+  .lane {{ flex:1 1 380px; background:#ffffff; border-radius:10px; padding:14px 16px; box-shadow:0 1px 2px rgba(0,0,0,0.06); }}
+  @media (prefers-color-scheme: dark) {{ .lane {{ background:#161b22; }} }}
+  .lane h2 {{ font-size:0.95rem; margin:0 0 2px; display:flex; align-items:center; gap:8px; }}
+  .lane-ready h2 {{ color:#1a7f37; }}
+  .lane-blocked h2 {{ color:#9a6700; }}
+  .lane-hint {{ color:#6b7280; font-size:0.75rem; margin:0 0 10px; }}
+  .dep-row {{ display:flex; align-items:baseline; gap:8px; padding:5px 6px; border-radius:6px; text-decoration:none; color:inherit; font-size:0.82rem; }}
+  .dep-row:hover {{ background:#f6f8fa; }}
+  @media (prefers-color-scheme: dark) {{ .dep-row:hover {{ background:#0d1117; }} }}
+  .dep-no {{ font-weight:700; min-width:46px; color:#0969da; }}
+  .dep-title {{ flex:1; }}
+  .dep-who {{ color:#57606a; font-size:0.72rem; }}
+  .wait {{ color:#9a6700; font-size:0.72rem; white-space:nowrap; }}
 </style>
 </head>
 <body>
   <h1>NCAIClicker 진행 현황</h1>
   <div class="sub">{done}/{total} 완료 ({pct}%) · 마지막 갱신 {now} · <a href="{PROJECT_URL}" target="_blank" rel="noopener">칸반 보드 원본 열기</a></div>
   <div class="progress-wrap"><div class="progress-bar" style="width:{pct}%"></div></div>
+  <div class="lanes">
+    <section class="lane lane-ready">
+      <h2>지금 착수 가능 <span class="count">{len(ready)}</span></h2>
+      <p class="lane-hint">선행 작업이 모두 끝난 카드다. 담당이 다르면 동시에 진행한다.</p>
+      {ready_html}
+    </section>
+    <section class="lane lane-blocked">
+      <h2>대기 중 <span class="count">{len(blocked)}</span></h2>
+      <p class="lane-hint">무엇을 기다리는지 오른쪽에 적혀 있다. 선행이 닫히면 위 칸으로 자동으로 올라온다.</p>
+      {blocked_html}
+    </section>
+  </div>
   <div class="board">{columns_html}</div>
 </body>
 </html>"""
