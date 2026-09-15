@@ -12,6 +12,10 @@ NCAI 과정 팀 프로젝트(자유 주제) — 5인 7일간 Unity로 제작하�
 | 1 | `git clone` 후 **Unity Hub에서 6000.3.21f1** 로 엽니다 (버전 고정). 첫 실행은 느립니다 |
 | 2 | UnityYAMLMerge 등록 — [배포 체크리스트](docs/RELEASE_CHECKLIST.md) 2절. **PC마다 1회** |
 | 3 | AI로 Unity를 직접 조작하려면 Python 3.10+ 와 `uv` 설치 (Unity 패키지는 이미 들어 있음) |
+| 4 | `git config --global core.quotepath false` — git 출력에서 한국어가 깨지지 않게 |
+
+> ⚠️ **파일·폴더 이름은 ASCII만 쓰세요.** 팀에 macOS 사용자가 있어 한글 파일명은
+> git이 서로 다른 파일로 인식합니다. 문서 내용과 커밋 메시지는 한국어 그대로 씁니다.
 
 읽을 것은 **세 개**입니다 — [GDD](docs/GDD.md)(뭘 만드나) · [실행 계획](docs/EXECUTION_PLAN.md)(내 담당) · [아키텍처](docs/ARCHITECTURE.md)(어떤 계약으로).
 그다음 [칸반 보드](https://github.com/orgs/KDNA-Gwangju-1/projects/2/views/2)에서 자기 번호 카드를 집으면 됩니다.

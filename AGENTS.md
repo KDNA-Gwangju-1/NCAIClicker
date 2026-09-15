@@ -72,6 +72,11 @@ Assets/
 - C# 네이밍은 `.editorconfig` 가 정본이다 — private 필드 `_camelCase`, 클래스·메서드·프로퍼티
   `PascalCase`, 지역 변수·매개변수 `camelCase`, 상수 `PascalCase`.
   참고: [Unity 공식 네이밍·코드 스타일 가이드](https://unity.com/kr/how-to/naming-and-code-style-tips-c-scripting-unity)
+- **파일명과 폴더명은 ASCII만 쓴다. 한글·공백·특수문자 금지** — 문서·스크립트·에셋 전부.
+  팀에 macOS 사용자가 있어서 이건 취향 문제가 아니다: macOS는 한글 파일명을 자모 분리(NFD)로
+  저장하고 Windows는 완성형(NFC)으로 저장해 **git이 같은 파일을 서로 다른 파일로 본다.**
+  아무것도 안 고쳤는데 `git status` 에 뜨고, 같은 이름 파일이 둘로 늘고, diff가 빈 충돌이 난다.
+  **읽는 사람이 보는 이름은 문서 제목(H1)과 링크 텍스트로 한글을 쓴다** — 파일명은 식별자일 뿐이다.
 - **파일명은 클래스명과 같게 한다.** MonoBehaviour는 이게 어긋나면 컴포넌트가 붙지 않는다.
 - 인터페이스는 `I` 접두어 (`IDamageable`). 열거형은 **파스칼 단수** (`FeverState`),
   `[Flags]` 를 붙일 때만 복수 (`AttackModes`).
