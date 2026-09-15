@@ -78,43 +78,55 @@ def task_no(item):
     return m.group(1) if m else None
 
 
-def parse_deps(body, all_numbers):
+def parse_deps(body, all_numbers, issue_to_task):
     """이슈 본문의 **선행** 줄을 작업 번호 목록으로 푼다.
+
+    반환: (선행 목록, 읽었는지 여부)
+    읽지 못하면 (.., False) 를 돌려준다 — 선행이 없는 것과 구분해야 한다.
+    구분하지 않으면 형식이 틀린 이슈가 전부 '착수 가능'으로 잘못 올라온다.
 
     '없음 — 바로 착수 가능' → []
     '1.3.2, 2.3'           → ['1.3.2', '2.3']
     '3.x'                  → 3 으로 시작하는 모든 작업 (묶음 전체)
+    '#12'                  → 12번 이슈의 작업 번호
     """
     m = DEP_RE.search(body or "")
     if not m:
-        return []
+        return [], False
     raw = m.group(1).strip()
-    if raw.startswith("없음") or raw in ("-", "—", "(없음)"):
-        return []
+    if raw.startswith("없음") or raw in ("-", "—", "(없음)", "N/A"):
+        return [], True
     deps = []
     for token in raw.split(","):
-        token = token.strip()
+        token = token.strip().rstrip(".")
         if not token:
             continue
-        if token.endswith(".x") or token.endswith(".*"):
+        if token.startswith("#"):
+            mapped = issue_to_task.get(token[1:])
+            if mapped:
+                deps.append(mapped)
+        elif token.endswith(".x") or token.endswith(".*"):
             prefix = token[:-2] + "."
             deps += [n for n in all_numbers if n.startswith(prefix)]
         elif TASK_RE.match(token + " "):
             deps.append(token)
-    return deps
+    return deps, True
 
 
 def dependency_report(items):
-    """선행이 전부 끝난 카드(착수 가능)와 아직 막힌 카드를 나눈다.
+    """선행이 전부 끝난 카드(착수 가능), 막힌 카드, 형식을 못 읽은 카드로 나눈다.
 
     GitHub Projects 에는 의존성 기능이 없다. 이슈 본문의 **선행** 줄을 읽어
     여기서 직접 계산한다 — 사람이 라벨이나 컬럼을 손으로 옮기지 않아도 되게 하려는 것.
+    형식은 .github/ISSUE_TEMPLATE/task.md 와 docs/GIT_WORKFLOW.md 3절에 적혀 있다.
     """
     by_no = {}
+    issue_to_task = {}
     for it in items:
         n = task_no(it)
         if n:
             by_no[n] = it
+            issue_to_task[str((it.get("content") or {}).get("number"))] = n
     all_numbers = list(by_no)
 
     def is_done(n):
@@ -124,17 +136,23 @@ def dependency_report(items):
         c = it.get("content") or {}
         return c.get("state") == "CLOSED" or field_value(it, "Status") == "Done"
 
-    ready, blocked = [], []
+    ready, blocked, unparsed = [], [], []
     for n, it in by_no.items():
         if is_done(n):
             continue
         c = it.get("content") or {}
-        waiting = [d for d in parse_deps(c.get("body"), all_numbers) if not is_done(d)]
+        deps, ok = parse_deps(c.get("body"), all_numbers, issue_to_task)
+        if not ok:
+            unparsed.append((n, it, []))
+            continue
+        waiting = [d for d in deps if not is_done(d)]
         (blocked if waiting else ready).append((n, it, sorted(set(waiting))))
 
-    ready.sort(key=lambda x: [int(p) for p in x[0].split(".")])
-    blocked.sort(key=lambda x: [int(p) for p in x[0].split(".")])
-    return ready, blocked
+    key = lambda x: [int(p) for p in x[0].split(".")]
+    ready.sort(key=key)
+    blocked.sort(key=key)
+    unparsed.sort(key=key)
+    return ready, blocked, unparsed
 
 
 def field_value(item, field_name):
@@ -169,7 +187,7 @@ def render(items):
           <div class="card-meta">{badge}<span class="assignee">{html.escape(assignees)}</span></div>
         </a>"""
 
-    ready, blocked = dependency_report(items)
+    ready, blocked, unparsed = dependency_report(items)
 
     def dep_row(no, item, waiting):
         c = item["content"]
@@ -184,6 +202,15 @@ def render(items):
 
     ready_html = "".join(dep_row(n, it, w) for n, it, w in ready) or '<div class="empty">없음</div>'
     blocked_html = "".join(dep_row(n, it, w) for n, it, w in blocked) or '<div class="empty">없음</div>'
+    unparsed_html = "".join(dep_row(n, it, w) for n, it, w in unparsed)
+    unparsed_block = f'''
+      <section class="lane lane-warn">
+        <h2>선행 확인 필요 <span class="count">{len(unparsed)}</span></h2>
+        <p class="lane-hint">본문에 <code>**선행**:</code> 줄이 없어 판정하지 못했다.
+          형식은 <code>.github/ISSUE_TEMPLATE/task.md</code> 참고.</p>
+        <div class="lane-body">{unparsed_html}</div>
+      </section>''' if unparsed else ""
+
 
     columns_html = ""
     for name in COLUMNS:
@@ -243,6 +270,8 @@ def render(items):
   .lane h2 {{ font-size:0.95rem; margin:0 0 2px; display:flex; align-items:center; gap:8px; }}
   .lane-ready h2 {{ color:#1a7f37; }}
   .lane-blocked h2 {{ color:#9a6700; }}
+  .lane-warn {{ border:1px solid #cf222e; }}
+  .lane-warn h2 {{ color:#cf222e; }}
   .lane-hint {{ color:#6b7280; font-size:0.75rem; margin:0 0 10px; }}
   .dep-row {{ display:flex; align-items:baseline; gap:8px; padding:5px 6px; border-radius:6px; text-decoration:none; color:inherit; font-size:0.82rem; }}
   .dep-title {{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }}
@@ -276,6 +305,7 @@ def render(items):
         <p class="lane-hint">무엇을 기다리는지 옆에 적혀 있다. 선행이 닫히면 왼쪽으로 자동으로 올라온다.</p>
         <div class="lane-body">{blocked_html}</div>
       </section>
+      {unparsed_block}
     </div>
   </div>
 
