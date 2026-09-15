@@ -134,12 +134,14 @@
 - 밸런스 수치의 원본은 `Assets/GameData/Balance/*.csv`다. ScriptableObject는 CSV에서 자동 생성되는 산출물이므로 손으로 고치지 않는다 ([BALANCE.md](BALANCE.md) 1절). 저장값은 별도 SaveData DTO로 관리한다.
 - 모듈별로 따라야 할 설계 패턴은 [PATTERNS.md](PATTERNS.md)에 정리했다. 작업 착수 전 자기 담당 절을 읽는다.
 - Unity 버전과 패키지를 고정하고 meta 파일을 함께 커밋한다.
-- 한 작업은 한 브랜치와 한 PR 단위로 처리한다.
+- 한 작업은 한 브랜치와 한 PR 단위로 처리한다. 머지된 브랜치는 삭제한다.
 - PR 본문에 작업 이슈, 변경 범위, 검증 결과를 기록한다.
 
 ### PR 리뷰·머지 규칙
 
-- 브랜치명 규칙: `feature/<모듈>-<이슈번호>-설명` (예: `feature/economy-12-upgrade-cost`)
+- 브랜치·커밋·PR 규칙의 정본은 [GIT_WORKFLOW.md](GIT_WORKFLOW.md) 다. 아래는 요약이다.
+- **브랜치는 `Develop` 에서 따고 PR 대상도 `Develop` 이다.** `main` 은 배포 가능한 상태만 담는다.
+- 브랜치명 규칙: `feature/<이니셜>-<모듈>-<이슈번호>-설명` (예: `feature/KSH-economy-12-upgrade-cost`)
 - PR은 담당자 본인이 아닌 리뷰어 최소 1명의 승인을 받아야 머지한다 — 본인 모듈을 스스로만 리뷰하면 교차 검증 효과가 없으므로, 1번(PM·기획·통합) 담당이 리뷰어를 순환 배정한다.
 - 머지 전략은 Squash and merge로 통일한다.
 
@@ -148,7 +150,7 @@
 - 메인 씬·프리팹 단독 작업 원칙만으로는 여러 담당자가 함께 참조하는 공유 ScriptableObject(경제 밸런스 데이터 등)의 동시 수정까지는 막지 못한다.
 - `.gitattributes`에 UnityYAMLMerge(스마트 병합)를 설정해 씬·프리팹의 텍스트 기반 병합 성공률을 높인다.
 - 밸런스 데이터는 CSV를 원본으로 삼아 이 충돌을 구조적으로 없앴다 — CSV는 Git이 행 단위로 병합하므로 서로 다른 행을 고치면 충돌하지 않는다. 자동 생성된 SO가 충돌하면 해결하지 말고 재임포트한다.
-- 브랜치 수명은 하루 이내로 짧게 유지하고 매일 main을 rebase 또는 pull해 충돌을 작을 때 조기에 발견한다.
+- 브랜치 수명은 하루 이내로 짧게 유지하고 매일 `Develop` 을 rebase 또는 pull해 충돌을 작을 때 조기에 발견한다.
 - 업무 배분 자체의 중복(두 명이 같은 이슈를 동시에 집는 것)은 GitHub Projects 보드에서 이슈 담당자 지정과 "In Progress" 전환을 명확히 해 방지한다.
 - 매일 5~10분 데일리 싱크(어제 한 일 / 오늘 할 일 / 블로커)로 겹치는 작업과 충돌 소지를 조기에 걸러낸다.
 
@@ -161,7 +163,7 @@
 - 진행률을 임의로 추측하지 않고 Ready, In Progress, In Review, Done, Blocked 상태를 엄격히 사용한다.
 - PR이 생성되면 In Review, 병합되면 Done으로 상태를 갱신한다.
 - 에이전트는 메인 씬과 타 담당자의 프리팹을 직접 수정하지 않는다.
-- 작업 브랜치에서 일정 간격(커밋 3회 또는 30분마다)과 PR 생성 직전에는 반드시 `git fetch origin main && git rebase origin/main`으로 최신 main을 받아온다. 병합 커밋 대신 그 자리에서 리베이스 충돌을 해결하고 이어서 작업한다.
+- 작업 브랜치에서 일정 간격(커밋 3회 또는 30분마다)과 PR 생성 직전에는 반드시 `git fetch origin Develop && git rebase origin/Develop`으로 최신 `Develop` 을 받아온다. 병합 커밋 대신 그 자리에서 리베이스 충돌을 해결하고 이어서 작업한다.
 - 리베이스 중 공용 인터페이스·이벤트·ScriptableObject 필드가 바뀐 것을 발견하면 임의로 두 버전을 섞어 계속 진행하지 말고 작업을 멈춘 뒤 해당 이슈에 코멘트로 보고한다.
 
 ## 완료 조건
