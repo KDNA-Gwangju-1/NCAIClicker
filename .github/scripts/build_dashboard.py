@@ -158,7 +158,9 @@ def render_svg(items):
     for item in items:
         if not item.get("content"):
             continue
-        status = field_value(item, "Status") or "Ready"
+        # 상세 보드(render_html)와 같은 기준을 쓴다. 한쪽만 Ready 로 세면
+        # 배지와 보드가 서로 다른 숫자를 보여준다.
+        status = field_value(item, "Status") or NO_STATUS
         columns[status] = columns.get(status, 0) + 1
 
     total = sum(columns.values())
@@ -167,10 +169,11 @@ def render_svg(items):
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     width, height = 720, 130
-    chip_w = (width - 40 - 4 * 12) / 5
+    gap = 12
+    chip_w = (width - 40 - gap * (len(COLUMNS) - 1)) / len(COLUMNS)
     chips = ""
     for i, name in enumerate(COLUMNS):
-        x = 20 + i * (chip_w + 12)
+        x = 20 + i * (chip_w + gap)
         color = COLUMN_COLORS.get(name, "#6b7280")
         count = columns.get(name, 0)
         chips += f"""
