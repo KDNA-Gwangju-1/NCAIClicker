@@ -12,9 +12,13 @@ PROJECT_NUMBER = 2
 REPO = "KDNA-Gwangju-1/NCAIClicker"
 PROJECT_URL = f"https://github.com/orgs/{OWNER}/projects/{PROJECT_NUMBER}"
 
-COLUMNS = ["Ready", "In Progress", "In Review", "Done", "Blocked"]
+# Status 가 비어 있는 카드는 Ready 가 아니라 "미착수"로 센다.
+# Ready 는 "선행이 끝나 지금 집을 수 있는 작업"이라는 의미로만 쓴다.
+NO_STATUS = "미착수"
+COLUMNS = [NO_STATUS, "Ready", "In Progress", "In Review", "Done", "Blocked"]
 COLUMN_COLORS = {
-    "Ready": "#6b7280",
+    NO_STATUS: "#9ca3af",
+    "Ready": "#0969da",
     "In Progress": "#d97706",
     "In Review": "#7c3aed",
     "Done": "#16a34a",
@@ -75,7 +79,7 @@ def render(items):
         content = item.get("content")
         if not content:
             continue
-        status = field_value(item, "Status") or "Ready"
+        status = field_value(item, "Status") or NO_STATUS
         columns.setdefault(status, []).append(item)
 
     total = sum(len(v) for v in columns.values())
