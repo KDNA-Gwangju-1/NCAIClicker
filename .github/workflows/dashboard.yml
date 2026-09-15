@@ -3,7 +3,12 @@ name: Publish project dashboard
 on:
   issues:
     types: [opened, closed, reopened, edited, assigned, unassigned, labeled, unlabeled]
+  # 보드에서 카드를 드래그해 Status 만 바꾸면 이슈 이벤트가 발생하지 않는다.
+  # 그래서 아래 세 가지를 함께 건다.
+  push:
+    branches: [main]
   schedule:
+    # GitHub 의 예약 실행은 부하에 따라 자주 지연되거나 건너뛴다. 정시성을 기대하지 말 것.
     - cron: "*/30 * * * *"
   workflow_dispatch: {}
 
