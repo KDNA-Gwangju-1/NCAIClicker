@@ -149,14 +149,56 @@ def render(items):
 </html>"""
 
 
+def render_svg(items):
+    columns = {name: 0 for name in COLUMNS}
+    for item in items:
+        if not item.get("content"):
+            continue
+        status = field_value(item, "Status") or "Ready"
+        columns[status] = columns.get(status, 0) + 1
+
+    total = sum(columns.values())
+    done = columns.get("Done", 0)
+    pct = round(done / total * 100) if total else 0
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+    width, height = 720, 130
+    chip_w = (width - 40 - 4 * 12) / 5
+    chips = ""
+    for i, name in enumerate(COLUMNS):
+        x = 20 + i * (chip_w + 12)
+        color = COLUMN_COLORS.get(name, "#6b7280")
+        count = columns.get(name, 0)
+        chips += f"""
+    <g transform="translate({x},64)">
+      <rect width="{chip_w}" height="48" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+      <rect x="0" y="0" width="{chip_w}" height="4" rx="2" fill="{color}"/>
+      <text x="{chip_w/2}" y="20" text-anchor="middle" font-size="11" fill="#57606a" font-family="Segoe UI, Pretendard, sans-serif">{html.escape(name)}</text>
+      <text x="{chip_w/2}" y="39" text-anchor="middle" font-size="16" font-weight="700" fill="#1f2328" font-family="Segoe UI, Pretendard, sans-serif">{count}</text>
+    </g>"""
+
+    bar_w = width - 40
+    filled = bar_w * pct / 100
+
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
+  <rect width="{width}" height="{height}" fill="#f7f7f8"/>
+  <text x="20" y="24" font-size="14" font-weight="700" fill="#1f2328" font-family="Segoe UI, Pretendard, sans-serif">NCAIClicker 진행 현황</text>
+  <text x="20" y="42" font-size="11" fill="#6b7280" font-family="Segoe UI, Pretendard, sans-serif">{done}/{total} 완료 ({pct}%) · {now}</text>
+  <rect x="20" y="48" width="{bar_w}" height="6" rx="3" fill="#e5e7eb"/>
+  <rect x="20" y="48" width="{filled}" height="6" rx="3" fill="#16a34a"/>
+  {chips}
+</svg>"""
+
+
 def main():
     items = fetch_items()
-    html_out = render(items)
     out_dir = sys.argv[1] if len(sys.argv) > 1 else "_site"
     os.makedirs(out_dir, exist_ok=True)
     with open(os.path.join(out_dir, "index.html"), "w", encoding="utf-8") as f:
-        f.write(html_out)
-    print(f"wrote {out_dir}/index.html ({len(items)} items)")
+        f.write(render(items))
+    with open(os.path.join(out_dir, "badge.svg"), "w", encoding="utf-8") as f:
+        f.write(render_svg(items))
+    print(f"wrote {out_dir}/index.html and badge.svg ({len(items)} items)")
 
 
 if __name__ == "__main__":
