@@ -40,7 +40,7 @@ namespace NCAIClicker.EditorTools
                 manager = CreateManager(balanceData, out host);
 
                 // 파괴 이벤트 한 번에 정확히 한 번 지급한다.
-                GameEvents.PublishTargetBroken(NewBreak(10m));
+                GameEvents.PublishTargetBroken(CreateBreak(10m));
                 AssertCondition(earned == 10L, "파괴 1회 지급액이 다릅니다: " + earned);
                 AssertCondition(manager.CurrentCoin == 10L, "잔액이 다릅니다.");
                 AssertCondition(manager.RunCoin == 10L, "런 순수입이 다릅니다.");
@@ -48,22 +48,22 @@ namespace NCAIClicker.EditorTools
 
                 // 해제하면 더 이상 지급되지 않는다.
                 InvokeLifecycle(manager, "OnDisable");
-                GameEvents.PublishTargetBroken(NewBreak(10m));
+                GameEvents.PublishTargetBroken(CreateBreak(10m));
                 AssertCondition(earned == 10L, "해제 후에도 지급됐습니다. 구독 해제가 빠졌습니다.");
                 checkCount++;
 
                 // 다시 구독해도 하나뿐이다. 두 번 들어오면 코인이 두 배가 된다.
                 InvokeLifecycle(manager, "OnEnable");
-                GameEvents.PublishTargetBroken(NewBreak(10m));
+                GameEvents.PublishTargetBroken(CreateBreak(10m));
                 AssertCondition(earned == 20L, "재구독 후 지급이 중복되거나 빠졌습니다: " + earned);
                 checkCount++;
 
                 // 피버 중에는 CSV 의 배율이 걸리고, 끝나면 풀린다.
                 GameEvents.PublishFeverStart();
-                GameEvents.PublishTargetBroken(NewBreak(10m));
+                GameEvents.PublishTargetBroken(CreateBreak(10m));
                 AssertCondition(earned == 50L, "피버 배율이 적용되지 않았습니다: " + earned);
                 GameEvents.PublishFeverEnd();
-                GameEvents.PublishTargetBroken(NewBreak(10m));
+                GameEvents.PublishTargetBroken(CreateBreak(10m));
                 AssertCondition(earned == 60L, "피버 종료 후에도 배율이 남았습니다: " + earned);
                 checkCount++;
 
@@ -72,8 +72,12 @@ namespace NCAIClicker.EditorTools
                 // 대출 징수는 BillService 에서 받아 적용한다. 없으면 0 이다.
                 earned = 0L;
                 manager = CreateManager(balanceData, out host);
-                manager.SetBillService(new FakeBillService { LoanDailyCut = 0.1f });
-                GameEvents.PublishTargetBroken(NewBreak(10m));
+                var billService = new FakeBillService
+                {
+                    LoanDailyCut = 0.1f
+                };
+                manager.SetBillService(billService);
+                GameEvents.PublishTargetBroken(CreateBreak(10m));
                 AssertCondition(earned == 9L, "대출 징수가 적용되지 않았습니다: " + earned);
                 checkCount++;
 
@@ -129,7 +133,10 @@ namespace NCAIClicker.EditorTools
         /// </summary>
         private static EconomyManager CreateManager(BalanceData balanceData, out GameObject host)
         {
-            host = new GameObject("EconomyManagerCheck") { hideFlags = HideFlags.HideAndDontSave };
+            host = new GameObject("EconomyManagerCheck")
+            {
+                hideFlags = HideFlags.HideAndDontSave
+            };
             host.SetActive(false);
             var manager = host.AddComponent<EconomyManager>();
             var field = typeof(EconomyManager).GetField("_balanceData",
@@ -150,7 +157,7 @@ namespace NCAIClicker.EditorTools
             method.Invoke(manager, null);
         }
 
-        private static BreakInfo NewBreak(decimal rawCoin)
+        private static BreakInfo CreateBreak(decimal rawCoin)
         {
             return new BreakInfo("normal", rawCoin, 0f, Vector3.zero);
         }
