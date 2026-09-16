@@ -41,6 +41,7 @@ query($owner: String!, $number: Int!, $cursor: String) {
               state
               body
               assignees(first: 5) { nodes { login } }
+              author { login }
             }
           }
           fieldValues(first: 20) {
