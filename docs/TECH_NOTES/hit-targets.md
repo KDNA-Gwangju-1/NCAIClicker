@@ -120,6 +120,9 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
 - **피격 반경이 업그레이드를 반영하지 않는다.** `upgrade_effects.csv` 에 `strong_hammer → hit_radius +2%/레벨`
   이 있는데, 반경은 `Initialize()` 때 한 번 정해진다. 업그레이드 적용 시점에 다시 계산할 경로를
   작업 3.3 에서 정해야 한다.
+- **그레이박스 크기가 `Mesh` 의 로컬 스케일에 들어 있다.** 루트와 `Visual` 은 스케일 1 이다.
+  작업 6.6 에서 실제 모델로 갈아끼울 때 이 스케일을 임포트 설정의 Scale Factor 로 옮길지
+  `Mesh` 에 그대로 둘지 정해야 한다 ([ASSET_PIPELINE](../ASSET_PIPELINE.md) 2절이 전자를 권한다).
 - `_baseHitRadius` 는 프리팹에 박힌 값이고 CSV 열이 없다. 종류마다 판정 크기를 다르게 하고 싶어지면
   그때 `targets.csv` 열로 올린다 — 지금은 4종이 같은 값이라 열을 만들 이유가 없다.
 - Edit Mode 에서는 `Awake` 가 돌지 않아 검증이 `Initialize()` 를 직접 부른다. 이 메서드는 풀 재사용을
