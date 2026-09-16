@@ -65,7 +65,10 @@ def fetch_items():
         command = ["gh", "api", "graphql", "-f", f"query={QUERY}", "-F", f"owner={OWNER}", "-F", f"number={PROJECT_NUMBER}"]
         if cursor:
             command += ["-f", f"cursor={cursor}"]
-        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        # encoding 을 못 박는다 — Windows 는 기본이 cp949 라 한글 이슈 제목에서 터진다.
+        # CI(Linux)는 UTF-8 이 기본이라 여기서만 드러나지 않았다.
+        result = subprocess.run(command, capture_output=True, text=True,
+                                encoding="utf-8", check=True)
         data = json.loads(result.stdout)
         page = data["data"]["organization"]["projectV2"]["items"]
         items.extend(page["nodes"])
