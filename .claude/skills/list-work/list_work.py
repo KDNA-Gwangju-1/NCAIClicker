@@ -74,18 +74,22 @@ def find_off_board(items):
 
 
 def report(dashboard, items):
-    ready, blocked, unparsed = dashboard.dependency_report(items)
+    ready, blocked, unparsed, duplicates = dashboard.dependency_report(items)
 
     # 선행은 작업 번호(2.1)로 적혀 있는데 사람이 찾아가는 것은 이슈 번호(#16)다.
     # 막고 있는 것을 바로 열어 볼 수 있어야 목록이 쓸모가 있다.
+    # 번호가 겹칠 수 있으니 카드를 전부 모은다. 하나만 남기면 막고 있는 이슈를
+    # 절반만 알려 주게 된다.
     issue_no = {}
     for item in items:
         no = dashboard.task_no(item)
         if no:
-            issue_no[no] = issue_of(item).get("number")
+            issue_no.setdefault(no, []).append(issue_of(item).get("number"))
 
     def blocker_label(no):
-        return "#%s" % issue_no[no] if no in issue_no else "%s(보드에 없음)" % no
+        if no not in issue_no:
+            return "%s(보드에 없음)" % no
+        return ", ".join("#%s" % n for n in sorted(issue_no[no]))
 
     startable, waiting, broken = [], [], []
 
@@ -106,6 +110,17 @@ def report(dashboard, items):
         issue = issue_of(item)
         broken.append((issue.get("number"), issue.get("title"),
                        "선행 줄을 읽지 못했다 — 형식은 docs/GIT_WORKFLOW.md 3절"))
+
+    # 번호 중복은 대시보드가 골라 낸다. 여기서 다시 판정하지 않고 받아서 보고만 한다.
+    for task_no, cards in duplicates:
+        others = [issue_of(c).get("number") for c in cards]
+        for card in cards:
+            issue = issue_of(card)
+            mates = [n for n in others if n != issue.get("number")]
+            broken.append((issue.get("number"), issue.get("title"),
+                           "작업 번호 %s 가 #%s 와 겹친다 — 이슈 번호가 앞선 쪽을 원본으로 두고 "
+                           "뒤쪽 제목의 번호를 옮긴다"
+                           % (task_no, ", #".join(map(str, mates)))))
 
     return startable, waiting, sorted(broken)
 

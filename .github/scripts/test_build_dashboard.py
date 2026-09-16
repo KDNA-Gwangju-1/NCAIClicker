@@ -42,7 +42,7 @@ class DependencyTests(unittest.TestCase):
         items = [make_item(1, "1.1", "**선행**: 9.1"),
                  make_item(2, "1.2", "**선행**: #999"),
                  make_item(3, "1.3", "**선행**: 없음")]
-        ready, blocked, unparsed = dashboard.dependency_report(items)
+        ready, blocked, unparsed, _ = dashboard.dependency_report(items)
         self.assertEqual([row[0] for row in ready], ["1.3"])
         self.assertEqual(blocked[0][2], ["9.1"])
         self.assertEqual([row[0] for row in unparsed], ["1.2"])
@@ -51,8 +51,36 @@ class DependencyTests(unittest.TestCase):
         items = [make_item(i, "2." + str(i), "**선행**: 없음", "CLOSED" if i != 4 else "OPEN")
                  for i in range(2, 6)]
         items.append(make_item(6, "2.6", "**선행**: 2.2~2.5"))
-        _, blocked, _ = dashboard.dependency_report(items)
+        _, blocked, _, _ = dashboard.dependency_report(items)
         self.assertEqual(blocked[0][2], ["2.4"])
+
+    def test_duplicate_task_numbers_are_reported_not_overwritten(self):
+        items = [make_item(43, "8.2", "**선행**: 없음", "CLOSED", "Done"),
+                 make_item(66, "8.2", "**선행**: 없음", "OPEN", "Todo")]
+        _, _, _, duplicates = dashboard.dependency_report(items)
+        self.assertEqual([n for n, _ in duplicates], ["8.2"])
+        self.assertEqual([i["content"]["number"] for i in duplicates[0][1]], [43, 66])
+
+    def test_duplicate_number_is_done_only_when_every_card_is_done(self):
+        dupes = [make_item(43, "8.2", "**선행**: 없음", "CLOSED", "Done"),
+                 make_item(66, "8.2", "**선행**: 없음", "OPEN", "Todo")]
+        follower = make_item(70, "8.6", "**선행**: 8.2")
+        _, blocked, _, _ = dashboard.dependency_report(dupes + [follower])
+        self.assertEqual([r[2] for r in blocked if r[0] == "8.6"], [["8.2"]])
+        # 순서를 뒤집어도 같은 답이 나와야 한다 — 덮어쓰기면 여기서 갈린다.
+        _, blocked_rev, _, _ = dashboard.dependency_report(dupes[::-1] + [follower])
+        self.assertEqual([r[2] for r in blocked_rev if r[0] == "8.6"], [["8.2"]])
+        both_done = [make_item(43, "8.2", "**선행**: 없음", "CLOSED", "Done"),
+                     make_item(66, "8.2", "**선행**: 없음", "CLOSED", "Done")]
+        ready, _, _, _ = dashboard.dependency_report(both_done + [follower])
+        self.assertEqual([r[0] for r in ready], ["8.6"])
+
+    def test_html_warns_about_duplicate_task_numbers(self):
+        items = [make_item(43, "8.2", "**선행**: 없음", "CLOSED", "Done"),
+                 make_item(66, "8.2", "**선행**: 없음", "OPEN", "Todo")]
+        rendered = dashboard.render(items)
+        self.assertIn("작업 번호 중복", rendered)
+        self.assertNotIn("작업 번호 중복", dashboard.render([make_item(1, "1.1", "**선행**: 없음")]))
 
     def test_html_keeps_unparsed_warning_and_escapes_titles(self):
         item = make_item(1, "1.1", "**선행**: typo")
