@@ -227,7 +227,7 @@
   - 원작은 책상이 원근으로 물러나 보이므로 Perspective 에 가깝다. 다만 Orthographic 은 깊이에 따른 크기 변화가 없어 **타격 대상의 겉보기 크기가 위치와 무관하게 일정**해진다 — 피격 판정의 체감이 균일해지는 이점이 있으므로 둘을 실제로 띄워보고 정한다
 - VARCO 3D 내보내기 포맷과 스케일 기준 확정 ([ASSET_PIPELINE.md](ASSET_PIPELINE.md) 2절)
 - 단계별 타격 대상 외형 리소스 선정
-- 외부 트윈 라이브러리(LeanTween vs DOTween) 도입 여부
+- **외부 트윈 라이브러리 도입 여부 확정 (2026-09-16)** — 미도입. 코루틴 + `AnimationCurve`로 대체. 근거는 [PATTERNS.md](PATTERNS.md) 8절
 - SaveData DTO 필드 및 JSON 직렬화 규격 ([ARCHITECTURE.md](ARCHITECTURE.md) 2절 초안 확정)
 - 추가 목표(미니게임 등) 착수 우선순위
 - 경제 공식 기준값(기본 타격 파워, 망치 파워, 초기 자동 망치 수, 업그레이드 초기 비용) 확정
