@@ -64,17 +64,11 @@ flowchart LR
 | `CoinWalletChecks` | `Assets/Scripts/Editor/CoinWalletChecks.cs` | 계산식 검증 11건 |
 | `EconomyManagerChecks` | `Assets/Scripts/Editor/EconomyManagerChecks.cs` | 이벤트 배선 검증 8건 |
 
-지급액 계산은 이렇다. CSV 의 `float` 배율은 곱하기 **전에** `decimal` 로 바꾼다.
-
-```text
-순수입   = 원시보상 × 피버배율 × 보너스배율 × (1 - 대출징수율)
-입금액   = floor(기존 소수 잔여 + 순수입)     ← 지갑에 들어가는 정수
-소수 잔여 = 나머지                            ← 회차 안에서 이월하고 저장한다
-RunCoin  = floor(이번 런 순수입 합)           ← 지갑과 별도로 쌓는다
-```
-
-`RunCoin` 을 따로 쌓는 이유는 단계 목표가 **이번 런 획득량** 기준이기 때문이다.
-전날 잔여·대출 원금·지출이 섞이면 목표 판정이 흐려진다.
+계산식 자체는 [ARCHITECTURE](../ARCHITECTURE.md) "코인 계산·정산 계약" 4·5번이 정본이라 옮겨 적지 않는다.
+구현에서 갈리는 지점만 적는다 — `CoinWallet` 은 **누적기를 두 개** 들고 있다.
+하나는 지갑(소수 잔여를 이월), 하나는 런 순수입이다.
+단계 목표가 *이번 런 획득량* 기준이라 전날 잔여·대출 원금·지출이 섞이면 판정이 흐려지기 때문이다.
+하나로 합치면 `BeginRun` 직후 검증이 깨진다.
 
 ### 이벤트
 

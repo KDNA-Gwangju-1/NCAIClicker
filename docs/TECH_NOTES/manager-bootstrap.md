@@ -23,7 +23,7 @@ flowchart LR
   subgraph PM["PM·통합"]
     boot[ManagerBootstrap<br/>BeforeSceneLoad 에 1회 실행]
   end
-  prefab[(Resources/Managers.prefab<br/>빈 루트, Transform 만)]
+  prefab[(Resources/Managers.prefab<br/>EconomyManager 부착됨)]
   inst[Managers 인스턴스<br/>DontDestroyOnLoad]
   boot -- "Resources.Load" --> prefab
   boot -- "Instantiate" --> inst
@@ -32,7 +32,7 @@ flowchart LR
 | 클래스 | 경로 | 하는 일 |
 |---|---|---|
 | `ManagerBootstrap` | `Assets/Scripts/Runtime/ManagerBootstrap.cs` | 프리팹 로드·생성·`DontDestroyOnLoad`. 정적 필드로 인스턴스를 보관해 중복 생성을 막는다 |
-| (프리팹) | `Assets/Prefabs/Resources/Managers.prefab` | 매니저 컴포넌트를 붙일 자리. 루트 하나, 자식 없음 |
+| (프리팹) | `Assets/Prefabs/Resources/Managers.prefab` | 매니저 컴포넌트를 붙이는 자리. 루트 하나, 자식 없음. 현재 `EconomyManager` 하나가 붙어 있다 |
 | `ManagerBootstrapTests` | `Assets/Tests/PlayMode/ManagerBootstrapTests.cs` | MainMenu → Game 전환 후에도 `Managers` 가 1개·같은 인스턴스인지 확인 |
 
 ### 이벤트
@@ -53,7 +53,7 @@ Unity 6000.3.21f1 배치 실행, 2026-09-16.
 
 ## 알려진 한계
 
-- 프리팹에 매니저 컴포넌트가 아직 하나도 없다. 각 모듈이 자기 매니저를 붙이면서 [ARCHITECTURE 1절](../ARCHITECTURE.md) 초기화 순서를 맞춰야 한다.
+- 붙어 있는 매니저는 `EconomyManager` 하나뿐이다(작업 3.1). 나머지 모듈이 자기 매니저를 붙이면서 [ARCHITECTURE 1절](../ARCHITECTURE.md) 초기화 순서를 맞춰야 한다. 컴포넌트 실행 순서는 아직 아무도 지정하지 않았다.
 - 에디터에서 `Game` 씬을 직접 열어 Play 하는 경로는 배치로 검증하지 못했다. `BeforeSceneLoad` 는 첫 씬과 무관하게 실행되므로 동작해야 하지만 확인은 남아 있다.
 - 테스트 asmdef 는 런타임 코드를 참조하지 않는다(런타임에 asmdef 가 없다). 테스트는 씬의 오브젝트 이름만 본다.
 - `Resources.Load` 의존이라 프리팹 이름(`Managers`)이나 폴더를 바꾸면 소리 없이 실패하고 `LogError` 만 남는다.
@@ -63,3 +63,4 @@ Unity 6000.3.21f1 배치 실행, 2026-09-16.
 | 날짜 | 이슈 | 누가 | 무엇이 바뀌었나 |
 |---|---|---|---|
 | 2026-09-16 | #15 | Claude | 최초 작성 |
+| 2026-09-16 | #22 | twins6375-art | 첫 매니저(`EconomyManager`) 부착 반영 |
