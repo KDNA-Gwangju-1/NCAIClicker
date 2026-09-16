@@ -47,6 +47,15 @@ def assignees_of(item):
     return [n["login"] for n in nodes]
 
 
+def author_of(item):
+    """이슈를 만든 사람. 담당자와 다른 사람일 수 있다.
+
+    담당자만 찍으면 "이 이슈 왜 이렇게 적혀 있냐"를 누구에게 물을지 알 수 없다.
+    미배정 카드는 담당자 칸이 비어 있어 더더욱 물을 곳이 없다 — 그래서 작성자를 함께 찍는다.
+    """
+    return ((issue_of(item).get("author") or {}).get("login")) or "알 수 없음"
+
+
 def mismatch_reason(status, assignees):
     """착수 절차가 중간에 끊긴 흔적이면 사유를, 아니면 None 을 돌려준다.
 
@@ -172,12 +181,14 @@ def main():
     dashboard = load_dashboard()
     items = dashboard.fetch_items()
     startable, waiting, broken, ongoing, dup_numbers = report(dashboard, items)
+    authors = {issue_of(i).get("number"): author_of(i) for i in items}
 
     for label, rows in (("착수 가능", startable), ("대기 중", waiting),
                         ("정정 필요", broken), ("진행 중 (착수 대상 아님)", ongoing)):
         print("=== %s (%d건)" % (label, len(rows)))
         for number, title, note in rows:
-            print("  #%s %s | %s" % (number, title, note))
+            print("  #%s %s | %s | 작성 %s"
+                  % (number, title, note, authors.get(number, "알 수 없음")))
     print("=== 보드에 없는 열린 이슈: %s" % (find_off_board(items) or "없음"))
 
     # 합계를 찍어 두면 어떤 카드가 어느 덩어리로 갔는지 빠짐없이 확인할 수 있다.
