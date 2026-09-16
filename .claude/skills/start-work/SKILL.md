@@ -20,7 +20,8 @@ gh issue view <번호> --json number,title,assignees,state,body
 ```
 
 - 이미 **다른 사람**이 배정돼 있으면 **멈추고 보고한다.** 뺏지 않는다.
-- 비어 있으면 사용자를 배정한다: `gh issue assign <번호> <로그인>`
+- 비어 있으면 사용자를 배정한다: `gh issue edit <번호> --add-assignee <로그인>`
+  (`gh issue assign` 은 없는 서브커맨드다 — help 만 출력하고 조용히 실패한다.)
 - 본문에 `**선행**:` 줄이 있으면 그 선행 이슈들이 닫혔는지 확인하고, 열려 있으면 보고한다.
 
 ## 2. 칸반 Status → In Progress
@@ -52,11 +53,10 @@ gh project item-list 2 --owner KDNA-Gwangju-1 --limit 200 --format json \
 
 ```bash
 git fetch origin Develop
-git checkout -b feature/<이니셜>-<모듈>-<이슈번호>-<계획번호>-<설명> origin/Develop
+git checkout -b <브랜치명> origin/Develop
 ```
 
-- **`main` 이 아니라 `Develop` 에서 딴다.**
-- 구분자는 하이픈. 설명은 소문자 ASCII 와 하이픈만.
+- 브랜치 이름은 `docs/GIT_WORKFLOW.md` **1절**을 그대로 따른다. 형식·구분자·예시가 거기에 있다.
 - 커밋하지 않은 다른 작업이 남아 있으면 **먼저 보고하고 확인을 받는다.** 임의로 stash 하거나 커밋하지 않는다.
 
 ## 4. 보고하고 멈춘다
