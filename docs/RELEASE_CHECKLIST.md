@@ -20,12 +20,12 @@
 
 ### 체크리스트
 
-- [ ] 폰트 파일을 `Assets/ThirdParty/Fonts/` 원본 및 `Assets/Materials/Fonts/` 생성 TMP 에셋 에 배치 (`.ttf`/`.otf`)
-- [ ] TextMeshPro Font Asset 생성 — **Atlas Population Mode 를 `Dynamic` 으로**
+- [x] 폰트 파일을 `Assets/ThirdParty/Fonts/` 원본 및 `Assets/Materials/Fonts/` 생성 TMP 에셋 에 배치 (`.ttf`/`.otf`)
+- [x] TextMeshPro Font Asset 생성 — **Atlas Population Mode 를 `Dynamic` 으로**
   - 한글은 완성형만 11,172자다. Static 아틀라스로 전부 구우면 텍스처가 수십 MB가 되고 빌드가 무거워진다. Dynamic은 실제로 쓰인 글자만 런타임에 채운다.
-  - 단, Dynamic은 첫 등장 시 아틀라스를 갱신하므로 **인게임 중 처음 뜨는 문구에서 한 프레임 튈 수 있다.** HUD에 쓰는 고정 문구("스태미나", "코인", 숫자 0~9)는 Static 아틀라스로 미리 구워두고, 나머지를 Dynamic으로 두는 혼합이 가장 안전하다.
-- [ ] 숫자 글립이 **고정폭(tabular)** 인지 확인 — `34/120` 처럼 매 프레임 바뀌는 숫자가 폭이 들쭉날쭉하면 HUD가 떨린다
-- [ ] TMP Settings 의 Default Font Asset 을 교체 (안 하면 새로 만든 텍스트가 영문 기본 폰트로 뜬다)
+  - 단, Dynamic은 첫 등장 시 아틀라스를 갱신하므로 **인게임 중 처음 뜨는 문구에서 한 프레임 튈 수 있다.** HUD에 쓰는 고정 문구("스태미나", "코인", 숫자 0~9)는 Static 아틀라스로 미리 구워두고, 나머지를 Dynamic으로 두는 혼합이 가장 안전하다. — 6.1 HUD 에서
+- [x] 숫자 글립이 **고정폭(tabular)** 인지 확인 — `34/120` 처럼 매 프레임 바뀌는 숫자가 폭이 들쭉날쭉하면 HUD가 떨린다
+- [x] TMP Settings 의 Default Font Asset 을 교체 (안 하면 새로 만든 텍스트가 영문 기본 폰트로 뜬다)
 
 ---
 
@@ -73,8 +73,8 @@ git config --global merge.unityyamlmerge.driver '"C:/Program Files/Unity/Hub/Edi
 
 폰트, 효과음, 모델·텍스처 중 외부에서 가져온 것은 전부 출처와 라이선스를 기록한다. **에셋스토어 무료 에셋도 예외가 아니다.**
 
-- [ ] `LICENSES/` 폴더에 각 라이선스 전문 파일 배치 (예: `LICENSES/NanumGothic-OFL.txt`)
-- [ ] `docs/THIRD_PARTY.md` 에 표로 정리: 이름 / 출처 URL / 라이선스 / 용도
+- [x] `LICENSES/` 폴더에 각 라이선스 전문 파일 배치 (예: `LICENSES/NanumGothic-OFL.txt`)
+- [x] `docs/THIRD_PARTY.md` 에 표로 정리: 이름 / 출처 URL / 라이선스 / 용도
 - [ ] 빌드 산출물에 `LICENSES/` 폴더를 함께 동봉하거나, 게임 내 크레딧 화면에 표기
 - [ ] 효과음·이미지를 추가할 때마다 **그 PR에서 같이** 기록 (나중에 몰아서 하면 출처를 잊는다)
 
