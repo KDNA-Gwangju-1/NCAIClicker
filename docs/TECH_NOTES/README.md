@@ -126,4 +126,5 @@ AI에게 시켜도 제대로 못 고친다.
 - [초기 PC 설정](project-setup.md) — 창·리로드·검증 범위
 - [공용 계약](contracts.md) — 인터페이스, 이벤트 버스, DTO 규격 동결
 - [매니저 자동 생성](manager-bootstrap.md) — RuntimeInitializeOnLoadMethod 로 Resources 프리팹을 씬 로드 전 1회 생성
+- [UI 폰트](ui-fonts.md) — 나눔고딕·나눔스퀘어 OFL 원본, Dynamic SDF 에셋, TMP 기본 폰트 교체
 - [코인 정산](coin-economy.md) — 파괴 보상에 배율·대출 징수 적용, 소수 잔여 이월, 런 순수입 분리
