@@ -91,20 +91,26 @@ def report(dashboard, items):
             return "%s(보드에 없음)" % no
         return ", ".join("#%s" % n for n in sorted(issue_no[no]))
 
-    startable, waiting, broken = [], [], []
+    startable, waiting, broken, ongoing = [], [], [], []
 
     for rows, bucket in ((ready, startable), (blocked, waiting)):
         for task_no, item, waiting_on in rows:
             issue = issue_of(item)
             status = dashboard.field_value(item, "Status")
-            reason = mismatch_reason(status, assignees_of(item))
+            assignees = assignees_of(item)
+            reason = mismatch_reason(status, assignees)
             if reason:
                 broken.append((issue.get("number"), issue.get("title"), reason))
             elif status == "Todo":
                 note = (", ".join(blocker_label(w) for w in waiting_on)
                         if waiting_on else "선행 충족")
                 bucket.append((issue.get("number"), issue.get("title"), note))
-            # In Progress + 담당자 있음은 정상 진행 중이다. 목록에 올리지 않는다.
+            else:
+                # In Progress + 담당자 있음은 정상 진행 중이다. 착수 대상은 아니지만
+                # 출력에서 빼 버리면 왜 안 보이는지 알 수 없어 '진행 중'으로 추측하게 된다.
+                # 실제로 그렇게 잘못 읽은 적이 있다 — 그래서 따로 찍는다.
+                ongoing.append((issue.get("number"), issue.get("title"),
+                                "진행 중 · %s" % ", ".join(assignees)))
 
     for task_no, item, _ in unparsed:
         issue = issue_of(item)
@@ -112,17 +118,21 @@ def report(dashboard, items):
                        "선행 줄을 읽지 못했다 — 형식은 docs/GIT_WORKFLOW.md 3절"))
 
     # 번호 중복은 대시보드가 골라 낸다. 여기서 다시 판정하지 않고 받아서 보고만 한다.
+    # 중복 카드는 완료·진행 중일 수도 있어 다른 덩어리와 겹친다. 합계가 어긋나지 않게
+    # 겹친 이슈 번호를 따로 돌려준다.
+    dup_numbers = set()
     for task_no, cards in duplicates:
         others = [issue_of(c).get("number") for c in cards]
         for card in cards:
             issue = issue_of(card)
+            dup_numbers.add(issue.get("number"))
             mates = [n for n in others if n != issue.get("number")]
             broken.append((issue.get("number"), issue.get("title"),
                            "작업 번호 %s 가 #%s 와 겹친다 — 이슈 번호가 앞선 쪽을 원본으로 두고 "
                            "뒤쪽 제목의 번호를 옮긴다"
                            % (task_no, ", #".join(map(str, mates)))))
 
-    return startable, waiting, sorted(broken)
+    return startable, waiting, broken, ongoing, dup_numbers
 
 
 SELFTEST_CASES = [
@@ -161,13 +171,42 @@ def main():
 
     dashboard = load_dashboard()
     items = dashboard.fetch_items()
-    startable, waiting, broken = report(dashboard, items)
+    startable, waiting, broken, ongoing, dup_numbers = report(dashboard, items)
 
-    for label, rows in (("착수 가능", startable), ("대기 중", waiting), ("정정 필요", broken)):
+    for label, rows in (("착수 가능", startable), ("대기 중", waiting),
+                        ("정정 필요", broken), ("진행 중 (착수 대상 아님)", ongoing)):
         print("=== %s (%d건)" % (label, len(rows)))
         for number, title, note in rows:
             print("  #%s %s | %s" % (number, title, note))
     print("=== 보드에 없는 열린 이슈: %s" % (find_off_board(items) or "없음"))
+
+    # 합계를 찍어 두면 어떤 카드가 어느 덩어리로 갔는지 빠짐없이 확인할 수 있다.
+    # 수가 맞지 않으면 어딘가 빠진 것이므로, 안 보이는 이슈의 상태를 추측하지 말고
+    # `gh issue view <번호>` 로 확인한다.
+    cards = [i for i in items if dashboard.task_no(i)]
+    done = sum(1 for i in cards
+               if (issue_of(i).get("state") == "CLOSED"
+                   or dashboard.field_value(i, "Status") == "Done"))
+    # 제목에 작업 번호가 없는 카드는 선행 판정 대상이 아니다. 닫힌 규칙·문서 이슈가
+    # 대부분이지만 열린 채로 여기 빠지면 목록에서 통째로 사라진다.
+    numberless = [issue_of(i).get("number") for i in items if not dashboard.task_no(i)]
+    open_numberless = sorted(
+        issue_of(i).get("number") for i in items
+        if not dashboard.task_no(i) and issue_of(i).get("state") != "CLOSED")
+    # 번호 중복은 다른 덩어리와 겹치므로 합에서 빼고 따로 적는다. 그러지 않으면
+    # 합계가 카드 수보다 커져 "빠짐없이 분류됐는지" 확인하는 쓸모가 사라진다.
+    disjoint = len(broken) - len(dup_numbers)
+    print("=== 합계: 보드 카드 %d장 = 번호 있는 %d (착수가능 %d / 대기 %d / 정정필요 %d / "
+          "진행중 %d / 완료 %d) + 번호 없는 %d"
+          % (len(items), len(cards), len(startable), len(waiting), disjoint,
+             len(ongoing), done, len(numberless)))
+    if dup_numbers:
+        print("    작업 번호 중복 %d장은 위 덩어리와 겹치므로 합에서 뺐다: %s"
+              % (len(dup_numbers),
+                 ", ".join("#%s" % n for n in sorted(dup_numbers))))
+    if open_numberless:
+        print("    번호 없는 열린 카드(판정 제외): %s — 제목에 작업 번호를 붙여야 판정된다"
+              % ", ".join("#%s" % n for n in open_numberless))
     return 0
 
 
