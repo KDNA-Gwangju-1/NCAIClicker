@@ -1,6 +1,6 @@
 key,value,unit,note
 base_hit_power,1.0,hp/hit,호버 타격 1회에 깎는 내구도. 코인은 파괴 시에만 지급한다
-hover_swing_interval_sec,0.15,sec,대상 유무와 무관한 호버 망치 스윙 간격
+hover_swing_interval_sec,0.5,sec,대상 유무와 무관한 호버 망치 스윙 간격 (기본 초당 2회. 추후 스킬 해금으로 감소 예정)
 auto_hammer_count_init,0,count,자동 망치 초기 보유량. 업그레이드로 증가
 auto_hammer_power,0.6,hp/hit,자동 망치 타격 1회에 깎는 내구도
 auto_hammer_hits_per_sec,1.0,hit/sec,자동 망치 1기당 초당 타격 횟수
