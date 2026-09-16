@@ -100,7 +100,7 @@ Assets/
 ### 작업 흐름 (요약 — 정본은 [GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md))
 
 - **브랜치는 `main` 이 아니라 `Develop` 에서 딴다. PR 대상도 `Develop` 이다.**
-  `feature/<이니셜>-<모듈>-<이슈번호>-<설명>` (예: `feature/KSH-economy-12-upgrade-cost`)
+  `feature/<이니셜>-<모듈>-<이슈번호>-<계획번호>-<설명>` (예: `feature/KSH-economy-12-321-upgrade-cost`)
 - 한 작업 = 한 브랜치 = 한 PR. 브랜치 수명은 하루를 넘기지 않는다.
 - 커밋 3회 또는 30분마다, PR 직전에 `git fetch origin Develop && git rebase origin/Develop`.
 - 커밋 메시지는 `feat:` `fix:` `refactor:` `docs:` `chore:` `ci:` + 한국어 요약.
