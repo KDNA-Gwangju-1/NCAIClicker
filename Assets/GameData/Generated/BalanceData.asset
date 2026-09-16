@@ -20,7 +20,7 @@ MonoBehaviour:
     FeverDrainMultiplier: 1
   Economy:
     BaseHitPower: 1
-    HoverSwingIntervalSec: 0.15
+    HoverSwingIntervalSec: 0.5
     AutoHammerCountInit: 0
     AutoHammerPower: 0.6
     AutoHammerHitsPerSec: 1
