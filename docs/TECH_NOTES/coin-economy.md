@@ -102,7 +102,9 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
 - [x] 컴파일 에러·경고 0건
 - [x] `Managers.prefab` 에 컴포넌트 부착, `_balanceData` 가 `BalanceData.asset`(guid `148d52a3…`)을 가리키는 것을 프리팹 diff 로 확인
 - [ ] **Play Mode 미검증** — Unity 가 `OnEnable`/`OnDisable` 을 실제로 그 시점에 부르는지. 아래 한계 참고
-- [ ] **실제 게임 루프 미검증** — `OnTargetBroken` 을 발행하는 코어 플레이(작업 2.2)가 아직 없다
+- [x] **실제 루프 확인** (2026-09-16, 작업 2.1) — `Target` 프리팹을 3타로 부수니
+      `OnTargetBroken` → `EconomyManager` → 지갑 4코인 / `RunCoin` 4 로 이어졌다.
+      다만 스폰과 이동이 붙은 상태에서는 아직 못 돌려 봤다 (작업 2.2)
 
 ## 알려진 한계
 
@@ -130,3 +132,4 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
 | 날짜 | 이슈 | 누가 | 무엇이 바뀌었나 |
 |---|---|---|---|
 | 2026-09-16 | #22 | twins6375-art | 최초 작성 (CoinWallet, EconomyManager, 검증 19건) |
+| 2026-09-16 | #16 | twins6375-art | 타격 대상이 생겨 실제 지급 경로를 확인. 검증 절 갱신 |
