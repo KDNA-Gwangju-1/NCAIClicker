@@ -7,7 +7,7 @@ disable-model-invocation: true
 # PR 올리기
 
 1. `docs/GIT_WORKFLOW.md` 의 **1·4절**을 읽는다. 규칙 정본은 거기에만 있다.
-2. 현재 브랜치명이 `feature/<이니셜>-<모듈>-<이슈번호>-설명` 규칙에 맞는지 확인한다.
+2. 현재 브랜치명이 `feature/<이니셜>-<모듈>-<이슈번호>-<계획번호>-설명` 규칙에 맞는지 확인한다.
    맞지 않거나 `main`/`Develop` 위에 있으면 멈추고 알린다.
 3. 커밋하지 않은 변경이 남아 있으면 알린다.
 4. `git fetch origin Develop && git rebase origin/Develop` — PR 직전 리베이스는 필수다.
