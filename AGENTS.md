@@ -57,6 +57,7 @@ Assets/
   GameData/     밸런스 CSV 원본과 거기서 생성된 에셋
   Settings/     URP 렌더러 설정
   ThirdParty/   외부에서 받은 에셋 원본
+  Tests/        Test Framework 테스트 (PlayMode·EditMode). 빌드에 포함되지 않는다
 ```
 
 - **맞는 폴더가 없으면 새로 만들기 전에 이슈에 묻는다.** 임의로 폴더를 늘리지 않는다.
