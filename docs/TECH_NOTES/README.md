@@ -125,3 +125,4 @@ AI에게 시켜도 제대로 못 고친다.
 - [진행 대시보드](project-dashboard.md) — 선행 파서와 전체 페이지 조회
 - [초기 PC 설정](project-setup.md) — 창·리로드·검증 범위
 - [공용 계약](contracts.md) — 인터페이스, 이벤트 버스, DTO 규격 동결
+- [매니저 자동 생성](manager-bootstrap.md) — RuntimeInitializeOnLoadMethod 로 Resources 프리팹을 씬 로드 전 1회 생성

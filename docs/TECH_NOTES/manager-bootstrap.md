@@ -1,0 +1,65 @@
+# 매니저 자동 생성
+
+> 관련 이슈: #15 · 최종 수정: 2026-09-16
+
+**이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
+
+## 무엇을 하는가
+
+어느 씬에서 Play 를 눌러도 `Managers` 오브젝트가 정확히 하나 존재하게 한다. 씬 로드 전에 `Resources/Managers` 프리팹을 한 번 생성하고 `DontDestroyOnLoad` 로 유지한다. 매니저 컴포넌트는 모듈 담당자가 이 프리팹에 붙인다.
+
+## 왜 이 방법인가
+
+| 검토한 방법 | 채택 | 이유 |
+|---|---|---|
+| 부트스트랩 씬(`Bootstrap`)에서 매니저 생성 | ❌ | 개발 중 `Game` 씬만 열고 Play 하면 매니저가 없어 NRE 가 쏟아진다. 결국 "어느 씬에서도 생기는 장치"를 또 만들게 되고 그러면 부트스트랩 씬은 할 일이 없다 ([ARCHITECTURE 0절](../ARCHITECTURE.md)) |
+| 씬마다 매니저 오브젝트 배치 | ❌ | 씬 소유자가 다른데 매니저를 양쪽 씬에 넣으면 씬 병합 충돌이 생기고, 씬 전환 시 중복 생성·이벤트 이중 구독을 막는 코드가 따로 필요하다 |
+| `RuntimeInitializeOnLoadMethod(BeforeSceneLoad)` + `Resources` 프리팹 | ✅ | 씬 파일을 건드리지 않고, 첫 씬이 무엇이든 로드 전에 한 번만 생성된다. 코드 한 파일과 빈 프리팹 하나로 끝난다 |
+
+## 구조
+
+```mermaid
+flowchart LR
+  subgraph PM["PM·통합"]
+    boot[ManagerBootstrap<br/>BeforeSceneLoad 에 1회 실행]
+  end
+  prefab[(Resources/Managers.prefab<br/>빈 루트, Transform 만)]
+  inst[Managers 인스턴스<br/>DontDestroyOnLoad]
+  boot -- "Resources.Load" --> prefab
+  boot -- "Instantiate" --> inst
+```
+
+| 클래스 | 경로 | 하는 일 |
+|---|---|---|
+| `ManagerBootstrap` | `Assets/Scripts/Runtime/ManagerBootstrap.cs` | 프리팹 로드·생성·`DontDestroyOnLoad`. 정적 필드로 인스턴스를 보관해 중복 생성을 막는다 |
+| (프리팹) | `Assets/Prefabs/Resources/Managers.prefab` | 매니저 컴포넌트를 붙일 자리. 루트 하나, 자식 없음 |
+| `ManagerBootstrapTests` | `Assets/Tests/PlayMode/ManagerBootstrapTests.cs` | MainMenu → Game 전환 후에도 `Managers` 가 1개·같은 인스턴스인지 확인 |
+
+### 이벤트
+
+없음. `GameEvents` 를 발행·구독하지 않는다.
+
+### 읽는 밸런스 값
+
+없음.
+
+## 검증
+
+Unity 6000.3.21f1 배치 실행, 2026-09-16.
+
+- [x] 컴파일 + 프리팹 생성: `-batchmode -quit -nographics -executeMethod ...TempCreateManagersPrefab.Run` → 종료 코드 0, `error CS` 0건. 임시 스크립트는 생성 후 삭제했다.
+- [x] Play Mode 테스트: `-batchmode -nographics -runTests -testPlatform PlayMode` → 종료 코드 0, 1개 중 1개 통과 (`KeepsSingleManagersAcrossScenes`). 프리팹 누락 시 나오는 `[ManagerBootstrap]` 오류 로그 없음.
+- [ ] 에디터에서 `Game` 씬을 직접 열고 Play — 미검증 (배치 테스트는 MainMenu 부터 로드했다).
+
+## 알려진 한계
+
+- 프리팹에 매니저 컴포넌트가 아직 하나도 없다. 각 모듈이 자기 매니저를 붙이면서 [ARCHITECTURE 1절](../ARCHITECTURE.md) 초기화 순서를 맞춰야 한다.
+- 에디터에서 `Game` 씬을 직접 열어 Play 하는 경로는 배치로 검증하지 못했다. `BeforeSceneLoad` 는 첫 씬과 무관하게 실행되므로 동작해야 하지만 확인은 남아 있다.
+- 테스트 asmdef 는 런타임 코드를 참조하지 않는다(런타임에 asmdef 가 없다). 테스트는 씬의 오브젝트 이름만 본다.
+- `Resources.Load` 의존이라 프리팹 이름(`Managers`)이나 폴더를 바꾸면 소리 없이 실패하고 `LogError` 만 남는다.
+
+## 갱신 이력
+
+| 날짜 | 이슈 | 누가 | 무엇이 바뀌었나 |
+|---|---|---|---|
+| 2026-09-16 | #15 | Claude | 최초 작성 |
