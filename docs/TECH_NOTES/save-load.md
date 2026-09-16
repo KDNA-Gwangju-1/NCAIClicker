@@ -63,12 +63,13 @@ Unity 6000.3.21f1 에디터, `UnityMCP execute_code`로 Edit Mode에서 직접 �
 - [x] 미지원 버전(예: 99) 로드 → `save.json.bak` 생성, 기본값으로 초기화 확인
 - [x] v1 스타일 JSON(회차 정보 필드 전부 없음) 로드 → `Version`이 2로 올라가고, `CurrentDay`·`BillIndex`·`LastLoanRepaidDay`가 필드 이니셜라이저 기본값(1, 1, -1)으로 채워지며, `TotalCoin`(성장 데이터)은 유지되고, `ActiveBill`·`ActiveLoan`은 `null`로 정상 복원됨을 확인
 - [x] `convention-checker` 에이전트 점검 통과 (ARCHITECTURE.md `SaveData` 정의에 `Has*` 필드 반영 필요하다는 지적 1건 반영 완료, 그 외 위반 없음)
-- [ ] **Play Mode에서 씬 로드와 함께 실행하는 경로는 미검증** — 이번 검증은 Edit Mode에서 `AddComponent`로 임시 오브젝트를 만들어 직접 호출했다. `Managers` 프리팹에 컴포넌트를 붙이는 작업은 이 이슈 범위에서 하지 않았다(아래 한계 참고)
+- [x] `Managers.prefab`에 `SaveManager` 컴포넌트 부착. 프리팹을 `Instantiate`해 `EconomyManager`·`SaveManager`가 함께 존재하고 `SaveManager.Instance`가 `Awake()`에서 정상 설정됨을 확인
+- [x] 기존 `ManagerBootstrapTests`(PlayMode, MainMenu↔Game 전환 후 `Managers` 단일 인스턴스 확인) 1/1 통과 — 컴포넌트 추가로 인한 회귀 없음
+- [ ] **씬을 실제로 Play 해서 로드된 상태로 저장·불러오기를 실행하는 경로는 미검증** — Save/Load 자체 검증은 Edit Mode에서 `AddComponent`로 만든 임시 오브젝트로 직접 호출했다
 - [ ] **실제 게임 흐름(씬 진입 시 자동 로드, 상태 변화 시 자동 저장)은 미검증** — 그 흐름을 조립할 GameManager가 아직 없다
 
 ## 알려진 한계
 
-- **`Managers` 프리팹에 컴포넌트를 붙이지 않았다.** `new-script` 스킬 규칙상 이슈 작업자가 씬/프리팹을 직접 수정하지 않는다. **`SaveManager` 컴포넌트를 `Assets/Prefabs/Resources/Managers.prefab`에 붙이는 작업이 필요하다.**
 - **자동 로드/저장 호출부가 없다.** `SaveManager.Instance.Load()`를 언제 부르고 그 결과로 `EconomyManager.RestoreWallet()` 등을 언제 호출할지는 [coin-economy.md](coin-economy.md) 알려진 한계에 적힌 대로 `IEconomyService`에 없는 concrete API 문제가 먼저 풀려야 한다(공용 계약 변경 이슈 필요). ARCHITECTURE 1절의 초기화 순서(저장 로드 → 코인·업그레이드 복원 → …)를 실제로 조립하는 주체는 아직 없다.
 - **테스트 asmdef가 런타임 코드를 참조하지 못하는 기존 제약**([manager-bootstrap.md](manager-bootstrap.md) 참고)이 여기도 적용된다. 그래서 자동화된 `Tests/PlayMode` 테스트 대신 `execute_code`로 직접 실행해 확인했다 — 코드 변경 때마다 재현 가능한 회귀 테스트로 남지 않는다.
 - `BackupCorruptFile()`은 `save.json.bak` 하나만 유지한다. 손상이 반복되면 이전 백업을 덮어쓴다.
@@ -78,4 +79,4 @@ Unity 6000.3.21f1 에디터, `UnityMCP execute_code`로 Edit Mode에서 직접 �
 
 | 날짜 | 이슈 | 누가 | 무엇이 바뀌었나 |
 |---|---|---|---|
-| 2026-09-16 | #25, #76 | hunil58 | 최초 작성. `SaveManager` 구현(직렬화, 버전 마이그레이션, 손상 파일 백업), `JsonUtility` null 직렬화 불가 문제 발견 및 `HasActiveBill`/`HasActiveLoan` 플래그로 수정 |
+| 2026-09-16 | #25, #76 | hunil58 | 최초 작성. `SaveManager` 구현(직렬화, 버전 마이그레이션, 손상 파일 백업), `JsonUtility` null 직렬화 불가 문제 발견 및 `HasActiveBill`/`HasActiveLoan` 플래그로 수정. `Managers.prefab`에 컴포넌트 부착 및 검증 완료로 알려진 한계 항목 갱신 |
