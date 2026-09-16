@@ -21,6 +21,7 @@
 # Visual Studio / Rider generated
 .vs/
 .idea/
+.vscode/
 *.csproj
 *.unityproj
 *.sln
