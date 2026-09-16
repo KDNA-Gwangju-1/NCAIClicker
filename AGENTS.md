@@ -108,6 +108,13 @@ Assets/
   **한 커밋에 한 가지 일만** 담고 `git add -A` 를 쓰지 않는다.
 - **이슈가 작업 지시서다.** 완료 기준의 정본은 이슈 본문이다. 착수 전 담당자·상태를 확인하고
   비어 있으면 자신을 배정한 뒤 즉시 In Progress로 바꾼다.
+- **착수 가능 여부의 정본은 칸반 보드의 Status 다.** 담당자(assignee)는 판정에 쓰지 않는다 —
+  배정과 Status 변경은 별개의 단계라 한쪽만 보면 어긋난다. Status 는 이슈 필드가 아니라
+  Projects v2 아이템 필드여서 `gh issue list` 결과에 **나오지 않으므로**, 목록을 만들 때는
+  반드시 `gh project item-list` 로 보드를 읽는다.
+- **Status 와 담당자가 어긋난 이슈는 착수 가능·불가로 분류하지 말고 따로 보고한다.**
+  `In Progress` 인데 담당자가 없거나 담당자가 있는데 `Todo` 인 것은 착수 절차가 중간에 끊긴
+  흔적이다. 조용히 걸러 내면 목록에서 사라질 뿐 아무도 그 사실을 모른다.
 - 공용 계약(인터페이스·이벤트·CSV 스키마)을 바꿔야 하면 **구현 전에** 이슈를 먼저 발의한다
   (`공용 계약 변경` 이슈 템플릿).
 - **이슈를 만들거나 고칠 때 `**선행**:` 줄을 지우지 않는다.** 대시보드가 이 줄을 읽어
@@ -191,6 +198,7 @@ MCP가 붙어 있으면 에이전트가 에디터 상태를 직접 읽고 바꿀
 | `.claude/skills/commit/` | `/commit` — 커밋 규칙에 맞춰 커밋 |
 | `.claude/skills/pr/` | `/pr` — 리베이스·규칙 점검 후 PR 생성 |
 | `.claude/skills/start-work/` | `/start-work` — 배정 → 칸반 In Progress → Develop에서 브랜치 |
+| `.claude/skills/list-work/` | `/list-work` — 착수 가능한 이슈 목록 (읽기 전용) |
 | `.claude/skills/new-script/` | `/new-script` — 계획 승인 → 작성 → 점검 |
 | `.claude/skills/tech-note/` | `/tech-note` — 기술 문서 + Mermaid C4 도식 작성·갱신 |
 | `.claude/skills/verify-docs/` | `/verify-docs` — 기술 문서와 실제 코드를 대조 (읽기 전용) |
