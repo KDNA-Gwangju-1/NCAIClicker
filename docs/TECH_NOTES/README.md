@@ -129,3 +129,4 @@ AI에게 시켜도 제대로 못 고친다.
 - [UI 폰트](ui-fonts.md) — 나눔고딕·나눔스퀘어 OFL 원본, Dynamic SDF 에셋, TMP 기본 폰트 교체
 - [코인 정산](coin-economy.md) — 파괴 보상에 배율·대출 징수 적용, 소수 잔여 이월, 런 순수입 분리
 - [타격 대상](hit-targets.md) — 그레이박스 4종, 내구도와 피격, 파괴 시 보상 발행
+- [저장·불러오기](save-load.md) — SaveManager, JsonUtility 직렬화, 버전 마이그레이션, null 직렬화 우회
