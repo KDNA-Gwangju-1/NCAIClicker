@@ -8,7 +8,9 @@ namespace NCAIClicker.Data
     [Serializable]
     public class SaveData
     {
-        public int Version = 2;
+        public const int CurrentVersion = 2;
+
+        public int Version = CurrentVersion;
         public long TotalCoin;
         public string CoinRemainder = "0";
         public int StageIndex;

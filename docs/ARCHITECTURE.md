@@ -171,7 +171,8 @@ public enum ResumePoint { MainMenu, Result, PerkSelection }
 [Serializable]
 public class SaveData
 {
-    public int Version = 2;
+    public const int CurrentVersion = 2; // SaveManager도 이 상수를 참조한다. 숫자를 두 곳에 적지 않는다
+    public int Version = CurrentVersion;
     public long TotalCoin;
     public string CoinRemainder = "0"; // decimal을 InvariantCulture 문자열로 저장
     public int StageIndex;             // 배열 인덱스: 0부터. StageDef.Stage는 1부터

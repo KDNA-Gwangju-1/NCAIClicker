@@ -13,7 +13,6 @@ namespace NCAIClicker
     public class SaveManager : MonoBehaviour, ISaveService
     {
         private const string SaveFileName = "save.json";
-        private const int CurrentVersion = 2;
 
         public static ISaveService Instance { get; private set; }
 
@@ -102,13 +101,13 @@ namespace NCAIClicker
                     // SaveData의 필드 이니셜라이저 기본값(CurrentDay=1, BillIndex=1 등)을
                     // 이미 채워 넣으므로 별도 보정 코드가 필요 없다.
                     break;
-                case CurrentVersion:
+                case SaveData.CurrentVersion:
                     break;
                 default:
                     throw new NotSupportedException($"지원하지 않는 저장 버전: {data.Version}");
             }
 
-            data.Version = CurrentVersion;
+            data.Version = SaveData.CurrentVersion;
             return data;
         }
 
