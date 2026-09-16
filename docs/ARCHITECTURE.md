@@ -201,6 +201,37 @@ public class SaveData
 - 저장은 임시 파일 작성 후 교체한다. JSON 오류·지원하지 않는 버전은 원본을 백업하고 경고 후 초기화한다. 버전 1은 회차 정보가 없으므로 성장·코인은 유지하고 하루/청구서/대출을 기본값으로 보완한다.
 - 파산 시 보유 코인·소수 잔여·단계·날짜·청구서·대출·퍼크를 새 회차 값으로 초기화한다. 영구 업그레이드와 최고 기록은 유지한다. 파산 결과는 `WasBankrupt`와 `LastCompletedDay`로 별도 표시한다.
 
+### 직렬화 방식 (이슈 1.2.2)
+
+- 직렬화기는 Unity 내장 `JsonUtility`를 쓴다. Newtonsoft 등 추가 패키지를 넣지 않는다 (패키지 의존성을 늘리지 않는다는 PATTERNS.md 8절 기조와 동일).
+- 저장 파일은 `Application.persistentDataPath/save.json` 하나만 쓴다. 슬롯을 나누지 않는다.
+- 버전 정책: 필드를 추가·제거하거나 의미를 바꿀 때마다 `Version`을 1 올린다. `SaveManager.Load()`는 저장된 `Version`으로 분기해 예전 필드를 오늘 구조로 채워 넣는다 (버전 1→2 사례는 위 저장 경계 참고). 마이그레이션 분기는 지우지 않고 버전 수만큼 누적한다.
+- `ActiveBill`·`ActiveLoan`처럼 없을 수 있는 참조 필드는 `null`로 둔다. `JsonUtility`는 `null` 참조 필드를 `null`로 직렬화·역직렬화하지만, **구현 시 저장 → 로드 왕복 테스트로 한 번 더 확인한다** — 확인 전까지는 이 문서만 믿고 넘어가지 않는다.
+- 예시 JSON (필드 순서는 위 코드 선언 순):
+
+```json
+{
+  "Version": 2,
+  "TotalCoin": 15420,
+  "CoinRemainder": "0.37",
+  "StageIndex": 2,
+  "BestRunCoin": 980,
+  "UpgradeLevels": [3, 1, 0, 2],
+  "CurrentDay": 5,
+  "BillIndex": 2,
+  "ActiveBill": { "Amount": 500, "IssuedDay": 3, "DueDay": 7, "IsPaid": false },
+  "ActiveLoan": null,
+  "LastLoanRepaidDay": -1,
+  "ResumePoint": 0,
+  "LastRunCoin": 210,
+  "LastCompletedDay": 4,
+  "WasBankrupt": false,
+  "IsCompleted": false,
+  "OfferedPerkIds": ["perk_pay_early", "perk_double_hit"],
+  "PendingPerkIds": []
+}
+```
+
 ### 코인 계산·정산 계약
 
 1. 호버/자동 망치는 `HitInfo.Damage`만 전달한다. 대상의 현재 내구도는 `float`로 계산하여 작은 자동 망치 피해도 누적한다.
