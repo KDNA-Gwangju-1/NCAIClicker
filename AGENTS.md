@@ -102,7 +102,7 @@ Assets/
 ### 작업 흐름 (요약 — 정본은 [GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md))
 
 - **브랜치는 `main` 이 아니라 `Develop` 에서 딴다. PR 대상도 `Develop` 이다.**
-  `feature/<이니셜>-<모듈>-<이슈번호>-<계획번호>-<설명>` (예: `feature/KSH-economy-12-321-upgrade-cost`)
+  `feature/<이니셜>-<모듈>-<이슈번호>-<계획번호>-<설명>` (예: `feature/KSH-economy-12-3_2_1-upgrade-cost`)
 - 한 작업 = 한 브랜치 = 한 PR. 브랜치 수명은 하루를 넘기지 않는다.
 - 커밋 3회 또는 30분마다, PR 직전에 `git fetch origin Develop && git rebase origin/Develop`.
 - 커밋 메시지는 `feat:` `fix:` `refactor:` `docs:` `chore:` `ci:` + 한국어 요약.
@@ -175,7 +175,7 @@ MCP가 붙어 있으면 에이전트가 에디터 상태를 직접 읽고 바꿀
    1. 이슈를 확인한다. 담당자가 비어 있으면 자신을 배정한다.
    2. 칸반 보드의 Status 를 `In Progress` 로 바꾼다. **확인과 변경 사이가 벌어지면 두 사람이 같은 이슈를 집는다.**
    3. `Develop` 에서 `feature/<이니셜>-<모듈>-<이슈번호>-<계획번호>-<설명>` 브랜치를 만들고 체크아웃한다.
-      구분자는 **하이픈**이고 계획번호는 점을 뺀다 (예: `feature/KSH-economy-12-321-upgrade-cost`).
+      구분자는 **하이픈**이고 계획번호는 점을 `_` 로 바꾼다 (예: `feature/KSH-economy-12-3_2_1-upgrade-cost`).
       슬래시로 나누지 않는다.
    4. 셋의 결과를 보고한 뒤 1번으로 간다. **셋 중 하나라도 못 했으면 멈추고 묻는다** —
       브랜치 없이 쓴 코드는 남의 브랜치를 오염시키고, 보드에 없는 작업은 팀에게 존재하지 않는다.
