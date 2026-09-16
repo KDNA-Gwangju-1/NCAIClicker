@@ -179,7 +179,9 @@ public class SaveData
     public int[] UpgradeLevels;        // upgrades.csv sort_order 순
     public int CurrentDay = 1;
     public int BillIndex = 1;
+    public bool HasActiveBill;         // 저장 파일 전용 플래그. 메모리상에서는 ActiveBill == null로만 판단
     public Bill ActiveBill;
+    public bool HasActiveLoan;         // 저장 파일 전용 플래그. 메모리상에서는 ActiveLoan == null로만 판단
     public Loan ActiveLoan;            // 없으면 null
     public int LastLoanRepaidDay = -1;  // 대출 객체를 지워도 쿨다운 유지
     public ResumePoint ResumePoint;
@@ -206,8 +208,18 @@ public class SaveData
 - 직렬화기는 Unity 내장 `JsonUtility`를 쓴다. Newtonsoft 등 추가 패키지를 넣지 않는다 (패키지 의존성을 늘리지 않는다는 PATTERNS.md 8절 기조와 동일).
 - 저장 파일은 `Application.persistentDataPath/save.json` 하나만 쓴다. 슬롯을 나누지 않는다.
 - 버전 정책: 필드를 추가·제거하거나 의미를 바꿀 때마다 `Version`을 1 올린다. `SaveManager.Load()`는 저장된 `Version`으로 분기해 예전 필드를 오늘 구조로 채워 넣는다 (버전 1→2 사례는 위 저장 경계 참고). 마이그레이션 분기는 지우지 않고 버전 수만큼 누적한다.
-- `ActiveBill`·`ActiveLoan`처럼 없을 수 있는 참조 필드는 `null`로 둔다. `JsonUtility`는 `null` 참조 필드를 `null`로 직렬화·역직렬화하지만, **구현 시 저장 → 로드 왕복 테스트로 한 번 더 확인한다** — 확인 전까지는 이 문서만 믿고 넘어가지 않는다.
-- 예시 JSON (필드 순서는 위 코드 선언 순):
+- `ActiveBill`·`ActiveLoan`처럼 없을 수 있는 참조 필드는 **메모리상에서는** `null`로 둔다.
+  ~~`JsonUtility`는 `null` 참조 필드를 `null`로 직렬화·역직렬화한다~~ — **틀렸다.** 구현 중
+  저장 → 로드 왕복 테스트로 확인한 결과, `JsonUtility`는 참조 타입 필드의 `null`을 표현하지
+  못하고 필드 기본값으로 채운 빈 객체로 되살린다(이슈 #25, #76). 그래서 `SaveData`에
+  `HasActiveBill`·`HasActiveLoan` bool 플래그를 저장 파일 전용으로 추가했다.
+  `SaveManager.Save()`는 저장 직전 `ActiveBill`/`ActiveLoan`의 null 여부를 이 플래그에 반영하고,
+  `SaveManager.Load()`는 역직렬화 직후 플래그가 `false`인 참조를 다시 `null`로 되돌린다.
+  이 변환은 `SaveManager` 안에서만 일어나므로 다른 매니저는 여전히 `ActiveBill == null`
+  판단만 쓰면 된다.
+- 예시 JSON (필드 순서는 위 코드 선언 순. `ActiveLoan`이 없는 상태라 `HasActiveLoan`이
+  `false`이고 `ActiveLoan`은 필드 기본값으로 채워진 빈 객체로 저장된다 — 그래도 로드하면
+  `SaveManager`가 다시 `null`로 되돌린다):
 
 ```json
 {
@@ -219,8 +231,10 @@ public class SaveData
   "UpgradeLevels": [3, 1, 0, 2],
   "CurrentDay": 5,
   "BillIndex": 2,
+  "HasActiveBill": true,
   "ActiveBill": { "Amount": 500, "IssuedDay": 3, "DueDay": 7, "IsPaid": false },
-  "ActiveLoan": null,
+  "HasActiveLoan": false,
+  "ActiveLoan": { "Principal": 0, "Owed": 0, "DailyCut": 0.0 },
   "LastLoanRepaidDay": -1,
   "ResumePoint": 0,
   "LastRunCoin": 210,
