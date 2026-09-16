@@ -45,16 +45,16 @@ git config --global merge.unityyamlmerge.driver '"C:/Program Files/Unity/Hub/Edi
 
 ---
 
-## 3. Player Settings — 오늘 잡고 작업 8.2 에서 재확인
+## 3. Player Settings — 오늘 잡고 작업 8.2 에서 재확인 (2026-09-16 완료)
 
 - [x] Product Name = `NCAIClicker`, Company Name = `NCAITeamTwo` 설정 완료
   - 저장 경로가 `%USERPROFILE%/AppData/LocalLow/NCAITeamTwo/NCAIClicker/` 로 정해졌다. **바꾸려면 세이브가 생기기 전인 지금뿐이다** — 저장 기능이 붙은 뒤에 바꾸면 기존 세이브를 못 읽는다
 - [x] 게임명 확정 — `NCAIClicker`
-- [ ] 아이콘 (Default Icon)
+- [ ] 아이콘 (Default Icon) — #66 에서 별도 진행
 - [x] 기본 PC 창: Windowed, 1920×1080, native resolution 사용 해제 (ProjectSetup 적용)
 - [x] Resizable Window 및 Alt+Enter 전체화면 전환 해제. 다른 화면 비율·작은 모니터에서 16:9 유지와 HUD 배치는 최종 빌드에서 별도 검증한다
-- [ ] Scripting Backend: Mono (기본). IL2CPP는 빌드가 훨씬 오래 걸려 7일 일정에 불리하다. 성능 문제가 실측으로 확인되기 전에는 바꾸지 않는다
-- [ ] 스플래시 표시 여부는 현재 Unity 버전·라이선스에서 확인한다. 예전 Unity Personal 제한을 현재 버전에 그대로 적용하지 않는다
+- [x] Scripting Backend: Mono (기본). IL2CPP는 빌드가 훨씬 오래 걸려 7일 일정에 불리하다. 성능 문제가 실측으로 확인되기 전에는 바꾸지 않는다 (8.2 에서 확인, 2026-09-16)
+- [x] 스플래시 표시 여부는 현재 Unity 버전·라이선스에서 확인한다. 예전 Unity Personal 제한을 현재 버전에 그대로 적용하지 않는다 — 6000.3.21f1 현재 값: 표시 켜짐(Unity 로고 포함)
 
 ### URP 렌더러
 
