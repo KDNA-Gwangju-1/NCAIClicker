@@ -58,7 +58,7 @@ python .claude/skills/list-work/list_work.py
 | 선행을 잘못 읽는다 / 형식을 못 읽는다 | `.github/scripts/build_dashboard.py` 의 `parse_deps()`. 고치면 대시보드도 같이 고쳐진다 |
 | 멀쩡한 이슈가 "선행 줄을 읽지 못했다"로 뜬다 | **스크립트보다 이슈 본문을 먼저 의심한다.** 형식은 `docs/GIT_WORKFLOW.md` 3절 |
 | Status·담당자 불일치 판정이 이상하다 | `list_work.py` 의 `mismatch_reason()` — 이 스크립트가 더한 유일한 판정이다 |
-| 작업 번호가 겹쳤다고 뜬다 | 판정이 아니라 사실이다. 이슈 번호가 앞선 쪽을 원본으로 두고 뒤쪽 제목의 번호를 빈 번호로 옮긴다 — 스크립트를 고칠 일이 아니다 |
+| 작업 번호가 겹쳤다고 뜬다 | 판정이 아니라 사실이다. 스크립트를 고칠 일이 아니다 — 정정 절차는 `docs/GIT_WORKFLOW.md` 3절 |
 | `판정 로직을 찾지 못했다` 로 멈춘다 | 대시보드 스크립트가 옮겨졌다. `list_work.py` 의 `DASHBOARD` 경로 |
 | 한글이 깨지거나 `UnicodeDecodeError` | Windows 기본 cp949. `encoding="utf-8"` 을 못 박은 곳을 확인한다 |
 | `gh` 오류 | `gh auth status` |

@@ -269,8 +269,8 @@ def render(items):
     duplicate_block = f'''
       <section class="lane lane-warn">
         <h2>작업 번호 중복 <span class="count">{len(duplicates)}</span></h2>
-        <p class="lane-hint">같은 작업 번호를 쓴 카드가 둘 이상이다. 이슈 번호가 앞선 쪽을
-          원본으로 두고 뒤쪽 제목의 번호를 빈 번호로 옮긴다.</p>
+        <p class="lane-hint">같은 작업 번호를 쓴 카드가 둘 이상이다. 겹친 동안에는 선행 판정이
+          흔들린다 — 정정 절차는 <code>docs/GIT_WORKFLOW.md</code> 3절 참고.</p>
         <div class="lane-body">{dup_rows}</div>
       </section>''' if duplicates else ""
 

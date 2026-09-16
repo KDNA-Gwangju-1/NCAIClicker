@@ -128,8 +128,8 @@ def report(dashboard, items):
             dup_numbers.add(issue.get("number"))
             mates = [n for n in others if n != issue.get("number")]
             broken.append((issue.get("number"), issue.get("title"),
-                           "작업 번호 %s 가 #%s 와 겹친다 — 이슈 번호가 앞선 쪽을 원본으로 두고 "
-                           "뒤쪽 제목의 번호를 옮긴다"
+                           "작업 번호 %s 가 #%s 와 겹친다 — 정정 절차는 "
+                           "docs/GIT_WORKFLOW.md 3절"
                            % (task_no, ", #".join(map(str, mates)))))
 
     return startable, waiting, broken, ongoing, dup_numbers
