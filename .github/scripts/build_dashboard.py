@@ -150,45 +150,59 @@ def parse_deps(body, all_numbers, issue_to_task):
 
 
 def dependency_report(items):
-    """선행이 전부 끝난 카드(착수 가능), 막힌 카드, 형식을 못 읽은 카드로 나눈다.
+    """선행이 전부 끝난 카드(착수 가능), 막힌 카드, 형식을 못 읽은 카드,
+    작업 번호가 겹친 카드로 나눈다.
 
     GitHub Projects 에는 의존성 기능이 없다. 이슈 본문의 **선행** 줄을 읽어
     여기서 직접 계산한다 — 사람이 라벨이나 컬럼을 손으로 옮기지 않아도 되게 하려는 것.
     형식은 .github/ISSUE_TEMPLATE/task.md 와 docs/GIT_WORKFLOW.md 3절에 적혀 있다.
     """
-    by_no = {}
+    cards_by_no = {}
     issue_to_task = {}
     for it in items:
         n = task_no(it)
         if n:
-            by_no[n] = it
+            cards_by_no.setdefault(n, []).append(it)
             issue_to_task[str((it.get("content") or {}).get("number"))] = n
-    all_numbers = list(by_no)
+    all_numbers = list(cards_by_no)
 
-    def is_done(n):
-        it = by_no.get(n)
-        if not it:
-            return False  # 이슈가 없는 선행은 안 끝난 것으로 본다
+    def card_done(it):
         c = it.get("content") or {}
         return c.get("state") == "CLOSED" or field_value(it, "Status") == "Done"
 
+    def is_done(n):
+        cards = cards_by_no.get(n)
+        if not cards:
+            return False  # 이슈가 없는 선행은 안 끝난 것으로 본다
+        # 번호가 겹치면 전부 끝났을 때만 끝난 것으로 본다. 하나만 보고 판정하면
+        # 어느 카드를 집었는지에 따라 답이 달라진다 — 조용히 틀리는 쪽이 최악이다.
+        return all(card_done(c) for c in cards)
+
     ready, blocked, unparsed = [], [], []
-    for n, it in by_no.items():
-        if is_done(n):
-            continue
-        c = it.get("content") or {}
-        deps, ok = parse_deps(c.get("body"), all_numbers, issue_to_task)
-        if not ok:
-            unparsed.append((n, it, []))
-            continue
-        waiting = [d for d in deps if not is_done(d)]
-        (blocked if waiting else ready).append((n, it, sorted(set(waiting))))
+    for n, cards in cards_by_no.items():
+        for it in cards:
+            if card_done(it):
+                continue
+            c = it.get("content") or {}
+            deps, ok = parse_deps(c.get("body"), all_numbers, issue_to_task)
+            if not ok:
+                unparsed.append((n, it, []))
+                continue
+            waiting = [d for d in deps if not is_done(d)]
+            (blocked if waiting else ready).append((n, it, sorted(set(waiting))))
+
+    # 번호가 겹친 것은 판정 결과가 아니라 사람이 제목을 고쳐야 하는 사고다.
+    # 조용히 덮어쓰면 아무도 모르므로 따로 돌려준다.
+    duplicates = sorted(
+        ((n, cards) for n, cards in cards_by_no.items() if len(cards) > 1),
+        key=lambda x: [int(p) for p in x[0].split(".")],
+    )
 
     key = lambda x: [int(p) for p in x[0].split(".")]
     ready.sort(key=key)
     blocked.sort(key=key)
     unparsed.sort(key=key)
-    return ready, blocked, unparsed
+    return ready, blocked, unparsed, duplicates
 
 
 def field_value(item, field_name):
@@ -223,7 +237,7 @@ def render(items):
           <div class="card-meta">{badge}<span class="assignee">{html.escape(assignees)}</span></div>
         </a>"""
 
-    ready, blocked, unparsed = dependency_report(items)
+    ready, blocked, unparsed, duplicates = dependency_report(items)
 
     def dep_row(no, item, waiting):
         c = item["content"]
@@ -246,6 +260,19 @@ def render(items):
           형식은 <code>.github/ISSUE_TEMPLATE/task.md</code> 참고.</p>
         <div class="lane-body">{unparsed_html}</div>
       </section>''' if unparsed else ""
+
+    # 작업 번호가 겹친 카드. 선행 판정이 두 카드를 한 번호로 보게 되므로
+    # 번호로 이어진 모든 판정이 흔들린다 — 목록보다 먼저 눈에 띄어야 한다.
+    dup_rows = "".join(
+        dep_row(n, it, []) for n, cards in duplicates for it in cards
+    )
+    duplicate_block = f'''
+      <section class="lane lane-warn">
+        <h2>작업 번호 중복 <span class="count">{len(duplicates)}</span></h2>
+        <p class="lane-hint">같은 작업 번호를 쓴 카드가 둘 이상이다. 겹친 동안에는 선행 판정이
+          흔들린다 — 정정 절차는 <code>docs/GIT_WORKFLOW.md</code> 3절 참고.</p>
+        <div class="lane-body">{dup_rows}</div>
+      </section>''' if duplicates else ""
 
 
     columns_html = ""
@@ -341,7 +368,7 @@ def render(items):
         <p class="lane-hint">무엇을 기다리는지 옆에 적혀 있다. 선행이 닫히면 왼쪽으로 자동으로 올라온다.</p>
         <div class="lane-body">{blocked_html}</div>
       </section>
-      {unparsed_block}
+      {unparsed_block}{duplicate_block}
     </div>
   </div>
 
