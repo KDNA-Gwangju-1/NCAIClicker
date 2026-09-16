@@ -124,3 +124,4 @@ AI에게 시켜도 제대로 못 고친다.
 - [밸런스 임포트](balance-import.md) — 검증 후 반영, GUID 보존, 회귀 검증
 - [진행 대시보드](project-dashboard.md) — 선행 파서와 전체 페이지 조회
 - [초기 PC 설정](project-setup.md) — 창·리로드·검증 범위
+* [공용 계약](contracts.md) — 인터페이스, 이벤트 버스, DTO 규격 동결
