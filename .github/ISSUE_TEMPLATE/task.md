@@ -1,7 +1,7 @@
 ---
 name: 작업
 about: 실행 계획의 작업 번호에 대응하는 개발 작업
-title: '[<작업번호>] '
+title: '<작업번호> '
 labels: ''
 assignees: ''
 ---
