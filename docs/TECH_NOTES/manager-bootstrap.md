@@ -1,6 +1,6 @@
 # 매니저 자동 생성
 
-> 관련 이슈: #15, #80 · 최종 수정: 2026-09-17
+> 관련 이슈: #15, #80, #27 · 최종 수정: 2026-09-17
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -23,7 +23,7 @@ flowchart LR
   subgraph PM["PM·통합"]
     boot[ManagerBootstrap<br/>BeforeSceneLoad 에 1회 실행]
   end
-  prefab[(Resources/Managers.prefab<br/>EconomyManager 부착됨)]
+  prefab[(Resources/Managers.prefab<br/>EconomyManager·SaveManager·StaminaManager·GameManager·BillManager 부착됨)]
   inst[Managers 인스턴스<br/>DontDestroyOnLoad]
   boot -- "Resources.Load" --> prefab
   boot -- "Instantiate" --> inst
@@ -32,7 +32,7 @@ flowchart LR
 | 클래스 | 경로 | 하는 일 |
 |---|---|---|
 | `ManagerBootstrap` | `Assets/Scripts/Runtime/ManagerBootstrap.cs` | 프리팹 로드·생성·`DontDestroyOnLoad`. 정적 필드로 인스턴스를 보관해 중복 생성을 막는다 |
-| (프리팹) | `Assets/Prefabs/Resources/Managers.prefab` | 매니저 컴포넌트를 붙이는 자리. 루트 하나, 자식 없음. 현재 `EconomyManager` 하나가 붙어 있다 |
+| (프리팹) | `Assets/Prefabs/Resources/Managers.prefab` | 매니저 컴포넌트를 붙이는 자리. 루트 하나, 자식 없음. 현재 `EconomyManager`·`SaveManager`·`StaminaManager`·`GameManager`·`BillManager` 다섯 개가 붙어 있다 |
 | `ManagerBootstrapTests` | `Assets/Tests/PlayMode/ManagerBootstrapTests.cs` | MainMenu → Game 전환 후에도 `Managers` 가 1개·같은 인스턴스인지 확인 |
 
 ### 이벤트
@@ -55,7 +55,7 @@ Unity 6000.3.21f1 배치 실행, 2026-09-16.
 
 ## 알려진 한계
 
-- 붙어 있는 매니저는 `EconomyManager` 하나뿐이다(작업 3.1). 나머지 모듈이 자기 매니저를 붙이면서 [ARCHITECTURE 1절](../ARCHITECTURE.md) 초기화 순서를 맞춰야 한다. 컴포넌트 실행 순서는 아직 아무도 지정하지 않았다.
+- 붙어 있는 매니저는 `EconomyManager`·`SaveManager`·`StaminaManager`·`GameManager`·`BillManager` 다섯 개다(#27 기준). 매니저 사이의 연결(`EconomyManager.SetBillService` 등)은 `ManagerBootstrap`이 생성 직후 코드로 조립한다. 컴포넌트 실행 순서는 아직 아무도 지정하지 않았다 — [ARCHITECTURE 1절](../ARCHITECTURE.md) 초기화 순서가 필요해지면 그때 맞춘다.
 - 에디터에서 `Game` 씬을 직접 열어 Play 하는 경로는 배치 모드(`OpenScene` + `EnterPlaymode`)로만 확인했다 (macOS 빌드는 #110, Windows 독립 빌드 구동은 #80 에서 검증 완료).
 - 테스트 asmdef 는 런타임 코드를 참조하지 않는다(런타임에 asmdef 가 없다). 테스트는 씬의 오브젝트 이름만 본다.
 - `Resources.Load` 의존이라 프리팹 이름(`Managers`)이나 폴더를 바꾸면 소리 없이 실패하고 `LogError` 만 남는다.
@@ -69,3 +69,4 @@ Unity 6000.3.21f1 배치 실행, 2026-09-16.
 | 2026-09-17 | #80 | Claude | 에디터 Play 검증 반영 |
 | 2026-09-17 | #110 | Claude | macOS 빌드 `Player.log` 검증 반영 |
 | 2026-09-17 | #80 | saltlake00 | Windows 독립 빌드 구동 및 Player.log 검증 반영, 생성 로그 추가 |
+| 2026-09-17 | #27 | Claude | `BillManager` 부착 반영 (구조도·컴포넌트 표·알려진 한계) |
