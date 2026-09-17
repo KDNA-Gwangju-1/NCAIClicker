@@ -1,4 +1,4 @@
-﻿using NCAIClicker.Core;
+using NCAIClicker.Core;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -7,16 +7,21 @@ namespace NCAIClicker.Core
 {
     /// <summary>
     /// 망치의 예상 타격 위치 바닥 마커와 허공의 망치 스윙 비주얼을 제공한다.
-    /// 원작의 바닥 조준 레티클(중심 점, 내부 링, 바깥쪽 점선 세그먼트)을 절차적 텍스처로 구현한다.
-    /// 씬 파일 수정 없이도 작동하도록 Play Mode 시 자동 생성된다.
+    /// 바닥 원형 마커의 12개 세그먼트가 12시 방향부터 시계방향으로 차오르며 스윙 쿨타임을 표시한다.
+    /// 게이지가 100% 완충되면 망치가 바닥을 강하게 내려찍는다.
     /// </summary>
     public class HammerSwingVisual : MonoBehaviour
     {
+        private const int SegmentCount = 12;
+        private const float ReticleRadius = 0.45f;
+
         private Camera _aimCamera;
         private Plane _deskPlane;
-        private Transform _reticle;
+        private Transform _reticleRoot;
         private Transform _hammerPivot;
-        private float _swingInterval = 0.5f;
+        private Renderer[] _segmentRenderers;
+
+        [SerializeField] private float _swingInterval = 0.85f;
         private float _timer;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -41,79 +46,123 @@ namespace NCAIClicker.Core
         {
             _aimCamera = Camera.main;
             _deskPlane = new Plane(Vector3.up, Vector3.zero);
+
+#if UNITY_EDITOR
+            var balance = UnityEditor.AssetDatabase.LoadAssetAtPath<NCAIClicker.Data.BalanceData>("Assets/GameData/Generated/BalanceData.asset");
+            if (balance != null && balance.Economy != null && balance.Economy.HoverSwingIntervalSec > 0f)
+            {
+                _swingInterval = balance.Economy.HoverSwingIntervalSec;
+            }
+#endif
+
             BuildVisuals();
         }
 
         private void BuildVisuals()
         {
-            // 1. 바닥 조준 레티클 생성 (원작 스타일: 중심점 + 내부 링 + 바깥쪽 점선 세그먼트)
-            var reticleGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            reticleGo.name = "AimReticle_Decal";
-            reticleGo.transform.SetParent(transform);
-            reticleGo.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            reticleGo.transform.localScale = new Vector3(0.9f, 0.9f, 1f);
-            Destroy(reticleGo.GetComponent<Collider>());
-
-            var reticleRenderer = reticleGo.GetComponent<Renderer>();
-            reticleRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            reticleRenderer.receiveShadows = false;
-
-            // 투명 Unlit 머티리얼 적용
-            var shader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (shader == null)
+            var transparentShader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (transparentShader == null)
             {
-                shader = Shader.Find("Unlit/Transparent");
+                transparentShader = Shader.Find("Unlit/Transparent");
             }
-            var reticleMat = new Material(shader);
-            reticleMat.SetFloat("_Surface", 1); // Transparent
-            reticleMat.SetFloat("_Blend", 0);   // Alpha
-            reticleMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            reticleMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            reticleMat.SetInt("_ZWrite", 0);
-            reticleMat.renderQueue = 3000;
 
-            reticleMat.mainTexture = GenerateReticleTexture();
-            reticleRenderer.material = reticleMat;
-            _reticle = reticleGo.transform;
+            // 1. 레티클 루트
+            var reticleRootGo = new GameObject("ReticleRoot");
+            reticleRootGo.transform.SetParent(transform);
+            _reticleRoot = reticleRootGo.transform;
 
-            // 2. 허공의 스윙 망치 피벗 및 모델 생성 (원작 형태의 막대와 헤드)
+            // 2. 바닥 기본 베이스 링 (중심점 + 내부 원형 음영 및 실선 테두리)
+            var baseQuad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            baseQuad.name = "BaseReticle";
+            baseQuad.transform.SetParent(_reticleRoot);
+            baseQuad.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            baseQuad.transform.localScale = new Vector3(0.7f, 0.7f, 1f);
+            baseQuad.transform.localPosition = new Vector3(0f, 0.012f, 0f);
+            Destroy(baseQuad.GetComponent<Collider>());
+
+            var baseRenderer = baseQuad.GetComponent<Renderer>();
+            baseRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            baseRenderer.receiveShadows = false;
+
+            var baseMat = CreateTransparentMaterial(transparentShader);
+            baseMat.mainTexture = GenerateBaseReticleTexture();
+            baseRenderer.material = baseMat;
+
+            // 3. 바깥쪽 12개 쿨타임 세그먼트 게이지 생성 (12시 방향부터 시계방향)
+            _segmentRenderers = new Renderer[SegmentCount];
+            for (var i = 0; i < SegmentCount; i++)
+            {
+                var segGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                segGo.name = "Segment_" + i;
+                segGo.transform.SetParent(_reticleRoot);
+                Destroy(segGo.GetComponent<Collider>());
+
+                // 12시 방향(0도)부터 시계방향 배치
+                var angleDeg = (i / (float)SegmentCount) * 360f;
+                var angleRad = (90f - angleDeg) * Mathf.Deg2Rad; // 12시 기준 시계방향
+                var posX = Mathf.Cos(angleRad) * ReticleRadius;
+                var posZ = Mathf.Sin(angleRad) * ReticleRadius;
+
+                segGo.transform.localPosition = new Vector3(posX, 0.016f, posZ);
+                segGo.transform.localRotation = Quaternion.Euler(90f, angleDeg, 0f);
+                segGo.transform.localScale = new Vector3(0.12f, 0.04f, 1f);
+
+                var segRenderer = segGo.GetComponent<Renderer>();
+                segRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                segRenderer.receiveShadows = false;
+
+                var segMat = CreateTransparentMaterial(transparentShader);
+                segRenderer.material = segMat;
+                _segmentRenderers[i] = segRenderer;
+            }
+
+            // 4. 허공의 스윙 망치 피벗 및 모델 생성 (원작 배색: 빨간 손잡이 바 + 짙은 네이비 헤드)
             var pivotGo = new GameObject("HammerPivot");
             pivotGo.transform.SetParent(transform);
             _hammerPivot = pivotGo.transform;
 
-            // 손잡이 막대 (빨간색 고무 손잡이 + 목 부분)
+            // 손잡이 막대
             var handleGo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             handleGo.name = "HammerHandle";
             handleGo.transform.SetParent(_hammerPivot);
-            handleGo.transform.localPosition = new Vector3(0.25f, 0.35f, -0.2f);
-            handleGo.transform.localRotation = Quaternion.Euler(40f, -20f, 0f);
+            handleGo.transform.localPosition = new Vector3(0.22f, 0.35f, -0.18f);
+            handleGo.transform.localRotation = Quaternion.Euler(38f, -18f, 0f);
             handleGo.transform.localScale = new Vector3(0.06f, 0.35f, 0.06f);
             Destroy(handleGo.GetComponent<Collider>());
 
             var handleRenderer = handleGo.GetComponent<Renderer>();
             var handleMat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-            handleMat.color = new Color(0.8f, 0.2f, 0.15f); // 원작의 빨간 손잡이
+            handleMat.color = new Color(0.82f, 0.22f, 0.16f);
             handleRenderer.material = handleMat;
 
-            // 망치 머리 (짙은 네이비 블루 헤드)
+            // 망치 머리
             var headGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
             headGo.name = "HammerHead";
             headGo.transform.SetParent(_hammerPivot);
-            headGo.transform.localPosition = new Vector3(0.25f, 0.6f, 0.02f);
-            headGo.transform.localRotation = Quaternion.Euler(40f, -20f, 0f);
+            headGo.transform.localPosition = new Vector3(0.22f, 0.6f, 0.03f);
+            headGo.transform.localRotation = Quaternion.Euler(38f, -18f, 0f);
             headGo.transform.localScale = new Vector3(0.18f, 0.16f, 0.32f);
             Destroy(headGo.GetComponent<Collider>());
 
             var headRenderer = headGo.GetComponent<Renderer>();
             var headMat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-            headMat.color = new Color(0.18f, 0.22f, 0.28f); // 원작의 짙은 네이비 헤드
+            headMat.color = new Color(0.18f, 0.22f, 0.28f);
             headRenderer.material = headMat;
         }
 
-        /// <summary>
-        /// 첨부 이미지와 같은 원작 스타일의 조준 마커 텍스처를 절차적으로 생성한다.
-        /// </summary>
-        private static Texture2D GenerateReticleTexture()
+        private static Material CreateTransparentMaterial(Shader shader)
+        {
+            var mat = new Material(shader);
+            mat.SetFloat("_Surface", 1);
+            mat.SetFloat("_Blend", 0);
+            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetInt("_ZWrite", 0);
+            mat.renderQueue = 3000;
+            return mat;
+        }
+
+        private static Texture2D GenerateBaseReticleTexture()
         {
             const int size = 256;
             var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
@@ -131,47 +180,27 @@ namespace NCAIClicker.Core
                     var dx = x - center;
                     var dy = y - center;
                     var dist = Mathf.Sqrt(dx * dx + dy * dy) / maxR;
-                    var angle = Mathf.Atan2(dy, dx);
-                    if (angle < 0f)
-                    {
-                        angle += Mathf.PI * 2f;
-                    }
-
                     var col = Color.clear;
 
-                    // 1. 중심 하얀 점 (조준점)
-                    if (dist < 0.06f)
+                    // 중심 하얀 점 (조준점)
+                    if (dist < 0.08f)
                     {
-                        var t = 1f - (dist / 0.06f);
+                        var t = 1f - (dist / 0.08f);
                         col = new Color(1f, 1f, 1f, Mathf.Clamp01(t * 1.5f));
                     }
-                    // 2. 내부 은은한 어두운 그림자 영역
-                    else if (dist < 0.55f)
+                    // 내부 어두운 그림자 영역
+                    else if (dist < 0.72f)
                     {
-                        var shadowAlpha = Mathf.Lerp(0.35f, 0.05f, dist / 0.55f);
+                        var shadowAlpha = Mathf.Lerp(0.35f, 0.08f, dist / 0.72f);
                         col = new Color(0.08f, 0.04f, 0.02f, shadowAlpha);
                     }
 
-                    // 3. 내부 실선 링 (갈색 금색 테두리)
-                    var innerRingDist = Mathf.Abs(dist - 0.56f);
-                    if (innerRingDist < 0.025f)
+                    // 내부 실선 링 (갈색 금색 테두리)
+                    var ringDist = Mathf.Abs(dist - 0.74f);
+                    if (ringDist < 0.035f)
                     {
-                        var a = 1f - (innerRingDist / 0.025f);
-                        col = Color.Lerp(col, new Color(0.9f, 0.72f, 0.5f, 0.95f), a);
-                    }
-
-                    // 4. 바깥쪽 점선 세그먼트 (12개 분할 조각)
-                    if (dist >= 0.68f && dist <= 0.82f)
-                    {
-                        const float segmentCount = 12f;
-                        var seg = (angle / (Mathf.PI * 2f)) * segmentCount;
-                        var frac = seg - Mathf.Floor(seg);
-                        if (frac < 0.65f) // 65%는 표시, 35%는 공백
-                        {
-                            var dEdge = Mathf.Min(dist - 0.68f, 0.82f - dist) / 0.07f;
-                            var edgeAlpha = Mathf.Clamp01(dEdge * 2f);
-                            col = new Color(0.96f, 0.93f, 0.88f, 0.92f * edgeAlpha);
-                        }
+                        var a = 1f - (ringDist / 0.035f);
+                        col = Color.Lerp(col, new Color(0.88f, 0.7f, 0.48f, 0.95f), a);
                     }
 
                     pixels[y * size + x] = col;
@@ -206,20 +235,58 @@ namespace NCAIClicker.Core
                 }
             }
 
+            // 쿨타임 타이머 갱신 (0.85초 주기)
             _timer += Time.deltaTime;
             while (_timer >= _swingInterval)
             {
                 _timer -= _swingInterval;
             }
 
-            AnimateHammerSwing(_timer / _swingInterval);
+            var progress = Mathf.Clamp01(_timer / _swingInterval);
+
+            // 1. 바닥 원형 12개 세그먼트 게이지 갱신 (12시 방향부터 시계방향)
+            UpdateSegmentGauge(progress);
+
+            // 2. 망치 스윙 모션 연동 (게이지 차오를 때 장전, 100% 도달 시 강타)
+            AnimateHammerSwing(progress);
+        }
+
+        private void UpdateSegmentGauge(float progress)
+        {
+            if (_segmentRenderers == null)
+            {
+                return;
+            }
+
+            // progress 비율에 따라 켜질 세그먼트 수 계산
+            var filledCount = Mathf.FloorToInt(progress * SegmentCount);
+
+            for (var i = 0; i < SegmentCount; i++)
+            {
+                var r = _segmentRenderers[i];
+                if (r == null)
+                {
+                    continue;
+                }
+
+                if (i <= filledCount)
+                {
+                    // 차오른 세그먼트: 밝은 아이보리 화이트 점등
+                    r.material.color = new Color(0.98f, 0.95f, 0.9f, 0.95f);
+                }
+                else
+                {
+                    // 아직 안 찬 세그먼트: 어두운 반투명 색상 대기
+                    r.material.color = new Color(0.25f, 0.18f, 0.12f, 0.22f);
+                }
+            }
         }
 
         private void UpdateCursorTransform(Vector3 groundPos)
         {
-            if (_reticle != null)
+            if (_reticleRoot != null)
             {
-                _reticle.position = new Vector3(groundPos.x, 0.015f, groundPos.z);
+                _reticleRoot.position = new Vector3(groundPos.x, 0.015f, groundPos.z);
             }
 
             if (_hammerPivot != null)
@@ -235,26 +302,29 @@ namespace NCAIClicker.Core
                 return;
             }
 
-            // progress: 0.0 ~ 0.7 위로 들기, 0.7 ~ 0.85 강하게 내리찍기, 0.85 ~ 1.0 반동 복귀
+            // progress:
+            // 0.0 ~ 0.8: 게이지가 차오르는 동안 망치가 서서히 뒤로 높이 들려올려짐 (Wind up 장전)
+            // 0.8 ~ 0.92: 게이지 완충 시점에 바닥을 향해 맹렬하게 쾅! 내리찍음 (Strike 강타)
+            // 0.92 ~ 1.0: 타격 반동으로 살짝 튕겨 올라오며 복귀
             float angleX;
             float heightY;
 
-            if (progress < 0.7f)
+            if (progress < 0.8f)
             {
-                var t = progress / 0.7f;
-                angleX = Mathf.Lerp(10f, 60f, t);
-                heightY = Mathf.Lerp(0.2f, 0.65f, t);
+                var t = progress / 0.8f;
+                angleX = Mathf.Lerp(15f, 65f, t);
+                heightY = Mathf.Lerp(0.2f, 0.75f, t);
             }
-            else if (progress < 0.85f)
+            else if (progress < 0.92f)
             {
-                var t = (progress - 0.7f) / 0.15f;
-                angleX = Mathf.Lerp(60f, -20f, t);
-                heightY = Mathf.Lerp(0.65f, 0.02f, t);
+                var t = (progress - 0.8f) / 0.12f;
+                angleX = Mathf.Lerp(65f, -22f, t);
+                heightY = Mathf.Lerp(0.75f, 0.02f, t);
             }
             else
             {
-                var t = (progress - 0.85f) / 0.15f;
-                angleX = Mathf.Lerp(-20f, 10f, t);
+                var t = (progress - 0.92f) / 0.08f;
+                angleX = Mathf.Lerp(-22f, 15f, t);
                 heightY = Mathf.Lerp(0.02f, 0.2f, t);
             }
 
