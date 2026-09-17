@@ -168,9 +168,12 @@ namespace NCAIClicker.EditorTools
             public int CurrentDay => 1;
             public int DaysLeft => 1;
             public float LoanDailyCut { get; set; }
+            public Bill ActiveBill => null;
+            public string[] OfferedPerkIds => Array.Empty<string>();
             public bool TryPay(Bill bill) => false;
             public bool TryTakeLoan(long amount) => false;
             public bool TryRepayLoan() => false;
+            public bool TryChoosePerk(string perkId) => false;
         }
 
         private static void AssertCondition(bool condition, string message)
