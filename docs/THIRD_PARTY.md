@@ -5,7 +5,7 @@
 | 이름 | 종류 | 출처 | 라이선스 | 라이선스 전문 | 용도 |
 |---|---|---|---|---|---|
 | 나눔고딕 Regular·Bold | 폰트 | https://github.com/google/fonts/tree/main/ofl/nanumgothic (네이버 배포판) | SIL OFL 1.1 | `LICENSES/NanumGothic-OFL.txt` | UI 본문 (`Assets/ThirdParty/Fonts/NanumGothic-*.ttf`) |
-| 나눔스퀘어 Bold | 폰트 | https://hangeul.naver.com/fonts/search?f=nanum (nanum-square.zip) | SIL OFL 1.1 | `LICENSES/NanumSquare-OFL.txt` (배포 zip 에 전문이 없어 OFL 1.1 표준 전문 사본) | HUD 숫자 강조 (`Assets/ThirdParty/Fonts/NanumSquareB.ttf`) |
+| 나눔스퀘어 Bold | 폰트 | https://hangeul.naver.com/fonts/search?f=nanum (nanum-square.zip) | SIL OFL 1.1 | `LICENSES/NanumSquare-OFL.txt` (배포 zip 에 전문이 없어 OFL 1.1 표준 전문 사본. 이대로 유지하기로 결정, #78) | HUD 숫자 강조 (`Assets/ThirdParty/Fonts/NanumSquareB.ttf`) |
 | LiberationSans | 폰트 | Unity TMP 패키지 필수 리소스 (`Assets/TextMesh Pro/Fonts/`) | SIL OFL 1.1 | `Assets/TextMesh Pro/Fonts/LiberationSans - OFL.txt` | TMP 기본 폴백 폰트. 직접 쓰지 않는다 |
 
 ## 기록 규칙
