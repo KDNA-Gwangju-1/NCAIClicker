@@ -1,3 +1,4 @@
+using NCAIClicker.Economy;
 using UnityEngine;
 
 namespace NCAIClicker
@@ -30,7 +31,15 @@ namespace NCAIClicker
             _instance = Object.Instantiate(prefab);
             _instance.name = PrefabName;
             Object.DontDestroyOnLoad(_instance);
-            Debug.Log($"[ManagerBootstrap] {PrefabName} 인스턴스 자동 생성 완료.");
+
+            // BillManager 를 EconomyManager 에 연결한다 — 구현 클래스끼리 직접 참조하지 않도록
+            // IBillService 통로로만 넘긴다 (AGENTS.md). 둘 다 없으면 조용히 건너뛴다.
+            var economyManager = _instance.GetComponent<EconomyManager>();
+            var billManager = _instance.GetComponent<BillManager>();
+            if (economyManager != null && billManager != null)
+            {
+                economyManager.SetBillService(billManager);
+            }
         }
     }
 }
