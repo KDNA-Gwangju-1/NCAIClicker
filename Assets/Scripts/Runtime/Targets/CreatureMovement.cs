@@ -1,4 +1,4 @@
-﻿using NCAIClicker.Data;
+using NCAIClicker.Data;
 using NCAIClicker.Interfaces;
 using UnityEngine;
 
@@ -166,9 +166,7 @@ namespace NCAIClicker.Targets
                     MoveStep(deltaTime, _moveSpeed * panicMultiplier);
                     if (_stateTimer <= 0f)
                     {
-                        // 도망 후 잠시 숨을 고르는 대기 상태로 전이
-                        _idleTimer = Random.Range(0.4f, 0.8f);
-                        ChangeState(CreatureState.Idle);
+                        ChangeState(CreatureState.Moving);
                     }
                     break;
             }

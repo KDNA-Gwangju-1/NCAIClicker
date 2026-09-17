@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using NCAIClicker.Data;
 using NCAIClicker.Events;
 using NCAIClicker.Targets;
@@ -130,8 +130,22 @@ namespace NCAIClicker.Core
 
         private void HandleTargetBroken(BreakInfo info)
         {
-            // 파괴된 대상 제거 및 리스폰 쿨다운 등록
-            _activeCreatures.RemoveAll(c => c == null || !c.GetComponent<Target>().IsAlive);
+            // 파괴된 대상 화면 제거 및 리스폰 쿨다운 등록
+            for (var i = _activeCreatures.Count - 1; i >= 0; i--)
+            {
+                var c = _activeCreatures[i];
+                if (c == null)
+                {
+                    _activeCreatures.RemoveAt(i);
+                    continue;
+                }
+                var target = c.GetComponent<Target>();
+                if (target != null && !target.IsAlive)
+                {
+                    Destroy(c);
+                    _activeCreatures.RemoveAt(i);
+                }
+            }
             _respawnTimers.Add(GetSpawnIntervalSec());
         }
 
