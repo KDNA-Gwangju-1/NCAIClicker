@@ -1,5 +1,6 @@
 using System;
 using NCAIClicker.Data;
+using NCAIClicker.Economy;
 using NCAIClicker.Events;
 using NCAIClicker.Interfaces;
 using NCAIClicker.Targets;
@@ -42,8 +43,13 @@ namespace NCAIClicker.EditorTools
                 Assert(movement.CurrentState == CreatureState.Idle, "초기화 후 자연스러운 시작을 위해 Idle 이어야 합니다.");
                 movement.UpdateFSM(1.5f);
                 Assert(movement.CurrentState == CreatureState.Moving, "대기 시간 경과 후 Moving 으로 전이되어야 합니다.");
-                Assert(Mathf.Abs(movement.MoveSpeed - 2.0f) < 0.01f, "normal 타입의 move_speed는 2.0 이어야 합니다.");
-                Assert(Mathf.Abs(movement.TurnIntervalSec - 1.5f) < 0.01f, "normal 타입의 turn_interval_sec는 1.5 이어야 합니다.");
+                // 기대값은 코드에 적지 않고 targets.csv 산출물에서 읽는다 (AGENTS.md 데이터 절).
+                var normalDef = balance.GetTarget("normal");
+                Assert(normalDef != null, "targets.csv 에 normal 이 없습니다.");
+                Assert(Mathf.Abs(movement.MoveSpeed - normalDef.MoveSpeed) < 0.01f,
+                       "normal 의 move_speed 가 targets.csv 와 다릅니다: " + movement.MoveSpeed);
+                Assert(Mathf.Abs(movement.TurnIntervalSec - normalDef.TurnIntervalSec) < 0.01f,
+                       "normal 의 turn_interval_sec 가 targets.csv 와 다릅니다: " + movement.TurnIntervalSec);
                 passedCount++;
 
                 // 3. FSM 피격 전이 검증 (BeingHit)
@@ -71,14 +77,22 @@ namespace NCAIClicker.EditorTools
                 passedCount++;
 
                 // 7. 4종 크리처 속도 파싱 검증
+                // 속도 숫자를 여기 복제하지 않는다 — CSV 사본끼리 비교하면 늘 통과한다.
+                // 대신 파싱이 됐는지와 **설계상의 대소 관계**를 본다 (GDD 4절: 거치형이 가장 느리고
+                // 고속형이 가장 빠르다). 값을 조정해도 이 관계가 깨지면 그건 진짜 문제다.
                 var types = new[] { "normal", "anchor", "runner", "tourist" };
-                var expectedSpeeds = new[] { 2.0f, 0.2f, 5.0f, 0.8f };
-                for (var i = 0; i < types.Length; i++)
+                foreach (var id in types)
                 {
-                    var def = balance.GetTarget(types[i]);
-                    Assert(def != null, types[i] + " 정의가 targets.csv 에 없습니다.");
-                    Assert(Mathf.Abs(def.MoveSpeed - expectedSpeeds[i]) < 0.01f, types[i] + " 속도 불일치");
+                    var def = balance.GetTarget(id);
+                    Assert(def != null, id + " 정의가 targets.csv 에 없습니다.");
+                    Assert(def.MoveSpeed > 0f, id + " 의 move_speed 를 읽지 못했습니다: " + def.MoveSpeed);
                 }
+                var anchorSpeed = balance.GetTarget("anchor").MoveSpeed;
+                var runnerSpeed = balance.GetTarget("runner").MoveSpeed;
+                Assert(anchorSpeed < balance.GetTarget("normal").MoveSpeed,
+                       "거치형이 일반형보다 느려야 합니다.");
+                Assert(runnerSpeed > balance.GetTarget("normal").MoveSpeed,
+                       "고속형이 일반형보다 빨라야 합니다.");
                 passedCount++;
             }
             finally
@@ -92,25 +106,44 @@ namespace NCAIClicker.EditorTools
             try
             {
                 var mgr = mgrGo.AddComponent<CreatureManager>();
-                
+
                 // 직렬화 필드 설정
                 var serialized = new SerializedObject(mgr);
                 serialized.FindProperty("_balanceData").objectReferenceValue = balance;
                 serialized.ApplyModifiedPropertiesWithoutUndo();
 
-                // 1단계 기본 출현 수 6 검증
+                // 기대값은 코드에 적지 않고 생성된 BalanceData 에서 읽는다 (AGENTS.md, #131).
+                var stage1 = balance.GetStage(1);
+                Assert(stage1 != null, "stages.csv 에 1단계가 없습니다.");
+                var baseSpawnCount = stage1.SpawnCount;
+                var baseInterval = balance.Economy.SpawnIntervalSec;
+
+                // 주입 전에는 기준값 그대로다.
                 var spawnCount = mgr.GetRequiredSpawnCount();
-                Assert(spawnCount == 6, "1단계 spawn_count는 6 이어야 합니다. 현재: " + spawnCount);
+                Assert(spawnCount == baseSpawnCount,
+                       "1단계 기본 spawn_count 가 stages.csv 와 다릅니다. 현재: " + spawnCount);
+                Assert(Mathf.Abs(mgr.GetSpawnIntervalSec() - baseInterval) < 0.01f,
+                       "기본 재등장 대기시간이 economy.csv 와 다릅니다.");
                 passedCount++;
 
-                // 업그레이드 확장 검증 (desk_expand +2레벨 시)
-                mgr.SetUpgradeOverrides(2, 0.88f);
-                Assert(mgr.GetRequiredSpawnCount() == 8, "업그레이드 반영 시 spawn_count는 8 이어야 합니다.");
+                // 업그레이드를 주입하면 실효값으로 바뀐다 (#131). 어느 업그레이드가 어느 stat 을
+                // 건드리는지도 CSV 에서 찾으므로 종류가 바뀌어도 검증이 따라간다.
+                var upgrades = CreateUpgradeStats(balance, StatId.SpawnCount, 2);
+                mgr.SetUpgradeStats(upgrades);
+
+                var raisedCount = mgr.GetRequiredSpawnCount();
+                Assert(raisedCount == Mathf.RoundToInt(upgrades.GetStat(StatId.SpawnCount, baseSpawnCount)),
+                       "업그레이드 반영 후 spawn_count 가 실효값과 다릅니다: " + raisedCount);
+                Assert(raisedCount > baseSpawnCount,
+                       "업그레이드를 넣었는데 동시 출현 수가 늘지 않았습니다: " + raisedCount);
                 passedCount++;
 
-                // 재등장 대기시간 검증 (7.0초 기준 및 12% 단축)
-                var interval = mgr.GetSpawnIntervalSec();
-                Assert(Mathf.Abs(interval - (7.0f * 0.88f)) < 0.01f, "재등장 대기시간 업그레이드 계산 불일치");
+                // 같은 업그레이드가 재등장 대기를 줄인다 (percent 효과, 음수).
+                var shortened = mgr.GetSpawnIntervalSec();
+                Assert(Mathf.Abs(shortened - upgrades.GetStat(StatId.SpawnIntervalSec, baseInterval)) < 0.01f,
+                       "재등장 대기시간이 실효값과 다릅니다: " + shortened);
+                Assert(shortened < baseInterval,
+                       "업그레이드를 넣었는데 재등장 대기가 줄지 않았습니다: " + shortened);
                 passedCount++;
 
                 // 리스폰 타이머 처리 검증
@@ -142,6 +175,49 @@ namespace NCAIClicker.EditorTools
             }
 
             Debug.Log("[CreatureMovementChecks] 전체 " + passedCount + "개 검증 통과 완료.");
+        }
+
+        /// <summary>
+        /// 해당 stat 을 올리는 업그레이드를 CSV 에서 찾아 레벨을 올린 조회 통로를 만든다.
+        /// UpgradeState 는 계산부라 IUpgradeStats 를 구현하지 않으므로 여기서 감싼다.
+        /// </summary>
+        private static IUpgradeStats CreateUpgradeStats(BalanceData balance, StatId stat, int wantedLevel)
+        {
+            var state = new UpgradeState(balance);
+            var levels = new int[balance.Upgrades.Count];
+            var ownerIndex = -1;
+            for (var i = 0; i < balance.Upgrades.Count && ownerIndex < 0; i++)
+            {
+                foreach (var effect in balance.Upgrades[i].Effects)
+                {
+                    if (effect.Stat == stat)
+                    {
+                        ownerIndex = i;
+                        break;
+                    }
+                }
+            }
+            Assert(ownerIndex >= 0, "upgrade_effects.csv 에 " + stat + " 를 올리는 업그레이드가 없습니다.");
+
+            levels[ownerIndex] = Mathf.Min(wantedLevel, balance.Upgrades[ownerIndex].MaxLevel);
+            Assert(levels[ownerIndex] >= 1, balance.Upgrades[ownerIndex].Id + " 의 max_level 이 0 입니다.");
+            state.RestoreLevels(levels);
+            return new UpgradeStatsAdapter(state);
+        }
+
+        private class UpgradeStatsAdapter : IUpgradeStats
+        {
+            private readonly UpgradeState _state;
+
+            public UpgradeStatsAdapter(UpgradeState state)
+            {
+                _state = state;
+            }
+
+            public float GetStat(StatId stat, float baseValue)
+            {
+                return _state.GetStat(stat, baseValue);
+            }
         }
 
         private static void Assert(bool condition, string message)

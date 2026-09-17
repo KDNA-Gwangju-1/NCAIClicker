@@ -148,6 +148,7 @@ namespace NCAIClicker.Core
                 return;
             }
             _isRunActive = true;
+            WireSceneUpgradeConsumers();
             EnsureRunScopedServices();
             if (_runScopedServices == null)
             {
@@ -176,6 +177,37 @@ namespace NCAIClicker.Core
             for (int i = 0; i < _runScopedServices.Length; i++)
             {
                 _runScopedServices[i].EndRun();
+            }
+        }
+
+        /// <summary>
+        /// 씬에 사는 업그레이드 소비처에 실효값 조회 통로를 넣는다 (#131).
+        ///
+        /// ManagerBootstrap 은 씬 로드 **전**에 돌아 이들에 닿지 못하고, 이들은 Managers 프리팹
+        /// 밖이라 GetComponentsInChildren 으로도 잡히지 않는다. ARCHITECTURE 가 "조립하는 지점
+        /// (ManagerBootstrap 또는 GameManager 초기화) 한 곳만 구현 클래스를 안다"고 정했으므로
+        /// 여기가 그 한 곳이다 — 조립이 끝난 뒤의 상호작용은 인터페이스로만 한다.
+        ///
+        /// 씬이 다시 로드되면 인스턴스가 새로 생기므로 런을 시작할 때마다 다시 찾는다.
+        /// </summary>
+        private void WireSceneUpgradeConsumers()
+        {
+            var upgradeStats = GetComponentInChildren<IUpgradeStats>(true);
+            if (upgradeStats == null)
+            {
+                return;
+            }
+
+            var hammer = FindFirstObjectByType<HammerSwingController>(FindObjectsInactive.Include);
+            if (hammer != null)
+            {
+                hammer.SetUpgradeStats(upgradeStats);
+            }
+
+            var creatures = FindFirstObjectByType<CreatureManager>(FindObjectsInactive.Include);
+            if (creatures != null)
+            {
+                creatures.SetUpgradeStats(upgradeStats);
             }
         }
     }

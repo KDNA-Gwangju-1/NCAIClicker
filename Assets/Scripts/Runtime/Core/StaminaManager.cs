@@ -27,6 +27,19 @@ namespace NCAIClicker.Core
 
         private readonly StaminaPool _pool = new StaminaPool();
 
+        /// <summary>
+        /// 업그레이드 실효값 조회 통로 (#116). ManagerBootstrap 이 넣어 준다.
+        /// 없으면 CSV 기준값을 그대로 쓴다 — 주입이 빠져도 죽지 않는다.
+        /// </summary>
+        private IUpgradeStats _upgradeStats;
+
+        /// <summary>
+        /// 런 시작에 굳힌 실효값 (#131). 업그레이드 효과는 **다음 런부터** 반영한다 (BALANCE 6절).
+        /// Tick 마다 조회하면 런 도중에 감소 속도가 바뀔 수 있는 구조가 남는다.
+        /// </summary>
+        private float _runMaxStamina;
+        private float _runDrainPerSec;
+
         private bool _isRunning;
         private bool _hasPublishedDepleted;
         private float _publishTimer;
@@ -45,6 +58,15 @@ namespace NCAIClicker.Core
                 Debug.LogError("[StaminaManager] BalanceData 가 연결되지 않았다. " +
                                "스태미나가 줄지 않으니 Managers 프리팹의 참조를 확인하라.");
             }
+        }
+
+        /// <summary>
+        /// 업그레이드 실효값 조회 통로를 넣는다. 서비스 계약이 아니라 조립(wiring) 통로다 —
+        /// EconomyManager.SetBillService 와 같은 성격이다 (ARCHITECTURE "SetBillService" 문단).
+        /// </summary>
+        public void SetUpgradeStats(IUpgradeStats upgradeStats)
+        {
+            _upgradeStats = upgradeStats;
         }
 
         // 정적 이벤트는 구독과 해제를 쌍으로 맞춘다. 빠뜨리면 회복이 두 배로 들어온다 (AGENTS.md).
@@ -69,7 +91,10 @@ namespace NCAIClicker.Core
                 return;
             }
 
-            _pool.Fill(_balanceData.Stamina.Max);
+            _runMaxStamina = GetStat(StatId.MaxStamina, _balanceData.Stamina.Max);
+            _runDrainPerSec = GetStat(StatId.IdleDrainPerSec, _balanceData.Stamina.IdleDrainPerSec);
+
+            _pool.Fill(_runMaxStamina);
             _isRunning = true;
             _hasPublishedDepleted = false;
             _publishTimer = 0f;
@@ -101,7 +126,7 @@ namespace NCAIClicker.Core
                 return;
             }
 
-            _pool.Drain(_balanceData.Stamina.IdleDrainPerSec, deltaSeconds);
+            _pool.Drain(_runDrainPerSec, deltaSeconds);
 
             if (_pool.IsDepleted)
             {
@@ -158,6 +183,12 @@ namespace NCAIClicker.Core
             GameEvents.PublishStaminaRestored(restored);
             _publishTimer = 0f;
             PublishChanged();
+        }
+
+        /// <summary>주입이 없으면 기준값 그대로다. 배선이 빠져도 게임이 돌아가야 한다.</summary>
+        private float GetStat(StatId stat, float baseValue)
+        {
+            return _upgradeStats == null ? baseValue : _upgradeStats.GetStat(stat, baseValue);
         }
 
         private void PublishChanged()

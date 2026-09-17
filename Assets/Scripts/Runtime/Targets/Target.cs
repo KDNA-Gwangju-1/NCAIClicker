@@ -33,6 +33,12 @@ namespace NCAIClicker.Targets
         [SerializeField] private float _baseHitRadius = 0.2f;
 
         private SphereCollider _hitCollider;
+
+        /// <summary>
+        /// 업그레이드 실효값 조회 통로 (#116). 스폰하는 쪽(CreatureManager)이 Initialize 전에 넣어 준다.
+        /// 없으면 CSV 기준값을 그대로 쓴다 — 씬에 손으로 놓은 대상도 그대로 동작해야 한다 (#131).
+        /// </summary>
+        private IUpgradeStats _upgradeStats;
         private float _currentHp;
         private decimal _rawCoin;
         private float _staminaRestore;
@@ -60,6 +66,15 @@ namespace NCAIClicker.Targets
             {
                 gameObject.AddComponent<CreatureHpDisplay>();
             }
+        }
+
+        /// <summary>
+        /// 업그레이드 실효값 조회 통로를 넣는다. **Initialize 보다 먼저** 불러야 판정 반경에 반영된다.
+        /// 서비스 계약이 아니라 조립(wiring) 통로다 (ARCHITECTURE "SetBillService" 문단).
+        /// </summary>
+        public void SetUpgradeStats(IUpgradeStats upgradeStats)
+        {
+            _upgradeStats = upgradeStats;
         }
 
         /// <summary>
@@ -100,7 +115,8 @@ namespace NCAIClicker.Targets
         }
 
         /// <summary>
-        /// 피격 반경을 기준 반경보다 넓힌다. 확대 비율은 economy.csv 의 hit_radius_bonus 다 (GDD 4절).
+        /// 피격 반경을 기준 반경보다 넓힌다. 확대 비율은 economy.csv 의 hit_radius_bonus 이고,
+        /// 업그레이드(악력 단련)가 그 비율을 더 올린다 (BALANCE 6절 hit_radius, #131).
         /// 메시를 참조하지 않으므로 작업 6.6 에서 모델을 갈아끼워도 판정 크기가 변하지 않는다.
         /// </summary>
         private void ApplyHitRadius()
@@ -110,8 +126,11 @@ namespace NCAIClicker.Targets
                 return;
             }
 
-            var bonus = 1f + _balanceData.Economy.HitRadiusBonusPercent / 100f;
-            _hitCollider.radius = _baseHitRadius * bonus;
+            var basePercent = _balanceData.Economy.HitRadiusBonusPercent;
+            var percent = _upgradeStats == null
+                ? basePercent
+                : _upgradeStats.GetStat(StatId.HitRadius, basePercent);
+            _hitCollider.radius = _baseHitRadius * (1f + percent / 100f);
         }
 
         /// <summary>피격을 외부(FSM 등)에 알리는 이벤트.</summary>

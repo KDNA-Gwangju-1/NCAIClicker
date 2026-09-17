@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using NCAIClicker.Data;
 using NCAIClicker.Events;
+using NCAIClicker.Interfaces;
 using NCAIClicker.Targets;
 using UnityEngine;
 
@@ -14,6 +15,12 @@ namespace NCAIClicker.Core
     /// </summary>
     public class CreatureManager : MonoBehaviour
     {
+        /// <summary>
+        /// 재등장 대기의 하한. 밸런스 수치가 아니라 방어값이다 — 단축 업그레이드가 겹쳐
+        /// 0 이하로 내려가면 매 프레임 스폰이 된다. CSV 에 넣을 성질의 값이 아니다.
+        /// </summary>
+        private const float MinSpawnIntervalSec = 0.1f;
+
         public static CreatureManager Instance { get; private set; }
 
         [SerializeField] private BalanceData _balanceData;
@@ -28,8 +35,12 @@ namespace NCAIClicker.Core
         [SerializeField] private Bounds _deskBounds = new Bounds(new Vector3(0f, 0f, 2f), new Vector3(4.8f, 1f, 4.8f));
 
         private int _currentStageNumber = 1;
-        private int _bonusSpawnCount;
-        private float _spawnIntervalMultiplier = 1f;
+
+        /// <summary>
+        /// 업그레이드 실효값 조회 통로 (#116). 이 매니저는 Managers 프리팹에 없어
+        /// GameManager 가 런 시작 때 넣어 준다 (#131). 없으면 CSV 기준값을 그대로 쓴다.
+        /// </summary>
+        private IUpgradeStats _upgradeStats;
 
         private readonly List<GameObject> _activeCreatures = new List<GameObject>();
         private readonly List<float> _respawnTimers = new List<float>();
@@ -84,12 +95,15 @@ namespace NCAIClicker.Core
         }
 
         /// <summary>
-        /// 업그레이드 효과를 외부에서 주입받아 반영한다 (하드코딩 방지).
+        /// 업그레이드 실효값 조회 통로를 넣고, 늘어난 동시 출현 수만큼 즉시 채운다.
+        /// 서비스 계약이 아니라 조립(wiring) 통로다 (ARCHITECTURE "SetBillService" 문단).
+        ///
+        /// 이전에는 조립 지점이 증분을 직접 계산해 넘기는 SetUpgradeOverrides(int, float) 였다.
+        /// stat 마다 인자를 늘려야 하고 반영 경로가 IUpgradeStats 와 두 갈래가 되어 걷어냈다 (#131).
         /// </summary>
-        public void SetUpgradeOverrides(int bonusSpawnCount, float intervalMultiplier)
+        public void SetUpgradeStats(IUpgradeStats upgradeStats)
         {
-            _bonusSpawnCount = Mathf.Max(0, bonusSpawnCount);
-            _spawnIntervalMultiplier = Mathf.Clamp(intervalMultiplier, 0.1f, 2f);
+            _upgradeStats = upgradeStats;
 
             var needed = GetRequiredSpawnCount() - _activeCreatures.Count - _respawnTimers.Count;
             for (var i = 0; i < needed; i++)
@@ -100,19 +114,21 @@ namespace NCAIClicker.Core
 
         /// <summary>
         /// 현재 단계와 업그레이드를 합산한 목표 동시 출현 수를 구한다.
+        ///
+        /// 다른 소비처와 달리 런 시작에 굳히지 않는다 — spawn_count 의 **기준값이 단계마다 다르다**
+        /// (#116 이 기준값을 호출측이 넘기도록 계약을 정한 이유). 굳혀 두면 단계가 오를 때 옛 값이 남는다.
+        /// 대신 "업그레이드는 메뉴·결과 화면에서만 산다"(BALANCE 6절)는 규칙에 기댄다.
         /// </summary>
         public int GetRequiredSpawnCount()
         {
-            var baseCount = 6;
-            if (_balanceData != null)
+            // 기본값을 코드에 두지 않는다. CSV 를 못 읽으면 스폰하지 않는 편이 낫다 —
+            // 임의의 숫자를 두면 CSV 와 다른 난이도가 조용히 돌아간다 (AGENTS.md 데이터 절).
+            var stageDef = _balanceData == null ? null : _balanceData.GetStage(_currentStageNumber);
+            if (stageDef == null || stageDef.SpawnCount <= 0)
             {
-                var stageDef = _balanceData.GetStage(_currentStageNumber);
-                if (stageDef != null && stageDef.SpawnCount > 0)
-                {
-                    baseCount = stageDef.SpawnCount;
-                }
+                return 0;
             }
-            return baseCount + _bonusSpawnCount;
+            return Mathf.RoundToInt(GetStat(StatId.SpawnCount, stageDef.SpawnCount));
         }
 
         /// <summary>
@@ -120,12 +136,21 @@ namespace NCAIClicker.Core
         /// </summary>
         public float GetSpawnIntervalSec()
         {
-            var baseInterval = 7.0f;
-            if (_balanceData != null && _balanceData.Economy != null && _balanceData.Economy.SpawnIntervalSec > 0f)
+            // 위와 같은 이유로 기본값을 코드에 두지 않는다.
+            var baseInterval = _balanceData == null || _balanceData.Economy == null
+                ? 0f
+                : _balanceData.Economy.SpawnIntervalSec;
+            if (baseInterval <= 0f)
             {
-                baseInterval = _balanceData.Economy.SpawnIntervalSec;
+                return 0f;
             }
-            return baseInterval * _spawnIntervalMultiplier;
+            return Mathf.Max(MinSpawnIntervalSec, GetStat(StatId.SpawnIntervalSec, baseInterval));
+        }
+
+        /// <summary>주입이 없으면 기준값 그대로다. 배선이 빠져도 게임이 돌아가야 한다.</summary>
+        private float GetStat(StatId stat, float baseValue)
+        {
+            return _upgradeStats == null ? baseValue : _upgradeStats.GetStat(stat, baseValue);
         }
 
         private void HandleTargetBroken(BreakInfo info)
@@ -179,6 +204,8 @@ namespace NCAIClicker.Core
             var target = instance.GetComponent<Target>();
             if (target != null)
             {
+                // 판정 반경에 업그레이드를 반영하려면 Initialize 보다 먼저 넣어야 한다.
+                target.SetUpgradeStats(_upgradeStats);
                 target.Initialize();
             }
 

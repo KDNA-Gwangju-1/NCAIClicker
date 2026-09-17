@@ -55,8 +55,12 @@ namespace NCAIClicker.Economy
         }
 
         /// <summary>
-        /// 업그레이드가 보유 수를 늘릴 때 쓰는 주입 통로. CreatureManager.SetUpgradeOverrides,
-        /// EconomyManager.SetBillService 와 같은 일반 메서드 주입 방식이라 새 공용 인터페이스가 필요 없다.
+        /// 업그레이드가 보유 수를 늘릴 때 쓰는 주입 통로. EconomyManager.SetBillService 와 같은
+        /// 일반 메서드 주입 방식이라 새 공용 인터페이스가 필요 없다.
+        ///
+        /// **이 방식은 과도기다.** #131 에서 다른 소비처는 값을 밀어 넣는 대신 IUpgradeStats 를
+        /// 주입받아 스스로 읽도록 바뀌었고(같은 이유로 CreatureManager.SetUpgradeOverrides 는
+        /// 걷어냈다), 자동 망치도 작업 3.2 에서 같은 방식으로 통일할 것이다.
         /// </summary>
         public void SetBonusCount(int bonusCount)
         {
