@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using NCAIClicker.Data;
 using NCAIClicker.Events;
 using NCAIClicker.Interfaces;
@@ -14,6 +14,7 @@ namespace NCAIClicker.EditorTools
     /// </summary>
     public static class CreatureMovementChecks
     {
+        [MenuItem("NCAI/크리처 이동·스폰 검증")]
         public static void RunBatch()
         {
             var passedCount = 0;

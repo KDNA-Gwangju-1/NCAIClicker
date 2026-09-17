@@ -29,6 +29,7 @@ namespace NCAIClicker.EditorTools
             { "TargetTourist", "tourist" },
         };
 
+        [MenuItem("NCAI/타격 대상 프리팹 검증")]
         public static void RunBatch()
         {
             var checkCount = 0;
