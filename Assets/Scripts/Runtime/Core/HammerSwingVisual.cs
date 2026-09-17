@@ -1,7 +1,6 @@
 using NCAIClicker.Core;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.SceneManagement;
 
 namespace NCAIClicker.Core
 {
@@ -42,24 +41,6 @@ namespace NCAIClicker.Core
         private float _swingInterval;
 
         private float _timer;
-
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void AutoInject()
-        {
-            var activeScene = SceneManager.GetActiveScene();
-            if (activeScene.name != "Game")
-            {
-                return;
-            }
-
-            if (FindFirstObjectByType<HammerSwingVisual>() != null)
-            {
-                return;
-            }
-
-            var go = new GameObject("HammerSwingVisual (Auto)");
-            go.AddComponent<HammerSwingVisual>();
-        }
 
         private void Awake()
         {
