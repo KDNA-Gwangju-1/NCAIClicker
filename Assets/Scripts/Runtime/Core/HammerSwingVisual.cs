@@ -13,7 +13,7 @@ namespace NCAIClicker.Core
     public class HammerSwingVisual : MonoBehaviour
     {
         private const int SegmentCount = 12;
-        private const float ReticleRadius = 0.45f;
+        private const float ReticleRadius = HammerSwingController.DefaultReticleRadius;
 
         private Camera _aimCamera;
         private Plane _deskPlane;

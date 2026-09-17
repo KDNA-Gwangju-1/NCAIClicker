@@ -16,17 +16,22 @@ namespace NCAIClicker.Core
     /// </summary>
     public class HammerSwingController : MonoBehaviour
     {
+        public const float DefaultReticleRadius = 0.45f;
+
         [SerializeField] private BalanceData _balanceData;
         [SerializeField] private Camera _aimCamera;
         [SerializeField] private float _deskPlaneY;
         [SerializeField] private LayerMask _hittableLayerMask = ~0;
-        [SerializeField] private float _maxRayDistance = 100f;
+        [SerializeField] private float _hitRadius = DefaultReticleRadius;
 
         private float _swingTimer;
         private Plane _deskPlane;
 
         /// <summary>가장 최근 스윙에서 계산된 커서의 책상 평면 위 월드 좌표.</summary>
         public Vector3 CursorWorldPosition { get; private set; }
+
+        /// <summary>망치 타격 판정 반경.</summary>
+        public float HitRadius => _hitRadius;
 
         private void Awake()
         {
@@ -84,14 +89,34 @@ namespace NCAIClicker.Core
             }
 
             var isHit = false;
-            if (Physics.Raycast(ray, out var hit, _maxRayDistance, _hittableLayerMask))
+            var hitColliders = Physics.OverlapSphere(CursorWorldPosition, _hitRadius, _hittableLayerMask);
+            IHittable closestTarget = null;
+            var minDistanceSqr = float.MaxValue;
+            var hitPoint = CursorWorldPosition;
+
+            for (var i = 0; i < hitColliders.Length; i++)
             {
-                var target = hit.collider.GetComponentInParent<IHittable>();
-                if (target != null && target.IsAlive)
+                var col = hitColliders[i];
+                var target = col.GetComponentInParent<IHittable>();
+                if (target == null || !target.IsAlive)
                 {
-                    target.OnHit(new HitInfo(HitSource.Hover, _balanceData.Economy.BaseHitPower, hit.point));
-                    isHit = true;
+                    continue;
                 }
+
+                var closestPoint = col.ClosestPoint(CursorWorldPosition);
+                var distSqr = (closestPoint - CursorWorldPosition).sqrMagnitude;
+                if (distSqr < minDistanceSqr)
+                {
+                    minDistanceSqr = distSqr;
+                    closestTarget = target;
+                    hitPoint = closestPoint;
+                }
+            }
+
+            if (closestTarget != null)
+            {
+                closestTarget.OnHit(new HitInfo(HitSource.Hover, _balanceData.Economy.BaseHitPower, hitPoint));
+                isHit = true;
             }
 
             GameEvents.PublishSwingResolved(HitSource.Hover, isHit);
