@@ -237,13 +237,14 @@ namespace NCAIClicker.EditorTools
                 manager = CreateManager(balance, out host);
 
                 var def = balance.Upgrades[0];
-                AssertCondition(manager.TryGetUpgradeCost(def.Id, out var cost), "비용을 구하지 못했습니다.");
+                var cost = manager.GetNextCost(def.Id);
+                AssertCondition(cost != long.MaxValue, "비용을 구하지 못했습니다.");
 
                 // 코인이 모자라면 사지 못하고 **레벨도 오르지 않는다**.
                 manager.AddLoanPrincipal(cost - 1);
                 balanceChangedCount = 0;
-                AssertCondition(!manager.TryPurchaseUpgrade(def.Id), "코인이 부족한데 구매가 됐습니다.");
-                AssertCondition(manager.GetUpgradeLevel(def.Id) == 0, "실패했는데 레벨이 올랐습니다.");
+                AssertCondition(!manager.TryPurchase(def.Id), "코인이 부족한데 구매가 됐습니다.");
+                AssertCondition(manager.GetLevel(def.Id) == 0, "실패했는데 레벨이 올랐습니다.");
                 AssertCondition(manager.CurrentCoin == cost - 1, "실패했는데 잔액이 줄었습니다.");
                 AssertCondition(balanceChangedCount == 0, "실패했는데 잔액 변경이 발행됐습니다.");
                 checkCount++;
@@ -251,34 +252,36 @@ namespace NCAIClicker.EditorTools
                 // 딱 맞게 채우면 산다. 잔액은 정확히 비용만큼만 줄어든다.
                 manager.AddLoanPrincipal(1);
                 balanceChangedCount = 0;
-                AssertCondition(manager.TryPurchaseUpgrade(def.Id), "코인이 충분한데 구매가 실패했습니다.");
-                AssertCondition(manager.GetUpgradeLevel(def.Id) == 1, "구매 후 레벨이 1 이 아닙니다.");
+                AssertCondition(manager.TryPurchase(def.Id), "코인이 충분한데 구매가 실패했습니다.");
+                AssertCondition(manager.GetLevel(def.Id) == 1, "구매 후 레벨이 1 이 아닙니다.");
                 AssertCondition(manager.CurrentCoin == 0L, "잔액이 비용과 다르게 줄었습니다: " + manager.CurrentCoin);
                 AssertCondition(balanceChangedCount == 1, "잔액 변경 발행이 한 번이 아닙니다: " + balanceChangedCount);
                 checkCount++;
 
                 // 레벨이 오르면 다음 비용도 오른다.
-                AssertCondition(manager.TryGetUpgradeCost(def.Id, out var nextCost), "다음 비용을 구하지 못했습니다.");
+                var nextCost = manager.GetNextCost(def.Id);
+                AssertCondition(nextCost != long.MaxValue, "다음 비용을 구하지 못했습니다.");
                 AssertCondition(nextCost > cost, "레벨이 올랐는데 비용이 그대로입니다.");
                 checkCount++;
 
                 // 구매가 실효값에 반영된다.
                 var effect = def.Effects[0];
-                var raised = manager.GetUpgradedStat(effect.Stat, 10f);
+                var raised = manager.GetStat(effect.Stat, 10f);
                 AssertCondition(Mathf.Abs(raised - 10f) > 0.0001f,
                                 "구매했는데 실효값이 기준값 그대로입니다: " + raised);
                 checkCount++;
 
                 // 최대 레벨까지 사면 더 살 수 없다.
-                for (var i = manager.GetUpgradeLevel(def.Id); i < def.MaxLevel; i++)
+                for (var i = manager.GetLevel(def.Id); i < def.MaxLevel; i++)
                 {
-                    AssertCondition(manager.TryGetUpgradeCost(def.Id, out var stepCost), "비용을 구하지 못했습니다.");
+                    var stepCost = manager.GetNextCost(def.Id);
+                    AssertCondition(stepCost != long.MaxValue, "비용을 구하지 못했습니다.");
                     manager.AddLoanPrincipal(stepCost);
-                    AssertCondition(manager.TryPurchaseUpgrade(def.Id), "최대 레벨 전인데 구매가 실패했습니다.");
+                    AssertCondition(manager.TryPurchase(def.Id), "최대 레벨 전인데 구매가 실패했습니다.");
                 }
-                AssertCondition(manager.IsUpgradeMaxLevel(def.Id), "최대 레벨 판정이 되지 않습니다.");
+                AssertCondition(manager.GetNextCost(def.Id) == long.MaxValue, "최대 레벨 판정이 되지 않습니다.");
                 manager.AddLoanPrincipal(1000000L);
-                AssertCondition(!manager.TryPurchaseUpgrade(def.Id), "최대 레벨인데 구매가 됐습니다.");
+                AssertCondition(!manager.TryPurchase(def.Id), "최대 레벨인데 구매가 됐습니다.");
                 checkCount++;
 
                 // 저장 왕복.
@@ -286,12 +289,12 @@ namespace NCAIClicker.EditorTools
                 AssertCondition(levels.Length == balance.Upgrades.Count, "저장 배열 길이가 다릅니다.");
                 AssertCondition(levels[0] == def.MaxLevel, "저장 배열에 레벨이 반영되지 않았습니다.");
                 manager.RestoreUpgradeLevels(new int[balance.Upgrades.Count]);
-                AssertCondition(manager.GetUpgradeLevel(def.Id) == 0, "복원 후 레벨이 0 이 아닙니다.");
+                AssertCondition(manager.GetLevel(def.Id) == 0, "복원 후 레벨이 0 이 아닙니다.");
                 checkCount++;
 
                 // 없는 id 로 사려 하면 코인이 빠지지 않는다.
                 var before = manager.CurrentCoin;
-                AssertCondition(!manager.TryPurchaseUpgrade("없는_업그레이드"), "없는 id 로 구매가 됐습니다.");
+                AssertCondition(!manager.TryPurchase("없는_업그레이드"), "없는 id 로 구매가 됐습니다.");
                 AssertCondition(manager.CurrentCoin == before, "없는 id 구매에서 코인이 빠졌습니다.");
                 checkCount++;
             }
