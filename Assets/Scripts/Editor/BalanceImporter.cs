@@ -61,6 +61,7 @@ namespace NCAIClicker.EditorTools
                     AutoHammerPower = Req(economy, "auto_hammer_power"),
                     AutoHammerHitsPerSec = Req(economy, "auto_hammer_hits_per_sec"),
                     HitRadiusBonusPercent = Req(economy, "hit_radius_bonus"),
+                    ReticleRadius = Req(economy, "reticle_radius"),
                     CoinBonusMultiplier = Req(economy, "coin_bonus_multiplier"),
                     SpawnIntervalSec = Req(economy, "spawn_interval_sec"),
                     UpgradeCostGrowth = Req(economy, "upgrade_cost_growth"),
