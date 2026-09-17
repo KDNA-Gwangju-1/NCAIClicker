@@ -146,7 +146,9 @@ public interface IEconomyService
     long RunCoin { get; }              // 이번 런 순수입의 정수 부분. 지출·대출 제외
 }
 
-// 런 경계. GameManager 만 쓴다 (이슈 #71, #111)
+// 런 경계. 부르는 쪽은 GameManager 뿐이다 (이슈 #71, #111).
+// 구현체는 Managers 프리팹 안팎에 모두 있다 — 씬에 사는 구현체는
+// GetComponentsInChildren 으로 잡히지 않아 GameManager 가 따로 모은다 (이슈 #126).
 public interface IRunScoped
 {
     void BeginRun();

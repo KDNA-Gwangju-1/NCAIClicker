@@ -102,7 +102,7 @@ Unity 6000.3.21f1 헤드리스 배치 실행, 2026-09-17.
 - 대출(#29)·파산 판정(#30)은 스텁이라 청구서를 기한 내에 안 내면 절대 사라지지 않는다. HUD의 "D-0"은 기한 초과 상태를 그대로 보여줄 뿐 파산 처리로 이어지지 않는다.
 - `BillManager`의 날짜·청구서·퍼크 후보(`OfferedPerkIds`) 상태는 저장/복원되지 않는다(`SaveManager` 미연동). ARCHITECTURE.md는 `SaveData.OfferedPerkIds`/`PendingPerkIds` 필드를 이미 계약해 뒀으므로, 저장 연동은 그 필드에 채워 넣는 방식으로 붙이면 된다.
 - `BillHud.prefab`은 `Game.unity`에 아직 배치되지 않았다. 코어 플레이 담당이 씬에 넣어야 실제로 보인다.
-- 퍼크 선택(`OnPerkChosen`)의 실제 게임플레이 효과 적용이 없다(#28 범위 밖). `StaminaRestore`/`CoinGainBoost`/`HitPowerBoost`/`HitRadiusBoost` 각각을 스태미나·경제·코어 플레이 시스템이 `BalanceData.GetPerk(id)`로 읽어 스스로 적용해야 한다 — 지금은 `OnPerkChosen`을 구독하는 곳이 없다.
+- ~~퍼크 선택(`OnPerkChosen`)의 실제 게임플레이 효과 적용이 없다.~~ — #126 에서 네 소유자(`StaminaManager`·`EconomyManager`·`HammerSwingController`·`CreatureManager`)가 `OnPerkChosen` 을 구독해 스스로 적용한다. 적용 시점 규칙과 한계는 [퍼크 효과](perks.md).
 - 퍼크 선택 UI가 없다. GDD 6.9절이 요구하는 "선택 중 게임 시계 정지" 같은 연출도 그 UI가 생긴 뒤에야 붙일 수 있다.
 
 ## 갱신 이력
