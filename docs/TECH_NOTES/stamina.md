@@ -80,14 +80,12 @@ flowchart LR
 
 | 멤버 | 누가 부르나 |
 |---|---|
-| `BeginRun()` | GameManager — 런 시작. 가득 채우고 감소를 켠다 |
-| `EndRun()` | GameManager — 감소만 멈춘다. 남은 값은 결과 화면이 읽도록 남긴다 |
+| `BeginRun()` | GameManager (`IRunScoped`) — 런 시작. 가득 채우고 감소를 켠다 |
+| `EndRun()` | GameManager (`IRunScoped`) — 감소만 멈춘다. 남은 값은 결과 화면이 읽도록 남긴다 |
 | `CurrentStamina` / `MaxStamina` / `IsRunning` | 조회 |
 
-**스태미나에는 공용 인터페이스가 없다.** ARCHITECTURE 2절이 동결한 넷(`IHittable`,
-`IEconomyService`, `IBillService`, `ISaveService`)에 스태미나가 없어서, 위 넷은 구현 클래스의
-public 멤버다. 지금은 `GameManager` 가 컴포지션 루트로서 직접 부르는 것으로 충분하나,
-HUD 처럼 **런 도중에 구독을 시작하는 쪽은 초기값을 읽을 통로가 없다** (아래 한계 참고).
+런 라이프사이클은 `IRunScoped` 인터페이스를 구현해 `GameManager` 가 다형적으로 부른다 (이슈 #111).
+다만 조회 인터페이스는 아직 없어 HUD 처럼 **런 도중에 구독을 시작하는 쪽은 초기값을 읽을 통로가 없다** (아래 한계 참고).
 
 ### 읽는 밸런스 값
 
@@ -132,8 +130,7 @@ Edit Mode 에서 `StaminaChecks.RunBatch()` 로 확인했다 (**22건 PASS**). �
 
 ## 알려진 한계
 
-- **작업 2.5 전까지 게임에서 스태미나가 줄지 않는다.** `BeginRun()` 을 불러 줄 주체가 없다.
-  Play 를 눌러도 값이 그대로인 것은 고장이 아니라 이 경계 때문이다
+- ~~**작업 2.5 전까지 게임에서 스태미나가 줄지 않는다.**~~ — 이슈 #111에서 `StaminaManager` 가 `IRunScoped` 를 상속하고 `GameManager` 가 `Running` 전이 시 `BeginRun()`, `Result` 전이 시 `EndRun()` 을 호출하도록 배선 완료.
 - **최대 스태미나 업그레이드가 반영되지 않는다.** `StatId.MaxStamina` 는 작업 3.3 의 범위이며,
   지금은 `BeginRun()` 이 CSV 값을 그대로 쓴다. 업그레이드가 붙으면 최대치 계산을 주입해야 한다
 - **퍼크 선택 중 일시정지가 없다.** GDD 4절이 "퍼크 선택 중 스태미나 시간이 멈춘다"고 정해 두었다.
@@ -150,3 +147,4 @@ Edit Mode 에서 `StaminaChecks.RunBatch()` 로 확인했다 (**22건 PASS**). �
 | 날짜 | 이슈 | 누가 | 무엇이 바뀌었나 |
 |---|---|---|---|
 | 2026-09-17 | #19 | twins6375-art | 최초 작성 (시간 감소, 회복형 회복, 소진 요청, 발행 묶기) |
+| 2026-09-17 | #111 | saltlake00 | `IRunScoped` 상속 추가, `GameManager` 런 라이프사이클 배선 완료 반영 |

@@ -1,5 +1,8 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
+using NCAIClicker.Core;
 using NCAIClicker.Data;
 using NCAIClicker.Events;
 using NCAIClicker.Interfaces;
@@ -15,6 +18,8 @@ namespace NCAIClicker.EditorTools
         {
             VerifyGameEvents();
             VerifyDataStructures();
+            VerifyRunScopedContracts();
+            VerifyGameManagerLifecycle();
             Debug.Log("[ContractsValidationChecks] All contract checks passed successfully.");
         }
 
@@ -69,6 +74,134 @@ namespace NCAIClicker.EditorTools
             {
                 throw new InvalidOperationException("SaveData default values mismatch");
             }
+        }
+
+        private static void VerifyRunScopedContracts()
+        {
+            var runScopedType = typeof(IRunScoped);
+            var beginMethod = runScopedType.GetMethod("BeginRun");
+            var endMethod = runScopedType.GetMethod("EndRun");
+
+            if (beginMethod == null || endMethod == null)
+            {
+                throw new InvalidOperationException("IRunScoped must define both BeginRun and EndRun");
+            }
+
+            var staminaType = Type.GetType("NCAIClicker.Core.StaminaManager, Assembly-CSharp");
+            var feverType = Type.GetType("NCAIClicker.Fever.FeverManager, Assembly-CSharp");
+            var economyType = Type.GetType("NCAIClicker.Economy.EconomyManager, Assembly-CSharp");
+
+            if (staminaType == null || !runScopedType.IsAssignableFrom(staminaType))
+            {
+                throw new InvalidOperationException("StaminaManager must implement IRunScoped");
+            }
+
+            if (feverType == null || !runScopedType.IsAssignableFrom(feverType))
+            {
+                throw new InvalidOperationException("FeverManager must implement IRunScoped");
+            }
+
+            if (economyType == null || !runScopedType.IsAssignableFrom(economyType))
+            {
+                throw new InvalidOperationException("EconomyManager must implement IRunScoped");
+            }
+        }
+
+        private static void VerifyGameManagerLifecycle()
+        {
+            var host = new GameObject("GameManagerCheckHost");
+
+            try
+            {
+                var gm = host.AddComponent<GameManager>();
+                var mockEconomy = host.AddComponent<MockRunScopedEconomy>();
+                var mockStamina = host.AddComponent<MockRunScopedStamina>();
+                var mockFever = host.AddComponent<MockRunScopedFever>();
+
+                var callOrder = new List<string>();
+                mockEconomy.OnBegin = () => callOrder.Add("Economy");
+                mockStamina.OnBegin = () => callOrder.Add("Stamina");
+                mockFever.OnBegin = () => callOrder.Add("Fever");
+
+                mockEconomy.OnEnd = () => callOrder.Add("EconomyEnd");
+                mockStamina.OnEnd = () => callOrder.Add("StaminaEnd");
+                mockFever.OnEnd = () => callOrder.Add("FeverEnd");
+
+                var onEnableMethod = typeof(GameManager).GetMethod("OnEnable", BindingFlags.NonPublic | BindingFlags.Instance);
+                var setMethod = typeof(GameManager).GetMethod("SetState", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (onEnableMethod == null || setMethod == null)
+                {
+                    throw new InvalidOperationException("GameManager methods not found");
+                }
+
+                onEnableMethod.Invoke(gm, null);
+
+                // 1. Running 으로 전이 시 BeginRun 호출 및 초기화 순서 검증 (Economy -> Stamina -> Fever)
+                setMethod.Invoke(gm, new object[] { RunState.Running });
+                if (callOrder.Count != 3)
+                {
+                    throw new InvalidOperationException("BeginRun count mismatch: expected 3, got " + callOrder.Count);
+                }
+                if (callOrder[0] != "Economy" || callOrder[1] != "Stamina" || callOrder[2] != "Fever")
+                {
+                    throw new InvalidOperationException("BeginRun order violation: expected Economy -> Stamina -> Fever");
+                }
+
+                // 2. Result 로 전이 시 EndRun 호출 검증
+                callOrder.Clear();
+                setMethod.Invoke(gm, new object[] { RunState.Result });
+                if (callOrder.Count != 3)
+                {
+                    throw new InvalidOperationException("EndRun count mismatch: expected 3, got " + callOrder.Count);
+                }
+
+                // 3. 스태미나 소진 이벤트 시 Result 전이 및 EndRun 호출 확인
+                setMethod.Invoke(gm, new object[] { RunState.Running });
+                callOrder.Clear();
+                GameEvents.PublishStaminaDepleted();
+                if (gm.CurrentState != RunState.Result || callOrder.Count != 3)
+                {
+                    throw new InvalidOperationException("PublishStaminaDepleted failed to transition to Result and call EndRun");
+                }
+
+                // 4. 파산 이벤트 시 Result 전이 및 EndRun 호출 확인
+                setMethod.Invoke(gm, new object[] { RunState.Running });
+                callOrder.Clear();
+                GameEvents.PublishBankrupt();
+                if (gm.CurrentState != RunState.Result || callOrder.Count != 3)
+                {
+                    throw new InvalidOperationException("PublishBankrupt failed to transition to Result and call EndRun");
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(host);
+                GameEvents.ResetAll();
+            }
+        }
+
+        private class MockRunScopedEconomy : MonoBehaviour, IRunScoped
+        {
+            public Action OnBegin;
+            public Action OnEnd;
+            public void BeginRun() => OnBegin?.Invoke();
+            public void EndRun() => OnEnd?.Invoke();
+        }
+
+        private class MockRunScopedStamina : MonoBehaviour, IRunScoped
+        {
+            public Action OnBegin;
+            public Action OnEnd;
+            public void BeginRun() => OnBegin?.Invoke();
+            public void EndRun() => OnEnd?.Invoke();
+        }
+
+        private class MockRunScopedFever : MonoBehaviour, IRunScoped
+        {
+            public Action OnBegin;
+            public Action OnEnd;
+            public void BeginRun() => OnBegin?.Invoke();
+            public void EndRun() => OnEnd?.Invoke();
         }
     }
 }

@@ -13,11 +13,12 @@ namespace NCAIClicker.Interfaces
     }
 
     /// <summary>
-    /// 런 경계 계약. GameManager 만 쓴다 (이슈 #71).
+    /// 런 경계 계약. GameManager 만 쓴다 (이슈 #71, #111).
     /// </summary>
     public interface IRunScoped
     {
         void BeginRun();
+        void EndRun();
     }
 
     /// <summary>

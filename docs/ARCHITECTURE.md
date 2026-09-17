@@ -143,10 +143,11 @@ public interface IEconomyService
     long RunCoin { get; }              // 이번 런 순수입의 정수 부분. 지출·대출 제외
 }
 
-// 런 경계. GameManager 만 쓴다 (이슈 #71)
+// 런 경계. GameManager 만 쓴다 (이슈 #71, #111)
 public interface IRunScoped
 {
     void BeginRun();
+    void EndRun();
 }
 
 // 저장 복원. SaveManager 만 쓴다 (이슈 #71)

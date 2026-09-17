@@ -104,6 +104,15 @@ namespace NCAIClicker.Economy
             GameEvents.PublishRunCoinChanged(0L);
         }
 
+        /// <summary>
+        /// 런을 종료한다. 런 종료 시 내부 플래그를 정리한다.
+        /// GameManager 가 Result 전이 시 부른다 (IRunScoped, 이슈 #111).
+        /// </summary>
+        public void EndRun()
+        {
+            _isFeverActive = false;
+        }
+
         /// <summary>저장 데이터에서 지갑을 되살린다. SaveManager 가 초기화 때 부른다.</summary>
         public void RestoreWallet(long balance, string remainderText)
         {
