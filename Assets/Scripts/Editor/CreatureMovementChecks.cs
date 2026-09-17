@@ -39,7 +39,9 @@ namespace NCAIClicker.EditorTools
                 var testBounds = new Bounds(new Vector3(0f, 0f, 2f), new Vector3(4f, 1f, 4f));
                 movement.Initialize(balance, "normal", testBounds);
 
-                Assert(movement.CurrentState == CreatureState.Moving, "초기화 후 기본 상태는 Moving 이어야 합니다.");
+                Assert(movement.CurrentState == CreatureState.Idle, "초기화 후 자연스러운 시작을 위해 Idle 이어야 합니다.");
+                movement.UpdateFSM(1.5f);
+                Assert(movement.CurrentState == CreatureState.Moving, "대기 시간 경과 후 Moving 으로 전이되어야 합니다.");
                 Assert(Mathf.Abs(movement.MoveSpeed - 2.0f) < 0.01f, "normal 타입의 move_speed는 2.0 이어야 합니다.");
                 Assert(Mathf.Abs(movement.TurnIntervalSec - 1.5f) < 0.01f, "normal 타입의 turn_interval_sec는 1.5 이어야 합니다.");
                 passedCount++;
