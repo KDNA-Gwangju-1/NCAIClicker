@@ -71,12 +71,12 @@ Unity 6000.3.21f1 에디터 Play Mode, 2026-09-17.
 - [x] `convention-checker` 에이전트 점검: 공용 계약 위반 없음.
 - [x] `Managers.prefab` 부착: `AudioManager`(+ `RequireComponent` 로 자동 추가된 `AudioSource`)를 기존 매니저와 같은 루트에 붙이고 저장. 프리팹 컴포넌트 목록에 두 컴포넌트가 있음을 `get_hierarchy` 로 확인.
 - [x] `Game` 씬에서 Play Mode 진입 → 콘솔에서 `PlayOneShot was called with a null AudioClip.` 2회 관찰. `AudioManager` 가 `GameEvents` 를 구독해 실제로 `Play()` 를 호출하고 있다는 증거다. 같은 세션의 `read_console(types=["error"])` 는 0건 — 예외·크래시 없음.
-- [ ] 실제 `AudioClip` 을 슬롯에 채운 뒤 소리가 들리는지 확인 — 효과음 에셋이 아직 없어 미검증.
+- [x] `Managers.prefab` 의 `AudioManager` 컴포넌트에 CC0 효과음 5종 연결 (2026-09-17): `manage_prefabs(modify_contents)` 로 `_hitClip`→`HitImpact.ogg`, `_coinClip`→`CoinPickup.ogg`, `_feverStartClip`→`FeverStart.ogg`, `_billIssuedClip`→`BillIssued.ogg`, `_billPaidClip`→`BillPaid.ogg` 지정 후 프리팹 스테이지를 열어 `mcpforunity://scene/gameobject/{id}/component/NCAIClicker.UI.AudioManager` 리소스로 5개 필드 값을 개별 확인. 편집 후 `read_console` 에 새 오류·경고 없음.
+- [ ] 실제로 소리가 들리는지(음량·음질 포함) — Play Mode 청취는 사람의 귀로 판단해야 해서 미검증. 슬롯 연결과 `PlayOneShot` 호출 자체는 위에서 확인됨.
 - [ ] 여러 효과음이 동시에 겹칠 때(예: 피버 중 연속 타격 + 코인 획득) 음량·우선순위가 적절한지 — 미검증.
 
 ## 알려진 한계
 
-- `_hitClip`·`_coinClip`·`_feverStartClip`·`_billIssuedClip`·`_billPaidClip` 슬롯이 전부 비어 있다. 사운드 에셋이 `Assets/Audio/` 에 들어오면 인스펙터에서 연결해야 한다(공용 계약 변경 아님 — 프리팹 값 채우기만 필요).
 - 음량 조절·믹서 채널 분리가 없다. 옵션 메뉴에 효과음 볼륨 슬라이더가 생기면 `AudioMixerGroup` 배선이 필요하다.
 - `OnBankrupt`, `OnStageGoalReached` 등 다른 이벤트에는 효과음이 없다 — 이슈 #36 완료 기준(타격·코인·피버·청구서)에 없는 범위라 포함하지 않았다.
 
@@ -85,3 +85,4 @@ Unity 6000.3.21f1 에디터 Play Mode, 2026-09-17.
 | 날짜 | 이슈 | 누가 | 무엇이 바뀌었나 |
 |---|---|---|---|
 | 2026-09-17 | #36 | Claude | 최초 작성 |
+| 2026-09-17 | #36 | Claude | `Managers.prefab` 의 `AudioManager` 슬롯 5종에 CC0 효과음 에셋 연결(THIRD_PARTY.md 출처 등록은 별도 커밋), 알려진 한계에서 빈 슬롯 항목 제거 |

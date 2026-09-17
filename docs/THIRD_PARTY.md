@@ -7,6 +7,9 @@
 | 나눔고딕 Regular·Bold | 폰트 | https://github.com/google/fonts/tree/main/ofl/nanumgothic (네이버 배포판) | SIL OFL 1.1 | `LICENSES/NanumGothic-OFL.txt` | UI 본문 (`Assets/ThirdParty/Fonts/NanumGothic-*.ttf`) |
 | 나눔스퀘어 Bold | 폰트 | https://hangeul.naver.com/fonts/search?f=nanum (nanum-square.zip) | SIL OFL 1.1 | `LICENSES/NanumSquare-OFL.txt` (배포 zip 에 전문이 없어 OFL 1.1 표준 전문 사본. 이대로 유지하기로 결정, #78) | HUD 숫자 강조 (`Assets/ThirdParty/Fonts/NanumSquareB.ttf`) |
 | LiberationSans | 폰트 | Unity TMP 패키지 필수 리소스 (`Assets/TextMesh Pro/Fonts/`) | SIL OFL 1.1 | `Assets/TextMesh Pro/Fonts/LiberationSans - OFL.txt` | TMP 기본 폴백 폰트. 직접 쓰지 않는다 |
+| Impact Sounds (Kenney) | 효과음 | https://kenney.nl/assets/impact-sounds | CC0 1.0 | 고지 의무 없음 (CC0) | 타격음 (`Assets/Audio/HitImpact.ogg`) |
+| Casino Audio (Kenney) | 효과음 | https://kenney.nl/assets/casino-audio | CC0 1.0 | 고지 의무 없음 (CC0) | 코인 획득음 (`Assets/Audio/CoinPickup.ogg`) |
+| Interface Sounds (Kenney) | 효과음 | https://kenney.nl/assets/interface-sounds | CC0 1.0 | 고지 의무 없음 (CC0) | 피버 시작음·청구서 발행음·청구서 납부음 (`Assets/Audio/FeverStart.ogg`, `BillIssued.ogg`, `BillPaid.ogg`) |
 
 ## 기록 규칙
 
