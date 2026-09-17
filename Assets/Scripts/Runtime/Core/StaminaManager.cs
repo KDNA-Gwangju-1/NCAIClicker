@@ -40,6 +40,13 @@ namespace NCAIClicker.Core
         private float _runMaxStamina;
         private float _runDrainPerSec;
 
+        /// <summary>
+        /// 아직 쓰지 않은 회복 퍼크의 총량 (#126). 만충일 때 주면 그대로 버려지므로
+        /// **회복량만큼 빈자리가 생기는 순간** 한 번에 쓴다 (GDD 6절).
+        /// 런 도중에 고른 퍼크도 만충이면 여기 쌓였다가 나중에 들어간다.
+        /// </summary>
+        private float _pendingPerkRestore;
+
         private bool _isRunning;
         private bool _hasPublishedDepleted;
         private float _publishTimer;
@@ -73,11 +80,13 @@ namespace NCAIClicker.Core
         private void OnEnable()
         {
             GameEvents.OnTargetBroken += HandleTargetBroken;
+            GameEvents.OnPerkChosen += HandlePerkChosen;
         }
 
         private void OnDisable()
         {
             GameEvents.OnTargetBroken -= HandleTargetBroken;
+            GameEvents.OnPerkChosen -= HandlePerkChosen;
         }
 
         /// <summary>
@@ -99,6 +108,7 @@ namespace NCAIClicker.Core
             _hasPublishedDepleted = false;
             _publishTimer = 0f;
             PublishChanged();
+            TryConsumePerkRestore();
         }
 
         /// <summary>
@@ -134,12 +144,65 @@ namespace NCAIClicker.Core
                 return;
             }
 
+            // 예약된 회복 퍼크는 여기서 쓴다. 소진 판정 **뒤**라 0 에 닿은 런을 되살리지는 않는다 —
+            // 남은 예약은 다음 런으로 넘어간다 (#126).
+            TryConsumePerkRestore();
+
             // 지속 감소는 묶어서 발행한다. 프레임마다 쏘면 HUD 가 매 프레임 갱신된다.
             _publishTimer += deltaSeconds;
             if (_publishTimer < _publishIntervalSec)
             {
                 return;
             }
+            _publishTimer = 0f;
+            PublishChanged();
+        }
+
+        /// <summary>
+        /// 회복 퍼크를 받는다. 값의 출처는 perks.csv 하나다.
+        /// 즉시 쓰지 않고 예약해 두는 이유는 만충에서 쓰면 그대로 버려지기 때문이다 (GDD 6절).
+        /// 런 밖에서 고른 퍼크도 같은 자리에 쌓여 다음 런에서 쓰인다.
+        /// </summary>
+        private void HandlePerkChosen(string perkId)
+        {
+            if (_balanceData == null)
+            {
+                return;
+            }
+
+            var perk = _balanceData.GetPerk(perkId);
+            if (perk == null || perk.Type != PerkType.StaminaRestore || perk.Value <= 0f)
+            {
+                return;
+            }
+
+            _pendingPerkRestore += perk.Value;
+            TryConsumePerkRestore();
+        }
+
+        /// <summary>
+        /// 예약된 회복량만큼 빈자리가 생겼으면 쓴다. 낭비 없이 전부 들어갈 때만 터뜨린다.
+        /// 런 중이 아니면 쓰지 않는다 — 다음 런의 빈자리를 기다린다.
+        /// </summary>
+        private void TryConsumePerkRestore()
+        {
+            if (!_isRunning || _pendingPerkRestore <= 0f)
+            {
+                return;
+            }
+            if (_pool.Max - _pool.Current < _pendingPerkRestore)
+            {
+                return;
+            }
+
+            var restored = _pool.Restore(_pendingPerkRestore);
+            _pendingPerkRestore = 0f;
+            if (restored <= 0f)
+            {
+                return;
+            }
+
+            GameEvents.PublishStaminaRestored(restored);
             _publishTimer = 0f;
             PublishChanged();
         }

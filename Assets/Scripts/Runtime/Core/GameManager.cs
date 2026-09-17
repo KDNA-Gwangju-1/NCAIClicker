@@ -28,6 +28,13 @@ namespace NCAIClicker.Core
         public RunState CurrentState { get; private set; }
 
         private IRunScoped[] _runScopedServices;
+
+        /// <summary>
+        /// 씬에 사는 런 경계 구현체 (#126). 프리팹 안의 것과 달리 캐시하지 않는다 —
+        /// 씬이 다시 로드되면 인스턴스가 새로 생긴다.
+        /// </summary>
+        private IRunScoped[] _sceneRunScopedServices;
+
         private bool _isRunActive;
 
         private void Awake()
@@ -148,7 +155,7 @@ namespace NCAIClicker.Core
                 return;
             }
             _isRunActive = true;
-            WireSceneUpgradeConsumers();
+            WireSceneConsumers();
             EnsureRunScopedServices();
             if (_runScopedServices == null)
             {
@@ -159,6 +166,7 @@ namespace NCAIClicker.Core
             {
                 _runScopedServices[i].BeginRun();
             }
+            NotifyScene(true);
         }
 
         private void NotifyEndRun()
@@ -178,10 +186,12 @@ namespace NCAIClicker.Core
             {
                 _runScopedServices[i].EndRun();
             }
+            NotifyScene(false);
         }
 
         /// <summary>
-        /// 씬에 사는 업그레이드 소비처에 실효값 조회 통로를 넣는다 (#131).
+        /// 씬에 사는 소비처를 조립한다 — 업그레이드 실효값 조회 통로(#131)를 넣고,
+        /// 런 경계를 알릴 IRunScoped 구현체를 모아 둔다(#126).
         ///
         /// ManagerBootstrap 은 씬 로드 **전**에 돌아 이들에 닿지 못하고, 이들은 Managers 프리팹
         /// 밖이라 GetComponentsInChildren 으로도 잡히지 않는다. ARCHITECTURE 가 "조립하는 지점
@@ -190,24 +200,58 @@ namespace NCAIClicker.Core
         ///
         /// 씬이 다시 로드되면 인스턴스가 새로 생기므로 런을 시작할 때마다 다시 찾는다.
         /// </summary>
-        private void WireSceneUpgradeConsumers()
+        private void WireSceneConsumers()
         {
+            var hammer = FindFirstObjectByType<HammerSwingController>(FindObjectsInactive.Include);
+            var creatures = FindFirstObjectByType<CreatureManager>(FindObjectsInactive.Include);
+
             var upgradeStats = GetComponentInChildren<IUpgradeStats>(true);
-            if (upgradeStats == null)
+            if (upgradeStats != null)
+            {
+                if (hammer != null)
+                {
+                    hammer.SetUpgradeStats(upgradeStats);
+                }
+                if (creatures != null)
+                {
+                    creatures.SetUpgradeStats(upgradeStats);
+                }
+            }
+
+            // 런 경계도 같이 넘긴다. 이 둘은 Managers 프리팹 밖이라
+            // GetComponentsInChildren<IRunScoped> 에 잡히지 않는다 (#126).
+            _sceneRunScopedServices = new IRunScoped[]
+            {
+                hammer,
+                creatures,
+            };
+        }
+
+        /// <summary>씬 구현체에 런 경계를 알린다. 아직 배선되지 않았으면 건너뛴다.</summary>
+        private void NotifyScene(bool isBegin)
+        {
+            if (_sceneRunScopedServices == null)
             {
                 return;
             }
 
-            var hammer = FindFirstObjectByType<HammerSwingController>(FindObjectsInactive.Include);
-            if (hammer != null)
+            for (var i = 0; i < _sceneRunScopedServices.Length; i++)
             {
-                hammer.SetUpgradeStats(upgradeStats);
-            }
-
-            var creatures = FindFirstObjectByType<CreatureManager>(FindObjectsInactive.Include);
-            if (creatures != null)
-            {
-                creatures.SetUpgradeStats(upgradeStats);
+                var service = _sceneRunScopedServices[i];
+                // 인터페이스 참조로는 Unity 의 "파괴됨" 판정이 걸리지 않는다. 씬이 바뀌어
+                // 오브젝트가 이미 사라졌을 수 있으므로 UnityEngine.Object 로 되돌려 확인한다.
+                if (service == null || (service is UnityEngine.Object behaviour && behaviour == null))
+                {
+                    continue;
+                }
+                if (isBegin)
+                {
+                    service.BeginRun();
+                }
+                else
+                {
+                    service.EndRun();
+                }
             }
         }
     }
