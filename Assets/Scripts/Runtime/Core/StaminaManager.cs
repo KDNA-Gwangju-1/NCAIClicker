@@ -1,5 +1,6 @@
 using NCAIClicker.Data;
 using NCAIClicker.Events;
+using NCAIClicker.Interfaces;
 using UnityEngine;
 
 namespace NCAIClicker.Core
@@ -14,7 +15,7 @@ namespace NCAIClicker.Core
     ///
     /// Managers 프리팹(Resources/Managers)에 붙인다. 생성은 ManagerBootstrap 이 한다.
     /// </summary>
-    public class StaminaManager : MonoBehaviour
+    public class StaminaManager : MonoBehaviour, IRunScoped
     {
         [SerializeField] private BalanceData _balanceData;
 

@@ -135,4 +135,5 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
 |---|---|---|---|
 | 2026-09-16 | #22 | twins6375-art | 최초 작성 (CoinWallet, EconomyManager, 검증 19건) |
 | 2026-09-16 | #16 | twins6375-art | 타격 대상이 생겨 실제 지급 경로를 확인. 검증 절 갱신 |
-| 2026-09-17 | #71 | yahoo-afk | `IEconomyService` 외 public API 4개를 `IRunScoped`·`IWalletPersistence` 로 분리 동결. 알려진 한계 항목 갱신 |
+| 2026-09-17 | #71 | yahoo-afk | `IEconomyService` 외 public API 4개를 `IRunScoped`·`IWalletPersistence` 로 분리 동결. `SetBillService` 는 계약이 아닌 조립(wiring) 통로로 남김 |
+| 2026-09-17 | #111 | saltlake00 | `IRunScoped` 계약 확장에 따라 `EconomyManager.EndRun()` 구현 (런 종료 시 내부 플래그 정리) |

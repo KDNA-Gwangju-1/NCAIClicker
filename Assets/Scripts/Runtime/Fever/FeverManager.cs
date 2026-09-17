@@ -90,9 +90,7 @@ namespace NCAIClicker.Fever
         /// <summary>
         /// 누적과 감쇠를 멈춘다. 피버 중이었다면 종료를 알린다 —
         /// 알리지 않으면 EconomyManager 의 배율이 켜진 채로 남는다.
-        ///
-        /// IRunScoped 에는 런 시작만 있고 종료가 없어 이 메서드는 계약 밖이다.
-        /// 부르는 쪽이 구현 클래스를 잡아야 하므로 계약을 넓힐지는 이슈 #111 에서 정한다.
+        /// GameManager 가 Result 전이 시 부른다 (IRunScoped, 이슈 #111).
         /// </summary>
         public void EndRun()
         {
