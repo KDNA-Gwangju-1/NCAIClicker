@@ -12,7 +12,7 @@ namespace NCAIClicker.Economy
     ///
     /// Managers 프리팹(Resources/Managers)에 붙인다. 생성은 ManagerBootstrap 이 한다.
     /// </summary>
-    public class EconomyManager : MonoBehaviour, IEconomyService
+    public class EconomyManager : MonoBehaviour, IEconomyService, IRunScoped, IWalletPersistence
     {
         [SerializeField] private BalanceData _balanceData;
 

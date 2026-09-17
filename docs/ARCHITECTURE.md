@@ -143,6 +143,19 @@ public interface IEconomyService
     long RunCoin { get; }              // 이번 런 순수입의 정수 부분. 지출·대출 제외
 }
 
+// 런 경계. GameManager 만 쓴다 (이슈 #71)
+public interface IRunScoped
+{
+    void BeginRun();
+}
+
+// 저장 복원. SaveManager 만 쓴다 (이슈 #71)
+public interface IWalletPersistence
+{
+    void RestoreWallet(long balance, string remainderText);
+    string CurrentRemainderText { get; }
+}
+
 public interface ISaveService
 {
     SaveData Load();
@@ -194,6 +207,10 @@ public class SaveData
     public string[] PendingPerkIds;    // 결과 화면에서 선택한 다음 런 효과
 }
 ```
+
+`EconomyManager.SetBillService(IBillService)` 는 어느 인터페이스에도 넣지 않는다. 서비스 계약이 아니라
+매니저를 조립(wiring)하는 통로이기 때문이다 — 조립하는 지점(ManagerBootstrap 또는 GameManager 초기화)
+한 곳만 구현 클래스를 알고, 그 뒤의 상호작용은 `IRunScoped`·`IWalletPersistence` 로만 한다 (이슈 #71).
 
 ### 저장 경계
 

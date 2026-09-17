@@ -1,6 +1,6 @@
 # 코인 정산
 
-> 관련 이슈: #22 · 최종 수정: 2026-09-16
+> 관련 이슈: #22, #71 · 최종 수정: 2026-09-17
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -108,10 +108,12 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
 
 ## 알려진 한계
 
-- **`IEconomyService` 에 없는 public API 가 4개다** — `SetBillService`, `BeginRun`, `RestoreWallet`,
+- ~~**`IEconomyService` 에 없는 public API 가 4개다** — `SetBillService`, `BeginRun`, `RestoreWallet`,
   `CurrentRemainderText`. 이걸 쓰려면 BillManager·GameManager·SaveManager 가 `EconomyManager`
   구현 클래스를 직접 잡아야 하고, 이는 ARCHITECTURE 2절의 직접 참조 금지와 충돌한다.
-  **공용 계약 변경 이슈가 필요하다.**
+  공용 계약 변경 이슈가 필요하다.~~ — 이슈 #71에서 해결. `BeginRun` 은 `IRunScoped` 로, `RestoreWallet`·
+  `CurrentRemainderText` 는 `IWalletPersistence` 로 분리 동결했다. `SetBillService` 는 서비스 계약이
+  아닌 조립(wiring) 통로로 남기고 인터페이스에 넣지 않았다 (ARCHITECTURE.md 2절 참고).
 - **Edit Mode 에서는 Unity 가 MonoBehaviour 생명주기를 부르지 않는다.** 그래서 검증이
   `OnEnable`/`OnDisable` 을 리플렉션으로 직접 불러 *구독과 해제가 짝을 이루는지* 만 본다.
   Play Mode 로 옮기지 못한 이유는 테스트 asmdef 가 런타임 코드(`Assembly-CSharp`)를 참조할 수 없기
@@ -133,3 +135,4 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
 |---|---|---|---|
 | 2026-09-16 | #22 | twins6375-art | 최초 작성 (CoinWallet, EconomyManager, 검증 19건) |
 | 2026-09-16 | #16 | twins6375-art | 타격 대상이 생겨 실제 지급 경로를 확인. 검증 절 갱신 |
+| 2026-09-17 | #71 | yahoo-afk | `IEconomyService` 외 public API 4개를 `IRunScoped`·`IWalletPersistence` 로 분리 동결. 알려진 한계 항목 갱신 |
