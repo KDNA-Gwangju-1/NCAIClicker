@@ -75,7 +75,8 @@ git config --global merge.unityyamlmerge.driver '"C:/Program Files/Unity/Hub/Edi
 
 - [x] `LICENSES/` 폴더에 각 라이선스 전문 파일 배치 (예: `LICENSES/NanumGothic-OFL.txt`)
 - [x] `docs/THIRD_PARTY.md` 에 표로 정리: 이름 / 출처 URL / 라이선스 / 용도
-- [ ] 빌드 산출물에 `LICENSES/` 폴더를 함께 동봉하거나, 게임 내 크레딧 화면에 표기
+- [x] 빌드 산출물에 `LICENSES/` 폴더를 함께 동봉하거나, 게임 내 크레딧 화면에 표기 — **결정: `LICENSES/` 폴더 동봉** (2026-09-17, #78). 8.3(#44) 은 빌드 폴더의 실행 파일 옆에 저장소 `LICENSES/` 를 그대로 복사하고 zip 에 포함되는지 확인한다. 크레딧 화면은 만들지 않는다
+- [x] 나눔스퀘어 고지문 — **결정: OFL 1.1 표준 전문 사본 유지** (2026-09-17, #78). 네이버 배포 zip 에 전문이 없고 OFL 의무는 전문 동봉이므로 별도 고지문으로 바꾸지 않는다
 - [ ] 효과음·이미지를 추가할 때마다 **그 PR에서 같이** 기록 (나중에 몰아서 하면 출처를 잊는다)
 
 ---
