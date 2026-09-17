@@ -102,7 +102,7 @@ Unity MCP 및 에디터 검증 배치로 확인했다.
 - [x] 콘솔 warning/error 0건
 
 **한계**: 결과 화면 UI(#34, 재도전 버튼)가 아직 없어 `SceneManager.LoadScene("Game")` 직접 호출로 재도전을 대신했다. 스태미나 자연 소진(자동 망치 타격 누적)이 아닌 `GameEvents.PublishStaminaDepleted()` 직접 발행으로 소진을 시뮬레이션했다.
-(참고: 기존 에디터 Play Mode 전용 검증의 한계였던 "빌드 시 크리처 누락 결함"은 이슈 #140에서 StandaloneWindows64 패키징 빌드 직접 실행 검증을 완료하여 해소됨.)
+(참고: "빌드에 크리처가 없다"는 결함은 #140 에서 `CreatureManager` 를 `Managers` 프리팹으로 옮겨 고쳤고, 패키징 빌드 실행으로 컴포넌트가 빌드에 살아 있음을 확인했다. **런 시작 시 스폰은 빌드에서 아직 확인하지 않았다** — 빌드가 `MainMenu` 로 시작해 무인 실행으로는 `Game` 씬에 닿지 못한다. 상세는 [manager-bootstrap.md](manager-bootstrap.md) 검증 절.)
 
 ## 알려진 한계
 
@@ -119,4 +119,4 @@ Unity MCP 및 에디터 검증 배치로 확인했다.
 | 2026-09-17 | #111 | saltlake00 | `IRunScoped` 기반 `BeginRun()`/`EndRun()` 매니저 배선 추가, 초기화 순서 준수(Economy -> Stamina -> Fever) |
 | 2026-09-17 | #21 | Claude | 첫 완주 빌드 검증 — 시작→정산→재도전 반복 실행으로 구독 중복(코인 2배 버그) 없음과 상태·런코인 정상 리셋 확인 |
 | 2026-09-17 | #142 | hunil58 | `GameManager.Instance`를 신규 `IGameFlowService` 인터페이스 타입으로 노출(계약 변경). "알려진 한계"가 예견한 대로 6.7 메인 메뉴(#90)가 실제 소비자가 되면서 구체 클래스 직접 참조 위반을 convention-checker가 발견해 정정 |
-| 2026-09-17 | #140 | saltlake00 | `CreatureManager`를 `IRunScoped` 라이프사이클에 배선(순서 4), StandaloneWindows64 빌드 실행으로 런 시작 시 크리처 6마리 정상 스폰 확인 |
+| 2026-09-17 | #140 | saltlake00 | `CreatureManager`를 `IRunScoped` 라이프사이클에 배선(순서 4). 프리팹으로 옮겨 온 뒤 `WireSceneConsumers` 와 이중으로 잡혀 `BeginRun` 이 두 번 불리던 것을 제거 — 두 번째 호출이 퍼크 반경을 지웠다 |
