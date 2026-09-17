@@ -1,6 +1,6 @@
 # 업그레이드
 
-> 관련 이슈: #24 · 최종 수정: 2026-09-17
+> 관련 이슈: #24, #32 · 최종 수정: 2026-09-17
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -11,8 +11,11 @@
 
 계산 규칙 자체는 [BALANCE.md 6절](../BALANCE.md)이 정본이다. 여기서는 그것을 어떻게 구현했는지를 적는다.
 
-**아직 아무도 실효값을 읽지 않는다.** 소비처가 실효값을 받을 통로가 공용 계약에 없어서
-[#116](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/116)으로 발의했다 (아래 한계 참고).
+**실효값을 읽는 곳은 아직 한 군데뿐이다.** 피버 코인 배율(`fever_multiplier`)은 #32 에서
+`EconomyManager` 안에서 소비된다 — 배율 적용 지점과 업그레이드 레벨이 같은 클래스에 있어
+계약 없이 닿는다. **나머지 소비처는 아직 아무도 읽지 않는다** — 통로가 될 계약은
+[#116](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/116)에서 생겼지만 거기에 갈아끼우는
+일은 그 이슈의 범위 밖이었다 (아래 한계 참고).
 
 ## 왜 이 방법인가
 
@@ -63,13 +66,14 @@ flowchart LR
 
   mgr --> state
   mgr --> wallet
-  ui -. "구매 요청 — 통로 미정 (#116)" .-> mgr
-  save -. "레벨 복원 — 통로 미정 (#116)" .-> mgr
+  ui -. "IUpgradeShop (#116)" .-> mgr
+  save -. "IUpgradePersistence (#116)" .-> mgr
   mgr == "OnBalanceChanged 발행" ==> events
   events == "구독" ==> ui
 ```
 
-점선은 **아직 계약이 없는 경로**다. 실선만 이 카드에서 만들었다.
+점선은 **계약은 있으나 아직 배선되지 않은 경로**다. 계약은 #116 에서 생겼고, 그 계약을
+부르는 소비처는 아직 저장소에 하나도 없다.
 
 | 클래스 | 경로 | 하는 일 |
 |---|---|---|
@@ -146,12 +150,16 @@ stat 을 건드리는지도 CSV 에서 찾아 쓴다** — 종류가 바뀌어�
 
 ## 알려진 한계
 
-- **효과가 게임에 반영되지 않는다.** 소비처(`StaminaManager`·`FeverManager`·`Target`·
-  `HammerSwingController`·스폰 매니저)가 실효값을 읽을 통로가 공용 계약에 없다.
-  [#116](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/116) 이 정해지면 그 인터페이스로
-  바꿔 끼우고 소비처를 옮긴다. **이 카드의 완료 기준 "다음 런에 반영된다"는 거기서 닫힌다**
+- **효과가 대부분 게임에 반영되지 않는다.** 예외는 `fever_multiplier` 하나로, #32 에서
+  `EconomyManager.GetFeverMultiplier()` 가 실효값을 쓰게 되었다. 나머지 소비처
+  (`StaminaManager`·`FeverManager`·`Target`·`HammerSwingController`·스폰 매니저)는 실효값을
+  읽지 않는다. **매니저 밖에서 쓰이는 stat 은 전부 여기 걸려 있다** — 같은 "헬스장 회원권"이라도
+  배율은 붙었는데 지속 시간은 못 붙은 것이 그 경계를 보여 준다.
+  조회 계약 `IUpgradeStats` 는 [#116](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/116)
+  에서 생겼으나 **소비처를 갈아끼우는 것은 그 이슈의 범위 밖이었고, 아직 카드가 없다.**
+  **이 카드의 완료 기준 "다음 런에 반영된다"는 거기서 닫힌다**
 - **저장·복원이 연결되지 않았다.** `RestoreUpgradeLevels`·`CurrentUpgradeLevels` 는 있지만
-  `SaveManager` 가 부를 통로가 없다 (#116 의 두 번째 항목)
+  `IUpgradePersistence` (#116) 를 `SaveManager` 가 아직 부르지 않는다
 - **구매 시점을 강제하지 않는다.** "메뉴·결과 화면에서만, 다음 런부터 반영"(BALANCE 6절)은
   호출측 책임으로 두었다. 런 상태를 매니저가 알면 GameManager 를 직접 참조하게 된다
 - **`auto_hammer_count` 를 쓰는 곳이 아직 없다.** 자동 망치는 작업 3.2 다
@@ -161,3 +169,4 @@ stat 을 건드리는지도 CSV 에서 찾아 쓴다** — 종류가 바뀌어�
 | 날짜 | 이슈 | 누가 | 무엇이 바뀌었나 |
 |---|---|---|---|
 | 2026-09-17 | #24 | twins6375-art | 최초 작성 (레벨·비용 공식, 실효값 계산, 구매) |
+| 2026-09-17 | #32 | twins6375-art | `fever_multiplier` 가 실제로 소비되기 시작한 것을 반영 (소비처 한계 축소) |

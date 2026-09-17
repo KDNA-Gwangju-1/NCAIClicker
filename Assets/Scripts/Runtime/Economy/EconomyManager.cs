@@ -152,14 +152,20 @@ namespace NCAIClicker.Economy
             _isFeverActive = false;
         }
 
-        // CSV 의 float 배율은 곱하기 전에 decimal 로 바꾼다 (계약 4번).
+        /// <summary>
+        /// 피버 중의 코인 배율. 업그레이드가 붙으면 CSV 원본보다 높다 (BALANCE 6절 fever_multiplier).
+        /// CSV 의 float 배율은 곱하기 전에 decimal 로 바꾼다 (계약 4번).
+        ///
+        /// 같은 업그레이드의 피버 **지속 시간** 쪽은 여기서 얹지 않는다 — 지속 시간을 세는 것은
+        /// FeverManager 이고, 그쪽은 IUpgradeStats(#116)를 주입받아 스스로 읽어야 한다.
+        /// </summary>
         private decimal GetFeverMultiplier()
         {
             if (!_isFeverActive || _balanceData == null)
             {
                 return 1m;
             }
-            return (decimal)_balanceData.Fever.CoinMultiplier;
+            return (decimal)GetStat(StatId.FeverMultiplier, _balanceData.Fever.CoinMultiplier);
         }
 
         private decimal GetBonusMultiplier()

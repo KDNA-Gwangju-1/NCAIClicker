@@ -1,6 +1,6 @@
 # 코인 정산
 
-> 관련 이슈: #22, #71 · 최종 수정: 2026-09-17
+> 관련 이슈: #22, #71, #116, #32 · 최종 수정: 2026-09-17
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -20,7 +20,7 @@
 | `long` 으로 계산한다 | ❌ | 배율 곱에서 소수가 매번 잘려 파괴 보상이 체계적으로 깎인다 |
 | `float`/`double` 로 계산한다 | ❌ | 0.1 을 열 번 더해도 1 에 못 미쳐 입금이 0 이 된다. 검증으로 확인했다 |
 | 피버 배율을 FeverManager 에서 직접 받는다 | ❌ | 매니저 구현 클래스 직접 참조 금지. 게다가 FeverManager 가 없으면 컴파일도 안 된다 |
-| 피버 상태를 `OnFeverStart`/`OnFeverEnd` 로 받는다 | ✅ | 의존이 0 이다. 배율 값은 CSV 에서 읽으면 된다 |
+| 피버 상태를 `OnFeverStart`/`OnFeverEnd` 로 받는다 | ✅ | 의존이 0 이다. **상태만 받고 배율 값은 이쪽이 정한다** — 업그레이드가 배율을 올리는데(#32) 그 레벨도 여기 있어서, 값까지 받으면 오히려 두 곳을 봐야 한다 |
 
 ## 구조
 
@@ -59,7 +59,7 @@ flowchart LR
 
 | 클래스 | 경로 | 하는 일 |
 |---|---|---|
-| `EconomyManager` | `Assets/Scripts/Runtime/Economy/EconomyManager.cs` | `IEconomyService` 구현. 이벤트 구독·발행, 배율 계수 수집. `Managers` 프리팹에 붙는다 |
+| `EconomyManager` | `Assets/Scripts/Runtime/Economy/EconomyManager.cs` | `IEconomyService` 외 런 경계·저장·업그레이드 계약(#71·#111·#116)을 함께 구현. 이벤트 구독·발행, 배율 계수 수집. `Managers` 프리팹에 붙는다 |
 | `CoinWallet` | `Assets/Scripts/Runtime/Economy/CoinWallet.cs` | 배율 곱, 소수 잔여 이월, 런 순수입 집계. 이벤트를 모른다 |
 | `UpgradeState` | `Assets/Scripts/Runtime/Economy/UpgradeState.cs` | 업그레이드 레벨·비용·실효값. `EconomyManager` 가 함께 들고 있다 — 자세한 것은 [업그레이드](upgrades.md) |
 | `CoinWalletChecks` | `Assets/Scripts/Editor/CoinWalletChecks.cs` | 계산식 검증 11건 |
@@ -87,8 +87,13 @@ flowchart LR
 
 | CSV | 열 | 쓰는 곳 |
 |---|---|---|
-| `Assets/GameData/Balance/fever.csv` | `coin_multiplier` | 피버 중 배율 |
+| `Assets/GameData/Balance/fever.csv` | `coin_multiplier` | 피버 중 배율의 **기준값** |
+| `Assets/GameData/Balance/upgrade_effects.csv` | `stat`, `value_per_level` | 위 기준값에 얹는 업그레이드 증분. `stat` 이 `fever_multiplier` 인 행 (#32) |
 | `Assets/GameData/Balance/economy.csv` | `coin_bonus_multiplier` | 보너스 배율 기준값 |
+
+피버 배율은 CSV 값을 그대로 쓰지 않는다. `GetStat(StatId.FeverMultiplier, ...)` 를 거쳐
+업그레이드가 얹힌 실효값을 쓴다 — 자세한 것은 [업그레이드](upgrades.md)·[피버 게이지](fever-gauge.md).
+`coin_bonus_multiplier` 는 아직 기준값 그대로이며, 퍼크·업그레이드가 붙으면 같은 통로를 타야 한다.
 
 대출 징수율은 `bills.csv` 가 원본이지만 이 기능이 직접 읽지 않는다.
 `IBillService.LoanDailyCut` 으로 받으며, 주입 전에는 0 이다.
@@ -123,9 +128,10 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
 - `CoinWallet` 이 `public` 이라 다른 런타임 스크립트가 직접 `new CoinWallet()` 으로 배율을 적용할 수
   있다. `internal` 로 좁혀도 같은 어셈블리라 막히지 않고 Editor 검증만 깨지므로, **소유자는
   `EconomyManager` 하나** 라는 약속에 기대고 있다.
-- 보너스 배율은 CSV 기준값만 읽는다. 퍼크 가산(작업 4.2)과 업그레이드 효과를 반영할 통로가
-  아직 없다 — 업그레이드 계산 자체는 작업 3.3 에서 들어왔지만 소비처가 실효값을 읽을 계약이
-  없다 (이슈 #116, [업그레이드](upgrades.md) 참고).
+- 보너스 배율은 아직 CSV 기준값만 읽는다. 통로가 없어서가 아니다 — `StatId.CoinBonusMultiplier`
+  가 이미 있고, 배율을 곱하는 곳이 업그레이드 상태와 같은 클래스라 피버 배율처럼 `GetStat` 을
+  거치면 된다. 아직 `GetBonusMultiplier()` 가 그렇게 하지 않을 뿐이다. 퍼크 가산(작업 4.2)은
+  별개로 남아 있다.
 - 파산 시 소수 잔여를 버리는 처리(계약 7번)는 전용 API 없이 `RestoreWallet(0, "0")` 으로만 된다.
   파산 처리 주체(작업 4.4)가 생길 때 다시 본다.
 - `SaveManager`(작업 3.4)가 없어 지금은 매번 잔액 0 에서 시작한다. 초기화 순서상
@@ -140,3 +146,4 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
 | 2026-09-17 | #71 | yahoo-afk | `IEconomyService` 외 public API 4개를 `IRunScoped`·`IWalletPersistence` 로 분리 동결. `SetBillService` 는 계약이 아닌 조립(wiring) 통로로 남김 |
 | 2026-09-17 | #111 | saltlake00 | `IRunScoped` 계약 확장에 따라 `EconomyManager.EndRun()` 구현 (런 종료 시 내부 플래그 정리) |
 | 2026-09-17 | #24 | twins6375-art | `EconomyManager` 가 `UpgradeState` 와 구매 API 를 함께 들게 됨. 클래스 표와 보너스 배율 한계 항목 갱신 |
+| 2026-09-17 | #32 | twins6375-art | 피버 배율이 CSV 원본이 아니라 업그레이드 실효값을 쓰게 됨. 읽는 밸런스 값 표 갱신 |
