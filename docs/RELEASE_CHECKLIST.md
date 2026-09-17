@@ -59,7 +59,7 @@ git config --global merge.unityyamlmerge.driver '"C:/Program Files/Unity/Hub/Edi
 ### URP 렌더러
 
 - [x] 3D 확정이므로 URP 기본 렌더러를 그대로 쓴다. 2D Renderer 는 도입하지 않는다
-- [ ] 쓰지 않는 Mobile 렌더러 에셋(`Assets/Settings/Mobile_*`) 정리 여부 결정 (PC 전용 빌드라 불필요)
+- [x] 쓰지 않는 Mobile 렌더러 에셋(`Assets/Settings/Mobile_*`) 정리 여부 결정 (PC 전용 빌드라 불필요) (삭제, 2026-09-17 #79)
 
 ### 씬
 
