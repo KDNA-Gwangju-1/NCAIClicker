@@ -30,6 +30,7 @@ namespace NCAIClicker
             _instance = Object.Instantiate(prefab);
             _instance.name = PrefabName;
             Object.DontDestroyOnLoad(_instance);
+            Debug.Log($"[ManagerBootstrap] {PrefabName} 인스턴스 자동 생성 완료.");
         }
     }
 }

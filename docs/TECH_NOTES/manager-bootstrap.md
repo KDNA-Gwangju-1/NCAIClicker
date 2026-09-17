@@ -50,13 +50,13 @@ Unity 6000.3.21f1 배치 실행, 2026-09-16.
 - [x] 컴파일 + 프리팹 생성: `-batchmode -quit -nographics -executeMethod ...TempCreateManagersPrefab.Run` → 종료 코드 0, `error CS` 0건. 임시 스크립트는 생성 후 삭제했다.
 - [x] Play Mode 테스트: `-batchmode -nographics -runTests -testPlatform PlayMode` → 종료 코드 0, 1개 중 1개 통과 (`KeepsSingleManagersAcrossScenes`). 프리팹 누락 시 나오는 `[ManagerBootstrap]` 오류 로그 없음.
 - [x] 에디터에서 `MainMenu` 씬·`Game` 씬을 각각 열고 Play (2026-09-17, #80): 배치 모드에서 임시 에디터 스크립트로 씬을 `OpenScene` 한 뒤 `EnterPlaymode` → 두 씬 모두 `Managers` 루트 1개, 소속 씬 `DontDestroyOnLoad`. 종료 코드 0, `error CS` 0건, `[ManagerBootstrap]` 오류 로그 없음. 임시 스크립트는 삭제했다.
-- [x] macOS 빌드 `Player.log` 확인 (2026-09-17, #110): unity-cli `unity build --target StandaloneOSX` → `Build Finished, Result: Success`, `error CS` 0건. 빌드된 앱을 40초 실행 → 첫 씬 로드 후 `[ManagerBootstrap]` 오류 로그 없음, `error`/`exception` 0건. 부트스트랩은 실패 시에만 로그를 남기므로 오류 없음이 생성 성공의 신호다.
-- [ ] Windows 빌드 `Player.log` 확인 — 8.3 최종 빌드에서 확인한다 (팀 결정: 개발 중 빌드 검증은 맥 빌드로 한다).
+- [x] macOS 빌드 `Player.log` 확인 (2026-09-17, #110): unity-cli `unity build --target StandaloneOSX` → `Build Finished, Result: Success`, `error CS` 0건. 빌드된 앱을 40초 실행 → 첫 씬 로드 후 `[ManagerBootstrap]` 오류 로그 없음, `error`/`exception` 0건.
+- [x] Windows 빌드 `Player.log` 확인 (2026-09-17, #80): Unity 6000.3.21f1 배치 빌드로 Windows StandalonePlayer(64비트) 생성 후 1회 구동. `%USERPROFILE%/AppData/LocalLow/NCAITeamTwo/NCAIClicker/Player.log` 에서 `[ManagerBootstrap] Managers 인스턴스 자동 생성 완료.` 출력 확인, `LogError` 0건, 예외 0건.
 
 ## 알려진 한계
 
 - 붙어 있는 매니저는 `EconomyManager` 하나뿐이다(작업 3.1). 나머지 모듈이 자기 매니저를 붙이면서 [ARCHITECTURE 1절](../ARCHITECTURE.md) 초기화 순서를 맞춰야 한다. 컴포넌트 실행 순서는 아직 아무도 지정하지 않았다.
-- 에디터에서 `Game` 씬을 직접 열어 Play 하는 경로는 배치 모드(`OpenScene` + `EnterPlaymode`)로만 확인했다. 사람이 에디터 창에서 직접 Play 한 것과 Windows 빌드에서의 동작은 아직 확인하지 않았다 (macOS 빌드는 #110 에서 확인).
+- 에디터에서 `Game` 씬을 직접 열어 Play 하는 경로는 배치 모드(`OpenScene` + `EnterPlaymode`)로만 확인했다 (macOS 빌드는 #110, Windows 독립 빌드 구동은 #80 에서 검증 완료).
 - 테스트 asmdef 는 런타임 코드를 참조하지 않는다(런타임에 asmdef 가 없다). 테스트는 씬의 오브젝트 이름만 본다.
 - `Resources.Load` 의존이라 프리팹 이름(`Managers`)이나 폴더를 바꾸면 소리 없이 실패하고 `LogError` 만 남는다.
 
@@ -68,3 +68,4 @@ Unity 6000.3.21f1 배치 실행, 2026-09-16.
 | 2026-09-16 | #22 | twins6375-art | 첫 매니저(`EconomyManager`) 부착 반영 |
 | 2026-09-17 | #80 | Claude | 에디터 Play 검증 반영 |
 | 2026-09-17 | #110 | Claude | macOS 빌드 `Player.log` 검증 반영 |
+| 2026-09-17 | #80 | saltlake00 | Windows 독립 빌드 구동 및 Player.log 검증 반영, 생성 로그 추가 |
