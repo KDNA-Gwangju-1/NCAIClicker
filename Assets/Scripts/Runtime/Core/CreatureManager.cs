@@ -191,6 +191,12 @@ namespace NCAIClicker.Core
             var targetId = target != null ? target.TargetId : "normal";
             movement.Initialize(_balanceData, targetId, _deskBounds);
 
+            var hpDisplay = instance.GetComponent<CreatureHpDisplay>();
+            if (hpDisplay == null)
+            {
+                hpDisplay = instance.AddComponent<CreatureHpDisplay>();
+            }
+
             _activeCreatures.Add(instance);
             return instance;
         }

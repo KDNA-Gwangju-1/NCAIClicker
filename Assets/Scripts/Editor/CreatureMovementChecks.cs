@@ -122,6 +122,25 @@ namespace NCAIClicker.EditorTools
                 UnityEngine.Object.DestroyImmediate(mgrGo);
             }
 
+            // 12. 크리처 HP 표시 및 데미지 팝업 생성 검증
+            var testTargetGo = new GameObject("HpDisplayTestTarget");
+            try
+            {
+                var target = testTargetGo.AddComponent<Target>();
+                var hpDisplay = testTargetGo.AddComponent<CreatureHpDisplay>();
+                Assert(hpDisplay != null, "CreatureHpDisplay 컴포넌트 생성 실패");
+                passedCount++;
+
+                var popup = DamagePopup.Create(Vector3.zero, 1.5f);
+                Assert(popup != null, "DamagePopup 생성 실패");
+                UnityEngine.Object.DestroyImmediate(popup.gameObject);
+                passedCount++;
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(testTargetGo);
+            }
+
             Debug.Log("[CreatureMovementChecks] 전체 " + passedCount + "개 검증 통과 완료.");
         }
 
