@@ -35,7 +35,7 @@ def simulate(root, runs, seed, uptime, policy):
         slots = [spawn() for _ in range(int(stage["spawn_count"]))]
         energy, elapsed, coin, gauge = stamina["max_stamina"], 0.0, 0.0, 0.0
         last_hit, fever_end = -float("inf"), 0.0
-        selected, breaks, restorations = None, 0, 0
+        selected, breaks, restorations, fevers = None, 0, 0, 0
         interval = economy["hover_swing_interval_sec"]
         # 모델의 무한 반복 방지용이다. 게임에 시간 상한을 추가하지 않는다.
         cap = stamina["max_stamina"] / stamina["idle_drain_per_sec"] * 10
@@ -66,6 +66,7 @@ def simulate(root, runs, seed, uptime, policy):
                 gauge += fever["gauge_per_hit"]
                 if gauge >= fever["gauge_max"]:
                     fever_end, gauge = elapsed + fever["duration_sec"], 0.0
+                    fevers += 1
             slot = slots[selected]
             slot["hp"] -= economy["base_hit_power"]
             if slot["hp"] > 0:
@@ -79,7 +80,7 @@ def simulate(root, runs, seed, uptime, policy):
             breaks += 1
             slot["ready"] = elapsed + economy["spawn_interval_sec"]
             selected = None
-        results.append((coin, elapsed, breaks, restorations, elapsed >= cap))
+        results.append((coin, elapsed, breaks, restorations, elapsed >= cap, fevers))
     coins = sorted(row[0] for row in results)
     return {
         "runs": runs, "seed": seed, "hover_uptime": uptime, "policy": policy,
@@ -90,6 +91,9 @@ def simulate(root, runs, seed, uptime, policy):
         "mean_seconds": round(statistics.mean(row[1] for row in results), 2),
         "mean_breaks": round(statistics.mean(row[2] for row in results), 2),
         "mean_restorations": round(statistics.mean(row[3] for row in results), 2),
+        "mean_fevers": round(statistics.mean(row[5] for row in results), 2),
+        "min_fevers": min(row[5] for row in results),
+        "max_fevers": max(row[5] for row in results),
         "goal_reached_percent": round(100 * sum(c >= int(stage["goal_coin"]) for c in coins) / runs, 1),
         "capped_runs": sum(row[4] for row in results),
     }
