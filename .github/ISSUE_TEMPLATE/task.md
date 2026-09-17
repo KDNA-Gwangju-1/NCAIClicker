@@ -27,7 +27,7 @@ assignees: ''
 
 ## 읽어야 할 문서
 
-<!-- AGENTS.md 의 "모듈별로 읽혀야 할 것" 표를 참고해 필요한 절만 짚어줍니다 -->
+<!-- docs/ONBOARDING.md 의 "모듈별로 읽혀야 할 것" 표를 참고해 필요한 절만 짚어줍니다 -->
 
 - `docs/ARCHITECTURE.md` 절
 - 
