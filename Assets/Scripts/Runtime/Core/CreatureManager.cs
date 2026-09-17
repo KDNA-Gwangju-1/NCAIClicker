@@ -172,21 +172,22 @@ namespace NCAIClicker.Core
         }
 
         /// <summary>
-        /// 업그레이드 실효값 조회 통로를 넣고, 늘어난 동시 출현 수만큼 즉시 채운다.
-        /// 서비스 계약이 아니라 조립(wiring) 통로다 (ARCHITECTURE "SetBillService" 문단).
+        /// 업그레이드 실효값 조회 통로를 넣는다. 서비스 계약이 아니라 조립(wiring) 통로다
+        /// (ARCHITECTURE "SetBillService" 문단).
         ///
         /// 이전에는 조립 지점이 증분을 직접 계산해 넘기는 SetUpgradeOverrides(int, float) 였다.
         /// stat 마다 인자를 늘려야 하고 반영 경로가 IUpgradeStats 와 두 갈래가 되어 걷어냈다 (#131).
+        ///
+        /// **여기서 스폰하지 않는다** (#140). 늘어난 동시 출현 수만큼 즉시 채우던 코드가 있었는데,
+        /// 이 매니저가 Managers 프리팹으로 옮겨 오면서 ManagerBootstrap 이 **씬 로드 전에** 이
+        /// 메서드를 부르게 됐다. 그 결과 런이 시작되기도 전에, 그것도 MainMenu 씬에서 크리처가
+        /// 6마리 생겼다. 조립 통로는 부수효과를 갖지 않는다 — 늘어난 수는 다음 BeginRun 의
+        /// InitializeStage 가 반영한다 (업그레이드는 메뉴·결과 화면에서만 사므로 런 도중에
+        /// 목표치가 변할 일이 없다. BALANCE 6절).
         /// </summary>
         public void SetUpgradeStats(IUpgradeStats upgradeStats)
         {
             _upgradeStats = upgradeStats;
-
-            var needed = GetRequiredSpawnCount() - _activeCreatures.Count - _respawnTimers.Count;
-            for (var i = 0; i < needed; i++)
-            {
-                SpawnRandomCreature();
-            }
         }
 
         /// <summary>
