@@ -54,7 +54,7 @@ Unity 6000.3.21f1 배치 실행, 2026-09-16.
 - [x] Windows 빌드 `Player.log` 확인 (2026-09-17, #80): Unity 6000.3.21f1 배치 빌드로 Windows StandalonePlayer(64비트) 생성 후 1회 구동. `%USERPROFILE%/AppData/LocalLow/NCAITeamTwo/NCAIClicker/Player.log` 에서 `[ManagerBootstrap] Managers 인스턴스 자동 생성 완료.` 출력 확인, `LogError` 0건, 예외 0건.
 - [x] Windows 독립 빌드에 `CreatureManager` 가 살아 있는지 (2026-09-17, #140): StandaloneWindows64 빌드(오류 0, 경고 7) 후 실행해 `Player.log` 에서 `[CreatureManager] 크리처 스폰 성공` 6줄과 프리팹 4종 인스턴스화를 확인했다. 컴포넌트가 빌드에 포함되고 프리팹 참조가 런타임에 유효하다는 것이 여기서 증명된다.
 - [x] 그 스폰이 **런 시작이 아니었다** (2026-09-17, #140): 같은 로그에 `[GameManager] NotifyBeginRun 실행` 도 `[CreatureManager] …단계 초기화` 도 없었다. `ManagerBootstrap` 이 씬 로드 전에 부르는 `SetUpgradeStats` 의 스폰 부수효과가 **MainMenu 씬에서** 크리처를 만든 것이었다. 부수효과를 걷어낸 뒤 다시 빌드·실행하니 MainMenu 에서 `[CreatureManager]` 로그 0줄, 오류·경고 0건.
-- [ ] **런 시작 시 크리처 스폰은 아직 빌드에서 확인하지 않았다.** 빌드는 `MainMenu` 로 시작하므로 `새 회차 시작` 을 눌러야 `Game` 씬으로 넘어간다. 무인 실행으로는 여기까지 갈 수 없다 — 사람이 한 번 눌러 `Player.log` 에서 `[GameManager] NotifyBeginRun 실행` 과 `[CreatureManager] 1단계 초기화` 를 확인해야 이 항목이 닫힌다.
+- [x] **런 시작 시 크리처 스폰을 빌드에서 확인했다** (2026-09-17, #140): 패키징된 빌드를 실행해 사람이 `새 회차 시작` 을 누르고 플레이. `Player.log` 에 `[GameManager] MainMenu -> Running` → `[GameManager] NotifyBeginRun 실행 (6개 IRunScoped 서비스 활성화)` → `[CreatureManager] 1단계 초기화: 크리처 6마리 스폰 시작` 과 스폰 6줄이 남았고, 이어서 파괴 후 **리스폰까지 동작**했다. 오류·예외·경고 0건, 정상 종료. `NotifyBeginRun` 은 **정확히 1회** 찍혔다 — 프리팹·씬 이중 배선이 없다는 증거다.
 
 ## 알려진 한계
 

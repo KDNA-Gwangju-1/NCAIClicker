@@ -102,7 +102,7 @@ Unity MCP 및 에디터 검증 배치로 확인했다.
 - [x] 콘솔 warning/error 0건
 
 **한계**: 결과 화면 UI(#34, 재도전 버튼)가 아직 없어 `SceneManager.LoadScene("Game")` 직접 호출로 재도전을 대신했다. 스태미나 자연 소진(자동 망치 타격 누적)이 아닌 `GameEvents.PublishStaminaDepleted()` 직접 발행으로 소진을 시뮬레이션했다.
-(참고: "빌드에 크리처가 없다"는 결함은 #140 에서 `CreatureManager` 를 `Managers` 프리팹으로 옮겨 고쳤고, 패키징 빌드 실행으로 컴포넌트가 빌드에 살아 있음을 확인했다. **런 시작 시 스폰은 빌드에서 아직 확인하지 않았다** — 빌드가 `MainMenu` 로 시작해 무인 실행으로는 `Game` 씬에 닿지 못한다. 상세는 [manager-bootstrap.md](manager-bootstrap.md) 검증 절.)
+(참고: "빌드에 크리처가 없다"는 결함은 #140 에서 `CreatureManager` 를 `Managers` 프리팹으로 옮겨 고쳤고, 패키징 빌드 실행으로 컴포넌트가 빌드에 살아 있음을 확인했다. 런 시작 시 스폰도 **패키징된 빌드에서 `MainMenu` → `새 회차 시작` 경로로 확인했다** — 무인 실행으로는 `Game` 씬에 닿지 못해 사람이 눌러 검증했다. 상세는 [manager-bootstrap.md](manager-bootstrap.md) 검증 절.)
 
 ## 알려진 한계
 
