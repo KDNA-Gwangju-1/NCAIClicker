@@ -4,7 +4,8 @@ hover_swing_interval_sec,0.85,sec,대상 유무와 무관한 호버 망치 스�
 auto_hammer_count_init,0,count,자동 망치 초기 보유량. 업그레이드로 증가
 auto_hammer_power,0.6,hp/hit,자동 망치 타격 1회에 깎는 내구도
 auto_hammer_hits_per_sec,1.0,hit/sec,자동 망치 1기당 초당 타격 횟수
-hit_radius_bonus,25,percent,피격 콜라이더를 외형보다 넓히는 비율 (GDD 4절)
+hit_radius_bonus,25,percent,타격 대상 콜라이더를 외형보다 넓히는 비율. 조준 반경과는 다른 축이다 (GDD 4절)
+reticle_radius,0.45,world_unit,호버 망치 조준 판정 반경. 커서 주변 이 거리 안의 대상이 맞는다
 spawn_interval_sec,7.0,sec,부서진 자리에 새 저금통이 등장하기까지 걸리는 시간
 coin_bonus_multiplier,1.0,ratio,보너스 배율 기준값. 퍼크/업그레이드가 여기에 더해진다
 upgrade_cost_growth,1.15,ratio,업그레이드 비용 = 초기비용 * 1.15^레벨

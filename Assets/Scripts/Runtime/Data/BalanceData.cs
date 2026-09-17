@@ -50,6 +50,9 @@ namespace NCAIClicker.Data
         public float AutoHammerPower;
         public float AutoHammerHitsPerSec;
         public float HitRadiusBonusPercent;
+
+        /// <summary>호버 망치 조준 판정 반경. 대상 콜라이더를 넓히는 HitRadiusBonusPercent 와는 다른 축이다.</summary>
+        public float ReticleRadius;
         public float CoinBonusMultiplier;
 
         /// <summary>부서진 자리에 새 저금통이 등장하기까지의 대기 시간.</summary>

@@ -13,7 +13,15 @@ namespace NCAIClicker.Core
     public class HammerSwingVisual : MonoBehaviour
     {
         private const int SegmentCount = 12;
-        private const float ReticleRadius = HammerSwingController.DefaultReticleRadius;
+
+        /// <summary>
+        /// 베이스 텍스처에서 금색 실선 링이 그려진 위치. 쿼드 절반 크기를 1.0 으로 본 비율이다
+        /// (GenerateBaseReticleTexture 의 ringDist 기준). 링이 판정 반경과 겹치도록 쿼드를 이 비율로 역산한다.
+        /// </summary>
+        private const float RingTextureRadiusRatio = 0.74f;
+
+        /// <summary>쿨타임 세그먼트를 판정 링 바로 바깥에 두는 비율. 링과 겹쳐 읽히지 않게 띄운다.</summary>
+        private const float SegmentRingRatio = 1.12f;
 
         private Camera _aimCamera;
         private Plane _deskPlane;
@@ -21,7 +29,18 @@ namespace NCAIClicker.Core
         private Transform _hammerPivot;
         private Renderer[] _segmentRenderers;
 
-        [SerializeField] private float _swingInterval = 0.85f;
+        /// <summary>
+        /// 조준 판정 반경. 출처는 HammerSwingController 하나뿐이다 — 여기서 따로 정하면
+        /// "보이는 원 밖인데 맞는다"가 다시 생긴다 (이슈 #109, #132).
+        /// </summary>
+        private float _hitRadius;
+
+        /// <summary>
+        /// 쿨타임 게이지 한 바퀴에 걸리는 시간. 컨트롤러가 CSV 에서 읽은 스윙 주기를 그대로 받는다
+        /// (AGENTS.md 데이터 규칙 — 같은 숫자를 코드와 CSV 양쪽에 두지 않는다).
+        /// </summary>
+        private float _swingInterval;
+
         private float _timer;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -46,14 +65,22 @@ namespace NCAIClicker.Core
         {
             _aimCamera = Camera.main;
             _deskPlane = new Plane(Vector3.up, Vector3.zero);
+        }
 
-#if UNITY_EDITOR
-            var balance = UnityEditor.AssetDatabase.LoadAssetAtPath<NCAIClicker.Data.BalanceData>("Assets/GameData/Generated/BalanceData.asset");
-            if (balance != null && balance.Economy != null && balance.Economy.HoverSwingIntervalSec > 0f)
+        private void Start()
+        {
+            // 반경과 스윙 주기는 컨트롤러가 CSV 에서 읽어 둔 값을 그대로 쓴다. 컨트롤러의 Awake 가
+            // 먼저 끝나야 하므로 Awake 가 아니라 Start 에서 만든다.
+            var controller = FindFirstObjectByType<HammerSwingController>(FindObjectsInactive.Include);
+            if (controller == null)
             {
-                _swingInterval = balance.Economy.HoverSwingIntervalSec;
+                Debug.LogWarning("[HammerSwingVisual] HammerSwingController 가 없어 조준 반경과 스윙 주기를 알 수 없다. 레티클을 그리지 않는다.");
             }
-#endif
+            else
+            {
+                _hitRadius = controller.HitRadius;
+                _swingInterval = controller.SwingIntervalSec;
+            }
 
             BuildVisuals();
         }
@@ -71,12 +98,21 @@ namespace NCAIClicker.Core
             reticleRootGo.transform.SetParent(transform);
             _reticleRoot = reticleRootGo.transform;
 
+            if (_hitRadius <= 0f)
+            {
+                // 반경을 모르면 판정과 어긋난 원을 그리느니 아무것도 그리지 않는다.
+                BuildHammer();
+                return;
+            }
+
             // 2. 바닥 기본 베이스 링 (중심점 + 내부 원형 음영 및 실선 테두리)
+            //    금색 실선 링이 판정 반경과 겹치도록 쿼드 크기를 역산한다.
+            var baseQuadScale = _hitRadius * 2f / RingTextureRadiusRatio;
             var baseQuad = GameObject.CreatePrimitive(PrimitiveType.Quad);
             baseQuad.name = "BaseReticle";
             baseQuad.transform.SetParent(_reticleRoot);
             baseQuad.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            baseQuad.transform.localScale = new Vector3(0.7f, 0.7f, 1f);
+            baseQuad.transform.localScale = new Vector3(baseQuadScale, baseQuadScale, 1f);
             baseQuad.transform.localPosition = new Vector3(0f, 0.012f, 0f);
             Destroy(baseQuad.GetComponent<Collider>());
 
@@ -100,8 +136,9 @@ namespace NCAIClicker.Core
                 // 12시 방향(0도)부터 시계방향 배치
                 var angleDeg = (i / (float)SegmentCount) * 360f;
                 var angleRad = (90f - angleDeg) * Mathf.Deg2Rad; // 12시 기준 시계방향
-                var posX = Mathf.Cos(angleRad) * ReticleRadius;
-                var posZ = Mathf.Sin(angleRad) * ReticleRadius;
+                var segmentRingRadius = _hitRadius * SegmentRingRatio;
+                var posX = Mathf.Cos(angleRad) * segmentRingRadius;
+                var posZ = Mathf.Sin(angleRad) * segmentRingRadius;
 
                 segGo.transform.localPosition = new Vector3(posX, 0.016f, posZ);
                 segGo.transform.localRotation = Quaternion.Euler(90f, angleDeg, 0f);
@@ -116,6 +153,12 @@ namespace NCAIClicker.Core
                 _segmentRenderers[i] = segRenderer;
             }
 
+            BuildHammer();
+        }
+
+        /// <summary>허공의 스윙 망치. 조준 반경과 무관하므로 레티클을 못 그릴 때도 만든다.</summary>
+        private void BuildHammer()
+        {
             // 4. 허공의 스윙 망치 피벗 및 모델 생성 (원작 배색: 빨간 손잡이 바 + 짙은 네이비 헤드)
             var pivotGo = new GameObject("HammerPivot");
             pivotGo.transform.SetParent(transform);
@@ -235,7 +278,12 @@ namespace NCAIClicker.Core
                 }
             }
 
-            // 쿨타임 타이머 갱신 (0.85초 주기)
+            // 쿨타임 타이머 갱신. 주기는 economy.csv 의 hover_swing_interval_sec 다.
+            if (_swingInterval <= 0f)
+            {
+                return;
+            }
+
             _timer += Time.deltaTime;
             while (_timer >= _swingInterval)
             {

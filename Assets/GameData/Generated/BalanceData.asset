@@ -25,6 +25,7 @@ MonoBehaviour:
     AutoHammerPower: 0.6
     AutoHammerHitsPerSec: 1
     HitRadiusBonusPercent: 25
+    ReticleRadius: 0.45
     CoinBonusMultiplier: 1
     SpawnIntervalSec: 7
     UpgradeCostGrowth: 1.15

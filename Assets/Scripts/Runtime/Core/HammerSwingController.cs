@@ -16,16 +16,25 @@ namespace NCAIClicker.Core
     /// </summary>
     public class HammerSwingController : MonoBehaviour
     {
-        public const float DefaultReticleRadius = 0.45f;
+        /// <summary>
+        /// 한 스윙에서 훑을 콜라이더 수의 상한. 스윙마다 배열을 새로 만들지 않으려고 미리 잡아 둔다.
+        /// 반경 안에 이보다 많이 들어오면 넘친 것은 보이지 않으므로 경고를 남긴다.
+        /// </summary>
+        private const int HitBufferSize = 16;
 
         [SerializeField] private BalanceData _balanceData;
         [SerializeField] private Camera _aimCamera;
         [SerializeField] private float _deskPlaneY;
         [SerializeField] private LayerMask _hittableLayerMask = ~0;
-        [SerializeField] private float _hitRadius = DefaultReticleRadius;
+
+        private readonly Collider[] _hitBuffer = new Collider[HitBufferSize];
 
         private float _swingTimer;
         private Plane _deskPlane;
+        private bool _hasWarnedBufferFull;
+
+        /// <summary>조준 판정 반경. 원본은 economy.csv 의 reticle_radius 다 (AGENTS.md 데이터 규칙).</summary>
+        private float _hitRadius;
 
         /// <summary>
         /// 업그레이드 실효값 조회 통로 (#116). 이 컴포넌트는 Game 씬에 있어
@@ -40,8 +49,19 @@ namespace NCAIClicker.Core
         /// <summary>가장 최근 스윙에서 계산된 커서의 책상 평면 위 월드 좌표.</summary>
         public Vector3 CursorWorldPosition { get; private set; }
 
-        /// <summary>망치 타격 판정 반경.</summary>
+        /// <summary>
+        /// 망치 조준 판정 반경. 연출(HammerSwingVisual)이 그리는 원도 이 값을 출처로 삼는다 —
+        /// 둘이 갈라지면 "보이는 원 밖인데 맞는다"가 된다 (이슈 #109).
+        ///
+        /// 업그레이드 hit_radius 는 여기가 아니라 대상 콜라이더를 넓힌다 (BALANCE 6절, #131).
+        /// </summary>
         public float HitRadius => _hitRadius;
+
+        /// <summary>
+        /// 스윙 주기. 원본은 economy.csv 의 hover_swing_interval_sec 다.
+        /// 연출의 쿨타임 게이지도 이 값을 읽는다 — 따로 두면 게이지와 실제 스윙 박자가 어긋난다.
+        /// </summary>
+        public float SwingIntervalSec => _balanceData == null ? 0f : _balanceData.Economy.HoverSwingIntervalSec;
 
         private void Awake()
         {
@@ -54,6 +74,10 @@ namespace NCAIClicker.Core
                 _aimCamera = Camera.main;
             }
             _deskPlane = new Plane(Vector3.up, new Vector3(0f, _deskPlaneY, 0f));
+            if (_balanceData != null)
+            {
+                _hitRadius = _balanceData.Economy.ReticleRadius;
+            }
             CacheUpgradedStats();
         }
 
@@ -122,14 +146,16 @@ namespace NCAIClicker.Core
             }
 
             var isHit = false;
-            var hitColliders = Physics.OverlapSphere(CursorWorldPosition, _hitRadius, _hittableLayerMask);
+            // 스윙마다 배열을 새로 만들지 않도록 미리 잡아 둔 버퍼로 훑는다 (런 내내 쌓이는 GC 쓰레기를 없앤다).
+            var hitCount = Physics.OverlapSphereNonAlloc(CursorWorldPosition, _hitRadius, _hitBuffer, _hittableLayerMask);
+            WarnIfBufferFull(hitCount);
             IHittable closestTarget = null;
             var minDistanceSqr = float.MaxValue;
             var hitPoint = CursorWorldPosition;
 
-            for (var i = 0; i < hitColliders.Length; i++)
+            for (var i = 0; i < hitCount; i++)
             {
-                var col = hitColliders[i];
+                var col = _hitBuffer[i];
                 var target = col.GetComponentInParent<IHittable>();
                 if (target == null || !target.IsAlive)
                 {
@@ -153,6 +179,22 @@ namespace NCAIClicker.Core
             }
 
             GameEvents.PublishSwingResolved(HitSource.Hover, isHit);
+        }
+
+        /// <summary>
+        /// 버퍼가 가득 차면 반경 안의 대상 일부가 보이지 않는다. 최근접 하나를 고르는 판정이라
+        /// 잘린 쪽이 더 가까웠으면 조용히 엉뚱한 대상을 때리게 되므로 한 번은 알린다.
+        /// </summary>
+        private void WarnIfBufferFull(int hitCount)
+        {
+            if (hitCount < HitBufferSize || _hasWarnedBufferFull)
+            {
+                return;
+            }
+
+            _hasWarnedBufferFull = true;
+            Debug.LogWarning($"[HammerSwingController] 판정 반경 안의 콜라이더가 버퍼({HitBufferSize})를 채웠다. " +
+                             "넘친 대상은 판정에서 빠진다 — HitBufferSize 를 올리거나 레이어 마스크를 좁혀야 한다.");
         }
     }
 }

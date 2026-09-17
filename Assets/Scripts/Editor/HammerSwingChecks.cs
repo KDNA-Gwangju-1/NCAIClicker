@@ -16,17 +16,20 @@ namespace NCAIClicker.EditorTools
     public static class HammerSwingChecks
     {
         private const string NormalPrefabPath = "Assets/Prefabs/Targets/TargetNormal.prefab";
+        private const string BalanceAssetPath = "Assets/GameData/Generated/BalanceData.asset";
 
         [MenuItem("NCAI/망치 스윙 타격 판정 검증")]
         public static void RunBatch()
         {
             var passedCount = 0;
 
-            // 1. 레티클 반경 상수 동기화 검증
-            Assert(Mathf.Abs(HammerSwingController.DefaultReticleRadius - 0.45f) < 0.001f, "DefaultReticleRadius 는 0.45f 여야 합니다.");
+            // 1. 조준 반경의 원본이 CSV 인지 검증 (코드 상수로 돌아가지 않았는지)
+            var balance = AssetDatabase.LoadAssetAtPath<BalanceData>(BalanceAssetPath);
+            Assert(balance != null, $"{BalanceAssetPath} 를 찾지 못했습니다. 밸런스 CSV 임포트를 실행하세요.");
+            Assert(balance.Economy.ReticleRadius > 0f, "economy.csv 의 reticle_radius 가 BalanceData 에 실려 있어야 합니다.");
             passedCount++;
 
-            // 2. HammerSwingController 인스턴스 기본 HitRadius 검증
+            // 2. 컨트롤러가 CSV 값을 그대로 판정 반경으로 쓰는지 검증
             var controllerGo = new GameObject("TestHammerController");
             controllerGo.hideFlags = HideFlags.HideAndDontSave;
             GameObject instanceNear = null;
@@ -35,7 +38,10 @@ namespace NCAIClicker.EditorTools
             try
             {
                 var controller = controllerGo.AddComponent<HammerSwingController>();
-                Assert(Mathf.Abs(controller.HitRadius - HammerSwingController.DefaultReticleRadius) < 0.001f, "기본 HitRadius는 DefaultReticleRadius 와 일치해야 합니다.");
+                SetPrivateField(controller, "_balanceData", balance);
+                InvokePrivate(controller, "Awake");
+                Assert(Mathf.Abs(controller.HitRadius - balance.Economy.ReticleRadius) < 0.001f,
+                    "HitRadius 는 economy.csv 의 reticle_radius 와 같아야 합니다.");
                 passedCount++;
 
                 // 3. 반경 내 크리처와 반경 밖 크리처 OverlapSphere 판정 로직 검증
@@ -44,13 +50,17 @@ namespace NCAIClicker.EditorTools
 
                 instanceNear = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
                 instanceNear.hideFlags = HideFlags.HideAndDontSave;
-                instanceNear.transform.position = new Vector3(0.3f, 0f, 0f);
+                // 반경의 3분의 2 지점 — CSV 값이 바뀌어도 "안"에 남는다.
+                var nearDistance = balance.Economy.ReticleRadius * 0.67f;
+                instanceNear.transform.position = new Vector3(nearDistance, 0f, 0f);
                 var targetNear = instanceNear.GetComponent<Target>();
                 targetNear.Initialize();
 
                 instanceFar = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
                 instanceFar.hideFlags = HideFlags.HideAndDontSave;
-                instanceFar.transform.position = new Vector3(1.5f, 0f, 0f);
+                // 반경의 3배 지점 — 대상 콜라이더 확대(hit_radius_bonus)를 감안해도 밖이다.
+                var farDistance = balance.Economy.ReticleRadius * 3f;
+                instanceFar.transform.position = new Vector3(farDistance, 0f, 0f);
                 var targetFar = instanceFar.GetComponent<Target>();
                 targetFar.Initialize();
 
@@ -75,8 +85,8 @@ namespace NCAIClicker.EditorTools
                     }
                 }
 
-                Assert(foundNear, "반경 0.45 안에 위치한 targetNear(거리 0.3)는 감지되어야 합니다.");
-                Assert(!foundFar, "반경 0.45 밖에 위치한 targetFar(거리 1.5)는 감지되지 않아야 합니다.");
+                Assert(foundNear, $"반경 {controller.HitRadius} 안에 위치한 targetNear(거리 {nearDistance})는 감지되어야 합니다.");
+                Assert(!foundFar, $"반경 {controller.HitRadius} 밖에 위치한 targetFar(거리 {farDistance})는 감지되지 않아야 합니다.");
                 passedCount++;
 
                 // 4. 최근접 타깃 선택 및 피격 검증
@@ -104,6 +114,23 @@ namespace NCAIClicker.EditorTools
                     UnityEngine.Object.DestroyImmediate(instanceFar);
                 }
             }
+        }
+
+        private static void SetPrivateField(Component target, string fieldName, object value)
+        {
+            var field = target.GetType().GetField(fieldName,
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert(field != null, $"{target.GetType().Name} 에 {fieldName} 필드가 없습니다.");
+            field.SetValue(target, value);
+        }
+
+        /// <summary>AddComponent 로 만든 컴포넌트는 Awake 가 바로 돌지 않으므로 직접 부른다.</summary>
+        private static void InvokePrivate(Component target, string methodName)
+        {
+            var method = target.GetType().GetMethod(methodName,
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert(method != null, $"{target.GetType().Name} 에 {methodName} 메서드가 없습니다.");
+            method.Invoke(target, null);
         }
 
         private static void Assert(bool condition, string message)
