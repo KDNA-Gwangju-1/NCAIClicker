@@ -138,14 +138,16 @@ namespace NCAIClicker.EditorTools
             {
                 economy = CreateEconomy(balance, out economyHost);
                 fever = CreateFever(balance, out feverHost);
-                economy.BeginRun();
-                fever.BeginRun();
 
-                // 레벨을 코드에 적지 않고 상한 안에서 고른다.
+                // 레벨 복원은 **BeginRun 보다 먼저** 한다. 실효 배율을 런 시작에 굳히므로
+                // (#131) 런이 시작된 뒤에 레벨을 올리면 이번 런에는 반영되지 않는다 — 그게 규칙이다.
                 var level = Math.Min(3, owner.MaxLevel);
                 var levels = new int[balance.Upgrades.Count];
                 levels[index] = level;
                 economy.RestoreUpgradeLevels(levels);
+
+                economy.BeginRun();
+                fever.BeginRun();
 
                 var raised = economy.GetStat(StatId.FeverMultiplier, balance.Fever.CoinMultiplier);
                 AssertCondition(raised > balance.Fever.CoinMultiplier,
@@ -162,11 +164,15 @@ namespace NCAIClicker.EditorTools
                 Break(economy, balance, ref expectedNet, raised, "업그레이드가 피버 지급액에 반영되지 않았습니다.");
                 checkCount++;
 
-                // 레벨을 되돌리면 배율도 원본으로 돌아간다.
+                // 레벨을 되돌리고 **다음 런을 시작하면** 배율이 원본으로 돌아간다.
                 // 피버는 지속 시간을 넘겨 끝낸다 — EndRun 으로 끝내면 런까지 멈춰 다시 채울 수 없다.
                 Tick(fever, balance.Fever.DurationSec * 2f);
                 AssertCondition(!fever.IsFeverActive, "지속 시간이 지났는데 피버가 유지됩니다.");
                 economy.RestoreUpgradeLevels(new int[balance.Upgrades.Count]);
+                AssertCondition(economy.CurrentCoin == (long)decimal.Floor(expectedNet),
+                                "레벨을 되돌린 것만으로 잔액이 바뀌었습니다.");
+                economy.BeginRun();
+                fever.BeginRun();
                 HitUntilFever(fever, balance);
                 Break(economy, balance, ref expectedNet, balance.Fever.CoinMultiplier,
                       "레벨을 0 으로 되돌렸는데 배율이 원본과 다릅니다.");

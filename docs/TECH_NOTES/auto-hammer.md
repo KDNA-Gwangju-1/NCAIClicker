@@ -20,8 +20,8 @@
 | 살아있는 `Target` 중 무작위 하나 선택 | ✅ | GDD의 "무조건 적중" 전제와 맞고, 대상이 여러 개일 때 항상 같은 개체(예: 먼저 스폰된 것)만 노리는 편향을 피한다 |
 | 대상 탐색에 `IHittable` 인터페이스만 사용 (`FindObjectsByType<MonoBehaviour>()` 후 `is IHittable` 필터) | ❌ | Unity의 `Object.FindObjectsByType<T>()`는 `UnityEngine.Object` 파생 구체 타입만 받고 인터페이스를 직접 못 받는다. 인터페이스로 하려면 씬의 모든 `MonoBehaviour`를 훑어야 해서 대상 6~12개뿐인 이 씬에서는 손해만 크다 |
 | 대상 탐색에 `FindObjectsByType<Target>()` (구체 클래스 직접 참조) | ✅ | `Target`은 ARCHITECTURE 1절의 9종 매니저 목록에 없는 엔티티 컴포넌트라 "다른 매니저 구현 클래스를 직접 참조하지 않는다" 규칙에 걸리지 않는다. `convention-checker`가 판단을 요청했고, 위 성능·API 제약을 근거로 그대로 채택했다 |
-| 업그레이드 개수 반영을 `IUpgradeStats` 등 새 인터페이스로 조회 | ❌ | 그 계약(#116, 업그레이드 실효값 조회 통로)이 아직 합의 전이다. 선점하면 #116 논의 결과와 어긋날 위험이 있다 |
-| `SetBonusCount(int)` 메서드로 외부 주입 | ✅ | `CreatureManager.SetUpgradeOverrides`, `EconomyManager.SetBillService`와 같은 기존 주입 패턴을 재사용한다. 새 공용 계약 없이도 작업 3.3(업그레이드)이 나중에 개수를 얹을 수 있다 |
+| 업그레이드 개수 반영을 `IUpgradeStats` 등 새 인터페이스로 조회 | ❌ | 그 계약(#116, 업그레이드 실효값 조회 통로)이 아직 합의 전이었다. 선점하면 #116 논의 결과와 어긋날 위험이 있었다. **그 뒤 #116 이 머지되고 #131 이 다른 소비처를 전부 `IUpgradeStats` 로 옮겼으므로, 이 판단은 지금 유효하지 않다** — 작업 3.2 에서 갈아타야 한다 |
+| `SetBonusCount(int)` 메서드로 외부 주입 | ⚠️ | `EconomyManager.SetBillService`와 같은 기존 주입 패턴을 재사용했다. 함께 근거로 삼았던 `CreatureManager.SetUpgradeOverrides` 는 **#131 에서 제거됐다** — 조립 지점이 증분을 계산해 밀어 넣는 방식이 `IUpgradeStats` 와 경로가 두 갈래가 되기 때문이다. 이 메서드만 옛 방식으로 남아 있다 |
 | `Game` 씬에 직접 배치 (`HammerSwingController`처럼 씬 로컬) | ❌ | 카메라·책상 평면 Y값 같은 씬 종속 참조가 필요 없다. 굳이 씬 로컬로 두면 `Game` 씬(코어 플레이 소유)을 저장해야 해서 AGENTS.md의 "자기 씬이 아니면 저장하지 않는다" 규칙과 부딪힌다 |
 | `Managers` 프리팹에 상주 (`DontDestroyOnLoad`), `IRunScoped`로 게이트 | ✅ | `FeverManager`와 같은 패턴. 씬을 건드리지 않고 `GameManager`가 `GetComponentsInChildren<IRunScoped>()`로 자동 인식해 `BeginRun`/`EndRun`을 불러 준다 — `GameManager` 코드 수정도 필요 없었다 |
 

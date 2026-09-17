@@ -132,7 +132,7 @@ AI에게 시켜도 제대로 못 고친다.
 - [자동 망치](auto-hammer.md) — 글로벌 타이머 적중, 물리 없이 무작위 대상 선택, 업그레이드 주입 통로
 - [스태미나](stamina.md) — 시간 감소와 회복형 회복, 소진 시 런 종료 요청, 발행 묶기
 - [피버 게이지](fever-gauge.md) — 적중만 누적, 유예 후 감쇠, 발동과 종료, 런당 발동 빈도 조정, 코인 배율 반영
-- [업그레이드](upgrades.md) — 레벨과 비용 공식, 효과 적용된 실효값 계산, 구매의 원자성
+- [업그레이드](upgrades.md) — 레벨과 비용 공식, 실효값 계산, 구매의 원자성, 소비처 배선과 "다음 런부터" 보장
 - [저장·불러오기](save-load.md) — SaveManager, JsonUtility 직렬화, 버전 마이그레이션, null 직렬화 우회
 - [런 상태 머신](run-state.md) — GameManager, 씬 로드 기반 MainMenu/Running 전이, 이벤트 기반 Result 전이
 - [단계 목표 판정](stage-goal.md) — StageGoalManager, 런 순수입과 GoalCoin 비교, 런당 1회 발행

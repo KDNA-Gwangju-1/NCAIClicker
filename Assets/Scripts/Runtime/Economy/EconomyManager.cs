@@ -34,6 +34,19 @@ namespace NCAIClicker.Economy
         private IBillService _billService;
 
         private bool _isFeverActive;
+
+        /// <summary>
+        /// 런 시작에 굳힌 실효 배율 (#131). 업그레이드 효과는 **다음 런부터** 반영한다
+        /// (BALANCE 6절) — 매번 GetStat 을 부르면 런 도중에 값이 바뀔 수 있는 구조가 남는다.
+        /// </summary>
+        private float _runFeverMultiplier;
+        private float _runBonusMultiplier;
+
+        /// <summary>
+        /// 위 두 값이 한 번이라도 채워졌는지. **0 을 "아직 안 채움"으로 쓰지 않는다** —
+        /// 배율 0 은 코인을 통째로 없애는 값이라 초기화 누락과 구별되지 않으면 조용히 수입이 사라진다.
+        /// </summary>
+        private bool _hasCachedMultipliers;
         private long _lastPublishedRunCoin;
 
         public long CurrentCoin => _wallet.CurrentCoin;
@@ -52,6 +65,7 @@ namespace NCAIClicker.Economy
             }
 
             _upgrades = new UpgradeState(_balanceData);
+            CacheUpgradedMultipliers();
         }
 
         // 정적 이벤트는 구독과 해제를 쌍으로 맞춘다. 빠뜨리면 코인이 두 배로 들어온다 (AGENTS.md).
@@ -114,6 +128,7 @@ namespace NCAIClicker.Economy
         public void BeginRun()
         {
             _wallet.BeginRun();
+            CacheUpgradedMultipliers();
             _isFeverActive = false;
             _lastPublishedRunCoin = 0L;
             GameEvents.PublishRunCoinChanged(0L);
@@ -153,19 +168,42 @@ namespace NCAIClicker.Economy
         }
 
         /// <summary>
-        /// 피버 중의 코인 배율. 업그레이드가 붙으면 CSV 원본보다 높다 (BALANCE 6절 fever_multiplier).
-        /// CSV 의 float 배율은 곱하기 전에 decimal 로 바꾼다 (계약 4번).
-        ///
-        /// 같은 업그레이드의 피버 **지속 시간** 쪽은 여기서 얹지 않는다 — 지속 시간을 세는 것은
-        /// FeverManager 이고, 그쪽은 IUpgradeStats(#116)를 주입받아 스스로 읽어야 한다.
+        /// 두 배율의 실효값을 한 번에 굳힌다. Awake 와 BeginRun 에서만 부른다.
+        /// 피버 **지속 시간** 쪽은 여기서 얹지 않는다 — 지속 시간을 세는 것은 FeverManager 이고,
+        /// 그쪽이 IUpgradeStats(#116)를 주입받아 스스로 읽는다.
         /// </summary>
+        private void CacheUpgradedMultipliers()
+        {
+            if (_balanceData == null)
+            {
+                return;
+            }
+            _runFeverMultiplier = GetStat(StatId.FeverMultiplier, _balanceData.Fever.CoinMultiplier);
+            _runBonusMultiplier = GetStat(StatId.CoinBonusMultiplier, _balanceData.Economy.CoinBonusMultiplier);
+            _hasCachedMultipliers = true;
+        }
+
+        /// <summary>
+        /// 캐시가 비어 있으면 지금 채운다. Awake 가 돌지 않은 경로(런 밖 지급, 에디터 검증)에서
+        /// 배율이 0 이 되는 것을 막는다.
+        /// </summary>
+        private void EnsureCachedMultipliers()
+        {
+            if (!_hasCachedMultipliers)
+            {
+                CacheUpgradedMultipliers();
+            }
+        }
+
+        // CSV 의 float 배율은 곱하기 전에 decimal 로 바꾼다 (계약 4번).
         private decimal GetFeverMultiplier()
         {
             if (!_isFeverActive || _balanceData == null)
             {
                 return 1m;
             }
-            return (decimal)GetStat(StatId.FeverMultiplier, _balanceData.Fever.CoinMultiplier);
+            EnsureCachedMultipliers();
+            return (decimal)_runFeverMultiplier;
         }
 
         private decimal GetBonusMultiplier()
@@ -174,7 +212,8 @@ namespace NCAIClicker.Economy
             {
                 return 1m;
             }
-            return (decimal)_balanceData.Economy.CoinBonusMultiplier;
+            EnsureCachedMultipliers();
+            return (decimal)_runBonusMultiplier;
         }
 
         private decimal GetLoanDailyCut()

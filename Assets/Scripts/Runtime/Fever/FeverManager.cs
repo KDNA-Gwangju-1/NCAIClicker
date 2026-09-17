@@ -28,6 +28,20 @@ namespace NCAIClicker.Fever
 
         private readonly FeverGauge _gauge = new FeverGauge();
 
+        /// <summary>
+        /// 업그레이드 실효값 조회 통로 (#116). ManagerBootstrap 이 넣어 준다.
+        /// 없으면 CSV 기준값을 그대로 쓴다 — 주입이 빠져도 죽지 않는다.
+        /// </summary>
+        private IUpgradeStats _upgradeStats;
+
+        /// <summary>
+        /// 런 시작에 굳힌 실효값 (#131). 업그레이드 효과는 **다음 런부터** 반영한다 (BALANCE 6절).
+        /// 발동 시각·적중 시각에 조회하면 런 도중에 값이 바뀔 수 있는 구조가 남는다.
+        /// 코인 배율(fever_multiplier)은 여기가 아니라 EconomyManager 가 얹는다 (#32).
+        /// </summary>
+        private float _runDurationSec;
+        private float _runGaugePerHit;
+
         private bool _isRunning;
         private bool _isFeverActive;
 
@@ -57,6 +71,15 @@ namespace NCAIClicker.Fever
             }
         }
 
+        /// <summary>
+        /// 업그레이드 실효값 조회 통로를 넣는다. 서비스 계약이 아니라 조립(wiring) 통로다 —
+        /// EconomyManager.SetBillService 와 같은 성격이다 (ARCHITECTURE "SetBillService" 문단).
+        /// </summary>
+        public void SetUpgradeStats(IUpgradeStats upgradeStats)
+        {
+            _upgradeStats = upgradeStats;
+        }
+
         // 정적 이벤트는 구독과 해제를 쌍으로 맞춘다. 빠뜨리면 적중 하나가 두 번 누적된다 (AGENTS.md).
         private void OnEnable()
         {
@@ -78,6 +101,9 @@ namespace NCAIClicker.Fever
             {
                 return;
             }
+
+            _runDurationSec = GetStat(StatId.FeverDuration, _balanceData.Fever.DurationSec);
+            _runGaugePerHit = GetStat(StatId.FeverGaugePerHit, _balanceData.Fever.GaugePerHit);
 
             _gauge.Reset(_balanceData.Fever.GaugeMax);
             _isRunning = true;
@@ -177,7 +203,7 @@ namespace NCAIClicker.Fever
                 return;
             }
 
-            _gauge.AddHit(_balanceData.Fever.GaugePerHit);
+            _gauge.AddHit(_runGaugePerHit);
 
             // 가득 찬 게이지는 발동에 쓰고 즉시 비운다. 0 을 먼저 알린 뒤 발동을 알려야
             // HUD 가 게이지를 비우고 나서 연출로 넘어간다.
@@ -199,7 +225,7 @@ namespace NCAIClicker.Fever
         private void StartFever()
         {
             _isFeverActive = true;
-            _feverRemainingSec = _balanceData.Fever.DurationSec;
+            _feverRemainingSec = _runDurationSec;
             GameEvents.PublishFeverStart();
         }
 
@@ -214,6 +240,12 @@ namespace NCAIClicker.Fever
             _isFeverActive = false;
             _feverRemainingSec = 0f;
             GameEvents.PublishFeverEnd();
+        }
+
+        /// <summary>주입이 없으면 기준값 그대로다. 배선이 빠져도 게임이 돌아가야 한다.</summary>
+        private float GetStat(StatId stat, float baseValue)
+        {
+            return _upgradeStats == null ? baseValue : _upgradeStats.GetStat(stat, baseValue);
         }
 
         private void PublishChanged()

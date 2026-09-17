@@ -27,6 +27,16 @@ namespace NCAIClicker.Core
         private float _swingTimer;
         private Plane _deskPlane;
 
+        /// <summary>
+        /// 업그레이드 실효값 조회 통로 (#116). 이 컴포넌트는 Game 씬에 있어
+        /// ManagerBootstrap 이 닿지 못하므로 GameManager 가 런 시작 때 넣어 준다 (#131).
+        /// 없으면 CSV 기준값을 그대로 쓴다.
+        /// </summary>
+        private IUpgradeStats _upgradeStats;
+
+        /// <summary>런 시작에 굳힌 실효 타격력. 업그레이드는 다음 런부터 반영한다 (BALANCE 6절).</summary>
+        private float _runHitPower;
+
         /// <summary>가장 최근 스윙에서 계산된 커서의 책상 평면 위 월드 좌표.</summary>
         public Vector3 CursorWorldPosition { get; private set; }
 
@@ -44,6 +54,29 @@ namespace NCAIClicker.Core
                 _aimCamera = Camera.main;
             }
             _deskPlane = new Plane(Vector3.up, new Vector3(0f, _deskPlaneY, 0f));
+            CacheUpgradedStats();
+        }
+
+        /// <summary>
+        /// 업그레이드 실효값 조회 통로를 넣고 값을 굳힌다. 서비스 계약이 아니라 조립(wiring) 통로다
+        /// (ARCHITECTURE "SetBillService" 문단). GameManager 가 Running 전이에서 부른다.
+        /// </summary>
+        public void SetUpgradeStats(IUpgradeStats upgradeStats)
+        {
+            _upgradeStats = upgradeStats;
+            CacheUpgradedStats();
+        }
+
+        private void CacheUpgradedStats()
+        {
+            if (_balanceData == null)
+            {
+                return;
+            }
+            var basePower = _balanceData.Economy.BaseHitPower;
+            _runHitPower = _upgradeStats == null
+                ? basePower
+                : _upgradeStats.GetStat(StatId.BaseHitPower, basePower);
         }
 
         private void Update()
@@ -115,7 +148,7 @@ namespace NCAIClicker.Core
 
             if (closestTarget != null)
             {
-                closestTarget.OnHit(new HitInfo(HitSource.Hover, _balanceData.Economy.BaseHitPower, hitPoint));
+                closestTarget.OnHit(new HitInfo(HitSource.Hover, _runHitPower, hitPoint));
                 isHit = true;
             }
 

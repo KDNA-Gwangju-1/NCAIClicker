@@ -1,6 +1,6 @@
 # 업그레이드
 
-> 관련 이슈: #24, #32 · 최종 수정: 2026-09-17
+> 관련 이슈: #24, #32, #131 · 최종 수정: 2026-09-17
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -11,11 +11,9 @@
 
 계산 규칙 자체는 [BALANCE.md 6절](../BALANCE.md)이 정본이다. 여기서는 그것을 어떻게 구현했는지를 적는다.
 
-**실효값을 읽는 곳은 아직 한 군데뿐이다.** 피버 코인 배율(`fever_multiplier`)은 #32 에서
-`EconomyManager` 안에서 소비된다 — 배율 적용 지점과 업그레이드 레벨이 같은 클래스에 있어
-계약 없이 닿는다. **나머지 소비처는 아직 아무도 읽지 않는다** — 통로가 될 계약은
-[#116](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/116)에서 생겼지만 거기에 갈아끼우는
-일은 그 이슈의 범위 밖이었다 (아래 한계 참고).
+**소비처는 #131 에서 연결됐다.** 스태미나·피버·망치·타격 대상·스폰이 `BalanceData` 기준값 대신
+`IUpgradeStats.GetStat(stat, 기준값)` 을 읽는다. 배선 방식과 "다음 런부터" 규칙을 어떻게
+보장하는지는 아래 "소비처에 닿는 길"에 있다.
 
 ## 왜 이 방법인가
 
@@ -79,7 +77,8 @@ flowchart LR
 |---|---|---|
 | `UpgradeState` | `Assets/Scripts/Runtime/Economy/UpgradeState.cs` | 레벨 보유, 다음 비용, 실효값 계산. Unity 의존 없음 |
 | `EconomyManager` | `Assets/Scripts/Runtime/Economy/EconomyManager.cs` | 구매(차감 + 레벨업), 조회 창구 |
-| `UpgradeChecks` | `Assets/Scripts/Editor/UpgradeChecks.cs` | Edit Mode 검증 22건 |
+| `UpgradeChecks` | `Assets/Scripts/Editor/UpgradeChecks.cs` | 계산부의 Edit Mode 검증 22건 |
+| `UpgradeConsumerChecks` | `Assets/Scripts/Editor/UpgradeConsumerChecks.cs` | 실효값이 **소비처에 닿는지** 검증 13건 (#131) |
 
 ### 이벤트
 
@@ -100,6 +99,46 @@ flowchart LR
 
 잔액 비교를 `EconomyManager` 에서 따로 하지 않고 `CoinWallet.TrySpendCoin` 하나에 맡긴다.
 양쪽에서 비교하면 두 판단이 어긋날 수 있다.
+
+### 소비처에 닿는 길 (#131)
+
+계약(`IUpgradeStats`)은 #116 이 만들었지만 **부르는 곳이 한 곳도 없었다.** 계산이 맞아도
+읽는 쪽이 없으면 게임은 그대로다 — 업그레이드를 사도 코인과 레벨만 움직였다.
+
+| 소비처 | 사는 곳 | 누가 넣어 주나 |
+|---|---|---|
+| `EconomyManager` (`coin_bonus_multiplier`, `fever_multiplier`) | Managers 프리팹 | 자기 자신이 공급자라 주입이 없다 |
+| `StaminaManager`, `FeverManager` | Managers 프리팹 | `ManagerBootstrap` |
+| `HammerSwingController`, `CreatureManager` | **씬** | `GameManager` (런 시작) |
+| `Target` | 스폰된 인스턴스 | `CreatureManager` 가 `Initialize()` 전에 |
+
+씬 소비처를 `ManagerBootstrap` 이 맡지 못하는 이유는 그것이 **씬 로드 전에** 돌기 때문이다.
+`GameManager` 가 맡는 것은 ARCHITECTURE 가 "조립하는 지점(ManagerBootstrap 또는 GameManager
+초기화) 한 곳만 구현 클래스를 알고, 그 뒤의 상호작용은 인터페이스로만 한다"고 정해 두었기 때문이다.
+
+**주입이 없어도 죽지 않는다.** 모든 소비처가 `_upgradeStats == null` 이면 기준값을 그대로 쓴다 —
+배선이 빠진 화면에서 게임이 멈추는 것보다 업그레이드만 안 먹는 편이 낫다.
+
+### "다음 런부터"를 어떻게 지키나
+
+BALANCE 6절이 "구매는 메뉴·결과 화면에서, 효과는 다음 런부터"라고 정했다. 호출 시점을 지키라고
+당부하는 대신 **런 시작에 실효값을 굳혀** 구조로 만들었다 — `BeginRun()` 이 `GetStat` 을 부르고,
+이후에는 굳힌 값만 쓴다. 런 도중에 레벨이 올라도 이번 런은 변하지 않는다.
+
+예외가 하나 있다. `spawn_count` 는 **기준값이 단계마다 다르다**(`stages.csv`). 굳혀 두면 단계가
+오를 때 옛 값이 남으므로 조회 시점에 계산한다. 여기서는 "레벨은 런 도중 바뀌지 않는다"는
+규칙에 기댄다 — #116 이 기준값을 호출측이 넘기도록 계약을 정한 이유가 이 stat 이다.
+
+배율 캐시에는 `_hasCachedMultipliers` 플래그를 따로 둔다. **0 을 "아직 안 채움"으로 쓸 수 없다** —
+배율 0 은 코인을 통째로 없애는 값이라, 초기화 누락과 구별되지 않으면 수입이 조용히 사라진다.
+실제로 이 플래그가 없을 때 `Awake` 가 돌지 않은 경로에서 지급액이 0 이 되는 것을 검증이 잡았다.
+
+### 걷어낸 방식 — 조립 지점이 증분을 계산해 밀어 넣기
+
+`CreatureManager.SetUpgradeOverrides(int bonusSpawnCount, float intervalMultiplier)` 가 있었다.
+stat 마다 인자를 늘려야 하고(`+N` 이냐 `×배` 냐도 제각각), 무엇보다 업그레이드 반영 경로가
+`IUpgradeStats` 와 **두 갈래**가 된다. #131 에서 걷어냈다.
+`AutoHammerController.SetBonusCount(int)` 는 같은 방식이지만 자동 망치(작업 3.2)의 몫이라 남겼다.
 
 ### 저장 배열의 자리
 
@@ -146,23 +185,50 @@ stat 을 건드리는지도 CSV 에서 찾아 쓴다** — 종류가 바뀌어�
 - [x] 최대 레벨까지 사고 나면 코인이 남아도 더 못 산다
 - [x] 없는 id 로 사려 해도 코인이 빠지지 않는다
 
-**미검증**: Play Mode. 실효값을 읽는 쪽이 없어 "다음 런에 반영"을 눈으로 보지 못했다.
+### 소비처 배선 검증 (2026-09-17, #131)
+
+`UpgradeConsumerChecks.RunBatch()` 로 확인했다 (**13건 PASS**).
+
+여기서는 **실제 업그레이드 레벨을 쓰지 않고 스텁을 꽂는다.** `upgrade_effects.csv` 가 건드리는
+stat 은 일부뿐이라(`max_stamina`·`fever_gauge_per_hit`·`coin_bonus_multiplier` 는 아직 아무
+업그레이드도 올리지 않는다) 실제 레벨로 재면 그 소비처들은 영영 검증되지 않는다. 볼 것은
+효과의 크기가 아니라 **소비처가 `GetStat` 을 거치는가**이므로 CSV 내용과 무관한 스텁이 더 정확하다.
+실제 CSV 값으로 도는 경로는 `FeverPayoutChecks`·`CreatureMovementChecks` 가 본다.
+
+- [x] 주입이 없으면 모든 소비처가 CSV 기준값 그대로다 (배선이 빠져도 죽지 않는다)
+- [x] 최대 스태미나·초당 감소가 `GetStat` 을 거친다
+- [x] 피버 누적량이 `GetStat` 을 거친다
+- [x] 피버 지속 시간이 `GetStat` 을 거친다 — 기준 지속 시간이 지나도 아직 피버다
+- [x] 타격력이 `GetStat` 을 거친다
+- [x] 타격 대상의 판정 반경이 `GetStat` 을 거친다
+- [x] **런 도중 레벨이 올라도 이번 런의 값은 그대로이고, 다음 런에서 반영된다**
+- [x] 실행 후 `BalanceData` 가 dirty 가 아니고, 3회 연속 실행 뒤 구독자 수가 0
+- [ ] `coin_bonus_multiplier` — **미검증.** `EconomyManager` 는 주입받는 쪽이 아니라 공급자라
+      스텁을 꽂을 수 없고, 그 stat 을 올리는 업그레이드도 CSV 에 없다. 검증이 조용히 건너뛰지
+      않도록 로그를 남기고, 효과가 추가되면 저절로 켜진다
+
+검증이 실제로 무언가를 잡는지도 확인했다. `StaminaManager` 의 `GetStat` 을 기준값 반환으로
+되돌려 보니 "최대 스태미나가 GetStat 을 거치지 않습니다"로 실패했다.
+
+**미검증**: Play Mode. Unity 가 실제로 그 시점에 생명주기를 불러 주는지, `GameManager` 가 씬
+소비처를 제때 찾는지는 확인하지 못했다 — 검증에서는 주입을 직접 부른다.
 
 ## 알려진 한계
 
-- **효과가 대부분 게임에 반영되지 않는다.** 예외는 `fever_multiplier` 하나로, #32 에서
-  `EconomyManager.GetFeverMultiplier()` 가 실효값을 쓰게 되었다. 나머지 소비처
-  (`StaminaManager`·`FeverManager`·`Target`·`HammerSwingController`·스폰 매니저)는 실효값을
-  읽지 않는다. **매니저 밖에서 쓰이는 stat 은 전부 여기 걸려 있다** — 같은 "헬스장 회원권"이라도
-  배율은 붙었는데 지속 시간은 못 붙은 것이 그 경계를 보여 준다.
-  조회 계약 `IUpgradeStats` 는 [#116](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/116)
-  에서 생겼으나 **소비처를 갈아끼우는 것은 그 이슈의 범위 밖이었고, 아직 카드가 없다.**
-  **이 카드의 완료 기준 "다음 런에 반영된다"는 거기서 닫힌다**
+- ~~**효과가 대부분 게임에 반영되지 않는다.**~~ — #131 에서 소비처를 연결했다. 남은 것은
+  `auto_hammer_*` 세 개(작업 3.2)와 조준 원 반경(#132)뿐이다
+- **Play Mode 로 "사면 다음 런에 세진다"를 본 사람이 아직 없다.** 구매 화면(6.8/#91)이 없어
+  런타임에 레벨을 올릴 방법이 없기 때문이다. Edit Mode 로는 확인했다
 - **저장·복원이 연결되지 않았다.** `RestoreUpgradeLevels`·`CurrentUpgradeLevels` 는 있지만
   `IUpgradePersistence` (#116) 를 `SaveManager` 가 아직 부르지 않는다
 - **구매 시점을 강제하지 않는다.** "메뉴·결과 화면에서만, 다음 런부터 반영"(BALANCE 6절)은
   호출측 책임으로 두었다. 런 상태를 매니저가 알면 GameManager 를 직접 참조하게 된다
-- **`auto_hammer_count` 를 쓰는 곳이 아직 없다.** 자동 망치는 작업 3.2 다
+- **`auto_hammer_count` 를 쓰는 곳이 아직 없다.** 자동 망치는 작업 3.2 이며,
+  `AutoHammerController.SetBonusCount(int)` 가 옛 push 방식으로 남아 있다. 그 카드에서
+  `IUpgradeStats` 로 통일할 것
+- **조준 원 반경은 아직 코드 상수다.** `HammerSwingController.DefaultReticleRadius` 를 CSV 로
+  옮기는 일은 [#132](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/132) 가 들고 있다.
+  `hit_radius`(대상 콜라이더 확대)와는 다른 숫자다
 
 ## 갱신 이력
 
@@ -170,3 +236,4 @@ stat 을 건드리는지도 CSV 에서 찾아 쓴다** — 종류가 바뀌어�
 |---|---|---|---|
 | 2026-09-17 | #24 | twins6375-art | 최초 작성 (레벨·비용 공식, 실효값 계산, 구매) |
 | 2026-09-17 | #32 | twins6375-art | `fever_multiplier` 가 실제로 소비되기 시작한 것을 반영 (소비처 한계 축소) |
+| 2026-09-17 | #131 | twins6375-art | 소비처 6곳을 `IUpgradeStats` 로 연결. 런 시작 캐시로 "다음 런부터" 보장, push 방식 `SetUpgradeOverrides` 제거 |
