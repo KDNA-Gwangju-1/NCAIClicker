@@ -101,6 +101,9 @@ namespace NCAIClicker.Targets
             _hitCollider.radius = _baseHitRadius * bonus;
         }
 
+        /// <summary>피격을 외부(FSM 등)에 알리는 이벤트.</summary>
+        public event System.Action<HitInfo> OnHitReceived;
+
         /// <summary>
         /// 내구도만 깎는다. 코인은 여기서 주지 않는다 — 파괴될 때 한 번에 지급한다 (GDD 4절).
         /// 내구도를 float 로 두는 이유는 자동 망치의 작은 피해도 누적되게 하기 위해서다.
@@ -113,6 +116,8 @@ namespace NCAIClicker.Targets
             }
 
             _currentHp -= info.Damage;
+            OnHitReceived?.Invoke(info);
+
             if (_currentHp > 0f)
             {
                 return;
