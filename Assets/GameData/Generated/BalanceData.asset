@@ -31,7 +31,7 @@ MonoBehaviour:
     StageGoalGrowth: 2.5
   Fever:
     GaugeMax: 100
-    GaugePerHit: 0.8
+    GaugePerHit: 2.8
     GaugeDecayPerSec: 4
     DecayGraceSec: 2
     DurationSec: 5
