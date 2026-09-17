@@ -85,12 +85,31 @@ namespace NCAIClicker.Core
             BuildVisuals();
         }
 
+        /// <summary>
+        /// 셰이더를 이름으로 찾는다. 없으면 조용히 다른 셰이더로 갈아타지 않고 알린다 (#151).
+        ///
+        /// Shader.Find 는 **빌드에 포함된** 셰이더만 찾는다. 어느 에셋도 참조하지 않는 셰이더는
+        /// 빌드에서 스트립되므로, 런타임에만 쓰는 셰이더는 Graphics 설정의 Always Included
+        /// Shaders 에 등록해 두어야 한다. 빌트인 셰이더로 폴백하던 코드가 있었는데, 그것들은
+        /// URP 패스가 없어 마젠타로 렌더된다 — 고장을 감추는 쪽이 더 나쁘다.
+        /// </summary>
+        private static Shader FindRequiredShader(string shaderName)
+        {
+            var shader = Shader.Find(shaderName);
+            if (shader == null)
+            {
+                Debug.LogError($"[HammerSwingVisual] 셰이더 '{shaderName}' 를 찾지 못했다. " +
+                               "Project Settings > Graphics > Always Included Shaders 에 등록돼 있는지 확인한다.");
+            }
+            return shader;
+        }
+
         private void BuildVisuals()
         {
-            var transparentShader = Shader.Find("Universal Render Pipeline/Unlit");
+            var transparentShader = FindRequiredShader("Universal Render Pipeline/Unlit");
             if (transparentShader == null)
             {
-                transparentShader = Shader.Find("Unlit/Transparent");
+                return;
             }
 
             // 1. 레티클 루트
@@ -159,6 +178,12 @@ namespace NCAIClicker.Core
         /// <summary>허공의 스윙 망치. 조준 반경과 무관하므로 레티클을 못 그릴 때도 만든다.</summary>
         private void BuildHammer()
         {
+            var litShader = FindRequiredShader("Universal Render Pipeline/Lit");
+            if (litShader == null)
+            {
+                return;
+            }
+
             // 4. 허공의 스윙 망치 피벗 및 모델 생성 (원작 배색: 빨간 손잡이 바 + 짙은 네이비 헤드)
             var pivotGo = new GameObject("HammerPivot");
             pivotGo.transform.SetParent(transform);
@@ -174,7 +199,7 @@ namespace NCAIClicker.Core
             Destroy(handleGo.GetComponent<Collider>());
 
             var handleRenderer = handleGo.GetComponent<Renderer>();
-            var handleMat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            var handleMat = new Material(litShader);
             handleMat.color = new Color(0.82f, 0.22f, 0.16f);
             handleRenderer.material = handleMat;
 
@@ -188,7 +213,7 @@ namespace NCAIClicker.Core
             Destroy(headGo.GetComponent<Collider>());
 
             var headRenderer = headGo.GetComponent<Renderer>();
-            var headMat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            var headMat = new Material(litShader);
             headMat.color = new Color(0.18f, 0.22f, 0.28f);
             headRenderer.material = headMat;
         }
