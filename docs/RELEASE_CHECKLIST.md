@@ -33,15 +33,44 @@
 
 `.gitattributes` 에 씬·프리팹 스마트 병합을 걸어뒀지만, **병합 도구 경로는 각자 로컬에 등록해야** 작동한다. 등록하지 않으면 조용히 일반 텍스트 병합으로 떨어져서 씬이 깨진다.
 
-Windows 기준 (Unity 6000.3):
+**에디터 설치 경로를 먼저 확인한다.** Unity Hub 로 설치하면 폴더명에 `-x86_64` 같은 접미사가
+붙어 문서에 적힌 경로와 다를 수 있다. 아래 명령으로 실제 경로를 찾는다.
+
+```bash
+ls -d /c/Program\ Files/Unity/Hub/Editor/*/Editor/Data/Tools/UnityYAMLMerge.exe
+```
+
+찾은 경로로 등록한다 (Windows 기준).
 
 ```bash
 git config --global merge.unityyamlmerge.name "Unity SmartMerge"
-git config --global merge.unityyamlmerge.driver '"C:/Program Files/Unity/Hub/Editor/6000.3.21f1/Editor/Data/Tools/UnityYAMLMerge.exe" merge -p %O %B %A %A'
+git config --global merge.unityyamlmerge.driver '"<위에서 찾은 경로>" merge -p -h --force --fallback none %O %B %A %A'
+```
+
+**옵션 네 개가 다 필요하다.** 빠뜨리면 조용히 또는 시끄럽게 실패한다.
+
+| 옵션 | 없으면 |
+|---|---|
+| `--force` | git 이 넘기는 임시 파일에는 `.prefab` 확장자가 없다. 도구가 파일 종류를 몰라 **병합을 포기한다** — 이것이 빠져서 실제로 실패한 적이 있다 (#151 작업 중) |
+| `-h` | 실패할 때 GUI 오류 대화상자가 뜬다. 자동화·에이전트 작업에서 멈춘다 |
+| `--fallback none` | 남은 충돌을 외부 GUI 병합 도구로 넘기려다, 등록된 도구가 없으면 `mergespecfile.txt` 오류를 낸다 |
+| `-p` | 충돌 없는 부분까지 사람이 손으로 합치게 된다 |
+
+등록됐는지 확인한다. 위에서 적은 옵션이 그대로 보여야 한다.
+
+```bash
+git config --get merge.unityyamlmerge.driver
 ```
 
 - [ ] 팀원 5명 전원 위 명령 실행 (에디터 설치 경로는 각자 확인)
-- [ ] 씬 충돌을 일부러 하나 만들어 병합이 실제로 되는지 1회 검증
+- [x] 씬·프리팹 충돌을 실제로 만들어 병합 검증 (2026-09-17, #151): `Managers.prefab` 을 양쪽에서
+      고친 두 브랜치를 병합. 설정 전에는 도구가 실패해 손으로 한쪽을 고르게 되고 **그 과정에서
+      다른 사람의 `AudioManager` 가 소리 없이 사라졌다.** 옵션을 채운 뒤에는 충돌 없이
+      `CreatureManager` 와 `AudioManager` 가 **둘 다** 남았다
+
+> **이 설정이 없는 채로 씬·프리팹 충돌을 손으로 해결하지 않는다.** 프리팹 YAML 은 컴포넌트
+> 목록과 본문이 파일 안에서 떨어져 있어, 한쪽을 통째로 고르면 다른 쪽이 추가한 컴포넌트가
+> 흔적 없이 지워진다. 충돌 마커도 남지 않아 diff 를 봐도 눈치채기 어렵다.
 
 ---
 
