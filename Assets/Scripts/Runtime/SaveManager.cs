@@ -16,6 +16,8 @@ namespace NCAIClicker
 
         public static ISaveService Instance { get; private set; }
 
+        public bool HasSave => File.Exists(SavePath);
+
         private string SavePath => Path.Combine(Application.persistentDataPath, SaveFileName);
 
         private void Awake()

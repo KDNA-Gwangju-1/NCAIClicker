@@ -1,6 +1,6 @@
 # 저장·불러오기
 
-> 관련 이슈: #25, #76 · 최종 수정: 2026-09-16
+> 관련 이슈: #25, #76, #139 · 최종 수정: 2026-09-17
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -71,6 +71,7 @@ Unity 6000.3.21f1 에디터, `UnityMCP execute_code`로 Edit Mode에서 직접 �
 ## 알려진 한계
 
 - **자동 로드/저장 호출부가 없다.** `SaveManager.Instance.Load()`를 언제 부르고 그 결과로 `EconomyManager.RestoreWallet()` 등을 언제 호출할지는 [coin-economy.md](coin-economy.md) 알려진 한계에 적힌 대로 `IEconomyService`에 없는 concrete API 문제가 먼저 풀려야 한다(공용 계약 변경 이슈 필요). ARCHITECTURE 1절의 초기화 순서(저장 로드 → 코인·업그레이드 복원 → …)를 실제로 조립하는 주체는 아직 없다.
+  이슈 #139가 추가한 `HasSave`는 "저장 파일이 존재하는가"만 답한다(6.7 메인 메뉴의 이어하기 버튼 활성화 판정용) — 이 한계와는 무관하다. `HasSave`가 `true`여도 이어하기를 눌러 Game 씬에 들어가면 여전히 복원된 값 없이 빈 상태로 시작한다.
 - **테스트 asmdef가 런타임 코드를 참조하지 못하는 기존 제약**([manager-bootstrap.md](manager-bootstrap.md) 참고)이 여기도 적용된다. 그래서 자동화된 `Tests/PlayMode` 테스트 대신 `execute_code`로 직접 실행해 확인했다 — 코드 변경 때마다 재현 가능한 회귀 테스트로 남지 않는다.
 - `BackupCorruptFile()`은 `save.json.bak` 하나만 유지한다. 손상이 반복되면 이전 백업을 덮어쓴다.
 - 동시에 여러 곳에서 `Save()`를 호출할 때의 경합은 고려하지 않았다 — 이 게임은 단일 스레드에서 메인 루프만 저장을 호출한다고 가정한다.
@@ -80,3 +81,4 @@ Unity 6000.3.21f1 에디터, `UnityMCP execute_code`로 Edit Mode에서 직접 �
 | 날짜 | 이슈 | 누가 | 무엇이 바뀌었나 |
 |---|---|---|---|
 | 2026-09-16 | #25, #76 | hunil58 | 최초 작성. `SaveManager` 구현(직렬화, 버전 마이그레이션, 손상 파일 백업), `JsonUtility` null 직렬화 불가 문제 발견 및 `HasActiveBill`/`HasActiveLoan` 플래그로 수정. `Managers.prefab`에 컴포넌트 부착 및 검증 완료로 알려진 한계 항목 갱신 |
+| 2026-09-17 | #139 | hunil58 | `ISaveService.HasSave` 추가(6.7 메인 메뉴 #90 착수 중 발견), `SaveManager.HasSave => File.Exists(SavePath)` 구현. 자동 로드/저장 배선 한계와는 무관함을 명시 |

@@ -1,4 +1,5 @@
 using System;
+using NCAIClicker.Data;
 using NCAIClicker.Events;
 using NCAIClicker.Interfaces;
 using UnityEngine;
@@ -18,12 +19,13 @@ namespace NCAIClicker.Core
     ///
     /// Managers 프리팹(Resources/Managers)에 붙인다. 생성은 ManagerBootstrap 이 한다.
     /// </summary>
-    public class GameManager : MonoBehaviour
+    public class GameManager : MonoBehaviour, IGameFlowService
     {
         private const string MainMenuSceneName = "MainMenu";
         private const string GameSceneName = "Game";
 
-        public static GameManager Instance { get; private set; }
+        /// <summary>MainMenu 버튼 등 외부 소비자는 이 인터페이스 타입으로만 접근한다 (계약 변경 #142).</summary>
+        public static IGameFlowService Instance { get; private set; }
 
         public RunState CurrentState { get; private set; }
 
@@ -43,6 +45,32 @@ namespace NCAIClicker.Core
             {
                 NotifyBeginRun();
             }
+        }
+
+        /// <summary>
+        /// 새 회차 시작. 저장을 기본값으로 덮어쓴 뒤 Game 씬으로 전환한다.
+        /// 덮어쓴다는 확인은 호출측(MainMenuController)이 먼저 받는다 — 이슈 #90 완료 기준.
+        /// </summary>
+        public void StartNewRun()
+        {
+            SaveManager.Instance?.Save(new SaveData());
+            SceneManager.LoadScene(GameSceneName);
+        }
+
+        /// <summary>이어하기. Game 씬으로 전환한다. 저장값 실제 복원 배선은 알려진 한계 — docs/TECH_NOTES/main-menu.md 참고.</summary>
+        public void ContinueRun()
+        {
+            SceneManager.LoadScene(GameSceneName);
+        }
+
+        /// <summary>종료. 버튼이 SceneManager/Application API를 직접 부르지 않도록 GameManager가 대신한다.</summary>
+        public void QuitGame()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
         }
 
         // 정적 이벤트는 구독과 해제를 쌍으로 맞춘다. 빠뜨리면 코인이 두 배로 들어온다 (AGENTS.md).

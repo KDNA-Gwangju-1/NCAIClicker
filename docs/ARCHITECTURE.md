@@ -187,6 +187,15 @@ public interface ISaveService
 {
     SaveData Load();
     void Save(SaveData data);
+    bool HasSave { get; }              // 저장 파일 존재 여부. Load()는 없어도 항상 기본값을 반환한다 (이슈 #139)
+}
+
+// MainMenu 버튼이 씬 전환을 요청하는 계약. GameManager만 구현한다 (이슈 #142)
+public interface IGameFlowService
+{
+    void StartNewRun();
+    void ContinueRun();
+    void QuitGame();
 }
 
 [Serializable]
