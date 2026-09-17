@@ -81,21 +81,30 @@ namespace NCAIClicker.Core
         }
 
         /// <summary>
-        /// 런을 시작한다. 예약해 둔 퍼크가 있으면 여기서 켠다 (IRunScoped, #126).
-        /// GameManager 가 씬 구현체를 따로 모아 불러 준다 — 이 매니저는 Managers 프리팹 밖이다.
+        /// 런을 시작한다. 예약해 둔 퍼크를 켜고 이번 단계의 크리처를 배치한다 (IRunScoped, #126·#140).
+        /// GameManager 가 Managers 프리팹의 IRunScoped 를 모아 불러 준다.
+        ///
+        /// 퍼크를 스폰보다 **먼저** 켠다 — SpawnRandomCreature 가 새 대상에
+        /// _perkHitRadiusPercent 를 그대로 물려주므로 순서가 뒤바뀌면 이번 런의 첫 크리처들이
+        /// 퍼크를 받지 못한다.
+        ///
+        /// 초기 배치를 Start() 가 아니라 여기서 하는 이유는 DontDestroyOnLoad 다. Start 는 생애
+        /// 한 번뿐이라 Game 씬에 두 번째로 들어갈 때 재초기화가 되지 않는다 (#140).
         /// </summary>
         public void BeginRun()
         {
             _isRunning = true;
             ApplyPerkRadius(_pendingPerkHitRadiusPercent);
             _pendingPerkHitRadiusPercent = 0f;
+            InitializeStage(_currentStageNumber);
         }
 
-        /// <summary>런을 끝낸다. "이번 런" 퍼크는 여기서 사라진다.</summary>
+        /// <summary>런을 끝낸다. "이번 런" 퍼크와 필드에 남은 크리처는 여기서 사라진다.</summary>
         public void EndRun()
         {
             _isRunning = false;
             ApplyPerkRadius(0f);
+            ClearAllCreatures();
         }
 
         /// <summary>
@@ -144,20 +153,6 @@ namespace NCAIClicker.Core
         private void Update()
         {
             UpdateRespawnTimers(Time.deltaTime);
-        }
-
-        /// <summary>런을 시작한다. GameManager 가 런 시작 직전에 부른다 (IRunScoped, 이슈 #140).</summary>
-        public void BeginRun()
-        {
-            Debug.Log($"[CreatureManager] BeginRun 호출됨 (현재 단계: {_currentStageNumber})");
-            InitializeStage(_currentStageNumber);
-        }
-
-        /// <summary>런을 종료한다. GameManager 가 Result 전이 시 부른다 (IRunScoped, 이슈 #140).</summary>
-        public void EndRun()
-        {
-            Debug.Log("[CreatureManager] EndRun 호출됨 (크리처 정리)");
-            ClearAllCreatures();
         }
 
         /// <summary>
