@@ -39,6 +39,7 @@ namespace NCAIClicker
             if (economyManager != null && billManager != null)
             {
                 economyManager.SetBillService(billManager);
+                billManager.SetEconomyService(economyManager);
             }
         }
     }

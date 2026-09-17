@@ -128,6 +128,24 @@ namespace NCAIClicker.EditorTools
                     TouristRatio = ToFloat(r["tourist_ratio"]),
                     SpawnCount = ToInt(r["spawn_count"]),
                 });
+
+                data.Perks = ReadRows("perks.csv", r =>
+                {
+                    PerkType type;
+                    if (!TryParseEnum(r["id"], out type))
+                    {
+                        _errors.Add("perks.csv: id '" + r["id"] + "' 를 PerkType 으로 해석할 수 없습니다. " +
+                                   "쓸 수 있는 값: " + string.Join(", ", EnumNamesSnake<PerkType>()));
+                    }
+                    return new PerkDef
+                    {
+                        Id = r["id"],
+                        DisplayName = r["display_name"],
+                        Type = type,
+                        Value = ToFloat(r["value"]),
+                        DurationSec = ToFloat(r["duration_sec"]),
+                    };
+                });
             }
             catch (Exception e)
             {
@@ -342,6 +360,25 @@ namespace NCAIClicker.EditorTools
                 _errors.Add("bills.csv: loan_daily_cut_min 이 loan_daily_cut_max 보다 큽니다.");
             if (d.Bill.LoanInterestRate < 0f)
                 _errors.Add("bills.csv: loan_interest_rate 가 음수입니다.");
+
+            if (d.Perks.Count != Enum.GetValues(typeof(PerkType)).Length)
+                _errors.Add("perks.csv: PerkType 종류마다 정확히 한 행이 있어야 합니다. 현재 " +
+                           d.Perks.Count + "행.");
+            var perkIds = new HashSet<string>();
+            var perkTypes = new HashSet<PerkType>();
+            foreach (var perk in d.Perks)
+            {
+                if (string.IsNullOrWhiteSpace(perk.Id) || !perkIds.Add(perk.Id))
+                    _errors.Add("perks.csv: id 가 비었거나 중복입니다: " + perk.Id);
+                if (!perkTypes.Add(perk.Type))
+                    _errors.Add("perks.csv: PerkType '" + perk.Type + "' 이 중복됩니다.");
+                if (perk.Value <= 0)
+                    _errors.Add("perks.csv: '" + perk.Id + "' 의 value 는 0보다 커야 합니다.");
+                if (perk.Type == PerkType.CoinGainBoost && perk.DurationSec <= 0)
+                    _errors.Add("perks.csv: coin_gain_boost 는 duration_sec 이 0보다 커야 합니다 (일정 시간 지속 퍼크).");
+                if (perk.Type != PerkType.CoinGainBoost && perk.DurationSec != 0)
+                    _errors.Add("perks.csv: '" + perk.Id + "' 는 지속시간이 없는 퍼크입니다. duration_sec 은 0이어야 합니다.");
+            }
         }
 
         // ---------- CSV 읽기 ----------

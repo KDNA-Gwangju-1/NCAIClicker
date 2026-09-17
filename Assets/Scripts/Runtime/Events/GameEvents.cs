@@ -26,6 +26,8 @@ namespace NCAIClicker.Events
         public static event Action OnFeverStart;
         public static event Action OnFeverEnd;
         public static event Action<int> OnStageGoalReached;
+        public static event Action<string[]> OnPerkOffered;
+        public static event Action<string> OnPerkChosen;
 
         public static void PublishCoinEarned(long amount) => OnCoinEarned?.Invoke(amount);
         public static void PublishBalanceChanged(long currentBalance) => OnBalanceChanged?.Invoke(currentBalance);
@@ -44,6 +46,8 @@ namespace NCAIClicker.Events
         public static void PublishFeverStart() => OnFeverStart?.Invoke();
         public static void PublishFeverEnd() => OnFeverEnd?.Invoke();
         public static void PublishStageGoalReached(int stageNumber) => OnStageGoalReached?.Invoke(stageNumber);
+        public static void PublishPerkOffered(string[] perkIds) => OnPerkOffered?.Invoke(perkIds);
+        public static void PublishPerkChosen(string perkId) => OnPerkChosen?.Invoke(perkId);
 
         /// <summary>
         /// 서브시스템 등록 시 정적 이벤트를 초기화한다.
@@ -68,6 +72,8 @@ namespace NCAIClicker.Events
             OnFeverStart = null;
             OnFeverEnd = null;
             OnStageGoalReached = null;
+            OnPerkOffered = null;
+            OnPerkChosen = null;
         }
     }
 }

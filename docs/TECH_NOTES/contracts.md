@@ -68,7 +68,7 @@ flowchart LR
 | `IUpgradePersistence` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 업그레이드 레벨 저장 복원. SaveManager 전용으로 설계했으나 현재 미배선 (이슈 #116) |
 | `UpgradeState` | `Assets/Scripts/Runtime/Economy/UpgradeState.cs` | 업그레이드 레벨·다음 비용·실효값 실제 계산 (Unity 비의존 순수 클래스). `EconomyManager`가 `IUpgradeStats`/`IUpgradeShop`/`IUpgradePersistence` 구현에서 그대로 위임한다 (이슈 #24, twins6375-art, Edit Mode 22건 PASS) |
 | `ISaveService` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | 저장 및 불러오기 인터페이스 |
-| `GameEvents` | `Assets/Scripts/Runtime/Events/GameEvents.cs` | 16종 정적 이벤트 및 Publish 메서드, ResetAll 제공 |
+| `GameEvents` | `Assets/Scripts/Runtime/Events/GameEvents.cs` | 19종 정적 이벤트 및 Publish 메서드, ResetAll 제공 |
 | `ContractsValidationChecks` | `Assets/Scripts/Editor/ContractsValidationChecks.cs` | 계약 정합성 배치 검증(이벤트 Publish·ResetAll, DTO 구조, IRunScoped 구현 및 GameManager 런 라이프사이클 배선). 에디터 전용, `MenuItem` 없이 `RunBatch()` 를 외부에서 호출한다 |
 
 ### 이벤트
@@ -91,6 +91,9 @@ flowchart LR
 | `OnFeverGaugeChanged` | `float, float` | 피버 게이지 잔여량 또는 최대치 변경 시 |
 | `OnFeverStart` | 없음 | 피버 모드 진입 시 |
 | `OnFeverEnd` | 없음 | 피버 모드 종료 시 |
+| `OnStageGoalReached` | `int` | 단계 목표(코인) 도달 시 단계 번호 전달 (#26) |
+| `OnPerkOffered` | `string[]` | 청구서 조기 납부 성공 시 뽑힌 퍼크 후보 id 3개 (#28) |
+| `OnPerkChosen` | `string` | 퍼크 후보 중 하나를 고르면 그 id (#28) |
 
 ### 읽는 밸런스 값
 
@@ -130,3 +133,4 @@ flowchart LR
 | 2026-09-17 | #111 | saltlake00 | `IRunScoped` 계약에 `EndRun()` 추가, StaminaManager 상속 및 EconomyManager 구현 편입, ContractsValidationChecks 검증 추가 |
 | 2026-09-17 | #116 | yahoo-afk | `IUpgradeStats`·`IUpgradeShop`·`IUpgradePersistence` 3개 인터페이스 신설, `EconomyManager` 구현 편입(`GetStat`/`GetStat(StatId, baseValue)`/`GetNextCost`/`TryPurchase`/`RestoreUpgradeLevels`/`CurrentUpgradeLevels`). 소비처 마이그레이션과 SaveManager 배선은 범위 밖으로 남김 |
 | 2026-09-17 | #116, #24 | yahoo-afk | `Develop` 리베이스 중 #24(twins6375-art, PR #120)가 먼저 병합한 `UpgradeState`와 충돌 발견. `IUpgradeStats`를 `GetStat(StatId, baseValue)` 하나로 좁히고(편의 오버로드 제거), `EconomyManager`의 업그레이드 계산 직접 구현(`_upgradeLevels`, `GetBaseValue`)을 버리고 `UpgradeState` 위임으로 교체. `EconomyManager`의 임시 public API(`GetUpgradeLevel`·`IsUpgradeMaxLevel`·`TryGetUpgradeCost`·`TryPurchaseUpgrade`·`GetUpgradedStat`, 중복 `CurrentUpgradeLevels`/`RestoreUpgradeLevels`) 제거 |
+| 2026-09-17 | #28 | soilrist | 이벤트 표에 누락됐던 `OnStageGoalReached`(#26)와 신규 `OnPerkOffered`·`OnPerkChosen`(#28) 추가, 이벤트 종수 16→19 정정 |

@@ -129,9 +129,12 @@ public interface IBillService
     int CurrentDay { get; }
     int DaysLeft { get; }              // max(0, DueDay - CurrentDay + 1)
     float LoanDailyCut { get; }        // 대출이 없으면 0
+    Bill ActiveBill { get; }           // 마감 전 청구서. 없으면 null
+    string[] OfferedPerkIds { get; }   // 납부 직후 골라야 할 퍼크 후보 3개. 고르면 비워진다
     bool TryPay(Bill bill);
     bool TryTakeLoan(long amount);     // 두 번째 청구서부터, 동시 1건
     bool TryRepayLoan();               // 전액 상환. 재대출 쿨다운 시작
+    bool TryChoosePerk(string perkId); // OfferedPerkIds 중 하나를 고른다. 목록에 없으면 false
 }
 
 public interface IEconomyService
@@ -329,6 +332,9 @@ GameManager만 `OnStaminaDepleted`와 `OnBankrupt`를 구독해 종료 순서를
 | `OnStaminaDepleted` | 없음 | 런 종료 요청 |
 | `OnFeverGaugeChanged` | `float, float` | 현재/최대 피버 게이지 |
 | `OnFeverStart`, `OnFeverEnd` | 없음 | 피버 상태 변화 |
+| `OnStageGoalReached` | `int` | 단계 목표(코인) 도달, 도달한 단계 번호 |
+| `OnPerkOffered` | `string[]` | 조기 납부 성공 시 뽑힌 퍼크 후보 id 3개 |
+| `OnPerkChosen` | `string` | 퍼크 후보 중 고른 id |
 
 선언은 `public static event Action<...>` 형식이다. 피버는 두 소스의 적중을 받아도 되지만,
 자동 망치를 정확도 분모·분자에 넣지 않는다. UI는 구독 후 공용 조회 인터페이스로 초기 상태를 한 번 읽는다.
