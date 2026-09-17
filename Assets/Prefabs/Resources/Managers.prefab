@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 8139038466957305}
   - component: {fileID: 3117378487926409255}
   - component: {fileID: 1346841394783751902}
+  - component: {fileID: 6156881815806265731}
   m_Layer: 0
   m_Name: Managers
   m_TagString: Untagged
@@ -58,3 +59,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 643f45289530c414bb5f442ce9fb9c82, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NCAIClicker.SaveManager
+--- !u!114 &6156881815806265731
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3648626491330066443}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e63ae8fc052a6d544be80b33604b12e1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NCAIClicker.Core.StaminaManager
+  _balanceData: {fileID: 11400000, guid: 148d52a305feece4e9ed4cb51a933689, type: 2}
+  _publishIntervalSec: 0.1

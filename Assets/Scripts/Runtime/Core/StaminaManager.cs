@@ -1,0 +1,167 @@
+using NCAIClicker.Data;
+using NCAIClicker.Events;
+using UnityEngine;
+
+namespace NCAIClicker.Core
+{
+    /// <summary>
+    /// 스태미나가 시간에 따라 줄어들게 하고, 회복형 대상의 파괴로 되돌려 준다.
+    /// 계산은 StaminaPool 에 맡기고 여기서는 시간을 먹이고 이벤트를 발행하는 일만 한다.
+    /// 완료 기준의 정본은 GitHub 이슈 #19.
+    ///
+    /// 런을 실제로 끝내는 것은 이 클래스가 아니다 — OnStaminaDepleted 를 발행할 뿐이고,
+    /// 입력 차단과 결과 화면 전이는 GameManager 가 조정한다 (ARCHITECTURE "하루 종료 순서", 작업 2.5).
+    ///
+    /// Managers 프리팹(Resources/Managers)에 붙인다. 생성은 ManagerBootstrap 이 한다.
+    /// </summary>
+    public class StaminaManager : MonoBehaviour
+    {
+        [SerializeField] private BalanceData _balanceData;
+
+        /// <summary>
+        /// OnStaminaChanged 를 묶어 발행하는 간격. 지속 감소를 매 프레임 발행하지 않는다 (ARCHITECTURE 3절).
+        /// 밸런스 수치가 아니라 UI 갱신 주기라 CSV 가 아닌 인스펙터에 둔다.
+        /// </summary>
+        [SerializeField] private float _publishIntervalSec = 0.1f;
+
+        private readonly StaminaPool _pool = new StaminaPool();
+
+        private bool _isRunning;
+        private bool _hasPublishedDepleted;
+        private float _publishTimer;
+
+        public float CurrentStamina => _pool.Current;
+
+        public float MaxStamina => _pool.Max;
+
+        /// <summary>런이 진행 중이라 스태미나가 줄고 있는 상태.</summary>
+        public bool IsRunning => _isRunning;
+
+        private void Awake()
+        {
+            if (_balanceData == null)
+            {
+                Debug.LogError("[StaminaManager] BalanceData 가 연결되지 않았다. " +
+                               "스태미나가 줄지 않으니 Managers 프리팹의 참조를 확인하라.");
+            }
+        }
+
+        // 정적 이벤트는 구독과 해제를 쌍으로 맞춘다. 빠뜨리면 회복이 두 배로 들어온다 (AGENTS.md).
+        private void OnEnable()
+        {
+            GameEvents.OnTargetBroken += HandleTargetBroken;
+        }
+
+        private void OnDisable()
+        {
+            GameEvents.OnTargetBroken -= HandleTargetBroken;
+        }
+
+        /// <summary>
+        /// 스태미나를 가득 채우고 감소를 시작한다. GameManager 가 런 시작 때 부른다.
+        /// 이걸 부르기 전에는 줄지 않는다 — MainMenu 에서 스태미나가 새는 것을 막기 위해서다.
+        /// </summary>
+        public void BeginRun()
+        {
+            if (_balanceData == null)
+            {
+                return;
+            }
+
+            _pool.Fill(_balanceData.Stamina.Max);
+            _isRunning = true;
+            _hasPublishedDepleted = false;
+            _publishTimer = 0f;
+            PublishChanged();
+        }
+
+        /// <summary>
+        /// 감소를 멈춘다. 남은 값은 그대로 두므로 결과 화면이 읽을 수 있다.
+        /// 소진이 아닌 사유(파산·퍼크 선택 등)로 런이 끊길 때 GameManager 가 부른다.
+        /// </summary>
+        public void EndRun()
+        {
+            _isRunning = false;
+        }
+
+        private void Update()
+        {
+            Tick(Time.deltaTime);
+        }
+
+        /// <summary>
+        /// 한 프레임분을 진행한다. Update 에서 분리한 이유는 Edit Mode 검증에서
+        /// 경과 시간을 직접 먹여야 하기 때문이다 — Time.deltaTime 은 에디터 프레임에 좌우된다.
+        /// </summary>
+        private void Tick(float deltaSeconds)
+        {
+            if (!_isRunning || _balanceData == null)
+            {
+                return;
+            }
+
+            _pool.Drain(_balanceData.Stamina.IdleDrainPerSec, deltaSeconds);
+
+            if (_pool.IsDepleted)
+            {
+                HandleDepleted();
+                return;
+            }
+
+            // 지속 감소는 묶어서 발행한다. 프레임마다 쏘면 HUD 가 매 프레임 갱신된다.
+            _publishTimer += deltaSeconds;
+            if (_publishTimer < _publishIntervalSec)
+            {
+                return;
+            }
+            _publishTimer = 0f;
+            PublishChanged();
+        }
+
+        /// <summary>
+        /// 소진 처리. 0 을 먼저 알리고 종료를 요청한다 — 순서가 뒤집히면 HUD 에 0 이 찍히지 않는다.
+        /// 종료 요청은 런당 한 번만 나간다.
+        /// </summary>
+        private void HandleDepleted()
+        {
+            if (_hasPublishedDepleted)
+            {
+                return;
+            }
+
+            _hasPublishedDepleted = true;
+            _isRunning = false;
+            PublishChanged();
+            GameEvents.PublishStaminaDepleted();
+        }
+
+        /// <summary>
+        /// 파괴 보상 중 스태미나 몫을 받는다. 회복량의 출처는 BreakInfo 하나뿐이며
+        /// targets.csv 를 다시 읽거나 대상 구현을 참조하지 않는다 (#3 에서 동결).
+        /// </summary>
+        private void HandleTargetBroken(BreakInfo info)
+        {
+            if (!_isRunning)
+            {
+                return;
+            }
+
+            var restored = _pool.Restore(info.StaminaRestore);
+            if (restored <= 0f)
+            {
+                // 회복형이 아닌 대상(회복량 0)과 이미 만충인 경우다. 알릴 것이 없다.
+                return;
+            }
+
+            // 실제로 회복된 양만 알린다. 명령이 아니므로 받는 쪽이 다시 회복하지 않는다 (ARCHITECTURE 3절).
+            GameEvents.PublishStaminaRestored(restored);
+            _publishTimer = 0f;
+            PublishChanged();
+        }
+
+        private void PublishChanged()
+        {
+            GameEvents.PublishStaminaChanged(_pool.Current, _pool.Max);
+        }
+    }
+}
