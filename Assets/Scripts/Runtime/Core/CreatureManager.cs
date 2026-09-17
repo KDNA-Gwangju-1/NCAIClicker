@@ -231,35 +231,74 @@ namespace NCAIClicker.Core
             return _upgradeStats == null ? baseValue : _upgradeStats.GetStat(stat, baseValue);
         }
 
+        /// <summary>
+        /// 파괴된 대상을 치우고 **치운 수만큼** 재등장을 예약한다.
+        ///
+        /// 예약을 하나만 걸면 안 된다 (#141). 이 핸들러는 파괴된 개체마다 한 번씩 불리지만,
+        /// 첫 호출의 정리 루프가 같은 프레임에 죽은 나머지까지 먼저 치운다. 뒤따르는 호출은
+        /// 치울 것이 없는 채로 예약만 하나 더 얹으므로, 어느 순서로 와도 합이 맞지 않는다.
+        /// 피버 중이나 자동 망치와 수동 스윙이 겹칠 때 동시 파괴가 실제로 일어나고,
+        /// 그때마다 필드 개체 수가 영구히 줄었다.
+        ///
+        /// 개체마다 자기 타이머를 갖는 구조는 그대로 둔다 — 밸런스 시뮬레이터
+        /// (`.github/scripts/simulate_balance.py`)가 "슬롯별 파괴 후 재등장 대기" 로 모델링하고
+        /// 있어, 공용 타이머 하나로 바꾸면 N 마리 복구에 N 배 시간이 걸려 모델과 어긋난다.
+        /// </summary>
         private void HandleTargetBroken(BreakInfo info)
         {
-            // 파괴된 대상 화면 제거 및 리스폰 쿨다운 등록
-            for (var i = _activeCreatures.Count - 1; i >= 0; i--)
+            var removedCount = RemoveDeadCreatures();
+            for (var i = 0; i < removedCount; i++)
             {
-                var c = _activeCreatures[i];
-                if (c == null)
-                {
-                    _activeCreatures.RemoveAt(i);
-                    continue;
-                }
-                var target = c.GetComponent<Target>();
-                if (target != null && !target.IsAlive)
-                {
-                    Destroy(c);
-                    _activeCreatures.RemoveAt(i);
-                }
+                _respawnTimers.Add(GetSpawnIntervalSec());
             }
-            _respawnTimers.Add(GetSpawnIntervalSec());
         }
 
+        /// <summary>죽었거나 이미 사라진 대상을 목록에서 치우고 그 수를 돌려준다.</summary>
+        private int RemoveDeadCreatures()
+        {
+            var removedCount = 0;
+            for (var i = _activeCreatures.Count - 1; i >= 0; i--)
+            {
+                var creature = _activeCreatures[i];
+                if (creature == null)
+                {
+                    // 밖에서 파괴된 것. 자리는 비었으므로 재등장 대상으로 센다.
+                    _activeCreatures.RemoveAt(i);
+                    removedCount++;
+                    continue;
+                }
+
+                var target = creature.GetComponent<Target>();
+                if (target != null && !target.IsAlive)
+                {
+                    Destroy(creature);
+                    _activeCreatures.RemoveAt(i);
+                    removedCount++;
+                }
+            }
+            return removedCount;
+        }
+
+        /// <summary>
+        /// 재등장 대기를 진행시키고, 끝난 자리를 채운다.
+        ///
+        /// 목표치를 넘겨서는 스폰하지 않는다 (#141). 예약은 파괴 시점 기준인데 목표 동시 출현
+        /// 수는 단계·업그레이드로 그 사이에 줄어들 수 있어, 예약이 남아 있다는 이유만으로
+        /// 채우면 목표치를 넘긴다. 그런 예약은 채우지 않고 버린다.
+        /// </summary>
         public void UpdateRespawnTimers(float deltaTime)
         {
             for (var i = _respawnTimers.Count - 1; i >= 0; i--)
             {
                 _respawnTimers[i] -= deltaTime;
-                if (_respawnTimers[i] <= 0f)
+                if (_respawnTimers[i] > 0f)
                 {
-                    _respawnTimers.RemoveAt(i);
+                    continue;
+                }
+
+                _respawnTimers.RemoveAt(i);
+                if (_activeCreatures.Count < GetRequiredSpawnCount())
+                {
                     SpawnRandomCreature();
                 }
             }
