@@ -9,7 +9,8 @@ namespace NCAIClicker.Economy
 {
     /// <summary>
     /// 하루 진행과 청구서 발행·조기 납부를 관리한다. 한 번의 런 = 하루 하나 (ARCHITECTURE.md "하루 종료 순서").
-    /// 대출·파산 판정(4.3~4.4)은 이 클래스의 범위가 아니다 — TryTakeLoan/TryRepayLoan 은 계약을 지키는 스텁이다.
+    /// 대출(4.3)은 여기서 빌리고 갚는 것까지 맡는다. 다만 수입에서 실제로 떼는 일은 EconomyManager 가 LoanDailyCut 을 읽어 하고,
+    /// 파산 판정(4.4)은 이 클래스의 범위가 아니다.
     /// 납부(4.2)의 완료 기준 정본은 GitHub 이슈 #28.
     ///
     /// 퍼크 선택(OnPerkChosen)의 실제 게임플레이 효과 적용은 이 클래스의 범위 밖이다 — 각 시스템이
@@ -31,6 +32,15 @@ namespace NCAIClicker.Economy
         private Bill _activeBill;
         private string[] _offeredPerkIds = Array.Empty<string>();
 
+        /// <summary>진행 중인 대출. 없으면 null 이다 (ARCHITECTURE.md "메모리상에서는 null 로 둔다").</summary>
+        private Loan _activeLoan;
+
+        /// <summary>
+        /// 마지막으로 완제한 날. 대출 객체를 지워도 재대출 쿨다운은 이 값으로 유지된다 (ARCHITECTURE.md SaveData).
+        /// -1 은 아직 한 번도 빌린 적이 없다는 뜻이라 쿨다운을 적용하지 않는다.
+        /// </summary>
+        private int _lastLoanRepaidDay = -1;
+
         /// <summary>코인 차감의 출처. EconomyManager 가 초기화 때 넣어 준다 (ManagerBootstrap). 없으면 납부는 항상 실패한다.</summary>
         private IEconomyService _economyService;
 
@@ -40,8 +50,12 @@ namespace NCAIClicker.Economy
             ? 0
             : Mathf.Max(0, _activeBill.DueDay - _currentDay + 1);
 
-        // ponytail: 대출(4.3) 미구현. 대출이 없으면 0을 돌려주는 계약(IBillService 주석)을 그대로 만족한다.
-        public float LoanDailyCut => 0f;
+        /// <summary>
+        /// 활성 대출의 일일 징수율. 대출이 없으면 0 이다 (IBillService 계약).
+        /// 징수 자체는 여기서 하지 않는다 — EconomyManager 가 이 값을 읽어 수입에 (1 - 징수율) 을 곱한다
+        /// (AGENTS.md "코인 배율과 대출 징수는 EconomyManager 안에서만").
+        /// </summary>
+        public float LoanDailyCut => _activeLoan == null ? 0f : _activeLoan.DailyCut;
 
         public Bill ActiveBill => _activeBill;
 
@@ -135,11 +149,102 @@ namespace NCAIClicker.Economy
             return true;
         }
 
-        // ponytail: 대출(4.3) 미구현.
-        public bool TryTakeLoan(long amount) => false;
+        /// <summary>
+        /// 빅 토니에게 amount 만큼 빌린다. 거부 조건은 순서대로 금액, 동시 건수, 해금 순번, 재대출 쿨다운, 한도다.
+        /// 성공하면 이자를 더한 상환액이 그 자리에서 확정되고 원금이 지갑에 들어간다 — 원금 입금은
+        /// IEconomyService.AddLoanPrincipal 을 거치므로 배율·징수·RunCoin 집계에서 빠진다
+        /// (ARCHITECTURE.md "코인 계산 순서" 8번).
+        /// </summary>
+        public bool TryTakeLoan(long amount)
+        {
+            if (amount <= 0L || _balanceData == null || _economyService == null)
+            {
+                return false;
+            }
 
-        // ponytail: 대출(4.3) 미구현.
-        public bool TryRepayLoan() => false;
+            var config = _balanceData.Bill;
+            if (_activeLoan != null || config.LoanMaxConcurrent < 1)
+            {
+                return false;
+            }
+
+            // _billIndex 는 다음에 발행할 순번이라, 지금 손에 든 청구서는 그 하나 앞이다.
+            if (_billIndex - 1 < config.LoanUnlockBillIndex)
+            {
+                return false;
+            }
+
+            if (IsLoanOnCooldown(config))
+            {
+                return false;
+            }
+
+            // 한도는 지금 막아야 할 청구서 금액이다. 낼 청구서가 없으면 빌릴 이유도 없다
+            // (BALANCE.md 4절이 "청구서 전액을 빌리면" 을 상한으로 두고 상환 가능성을 검증한다).
+            if (_activeBill == null || amount > _activeBill.Amount)
+            {
+                return false;
+            }
+
+            _activeLoan = new Loan
+            {
+                Principal = amount,
+                Owed = CalculateOwed(amount, config.LoanInterestRate),
+                DailyCut = CalculateDailyCut(amount, _activeBill.Amount, config),
+            };
+            _economyService.AddLoanPrincipal(amount);
+            return true;
+        }
+
+        /// <summary>
+        /// 이자를 포함한 전액을 갚는다. 부분 상환은 없다 — 잔액이 모자라면 실패하고 아무것도 바뀌지 않는다.
+        /// 성공하면 그날을 완제일로 적어 재대출 쿨다운이 시작된다. 미상환 기간에 뜯긴 징수분은
+        /// 이 금액을 한 푼도 줄이지 않는다 (GDD 4절 "징수분은 부채를 줄이지 않는다").
+        /// </summary>
+        public bool TryRepayLoan()
+        {
+            if (_activeLoan == null || _economyService == null)
+            {
+                return false;
+            }
+            if (!_economyService.TrySpendCoin(_activeLoan.Owed))
+            {
+                return false;
+            }
+
+            _activeLoan = null;
+            _lastLoanRepaidDay = _currentDay;
+            return true;
+        }
+
+        /// <summary>완제한 적이 없으면(-1) 쿨다운도 없다. 쿨다운 일수를 0 으로 두면 기능 자체가 꺼진다.</summary>
+        private bool IsLoanOnCooldown(BillConfig config)
+        {
+            return _lastLoanRepaidDay >= 0
+                   && _currentDay - _lastLoanRepaidDay < config.LoanCooldownDays;
+        }
+
+        /// <summary>
+        /// 이자 포함 상환액. 소수 부분은 올려 정수로 확정한다 (ARCHITECTURE.md "코인 계산 순서" 8번).
+        /// float 이자율을 그대로 곱하면 410 × 1.1 이 450.99… 로 떨어져 한 푼이 깎이므로 decimal 로 올려 계산한다.
+        /// </summary>
+        private static long CalculateOwed(long principal, float interestRate)
+        {
+            var owed = principal * (1m + (decimal)interestRate);
+            return (long)Math.Ceiling(owed);
+        }
+
+        /// <summary>
+        /// 일일 징수율을 빌린 금액에 비례해 정한다 — 청구서 전액을 빌리면 상한, 조금만 빌리면 하한에 가깝다.
+        /// 대출할 때 한 번만 정하고 미상환 기간 내내 고정한다 (ARCHITECTURE.md Loan.DailyCut).
+        /// 범위 안에서 무작위로 뽑지 않는 이유: 같은 선택이 늘 같은 결과를 내야 7.2 밸런싱 실측과
+        /// Edit Mode 검증이 성립하고, "많이 빌릴수록 비싸다" 는 저울질도 이쪽이 분명하다.
+        /// </summary>
+        private static float CalculateDailyCut(long amount, long billAmount, BillConfig config)
+        {
+            var ratio = billAmount <= 0L ? 1f : Mathf.Clamp01((float)amount / billAmount);
+            return Mathf.Lerp(config.LoanDailyCutMin, config.LoanDailyCutMax, ratio);
+        }
 
         /// <summary>
         /// perks.csv 전체에서 중복 없이 3종을 뽑는다. ponytail: 후보가 정확히 4종이라 남는 조합이
