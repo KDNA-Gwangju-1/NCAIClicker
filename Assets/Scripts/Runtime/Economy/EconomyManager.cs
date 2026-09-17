@@ -1,3 +1,4 @@
+using System;
 using NCAIClicker.Data;
 using NCAIClicker.Events;
 using NCAIClicker.Interfaces;
@@ -10,15 +11,23 @@ namespace NCAIClicker.Economy
     /// 계산은 CoinWallet 에 맡기고 여기서는 계수를 모으고 이벤트를 발행하는 일만 한다.
     /// 규칙의 정본은 docs/ARCHITECTURE.md "코인 계산·정산 계약" 3~8번이다.
     ///
+    /// 업그레이드 실효값 조회·구매·레벨 저장(IUpgradeStats/IUpgradeShop/IUpgradePersistence)도
+    /// 여기서 구현한다. 계산 자체는 UpgradeState(#24)에 맡기고 여기서는 창구 역할만 한다 —
+    /// Edit Mode가 MonoBehaviour 생명주기를 부르지 않아 계산부를 MonoBehaviour 밖에 둬야
+    /// 검증할 수 있기 때문이다 (CoinWallet과 같은 이유, docs/TECH_NOTES/upgrades.md 참고).
+    /// ARCHITECTURE 1절이 "코인, 업그레이드 비용/레벨 계산"을 이 매니저로 배정했다 (이슈 #116).
+    /// 소비처 배선(StaminaManager 등이 IUpgradeStats 로 갈아타는 것)은 이 이슈 범위 밖이다.
+    ///
     /// Managers 프리팹(Resources/Managers)에 붙인다. 생성은 ManagerBootstrap 이 한다.
     /// </summary>
-    public class EconomyManager : MonoBehaviour, IEconomyService, IRunScoped, IWalletPersistence
+    public class EconomyManager : MonoBehaviour, IEconomyService, IRunScoped, IWalletPersistence,
+        IUpgradeStats, IUpgradeShop, IUpgradePersistence
     {
         [SerializeField] private BalanceData _balanceData;
 
         private readonly CoinWallet _wallet = new CoinWallet();
 
-        /// <summary>업그레이드 레벨과 비용. BalanceData 가 있어야 만들 수 있어 Awake 에서 늦게 만든다.</summary>
+        /// <summary>업그레이드 레벨·비용·실효값 계산부 (#24). BalanceData 가 있어야 만들 수 있어 Awake 에서 늦게 만든다.</summary>
         private UpgradeState _upgrades;
 
         /// <summary>대출 징수율의 출처. BillManager 가 초기화 때 넣어 준다. 없으면 징수는 0이다.</summary>
@@ -119,77 +128,6 @@ namespace NCAIClicker.Economy
             _isFeverActive = false;
         }
 
-        /// <summary>업그레이드의 현재 레벨. 0 이면 아직 사지 않은 것이다.</summary>
-        public int GetUpgradeLevel(string upgradeId)
-        {
-            return _upgrades == null ? 0 : _upgrades.GetLevel(upgradeId);
-        }
-
-        public bool IsUpgradeMaxLevel(string upgradeId)
-        {
-            return _upgrades == null || _upgrades.IsMaxLevel(upgradeId);
-        }
-
-        /// <summary>다음 레벨 비용. 최대 레벨이거나 없는 id 면 false 다.</summary>
-        public bool TryGetUpgradeCost(string upgradeId, out long cost)
-        {
-            cost = 0L;
-            return _upgrades != null && _upgrades.TryGetNextCost(upgradeId, out cost);
-        }
-
-        /// <summary>
-        /// 업그레이드를 한 레벨 산다. 코인 차감과 레벨업이 **함께 성공하거나 함께 실패한다** —
-        /// 코인만 빠지고 레벨이 안 오르는 일이 없도록 여기 한 곳에서 처리한다.
-        ///
-        /// 구매는 메뉴·결과 화면에서만 하고 효과는 다음 런부터 적용된다 (BALANCE 6절).
-        /// 런 도중에 부르지 않는 것은 호출측 책임이다.
-        /// </summary>
-        /// <returns>실제로 샀으면 true. 코인 부족·최대 레벨·없는 id 면 false</returns>
-        public bool TryPurchaseUpgrade(string upgradeId)
-        {
-            if (_upgrades == null || !_upgrades.TryGetNextCost(upgradeId, out var cost))
-            {
-                return false;
-            }
-
-            // 잔액 확인과 차감을 지갑 한 곳에 맡긴다. 여기서 먼저 비교하면 둘이 어긋날 수 있다.
-            if (!_wallet.TrySpendCoin(cost))
-            {
-                return false;
-            }
-
-            _upgrades.LevelUp(upgradeId);
-            GameEvents.PublishBalanceChanged(_wallet.CurrentCoin);
-            return true;
-        }
-
-        /// <summary>
-        /// 업그레이드가 적용된 실효값. 기준값은 호출측이 넘긴다 (BALANCE 6절 표).
-        /// spawn_count 처럼 기준값이 단계마다 다른 stat 이 있어 한 곳에서 꺼낼 수 없다.
-        /// </summary>
-        public float GetUpgradedStat(StatId stat, float baseValue)
-        {
-            return _upgrades == null ? baseValue : _upgrades.GetStat(stat, baseValue);
-        }
-
-        /// <summary>저장용 업그레이드 레벨. SaveData.UpgradeLevels 에 그대로 넣는다.</summary>
-        public int[] CurrentUpgradeLevels => _upgrades == null ? new int[0] : _upgrades.ToArray();
-
-        /// <summary>저장 데이터에서 업그레이드 레벨을 되살린다. SaveManager 가 초기화 때 부른다.</summary>
-        public void RestoreUpgradeLevels(int[] levels)
-        {
-            if (_upgrades == null)
-            {
-                return;
-            }
-            if (levels == null || levels.Length != _upgrades.Count)
-            {
-                Debug.LogWarning("[EconomyManager] 저장된 업그레이드 레벨 수가 upgrades.csv 와 다르다. " +
-                                 "겹치는 만큼만 복원한다.");
-            }
-            _upgrades.RestoreLevels(levels);
-        }
-
         /// <summary>저장 데이터에서 지갑을 되살린다. SaveManager 가 초기화 때 부른다.</summary>
         public void RestoreWallet(long balance, string remainderText)
         {
@@ -253,5 +191,70 @@ namespace NCAIClicker.Economy
             _lastPublishedRunCoin = runCoin;
             GameEvents.PublishRunCoinChanged(runCoin);
         }
+
+        // ---- IUpgradeStats ----
+
+        /// <summary>
+        /// 업그레이드가 적용된 실효값. 기준값은 호출측이 넘긴다(BALANCE 6절 표) — spawn_count 처럼
+        /// 기준값이 현재 단계(StageDef)에 따라 달라지는 스탯이 있어 이 계약에서 통일했다
+        /// (#116, #24 구현 중 발견해 코멘트로 남김). 계산 자체는 UpgradeState 에 맡긴다.
+        /// </summary>
+        public float GetStat(StatId stat, float baseValue)
+        {
+            return _upgrades == null ? baseValue : _upgrades.GetStat(stat, baseValue);
+        }
+
+        // ---- IUpgradeShop ----
+
+        public int GetLevel(string upgradeId)
+        {
+            return _upgrades == null ? 0 : _upgrades.GetLevel(upgradeId);
+        }
+
+        /// <summary>
+        /// 비용은 ceil(InitCost × growth^현재레벨) (BALANCE.md 6절, 계산은 UpgradeState).
+        /// 이미 최대 레벨이거나 없는 id 면 더 살 수 없다는 뜻으로 long.MaxValue 를 돌려준다.
+        /// </summary>
+        public long GetNextCost(string upgradeId)
+        {
+            if (_upgrades == null || !_upgrades.TryGetNextCost(upgradeId, out var cost))
+            {
+                return long.MaxValue;
+            }
+            return cost;
+        }
+
+        /// <summary>
+        /// 표시 값과 구매 가능 여부는 전부 GetLevel/GetNextCost 로 조회한 뒤 이걸 부른다.
+        /// 지갑 차감은 기존 TrySpendCoin 을 그대로 재사용한다 — 코인 계산 경로를 둘로 만들지 않는다.
+        /// 차감과 레벨업이 함께 성공하거나 함께 실패한다 — 비용 조회가 실패하면 코인을 건드리지
+        /// 않고, 차감이 실패하면 레벨을 올리지 않는다 (docs/TECH_NOTES/upgrades.md).
+        /// </summary>
+        public bool TryPurchase(string upgradeId)
+        {
+            if (_upgrades == null || !_upgrades.TryGetNextCost(upgradeId, out var cost))
+            {
+                return false;
+            }
+
+            if (!TrySpendCoin(cost))
+            {
+                return false;
+            }
+
+            _upgrades.LevelUp(upgradeId);
+            return true;
+        }
+
+        // ---- IUpgradePersistence ----
+
+        /// <summary>저장 데이터에서 업그레이드 레벨을 되살린다. SaveManager 가 초기화 때 부른다.</summary>
+        public void RestoreUpgradeLevels(int[] levelsBySortOrder)
+        {
+            _upgrades?.RestoreLevels(levelsBySortOrder);
+        }
+
+        /// <summary>SaveManager 가 저장 직전에 읽어 SaveData.UpgradeLevels 에 그대로 넣는다.</summary>
+        public int[] CurrentUpgradeLevels => _upgrades == null ? Array.Empty<int>() : _upgrades.ToArray();
     }
 }

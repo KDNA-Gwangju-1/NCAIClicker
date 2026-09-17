@@ -157,6 +157,29 @@ public interface IWalletPersistence
     string CurrentRemainderText { get; }
 }
 
+// 업그레이드 실효값 조회. 소비처는 BalanceData 기준값 대신 이것을 읽는다 (이슈 #116).
+// 기준값은 항상 호출측이 넘긴다 — spawn_count 처럼 기준값이 현재 단계(StageDef)에 따라
+// 달라지는 스탯이 있어, 표를 여기서 복제하지 않도록 통일했다 (#24 구현 중 발견, #116 코멘트).
+public interface IUpgradeStats
+{
+    float GetStat(StatId stat, float baseValue);
+}
+
+// 업그레이드 구매. 메뉴·결과 화면(작업 6.8)이 쓴다 (이슈 #116).
+public interface IUpgradeShop
+{
+    int GetLevel(string upgradeId);
+    long GetNextCost(string upgradeId);
+    bool TryPurchase(string upgradeId);
+}
+
+// 업그레이드 레벨 저장 복원. SaveManager 만 쓴다 (이슈 #116).
+public interface IUpgradePersistence
+{
+    void RestoreUpgradeLevels(int[] levelsBySortOrder);
+    int[] CurrentUpgradeLevels { get; }
+}
+
 public interface ISaveService
 {
     SaveData Load();
