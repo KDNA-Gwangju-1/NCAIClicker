@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 6156881815806265731}
   - component: {fileID: 6991358579771720105}
   - component: {fileID: 7700911363545241118}
+  - component: {fileID: 2531388376023445607}
   m_Layer: 0
   m_Name: Managers
   m_TagString: Untagged
@@ -97,7 +98,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2b98448025b9c244f9ced8197175770f, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::NCAIClicker.Fever.FeverManager
   _balanceData: {fileID: 11400000, guid: 148d52a305feece4e9ed4cb51a933689, type: 2}
   _publishIntervalSec: 0.1
+--- !u!114 &2531388376023445607
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3648626491330066443}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f93bfc72ea1e43c8b2d34d7c6430387b, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::NCAIClicker.Economy.BillManager
+  _balanceData: {fileID: 11400000, guid: 148d52a305feece4e9ed4cb51a933689, type: 2}
