@@ -61,6 +61,7 @@ flowchart LR
 |---|---|---|
 | `EconomyManager` | `Assets/Scripts/Runtime/Economy/EconomyManager.cs` | `IEconomyService` 구현. 이벤트 구독·발행, 배율 계수 수집. `Managers` 프리팹에 붙는다 |
 | `CoinWallet` | `Assets/Scripts/Runtime/Economy/CoinWallet.cs` | 배율 곱, 소수 잔여 이월, 런 순수입 집계. 이벤트를 모른다 |
+| `UpgradeState` | `Assets/Scripts/Runtime/Economy/UpgradeState.cs` | 업그레이드 레벨·비용·실효값. `EconomyManager` 가 함께 들고 있다 — 자세한 것은 [업그레이드](upgrades.md) |
 | `CoinWalletChecks` | `Assets/Scripts/Editor/CoinWalletChecks.cs` | 계산식 검증 11건 |
 | `EconomyManagerChecks` | `Assets/Scripts/Editor/EconomyManagerChecks.cs` | 이벤트 배선 검증 8건 |
 
@@ -122,8 +123,9 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
 - `CoinWallet` 이 `public` 이라 다른 런타임 스크립트가 직접 `new CoinWallet()` 으로 배율을 적용할 수
   있다. `internal` 로 좁혀도 같은 어셈블리라 막히지 않고 Editor 검증만 깨지므로, **소유자는
   `EconomyManager` 하나** 라는 약속에 기대고 있다.
-- 보너스 배율은 CSV 기준값만 읽는다. 퍼크 가산(작업 4.2)과 업그레이드 효과(작업 3.3)를 반영할
-  통로가 아직 없다.
+- 보너스 배율은 CSV 기준값만 읽는다. 퍼크 가산(작업 4.2)과 업그레이드 효과를 반영할 통로가
+  아직 없다 — 업그레이드 계산 자체는 작업 3.3 에서 들어왔지만 소비처가 실효값을 읽을 계약이
+  없다 (이슈 #116, [업그레이드](upgrades.md) 참고).
 - 파산 시 소수 잔여를 버리는 처리(계약 7번)는 전용 API 없이 `RestoreWallet(0, "0")` 으로만 된다.
   파산 처리 주체(작업 4.4)가 생길 때 다시 본다.
 - `SaveManager`(작업 3.4)가 없어 지금은 매번 잔액 0 에서 시작한다. 초기화 순서상
@@ -137,3 +139,4 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
 | 2026-09-16 | #16 | twins6375-art | 타격 대상이 생겨 실제 지급 경로를 확인. 검증 절 갱신 |
 | 2026-09-17 | #71 | yahoo-afk | `IEconomyService` 외 public API 4개를 `IRunScoped`·`IWalletPersistence` 로 분리 동결. `SetBillService` 는 계약이 아닌 조립(wiring) 통로로 남김 |
 | 2026-09-17 | #111 | saltlake00 | `IRunScoped` 계약 확장에 따라 `EconomyManager.EndRun()` 구현 (런 종료 시 내부 플래그 정리) |
+| 2026-09-17 | #24 | twins6375-art | `EconomyManager` 가 `UpgradeState` 와 구매 API 를 함께 들게 됨. 클래스 표와 보너스 배율 한계 항목 갱신 |
