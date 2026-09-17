@@ -1,0 +1,5 @@
+id,display_name,value,duration_sec,note
+stamina_restore,스태미나 회복,20,0,납부 즉시 스태미나를 더한다 (기준: max_stamina 120). id 가 그대로 PerkType 이다
+coin_gain_boost,코인 획득 강화,1.5,15,지급 시점부터 duration_sec 동안 코인 배율에 곱한다 (기준: fever coin_multiplier 3.0)
+hit_power_boost,타격력 강화,15,0,이번 런 타격 파워에 percent 로 더한다
+hit_radius_boost,피격 판정 확대,20,0,이번 런 피격 판정 반경에 percent 로 더한다

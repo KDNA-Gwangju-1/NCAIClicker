@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using NCAIClicker.Data;
 using NCAIClicker.Events;
 using NCAIClicker.Interfaces;
@@ -6,9 +8,12 @@ using UnityEngine;
 namespace NCAIClicker.Economy
 {
     /// <summary>
-    /// 하루 진행과 청구서 발행을 관리한다. 한 번의 런 = 하루 하나 (ARCHITECTURE.md "하루 종료 순서").
-    /// 납부·대출·파산 판정(4.2~4.4)은 이 클래스의 범위가 아니다 — TryPay/TryTakeLoan/TryRepayLoan 은
-    /// 계약을 지키는 스텁이다. 완료 기준의 정본은 GitHub 이슈 #27.
+    /// 하루 진행과 청구서 발행·조기 납부를 관리한다. 한 번의 런 = 하루 하나 (ARCHITECTURE.md "하루 종료 순서").
+    /// 대출·파산 판정(4.3~4.4)은 이 클래스의 범위가 아니다 — TryTakeLoan/TryRepayLoan 은 계약을 지키는 스텁이다.
+    /// 납부(4.2)의 완료 기준 정본은 GitHub 이슈 #28.
+    ///
+    /// 퍼크 선택(OnPerkChosen)의 실제 게임플레이 효과 적용은 이 클래스의 범위 밖이다 — 각 시스템이
+    /// BalanceData.GetPerk(id) 로 값을 읽어 스스로 적용한다 (TECH_NOTES 알려진 한계).
     ///
     /// Managers 프리팹(Resources/Managers)에 붙인다. 생성은 ManagerBootstrap 이 한다.
     /// </summary>
@@ -24,6 +29,10 @@ namespace NCAIClicker.Economy
         private int _billIndex = 1;
         private bool _hasBegun;
         private Bill _activeBill;
+        private string[] _offeredPerkIds = Array.Empty<string>();
+
+        /// <summary>코인 차감의 출처. EconomyManager 가 초기화 때 넣어 준다 (ManagerBootstrap). 없으면 납부는 항상 실패한다.</summary>
+        private IEconomyService _economyService;
 
         public int CurrentDay => _currentDay;
 
@@ -34,6 +43,10 @@ namespace NCAIClicker.Economy
         // ponytail: 대출(4.3) 미구현. 대출이 없으면 0을 돌려주는 계약(IBillService 주석)을 그대로 만족한다.
         public float LoanDailyCut => 0f;
 
+        public Bill ActiveBill => _activeBill;
+
+        public string[] OfferedPerkIds => _offeredPerkIds;
+
         private void Awake()
         {
             Instance = this;
@@ -42,6 +55,12 @@ namespace NCAIClicker.Economy
                 Debug.LogError("[BillManager] BalanceData 가 연결되지 않았다. " +
                                "청구서를 발행하지 못하니 Managers 프리팹의 참조를 확인하라.");
             }
+        }
+
+        /// <summary>EconomyManager 가 자기 자신을 넘겨 준다. 구현 클래스를 직접 참조하지 않기 위한 통로다.</summary>
+        public void SetEconomyService(IEconomyService economyService)
+        {
+            _economyService = economyService;
         }
 
         /// <summary>
@@ -80,14 +99,79 @@ namespace NCAIClicker.Economy
             GameEvents.PublishDayEnded(_currentDay);
         }
 
-        // ponytail: 납부(4.2) 미구현. 항상 실패로 두어 청구서가 그대로 남게 한다.
-        public bool TryPay(Bill bill) => false;
+        /// <summary>
+        /// 마감 전 조기 납부. 활성 청구서와 같은 인스턴스여야 하고, EconomyManager 를 통해 코인을
+        /// 뗀다(경제 계약 — 코인 차감은 EconomyManager 안에서만). 성공하면 퍼크 후보 3종을 뽑아
+        /// OnPerkOffered 로 알린다. 고르는 것은 TryChoosePerk 의 몫이다.
+        /// </summary>
+        public bool TryPay(Bill bill)
+        {
+            if (bill == null || bill != _activeBill || bill.IsPaid || _economyService == null)
+            {
+                return false;
+            }
+            if (!_economyService.TrySpendCoin(bill.Amount))
+            {
+                return false;
+            }
+
+            bill.IsPaid = true;
+            _activeBill = null;
+            GameEvents.PublishBillPaid(bill);
+
+            RollPerkOffer();
+            return true;
+        }
+
+        /// <summary>OfferedPerkIds 중 하나를 고른다. 실제 효과 적용은 각 시스템의 몫 — 여기서는 알리기만 한다.</summary>
+        public bool TryChoosePerk(string perkId)
+        {
+            if (_offeredPerkIds.Length == 0 || Array.IndexOf(_offeredPerkIds, perkId) < 0)
+            {
+                return false;
+            }
+            _offeredPerkIds = Array.Empty<string>();
+            GameEvents.PublishPerkChosen(perkId);
+            return true;
+        }
 
         // ponytail: 대출(4.3) 미구현.
         public bool TryTakeLoan(long amount) => false;
 
         // ponytail: 대출(4.3) 미구현.
         public bool TryRepayLoan() => false;
+
+        /// <summary>
+        /// perks.csv 전체에서 중복 없이 3종을 뽑는다. ponytail: 후보가 정확히 4종이라 남는 조합이
+        /// 많지 않지만, 복원추출 없는 무작위 뽑기 자체는 풀 크기가 늘어도 그대로 맞는다.
+        /// </summary>
+        private void RollPerkOffer()
+        {
+            var perks = _balanceData == null ? null : _balanceData.Perks;
+            if (perks == null || perks.Count == 0)
+            {
+                _offeredPerkIds = Array.Empty<string>();
+                return;
+            }
+
+            var pool = new List<string>(perks.Count);
+            foreach (var perk in perks)
+            {
+                pool.Add(perk.Id);
+            }
+
+            var pickCount = Mathf.Min(3, pool.Count);
+            var offered = new string[pickCount];
+            for (var i = 0; i < pickCount; i++)
+            {
+                var index = UnityEngine.Random.Range(0, pool.Count);
+                offered[i] = pool[index];
+                pool.RemoveAt(index);
+            }
+
+            _offeredPerkIds = offered;
+            GameEvents.PublishPerkOffered(_offeredPerkIds);
+        }
 
         /// <summary>
         /// stages.csv 의 단계값으로 청구서를 만든다. 마감일 = 발행일 + 기한 - 1 (Bill.DueDay 계약).

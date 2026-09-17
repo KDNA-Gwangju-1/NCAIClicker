@@ -21,9 +21,11 @@ namespace NCAIClicker.Data
         public List<TargetDef> Targets = new();
         public List<UpgradeDef> Upgrades = new();
         public List<StageDef> Stages = new();
+        public List<PerkDef> Perks = new();
 
         public TargetDef GetTarget(string id) => Targets.Find(t => t.Id == id);
         public UpgradeDef GetUpgrade(string id) => Upgrades.Find(u => u.Id == id);
+        public PerkDef GetPerk(string id) => Perks.Find(p => p.Id == id);
 
         /// <summary>stageNumber 는 1부터 시작한다.</summary>
         public StageDef GetStage(int stageNumber) => Stages.Find(s => s.Stage == stageNumber);
@@ -177,5 +179,32 @@ namespace NCAIClicker.Data
         public float RunnerRatio;
         public float TouristRatio;
         public int SpawnCount;
+    }
+
+    /// <summary>
+    /// 청구서 조기 납부(4.2) 보상 4종. id 는 스네이크 케이스 그대로 PerkType 이름이 된다 —
+    /// 4종 고정이라 둘을 분리해도 얻는 게 없다 (ponytail).
+    /// 실제 효과 적용은 이 어셈블리의 몫이 아니다 — GetPerk(id)로 값을 읽어 각 시스템이 직접 적용한다.
+    /// </summary>
+    public enum PerkType
+    {
+        StaminaRestore,
+        CoinGainBoost,
+        HitPowerBoost,
+        HitRadiusBoost,
+    }
+
+    [Serializable]
+    public class PerkDef
+    {
+        public string Id;
+        public string DisplayName;
+        public PerkType Type;
+
+        /// <summary>의미는 Type에 따라 다르다: 스태미나 회복량(점수) / 코인 배율(ratio) / 타격력·판정 보너스(percent).</summary>
+        public float Value;
+
+        /// <summary>CoinGainBoost 에서만 0보다 크다. 나머지는 즉시 적용되거나 런이 끝날 때까지 지속돼 지속시간이 없다.</summary>
+        public float DurationSec;
     }
 }

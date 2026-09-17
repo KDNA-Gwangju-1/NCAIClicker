@@ -163,3 +163,24 @@ MonoBehaviour:
     RunnerRatio: 0.25
     TouristRatio: 0.15
     SpawnCount: 8
+  Perks:
+  - Id: stamina_restore
+    DisplayName: "\uC2A4\uD0DC\uBBF8\uB098 \uD68C\uBCF5"
+    Type: 0
+    Value: 20
+    DurationSec: 0
+  - Id: coin_gain_boost
+    DisplayName: "\uCF54\uC778 \uD68D\uB4DD \uAC15\uD654"
+    Type: 1
+    Value: 1.5
+    DurationSec: 15
+  - Id: hit_power_boost
+    DisplayName: "\uD0C0\uACA9\uB825 \uAC15\uD654"
+    Type: 2
+    Value: 15
+    DurationSec: 0
+  - Id: hit_radius_boost
+    DisplayName: "\uD53C\uACA9 \uD310\uC815 \uD655\uB300"
+    Type: 3
+    Value: 20
+    DurationSec: 0
