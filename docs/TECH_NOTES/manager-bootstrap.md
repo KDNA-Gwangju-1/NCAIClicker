@@ -1,6 +1,6 @@
 # 매니저 자동 생성
 
-> 관련 이슈: #15 · 최종 수정: 2026-09-16
+> 관련 이슈: #15, #80 · 최종 수정: 2026-09-17
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -49,12 +49,13 @@ Unity 6000.3.21f1 배치 실행, 2026-09-16.
 
 - [x] 컴파일 + 프리팹 생성: `-batchmode -quit -nographics -executeMethod ...TempCreateManagersPrefab.Run` → 종료 코드 0, `error CS` 0건. 임시 스크립트는 생성 후 삭제했다.
 - [x] Play Mode 테스트: `-batchmode -nographics -runTests -testPlatform PlayMode` → 종료 코드 0, 1개 중 1개 통과 (`KeepsSingleManagersAcrossScenes`). 프리팹 누락 시 나오는 `[ManagerBootstrap]` 오류 로그 없음.
-- [ ] 에디터에서 `Game` 씬을 직접 열고 Play — 미검증 (배치 테스트는 MainMenu 부터 로드했다).
+- [x] 에디터에서 `MainMenu` 씬·`Game` 씬을 각각 열고 Play (2026-09-17, #80): 배치 모드에서 임시 에디터 스크립트로 씬을 `OpenScene` 한 뒤 `EnterPlaymode` → 두 씬 모두 `Managers` 루트 1개, 소속 씬 `DontDestroyOnLoad`. 종료 코드 0, `error CS` 0건, `[ManagerBootstrap]` 오류 로그 없음. 임시 스크립트는 삭제했다.
+- [ ] Windows 빌드 `Player.log` 확인 — 미검증 (이 작업은 macOS 에서 수행, Windows 빌드 모듈 없음).
 
 ## 알려진 한계
 
 - 붙어 있는 매니저는 `EconomyManager` 하나뿐이다(작업 3.1). 나머지 모듈이 자기 매니저를 붙이면서 [ARCHITECTURE 1절](../ARCHITECTURE.md) 초기화 순서를 맞춰야 한다. 컴포넌트 실행 순서는 아직 아무도 지정하지 않았다.
-- 에디터에서 `Game` 씬을 직접 열어 Play 하는 경로는 배치로 검증하지 못했다. `BeforeSceneLoad` 는 첫 씬과 무관하게 실행되므로 동작해야 하지만 확인은 남아 있다.
+- 에디터에서 `Game` 씬을 직접 열어 Play 하는 경로는 배치 모드(`OpenScene` + `EnterPlaymode`)로만 확인했다. 사람이 에디터 창에서 직접 Play 한 것과 Windows 빌드에서의 동작은 아직 확인하지 않았다.
 - 테스트 asmdef 는 런타임 코드를 참조하지 않는다(런타임에 asmdef 가 없다). 테스트는 씬의 오브젝트 이름만 본다.
 - `Resources.Load` 의존이라 프리팹 이름(`Managers`)이나 폴더를 바꾸면 소리 없이 실패하고 `LogError` 만 남는다.
 
@@ -64,3 +65,4 @@ Unity 6000.3.21f1 배치 실행, 2026-09-16.
 |---|---|---|---|
 | 2026-09-16 | #15 | Claude | 최초 작성 |
 | 2026-09-16 | #22 | twins6375-art | 첫 매니저(`EconomyManager`) 부착 반영 |
+| 2026-09-17 | #80 | Claude | 에디터 Play 검증 반영 |

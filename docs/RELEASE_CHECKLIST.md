@@ -65,7 +65,7 @@ git config --global merge.unityyamlmerge.driver '"C:/Program Files/Unity/Hub/Edi
 
 - [x] 씬 2개 생성 및 빌드 순서 등록: `MainMenu`(0) → `Game`(1)
 - [x] URP 템플릿 잔여물 제거 (`Assets/TutorialInfo`, `Assets/Readme.asset`)
-- [ ] 빌드에서 매니저 자동 생성이 실제로 되는지 확인 (작업 1.2.3 이후)
+- [ ] 빌드에서 매니저 자동 생성이 실제로 되는지 확인 (작업 1.2.3 이후) (에디터 Play 검증은 완료, 2026-09-17 #80)
 
 ---
 
