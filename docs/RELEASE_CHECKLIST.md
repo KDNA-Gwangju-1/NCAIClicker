@@ -65,7 +65,8 @@ git config --global merge.unityyamlmerge.driver '"C:/Program Files/Unity/Hub/Edi
 
 - [x] 씬 2개 생성 및 빌드 순서 등록: `MainMenu`(0) → `Game`(1)
 - [x] URP 템플릿 잔여물 제거 (`Assets/TutorialInfo`, `Assets/Readme.asset`)
-- [ ] 빌드에서 매니저 자동 생성이 실제로 되는지 확인 (작업 1.2.3 이후) (에디터 Play 검증은 완료, 2026-09-17 #80)
+- [x] 빌드에서 매니저 자동 생성이 실제로 되는지 확인 (작업 1.2.3 이후) (에디터 Play 검증 2026-09-17 #80, macOS 빌드 검증 2026-09-17 #110)
+  - **빌드 검증은 맥 빌드로 한다** (팀 결정, 2026-09-17). 팀 개발 PC 가 macOS 라 Windows 모듈 없이도 `unity build --target StandaloneOSX` 로 바로 확인할 수 있다. Windows 스탠드얼론은 8.3 최종 빌드에서 확인한다
 
 ---
 
