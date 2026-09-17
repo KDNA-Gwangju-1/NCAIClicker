@@ -1,6 +1,6 @@
 # 피버 게이지
 
-> 관련 이슈: #31 · 최종 수정: 2026-09-17
+> 관련 이슈: #31, #32 · 최종 수정: 2026-09-17
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -11,6 +11,9 @@
 안에서만 적용한다 (ARCHITECTURE 코인 계약 4번). 그래서 `fever.csv` 의 `coin_multiplier` 는
 이 기능이 읽지 않는 유일한 열이다.
 
+**발동이 실제로 지급액을 바꾸는지는 #32 에서 두 매니저를 함께 돌려 확인했다.** 경계가 이벤트
+하나뿐이라 그전까지는 양쪽이 각자 절반씩만 보고 있었다 (아래 검증).
+
 ## 왜 이 방법인가
 
 | 검토한 방법 | 채택 | 이유 |
@@ -20,6 +23,7 @@
 | **발동 순간** 게이지를 0으로 | ✅ | 밸런스 모델(`.github/scripts/simulate_balance.py`)이 그렇게 센다. 모델과 다르게 만들면 `fever.csv` 에 적힌 런당 발동 빈도가 그대로 틀린 값이 된다 |
 | 종료 시점에 0으로 (피버 중에도 누적) | ❌ | GDD 문장("피버 종료 후 게이지는 0으로 초기화된다")만 보면 이쪽도 읽히지만, 피버 중 적중이 다음 피버를 앞당겨 발동 간격이 짧아진다. 밸런스를 다시 잡아야 한다 |
 | 자동 망치 적중도 게이지에 포함 | ✅ | BALANCE 5절이 "호버·자동 망치의 적중 여부를 함께 전달하고 **정확도는 호버만** 집계한다"고 정했다. 소스를 가리는 것은 정확도 쪽이다 |
+| 피버 배율 업그레이드를 `FeverManager` 가 계산해 넘긴다 | ❌ | 배율은 EconomyManager 안에서만 적용한다는 계약을 깬다. 업그레이드 레벨도 그쪽에 있으므로 실효 배율을 꺼내려고 매니저 경계를 넘을 이유가 없다 (#32) |
 | 감쇠를 `BeginRun()` 뒤에만 (런 게이트) | ✅ | 게이트가 없으면 MainMenu 에서도 게이지가 쌓인다. 매니저는 `DontDestroyOnLoad` 라 씬을 가리지 않는다 |
 
 ### 헛스윙을 세지 않는 것이 핵심이다
@@ -63,7 +67,8 @@ flowchart LR
 |---|---|---|
 | `FeverGauge` | `Assets/Scripts/Runtime/Fever/FeverGauge.cs` | 누적·감쇠·상한 판정. Unity 의존도 이벤트도 없다 |
 | `FeverManager` | `Assets/Scripts/Runtime/Fever/FeverManager.cs` | `Managers` 프리팹에 붙는 MonoBehaviour. 시간을 먹이고 이벤트를 발행한다 |
-| `FeverChecks` | `Assets/Scripts/Editor/FeverChecks.cs` | Edit Mode 검증 23건 |
+| `FeverChecks` | `Assets/Scripts/Editor/FeverChecks.cs` | 게이지와 이벤트 배선의 Edit Mode 검증 23건 |
+| `FeverPayoutChecks` | `Assets/Scripts/Editor/FeverPayoutChecks.cs` | 발동부터 코인 지급까지 매니저를 **함께** 돌리는 Edit Mode 검증 12건 |
 
 ### 이벤트
 
@@ -125,6 +130,26 @@ Edit Mode 에서 `FeverChecks.RunBatch()` 로 확인했다 (**23건 PASS**). 연
 [BALANCE.md 5절](../BALANCE.md)에 있다. 그 과정에서 **기존 `gauge_per_hit` 로는 피버가 사실상
 발동하지 않는다는 것을 발견해 값을 올렸다.**
 
+### 발동 → 지급 교차 검증 (2026-09-17, #32)
+
+`FeverPayoutChecks.RunBatch()` 로 확인했다 (**12건 PASS**). 여기서는 `OnFeverStart` 를 손으로
+쏘지 않고 **실제로 적중을 쌓아 발동시킨 뒤** 파괴 보상을 지급해, 지갑 잔액이 배율을 따랐는지 본다.
+소수 잔여가 이월되므로 한 번의 지급액이 아니라 누계로 비교한다.
+
+- [x] 피버 밖에서는 배율이 걸리지 않는다
+- [x] 적중을 쌓아 발동시키면 `coin_multiplier` 배로 지급된다
+- [x] 지속 시간이 끝나기 직전까지 배율이 유지되고, 지나면 풀린다 (종료 발행 1회)
+- [x] 두 번째 발동의 배율이 첫 번째와 같다 (겹쳐 곱해지지 않는다)
+- [x] 피버 중에 `EndRun()` 으로 런이 끊겨도 배율이 남지 않는다
+- [x] `fever_multiplier` 업그레이드 레벨이 오르면 **실효 배율로** 지급된다
+- [x] 그 업그레이드가 피버 **밖** 지급액은 건드리지 않는다
+- [x] 레벨을 0 으로 되돌리면 CSV 원본 배율로 돌아간다
+- [x] **피버 중 스태미나 감소 속도가 평소와 같다** (이슈 #32 가 못 박은 조건)
+- [x] 실행 후 `BalanceData` 가 dirty 가 아니고, 3회 연속 실행 뒤 구독자 수가 전부 0
+
+검증이 실제로 무언가를 잡는지도 확인했다. `EconomyManager` 의 업그레이드 조회를 CSV 원본으로
+되돌려 보니 업그레이드 항목이 "기대 잔액보다 실제가 적다"로 실패했다.
+
 **미검증**: Play Mode. Unity 가 `OnEnable`·`Update` 를 실제로 그 시점에 불러 주는지는 확인하지
 못했다 — 검증에서는 리플렉션으로 직접 부른다. 테스트 asmdef 가 런타임 코드(`Assembly-CSharp`)를
 참조하지 못해 PlayMode 테스트를 쓸 수 없는 제약이 그대로다.
@@ -132,8 +157,13 @@ Edit Mode 에서 `FeverChecks.RunBatch()` 로 확인했다 (**23건 PASS**). 연
 ## 알려진 한계
 
 - ~~**아무도 `BeginRun()` 을 부르지 않는다.**~~ — 이슈 #111에서 `GameManager` 가 `Running` 전이 시 `IRunScoped.BeginRun()`, `Result` 전이 시 `IRunScoped.EndRun()` 을 호출하도록 배선 완료.
-- **피버 강화 업그레이드가 반영되지 않는다.** "헬스장 회원권"(지속 시간·배율)은 작업 3.3 이며,
-  붙으면 `duration_sec` 를 CSV 에서 직접 읽는 지금 구조에 계산된 값을 주입해야 한다
+- **피버 강화 업그레이드가 절반만 반영된다.** "헬스장 회원권"은 배율과 지속 시간을 함께 올리는데,
+  **배율 쪽은 #32 에서 붙었다** — EconomyManager 가 업그레이드 레벨과 배율 적용 지점을 둘 다
+  가지고 있어 매니저 경계를 넘지 않고 끝났다. **지속 시간 쪽은 남아 있다.** 그 값을 세는 것은
+  `FeverManager` 인데, 계약(`IUpgradeStats`, #116 머지됨)은 생겼지만 **아직 아무 소비처도
+  거기에 연결돼 있지 않다** — #116 스스로 소비처 배선을 범위 밖으로 두었다. `FeverManager` 가
+  `IUpgradeStats` 를 주입받고 `StartFever()` 가 `GetStat(StatId.FeverDuration, duration_sec)` 을
+  읽게 하면 닫힌다. 그때까지 레벨을 올려도 피버는 `duration_sec` 만큼만 간다
 - **퍼크 선택 중 일시정지가 없다.** BALANCE 5절이 "퍼크 선택 중에는 피버 시간도 멈춘다"고
   정해 두었다. 퍼크는 작업 4.2 라 그때 일시정지 통로가 필요하다 — 지금 `EndRun()` 으로 멈추면
   피버가 끝나 버린다
@@ -146,3 +176,4 @@ Edit Mode 에서 `FeverChecks.RunBatch()` 로 확인했다 (**23건 PASS**). 연
 |---|---|---|---|
 | 2026-09-17 | #31 | twins6375-art | 최초 작성 (적중 누적, 유예 후 감쇠, 발동·종료, 발동 빈도 재조정) |
 | 2026-09-17 | #111 | saltlake00 | `IRunScoped.EndRun()` 계약 편입 및 `GameManager` 배선 완료 반영 |
+| 2026-09-17 | #32 | twins6375-art | 발동 → 코인 지급 교차 검증 추가, `fever_multiplier` 업그레이드 반영 |
