@@ -1,6 +1,6 @@
 # 런 상태 머신
 
-> 관련 이슈: #20, #111 · 최종 수정: 2026-09-17
+> 관련 이슈: #20, #111, #21 · 최종 수정: 2026-09-17
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -87,6 +87,22 @@ Unity MCP 및 에디터 검증 배치로 확인했다.
 - [x] `Game` 씬을 처음부터 직접 열고 Play(개발자가 자주 쓰는 경로) → `Awake` 초기값이 `CurrentState == Running`으로 정상 계산되고 `Start()`에서 런 활성화
 - [x] `ContractsValidationChecks.RunBatch()` 자동 검증에 GameManager 라이프사이클 테스트 포함 및 통과
 
+### #21 첫 완주 반복 검증 (2026-09-17)
+
+완료 기준 "시작→정산→재도전을 빌드에서 반복 가능"을 확인하기 위해 에디터 Play Mode에서
+시작→정산→재도전 4사이클(정산 2회, 재도전 2회)을 반복 실행했다.
+
+- [x] `Running` 상태에서 `GameEvents.PublishStaminaDepleted()` 발행 → `Running -> Result` 로그가
+  **사이클마다 정확히 1회만** 출력됨(구독 중복 없음 — AGENTS.md가 경고하는 "코인 2배" 버그 클래스 확인)
+- [x] `SceneManager.LoadScene("Game")`로 재도전 반복 → `Result -> Running` 로그 1회, `EconomyManager.RunCoin`이
+  매 사이클 0으로 정상 리셋
+- [x] `GameManager`/`StaminaManager` 인스턴스가 재도전 반복 동안 `DontDestroyOnLoad`로 동일 인스턴스 유지(재생성 아님)
+- [x] 콘솔 warning/error 0건
+
+**한계**: 패키징된 빌드가 아닌 에디터 Play Mode에서 검증했다. 결과 화면 UI(#34, 재도전 버튼)가 아직 없어
+`SceneManager.LoadScene("Game")` 직접 호출로 재도전을 대신했다. 스태미나 자연 소진(자동 망치 타격 누적)이
+아닌 `GameEvents.PublishStaminaDepleted()` 직접 발행으로 소진을 시뮬레이션했다.
+
 ## 알려진 한계
 
 - `RunState`를 다른 모듈이 읽으려면 지금은 `GameManager.Instance`(구체 클래스) 직접 참조뿐이다. 실제 소비자(예: HUD, 결과 화면)가 생기면 "다른 매니저 구현 클래스 직접 참조 금지" 규칙과 부딪히므로, 그때 이벤트 또는 인터페이스 추가를 공용 계약 변경 이슈로 먼저 발의해야 한다.
@@ -99,3 +115,4 @@ Unity MCP 및 에디터 검증 배치로 확인했다.
 |---|---|---|---|
 | 2026-09-17 | #20 | Claude | 최초 작성 — `GameManager`/`RunState` 구현, 씬 로드 기반 전이 + `OnStaminaDepleted`/`OnBankrupt` 기반 `Result` 전이 |
 | 2026-09-17 | #111 | saltlake00 | `IRunScoped` 기반 `BeginRun()`/`EndRun()` 매니저 배선 추가, 초기화 순서 준수(Economy -> Stamina -> Fever) |
+| 2026-09-17 | #21 | Claude | 첫 완주 빌드 검증 — 시작→정산→재도전 반복 실행으로 구독 중복(코인 2배 버그) 없음과 상태·런코인 정상 리셋 확인 |
