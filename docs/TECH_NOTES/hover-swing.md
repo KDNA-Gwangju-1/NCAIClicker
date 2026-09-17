@@ -79,6 +79,14 @@ Unity 6000.3.21f1 에디터 Edit Mode 및 Play Mode, 2026.09.17.
 * [x] Play Mode 실행 후 콘솔 에러 없음 확인 (이슈 #18)
 * [x] `hover_swing_interval_sec` 0.15에서 0.5로 수정 후 BalanceData.asset 반영 확인
 
+### #151 셰이더 스트립·비주얼 미생성 (2026-09-17)
+
+* [x] 프로젝트 안 참조 수 대조 — URP/Lit 5개, URP/**Unlit 0개**. 참조가 없으면 빌드에서 스트립된다
+* [x] 빌드 산출물의 셰이더 이름 문자열 대조 — 등록 **전** 빌드에는 `Universal Render Pipeline/Unlit` 이 없고, Always Included Shaders 등록 **후** 빌드에는 `globalgamemanagers`·`globalgamemanagers.assets` 에 있다. 같은 방법으로 두 번 재서 뒤집혔다
+* [x] Edit Mode 검증 14건 통과, 빌드 오류 0건
+* [x] **패키징된 빌드를 사람이 실행해 눈으로 확인** — `새 회차 시작` 이후 레티클과 망치가 **보이고**, 색이 **마젠타가 아니다**. `Player.log` 에 `[HammerSwingVisual] 셰이더 … 찾지 못했다` 없음, 오류·경고 0건
+* [x] 같은 실행에서 크리처 스폰·리스폰도 정상 (#140 과 합친 검증 빌드)
+
 ## 알려진 한계
 
 * 스킬 해금에 따라 스윙 속도가 빨라지는 기능은 이번 범위에서 제외했다. 밸런스 값을 코드가 아닌 별도 승수로 다루려면 공용 계약 변경 이슈로 별도 처리해야 한다.
@@ -86,7 +94,6 @@ Unity 6000.3.21f1 에디터 Edit Mode 및 Play Mode, 2026.09.17.
 * `HammerSwingVisual._swingInterval` 은 `#if UNITY_EDITOR` 안에서만 BalanceData 를 읽는다. 이 컴포넌트는 코드가 스스로 만들어 붙어 인스펙터 오버라이드도 없으므로 **빌드에서는 0.85 가 고정**이다. `hover_swing_interval_sec` 를 바꾸면 게이지와 실제 스윙 박자가 어긋난다 (#132 범위 밖).
 * `Game.unity` 에 저장된 `HammerSwingController` 에 현재 스크립트에 없는 `_maxRayDistance` 가 남아 있다. 동작에는 영향이 없지만 씬이 옛 버전 스크립트로 저장된 흔적이다 — 씬 소유자가 정리한다.
 * 레티클·망치 머티리얼은 여전히 런타임에 `Shader.Find` 로 만든다. 셰이더 이름이 문자열이라 URP 버전이 올라가 이름이 바뀌면 컴파일은 통과하고 실행에서만 깨진다. 근본적으로는 머티리얼을 에셋으로 두고 참조하는 편이 맞지만, 이 컴포넌트가 코드로 스스로 붙어 인스펙터 배선이 없어 미뤘다 — 3D 에셋 교체(6.6)에서 비주얼을 프리팹으로 옮길 때 같이 정리한다.
-* **빌드에서 레티클·망치 색을 눈으로 확인하지 않았다.** 빌드 산출물에 `Universal Render Pipeline/Unlit` 문자열이 들어간 것까지는 확인했다(#151). 빌드가 `MainMenu` 로 시작해 무인 실행으로는 `Game` 씬에 닿지 못한다.
 * `_hittableLayerMask` 기본값이 전체 레이어라 프로젝트에 레이어가 세분화되면 과잉 판정될 수 있다. 대상 레이어가 정해지면 인스펙터에서 좁혀야 한다.
 
 ## 갱신 이력
