@@ -155,7 +155,100 @@ namespace NCAIClicker.EditorTools
                 UnityEngine.Object.DestroyImmediate(mgrGo);
             }
 
-            // 12. 크리처 HP 표시 및 데미지 팝업 생성 검증
+            // 12. 리스폰 회계 검증 (#141)
+            //
+            // 치운 개수와 예약 개수가 어긋나면 필드 개체 수가 목표치에서 벗어난다.
+            // 특히 목록에 없는 대상의 파괴 이벤트가 들어오면 치운 것이 없는데도 예약만 쌓여
+            // 목표치를 넘겨 스폰됐다. 밸런스 시뮬레이터는 슬롯 수가 고정이라고 가정한다.
+            //
+            // 실물 프리팹 대신 스텁을 쓴다. Instantiate 는 클론을 **지금 열려 있는 씬에** 만들어
+            // 남의 씬을 더럽히므로, HideAndDontSave 스텁을 복제해 흔적을 남기지 않는다.
+            var respawnGo = new GameObject("RespawnCountCheck");
+            respawnGo.hideFlags = HideFlags.HideAndDontSave;
+            var stubPrefab = new GameObject("RespawnCheckStub");
+            stubPrefab.hideFlags = HideFlags.HideAndDontSave;
+            var stubTarget = stubPrefab.AddComponent<Target>();
+            try
+            {
+                // 스텁도 targets.csv 를 읽어야 내구도가 잡힌다. id 는 코드에 박지 않고 CSV 에서 고른다.
+                Assert(balance.Targets.Count > 0, "targets.csv 에서 읽은 대상이 없습니다.");
+                var stubSerialized = new SerializedObject(stubTarget);
+                stubSerialized.FindProperty("_targetId").stringValue = balance.Targets[0].Id;
+                stubSerialized.FindProperty("_balanceData").objectReferenceValue = balance;
+                stubSerialized.ApplyModifiedPropertiesWithoutUndo();
+
+                var mgr = respawnGo.AddComponent<CreatureManager>();
+                var serialized = new SerializedObject(mgr);
+                serialized.FindProperty("_balanceData").objectReferenceValue = balance;
+                foreach (var field in new[] { "_targetNormalPrefab", "_targetAnchorPrefab",
+                                              "_targetRunnerPrefab", "_targetTouristPrefab" })
+                {
+                    serialized.FindProperty(field).objectReferenceValue = stubPrefab;
+                }
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+
+                // 이벤트 구독은 OnEnable 쌍으로 걸린다. 에디터에서 만든 컴포넌트는 직접 부른다.
+                InvokeLifecycle(mgr, "OnEnable");
+                var timers = (System.Collections.Generic.List<float>)GetPrivateField(mgr, "_respawnTimers");
+
+                var required = mgr.GetRequiredSpawnCount();
+                Assert(required >= 2, "검증하려면 목표 동시 출현 수가 2 이상이어야 합니다: " + required);
+
+                mgr.InitializeStage(1);
+                Assert(mgr.ActiveCreatures.Count == required,
+                       "초기 배치 수가 목표치와 다릅니다: " + mgr.ActiveCreatures.Count + " / " + required);
+                passedCount++;
+
+                // 정상 파괴: 치운 수만큼 예약된다. 필드 + 예약의 합이 항상 목표치여야 한다.
+                for (var i = 0; i < 2; i++)
+                {
+                    var victim = mgr.ActiveCreatures[0].GetComponent<Target>();
+                    Assert(victim.IsAlive, "스폰된 대상이 살아 있지 않습니다. 스텁 초기화를 확인하세요.");
+                    victim.OnHit(new HitInfo(HitSource.Hover, victim.MaxHp, Vector3.zero));
+                }
+                Assert(mgr.ActiveCreatures.Count + timers.Count == required,
+                       "파괴 후 필드+예약 합이 목표치와 다릅니다: " + mgr.ActiveCreatures.Count
+                       + " + " + timers.Count + " / " + required);
+                passedCount++;
+
+                // 대기 시간이 지나면 목표치로 돌아온다. 기대값은 CSV 에서 읽은 대기 시간이다.
+                mgr.UpdateRespawnTimers(mgr.GetSpawnIntervalSec() + 0.01f);
+                Assert(mgr.ActiveCreatures.Count == required,
+                       "대기 후 개체 수가 목표치로 돌아오지 않았습니다: "
+                       + mgr.ActiveCreatures.Count + " / " + required);
+                passedCount++;
+
+                // 목록에 없는 대상의 파괴 이벤트(유령)는 예약을 만들지 않는다.
+                GameEvents.PublishTargetBroken(new BreakInfo("ghost", 1m, 0f, Vector3.zero));
+                GameEvents.PublishTargetBroken(new BreakInfo("ghost", 1m, 0f, Vector3.zero));
+                Assert(timers.Count == 0,
+                       "치운 것이 없는데 재등장이 예약됐습니다: " + timers.Count + " (#141)");
+                passedCount++;
+
+                // 설령 예약이 남아 있어도 목표치를 넘겨 스폰하지 않는다.
+                timers.Add(0f);
+                timers.Add(0f);
+                mgr.UpdateRespawnTimers(0.01f);
+                Assert(mgr.ActiveCreatures.Count == required,
+                       "목표치를 넘겨 스폰했습니다: " + mgr.ActiveCreatures.Count + " / " + required + " (#141)");
+                passedCount++;
+
+                InvokeLifecycle(mgr, "OnDisable");
+                foreach (var creature in new System.Collections.Generic.List<GameObject>(mgr.ActiveCreatures))
+                {
+                    if (creature != null)
+                    {
+                        UnityEngine.Object.DestroyImmediate(creature);
+                    }
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(stubPrefab);
+                UnityEngine.Object.DestroyImmediate(respawnGo);
+            }
+
+            // 13. 크리처 HP 표시 및 데미지 팝업 생성 검증
             var testTargetGo = new GameObject("HpDisplayTestTarget");
             try
             {
@@ -175,6 +268,24 @@ namespace NCAIClicker.EditorTools
             }
 
             Debug.Log("[CreatureMovementChecks] 전체 " + passedCount + "개 검증 통과 완료.");
+        }
+
+        /// <summary>에디터에서 만든 컴포넌트는 OnEnable/OnDisable 이 자동으로 불리지 않아 직접 부른다.</summary>
+        private static void InvokeLifecycle(Component component, string methodName)
+        {
+            var method = component.GetType().GetMethod(methodName,
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert(method != null, component.GetType().Name + " 의 " + methodName + " 을 찾지 못했습니다.");
+            method.Invoke(component, null);
+        }
+
+        /// <summary>검증에서만 내부 상태를 들여다본다. 이 때문에 필드를 public 으로 열지 않는다.</summary>
+        private static object GetPrivateField(Component component, string fieldName)
+        {
+            var field = component.GetType().GetField(fieldName,
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert(field != null, component.GetType().Name + " 의 " + fieldName + " 필드를 찾지 못했습니다.");
+            return field.GetValue(component);
         }
 
         /// <summary>
