@@ -1,6 +1,6 @@
 # 피버 게이지
 
-> 관련 이슈: #31, #32 · 최종 수정: 2026-09-17
+> 관련 이슈: #31, #32, #131 · 최종 수정: 2026-09-17
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -157,13 +157,10 @@ Edit Mode 에서 `FeverChecks.RunBatch()` 로 확인했다 (**23건 PASS**). 연
 ## 알려진 한계
 
 - ~~**아무도 `BeginRun()` 을 부르지 않는다.**~~ — 이슈 #111에서 `GameManager` 가 `Running` 전이 시 `IRunScoped.BeginRun()`, `Result` 전이 시 `IRunScoped.EndRun()` 을 호출하도록 배선 완료.
-- **피버 강화 업그레이드가 절반만 반영된다.** "헬스장 회원권"은 배율과 지속 시간을 함께 올리는데,
-  **배율 쪽은 #32 에서 붙었다** — EconomyManager 가 업그레이드 레벨과 배율 적용 지점을 둘 다
-  가지고 있어 매니저 경계를 넘지 않고 끝났다. **지속 시간 쪽은 남아 있다.** 그 값을 세는 것은
-  `FeverManager` 인데, 계약(`IUpgradeStats`, #116 머지됨)은 생겼지만 **아직 아무 소비처도
-  거기에 연결돼 있지 않다** — #116 스스로 소비처 배선을 범위 밖으로 두었다. `FeverManager` 가
-  `IUpgradeStats` 를 주입받고 `StartFever()` 가 `GetStat(StatId.FeverDuration, duration_sec)` 을
-  읽게 하면 닫힌다. 그때까지 레벨을 올려도 피버는 `duration_sec` 만큼만 간다
+- ~~**피버 강화 업그레이드가 절반만 반영된다.**~~ — 배율은 #32, 지속 시간은 #131 에서 붙었다.
+  `FeverManager` 가 `IUpgradeStats` 를 주입받아 `BeginRun()` 에서 `fever_duration` 과
+  `fever_gauge_per_hit` 의 실효값을 굳힌다. 배율만 여전히 `EconomyManager` 몫인 것은
+  코인 배율을 그 클래스 밖에서 곱하지 않기 때문이다
 - **퍼크 선택 중 일시정지가 없다.** BALANCE 5절이 "퍼크 선택 중에는 피버 시간도 멈춘다"고
   정해 두었다. 퍼크는 작업 4.2 라 그때 일시정지 통로가 필요하다 — 지금 `EndRun()` 으로 멈추면
   피버가 끝나 버린다
@@ -177,3 +174,4 @@ Edit Mode 에서 `FeverChecks.RunBatch()` 로 확인했다 (**23건 PASS**). 연
 | 2026-09-17 | #31 | twins6375-art | 최초 작성 (적중 누적, 유예 후 감쇠, 발동·종료, 발동 빈도 재조정) |
 | 2026-09-17 | #111 | saltlake00 | `IRunScoped.EndRun()` 계약 편입 및 `GameManager` 배선 완료 반영 |
 | 2026-09-17 | #32 | twins6375-art | 발동 → 코인 지급 교차 검증 추가, `fever_multiplier` 업그레이드 반영 |
+| 2026-09-17 | #131 | twins6375-art | `IUpgradeStats` 주입, `fever_duration`·`fever_gauge_per_hit` 실효값을 런 시작에 캐시 |
