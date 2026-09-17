@@ -45,7 +45,7 @@ git config --global merge.unityyamlmerge.driver '"C:/Program Files/Unity/Hub/Edi
 
 ---
 
-## 3. Player Settings — 오늘 잡고 작업 8.2 에서 재확인 (2026-09-16 완료)
+## 3. Player Settings — 작업 8.2 에서 재확인 (2026-09-16 실측, 미완 항목은 아래 체크박스)
 
 - [x] Product Name = `NCAIClicker`, Company Name = `NCAITeamTwo` 설정 완료
   - 저장 경로가 `%USERPROFILE%/AppData/LocalLow/NCAITeamTwo/NCAIClicker/` 로 정해졌다. **바꾸려면 세이브가 생기기 전인 지금뿐이다** — 저장 기능이 붙은 뒤에 바꾸면 기존 세이브를 못 읽는다
