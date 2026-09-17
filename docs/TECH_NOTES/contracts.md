@@ -1,6 +1,6 @@
 # 공용 계약 (인터페이스·이벤트·DTO)
 
-> 관련 이슈: #3, #71, #116 · 최종 수정: 2026-09-17
+> 관련 이슈: #3, #71, #116, #24 · 최종 수정: 2026-09-17
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -19,7 +19,9 @@ ARCHITECTURE.md 2절과 3절에 명시된 시그니처를 정본으로 코드로
 | 메시징 라이브러리 도입 (UniRx, MessagePipe) | ❌ | 외부 패키지 의존성 증가 위험 및 C# 기본 이벤트로 충분히 해결 가능 |
 | 업그레이드 실효값을 `IUpgradeStats`·`IUpgradeShop`·`IUpgradePersistence` 3개로 분리 (#116) | ✅ | PATTERNS.md 5절 인터페이스 분리 원칙과 #71 선례(`IEconomyService` → `IRunScoped`/`IWalletPersistence` 분리)를 따라, 조회·구매·저장을 역할별로 나눠 소비처마다 필요한 것만 의존하게 함 |
 | 업그레이드 실효값·구매를 `IEconomyService` 안에 그대로 포함 (#116) | ❌ | 소비처(스탯 조회)와 상점(구매)의 변경 주기가 다르고 `IEconomyService`가 이미 커서 계약이 비대해짐 |
-| `GetStat(StatId)` 단일 오버로드만 제공 (#116) | ❌ | `StatId.SpawnCount`는 기준값이 `StageDef.SpawnCount`처럼 현재 스테이지에 따라 달라져 매니저가 자체적으로 기준값을 조회할 방법이 없음 — 호출측이 기준값을 넘기는 `GetStat(StatId, float baseValue)` 오버로드를 추가해 해결 |
+| `GetStat(StatId, float baseValue)` 하나만 제공 (기준값 없는 편의 오버로드는 안 둠) (#116) | ✅ | `StatId.SpawnCount`는 `StageDef.SpawnCount`처럼 단계별 값이라 매니저가 자체적으로 기준값을 못 찾는다. 호출측이 어차피 기준값을 들고 있어 이 방식이면 BalanceData 기준값 표를 코드에 복제할 필요가 없다. #24(twins6375-art) 구현 중 같은 결론에 도달해 #116에 코멘트로 남겼고, `UpgradeState`도 이 형태로 이미 구현·검증돼 있었다 |
+| `GetStat(StatId)` 편의 오버로드를 추가로 제공 (내부에서 기준값 조회) | ❌ | 기준값 표를 `EconomyManager` 안에 `GetBaseValue` 스위치문으로 복제해야 해 BALANCE.md와 코드 두 곳을 맞춰야 한다. `UpgradeState`가 이미 기준값-인자 방식으로 구현·Edit Mode 22건 검증까지 끝나 있어 굳이 편의 오버로드로 되짚을 이유가 없다 |
+| `EconomyManager` 안에 업그레이드 계산(레벨·비용·실효값)을 직접 구현 | ❌ | Edit Mode는 MonoBehaviour 생명주기를 부르지 않아 그 안에 계산을 두면 검증할 수 없다 (`CoinWallet`·`StaminaPool`·`FeverGauge`와 같은 이유). 처음엔 `_upgradeLevels` 배열로 직접 구현했으나, `Develop`에 이미 병합된 #24의 `UpgradeState`(Unity 비의존 순수 클래스, 테스트 22건 PASS)와 리베이스 중 충돌해 발견 — 중복 구현을 버리고 `UpgradeState`에 위임하는 쪽으로 정리했다 |
 | `OnUpgradePurchased` 등 구매 이벤트 신규 추가 (#116) | ❌ | 이슈 #116 요청 범위 밖(소비처 마이그레이션은 후속 이슈) — 실제로 구독자가 필요해지면 그때 계약에 추가 |
 
 ## 구조
@@ -31,7 +33,7 @@ flowchart LR
   end
 
   subgraph Economy["경제 및 청구서"]
-    EconService["IEconomyService 구현체<br/>코인 계산 및 지출<br/>IUpgradeStats·IUpgradeShop·IUpgradePersistence 겸함 (#116)"]
+    EconService["IEconomyService 구현체<br/>코인 계산 및 지출<br/>IUpgradeStats·IUpgradeShop·IUpgradePersistence 겸함 (#116)<br/>업그레이드 계산은 UpgradeState(#24)에 위임"]
     BillService["IBillService 구현체<br/>청구서 및 대출 관리"]
   end
 
@@ -64,6 +66,7 @@ flowchart LR
 | `IUpgradeStats` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 업그레이드 실효값 조회(`GetStat`). 소비처는 `BalanceData` 기준값 대신 이것을 읽는다. `EconomyManager` 구현 (이슈 #116) |
 | `IUpgradeShop` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 업그레이드 레벨·다음 비용 조회, 구매(`TryPurchase`). 메뉴·결과 화면(작업 6.8)이 쓸 예정. `EconomyManager` 구현 (이슈 #116) |
 | `IUpgradePersistence` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 업그레이드 레벨 저장 복원. SaveManager 전용으로 설계했으나 현재 미배선 (이슈 #116) |
+| `UpgradeState` | `Assets/Scripts/Runtime/Economy/UpgradeState.cs` | 업그레이드 레벨·다음 비용·실효값 실제 계산 (Unity 비의존 순수 클래스). `EconomyManager`가 `IUpgradeStats`/`IUpgradeShop`/`IUpgradePersistence` 구현에서 그대로 위임한다 (이슈 #24, twins6375-art, Edit Mode 22건 PASS) |
 | `ISaveService` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | 저장 및 불러오기 인터페이스 |
 | `GameEvents` | `Assets/Scripts/Runtime/Events/GameEvents.cs` | 16종 정적 이벤트 및 Publish 메서드, ResetAll 제공 |
 | `ContractsValidationChecks` | `Assets/Scripts/Editor/ContractsValidationChecks.cs` | 계약 정합성 배치 검증(이벤트 Publish·ResetAll, DTO 구조, IRunScoped 구현 및 GameManager 런 라이프사이클 배선). 에디터 전용, `MenuItem` 없이 `RunBatch()` 를 외부에서 호출한다 |
@@ -93,7 +96,7 @@ flowchart LR
 
 공용 계약 자체는 수치를 직접 파싱하지 않으며, 각 인터페이스 구현 매니저가 BalanceData 에셋을 주입받거나 참조하여 소비합니다.
 
-`IUpgradeStats` 구현(`EconomyManager.GetBaseValue`)은 `StatId` 별로 `economy.csv`·`stamina.csv`(Max)·`fever.csv`(DurationSec, CoinMultiplier) 등 기존 설정 열을 기준값으로 삼고, `StatId.SpawnCount`만은 `StageDef.SpawnCount`(스테이지별 값)라 호출측이 넘기는 `baseValue` 오버로드로만 조회합니다. 실효값 가산치(percentSum·addSum)는 `upgrade_effects.csv`의 업그레이드별 효과 열을 누적한 값이며, 비용은 `UpgradeDef.InitCost`·`CostGrowth`(0 이하면 `EconomyConfig.UpgradeCostGrowth`)를 사용합니다 (BALANCE.md 6절 공식 그대로).
+`IUpgradeStats.GetStat`은 기준값을 인자로만 받습니다 — `economy.csv`·`stamina.csv`·`fever.csv`·`stages.csv`에 흩어진 BalanceData 기준값 표를 계약 코드 안에 복제하지 않고, 이미 그 값을 들고 있는 호출측(소비처)이 그대로 넘깁니다. 실효값 가산치(percent·add 누적)는 `upgrade_effects.csv`, 비용은 `upgrades.csv`의 `init_cost`·`cost_growth`(0 이하면 `economy.csv`의 `upgrade_cost_growth`)를 쓰며, 계산 자체는 전부 `UpgradeState`(이슈 #24)가 담당합니다 — 계산 근거와 검증 상세는 [upgrades.md](upgrades.md)를 봅니다 (여기서 옮겨 적지 않습니다).
 
 ## 검증
 
@@ -102,8 +105,9 @@ flowchart LR
 * [x] convention.checker 기준 9대 규칙 전수 검증 통과 (직접 참조 없음, 네이밍 규칙 준수, public 필드 직렬화 예외 준수)
 * [x] `GameEvents.ResetAll()` 정적 구독 초기화 구현 확인
 * [x] `ContractsValidationChecks.RunBatch()` IRunScoped 및 GameManager 런 라이프사이클 배선 검증 통과
-* [x] #116: convention-checker 9대 규칙 기준 전수 점검 통과 (위반 없음 — 이 세션에서는 동일 스펙을 그대로 넘긴 서브에이전트로 대체 실행)
-* [ ] #116: 신규 코드(`IUpgradeStats`·`IUpgradeShop`·`IUpgradePersistence`, `EconomyManager` 구현분) Unity 빌드·Play Mode 확인 — 미검증 (이 세션에서 Unity 에디터에 접근하지 못함)
+* [x] #116: (병합 전 초판) convention-checker 9대 규칙 기준 전수 점검 통과 (위반 없음 — 이 세션에서는 동일 스펙을 그대로 넘긴 서브에이전트로 대체 실행)
+* [ ] #116: `UpgradeState`(#24) 위임으로 정리한 **최종 코드는 convention-checker 재점검 안 함** — `Develop` 리베이스 충돌 해소 직후라 미검증
+* [ ] #116: 신규 코드(`IUpgradeStats`·`IUpgradeShop`·`IUpgradePersistence`, `EconomyManager` 구현분) Unity 빌드·Play Mode 확인 — 미검증 (이 세션에서 Unity 에디터에 접근하지 못함). `UpgradeState` 자체의 계산 로직은 `UpgradeChecks` 22건 PASS로 이미 검증돼 있다 (upgrades.md)
 
 ## 알려진 한계
 
@@ -111,6 +115,8 @@ flowchart LR
 * ~~`ActiveBill`·`ActiveLoan` 등 null 허용 참조 필드가 `JsonUtility`로 왕복 직렬화되는지는 문서로만 확정~~ — 이슈 #25에서 실제로 확인한 결과 **문서 서술이 틀렸다.** `JsonUtility`는 참조 타입의 null을 표현하지 못한다. `SaveData`에 `HasActiveBill`·`HasActiveLoan` 플래그를 추가하고 `SaveManager`가 변환하는 방식으로 수정했다 (이슈 #76, ARCHITECTURE.md "직렬화 방식" 참고).
 * #116: 소비처(스탯 표시 UI, 상점 메뉴, 결과 화면 등)를 `BalanceData` 직접 참조에서 `IUpgradeStats`·`IUpgradeShop`로 옮기는 마이그레이션은 이번 작업 범위 밖이다 — 이슈 자체가 계약 동결까지만 요구했다. 후속 이슈에서 실제 배선이 필요하다.
 * #116: `IUpgradePersistence`는 계약과 `EconomyManager` 구현만 있고 `SaveManager`는 아직 `RestoreUpgradeLevels`/`CurrentUpgradeLevels`를 호출하지 않는다. `SaveData.UpgradeLevels` 필드는 이미 존재하나 어디서도 읽거나 쓰지 않는 미사용 상태다.
+* #116/#24: `EconomyManager`는 원래 업그레이드 레벨 배열(`_upgradeLevels`)과 기준값 스위치(`GetBaseValue`)를 직접 들고 있었으나, `Develop`에 먼저 병합된 #24(`UpgradeState`, PR #120)와 겹치는 것을 리베이스 충돌로 뒤늦게 발견했다. 직접 구현을 버리고 `UpgradeState`에 위임하도록 정리했고, `IUpgradeStats`도 애초 계획했던 `GetStat(StatId)` 편의 오버로드를 빼고 `GetStat(StatId, baseValue)` 하나로 좁혔다 — #24 PR의 "자신 없는 곳"에 적힌 대로 `EconomyManager`의 임시 public API(`GetUpgradeLevel` 등 7개)는 이 정리로 제거했다.
+* #116/#24: 구매 효과가 "다음 런부터"인지 "즉시"인지는 계약으로 못 박지 않고 소비처 재량으로 남아 있다 (twins6375-art가 #116 코멘트에서 제기한 질문, 아직 결론 없음). `max_stamina`처럼 `BeginRun()` 때 한 번 읽는 소비처는 자연히 "다음 런"이 되지만, 런 도중 계속 읽는 값은 "즉시 반영"이 되기 쉽다.
 
 ## 갱신 이력
 
@@ -123,3 +129,4 @@ flowchart LR
 | 2026-09-17 | #71 | yahoo-afk | `IEconomyService` 의 계약 외 public API 4개(`BeginRun`·`RestoreWallet`·`CurrentRemainderText`·`SetBillService`)를 `IRunScoped`·`IWalletPersistence` 로 분리 동결. `SetBillService` 는 계약이 아닌 조립(wiring) 통로로 남김 |
 | 2026-09-17 | #111 | saltlake00 | `IRunScoped` 계약에 `EndRun()` 추가, StaminaManager 상속 및 EconomyManager 구현 편입, ContractsValidationChecks 검증 추가 |
 | 2026-09-17 | #116 | yahoo-afk | `IUpgradeStats`·`IUpgradeShop`·`IUpgradePersistence` 3개 인터페이스 신설, `EconomyManager` 구현 편입(`GetStat`/`GetStat(StatId, baseValue)`/`GetNextCost`/`TryPurchase`/`RestoreUpgradeLevels`/`CurrentUpgradeLevels`). 소비처 마이그레이션과 SaveManager 배선은 범위 밖으로 남김 |
+| 2026-09-17 | #116, #24 | yahoo-afk | `Develop` 리베이스 중 #24(twins6375-art, PR #120)가 먼저 병합한 `UpgradeState`와 충돌 발견. `IUpgradeStats`를 `GetStat(StatId, baseValue)` 하나로 좁히고(편의 오버로드 제거), `EconomyManager`의 업그레이드 계산 직접 구현(`_upgradeLevels`, `GetBaseValue`)을 버리고 `UpgradeState` 위임으로 교체. `EconomyManager`의 임시 public API(`GetUpgradeLevel`·`IsUpgradeMaxLevel`·`TryGetUpgradeCost`·`TryPurchaseUpgrade`·`GetUpgradedStat`, 중복 `CurrentUpgradeLevels`/`RestoreUpgradeLevels`) 제거 |
