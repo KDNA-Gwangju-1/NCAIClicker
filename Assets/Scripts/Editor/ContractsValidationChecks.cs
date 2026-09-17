@@ -43,10 +43,14 @@ namespace NCAIClicker.EditorTools
                 throw new InvalidOperationException("OnTargetBroken event failed");
             }
 
-            GameEvents.ResetAll();
             var coinAfterReset = 0L;
+            var brokenAfterReset = false;
+            GameEvents.OnCoinEarned += val => coinAfterReset = val;
+            GameEvents.OnTargetBroken += _ => brokenAfterReset = true;
+            GameEvents.ResetAll();
             GameEvents.PublishCoinEarned(999L);
-            if (coinAfterReset != 0L)
+            GameEvents.PublishTargetBroken(testBreak);
+            if (coinAfterReset != 0L || brokenAfterReset)
             {
                 throw new InvalidOperationException("ResetAll failed to clear delegates");
             }
