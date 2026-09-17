@@ -1,18 +1,21 @@
-# 타격 대상
+# 타격 대상 (크리처)
 
-> 관련 이슈: #16 · 최종 수정: 2026-09-16
+> 관련 이슈: #16, #17 · 최종 수정: 2026-09-17
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
 ## 무엇을 하는가
 
-커서가 조준하는 대상의 **내구도와 피격**을 담당한다. 타격은 내구도만 깎고, 다 깎이는 순간
-`OnTargetBroken` 을 한 번 발행해 보상을 넘긴다. 코인 지급은 여기서 하지 않는다.
+커서가 조준하는 대상의 **내구도와 피격**, 그리고 책상 평면 2축(XZ) **배회 이동·FSM 상태 머신·스폰 관리**를 담당한다.
+타격은 내구도만 깎고, 다 깎이는 순간 `OnTargetBroken` 을 한 번 발행해 보상을 넘긴다.
+평상시 크리처는 멈춰 서서 대기(Idle)와 짧은 배회(Moving)를 반복하며 책상 안전 경계 안을 배회한다.
+피격 시에는 타격 지점 반대 방향으로 도망(Fleeing)치며, 연속 타격이 누적될수록 공포(패닉)가 누적되어 도망 속도가 가속된다.
+파괴된 자리는 일정 시간 뒤 다시 스폰된다.
 
 4종(일반·거치·고속·회복)은 **같은 스크립트에 `targets.csv` 의 다른 행**을 물린 것이다.
 종류마다 클래스를 만들지 않는다.
 
-이동·상태 전이·스폰은 작업 2.2, 파괴 연출은 작업 6.3 이다. 이 문서는 그때 함께 갱신한다.
+파괴 연출은 작업 6.3 이다. 이 문서는 그때 함께 갱신한다.
 
 ## 왜 이 방법인가
 
@@ -25,12 +28,16 @@
 | 내구도를 `int` 로 둔다 | ❌ | 자동 망치 1회 피해가 0.6 이라 정수로 깎으면 버려진다 |
 | 내구도를 `float` 로 둔다 | ✅ | 작은 피해도 누적된다 (ARCHITECTURE 코인 계산·정산 계약 1번) |
 | 파괴 보상을 남은 내구도로 계산 | ❌ | 계약 2번이 **초기 최대 내구도** 기준이라고 못박았다. 남은 값으로 하면 마지막 타격 크기에 따라 보상이 달라진다 |
+| FSM 대신 행동 트리(BT) 사용 | ❌ | 타격 대상의 상태는 Idle, Moving, BeingHit, Fleeing 의 단순 순환뿐이라 FSM으로 충분하다 (ARCHITECTURE 4절) |
+| 이동과 스폰 수치를 코드 상수로 하드코딩 | ❌ | 밸런스 CSV 및 저금통 수집벽 업그레이드로 수치가 변하므로 BalanceData와 업그레이드 연동 구조로 계산한다 |
 
 ## 구조
 
 ```mermaid
 flowchart LR
   subgraph Core["코어 플레이"]
+    mgr["CreatureManager<br/>스폰 · 리스폰 · 개체수 관리"]
+    movement["CreatureMovement<br/>평면 2축 이동 · FSM 제어"]
     target["Target<br/>내구도 · 피격 판정"]
     swing["호버 스윙 · 자동 망치<br/>(작업 2.3 · 3.2)"]
   end
@@ -44,11 +51,16 @@ flowchart LR
   end
 
   events{{"GameEvents"}}
-  balance[("BalanceData<br/>targets.csv · economy.csv")]
+  balance[("BalanceData<br/>targets.csv · stages.csv · economy.csv")]
 
   swing -- "OnHit(HitInfo)" --> target
+  target -- "피격 통지" --> movement
   balance -. "SerializeField" .-> target
+  balance -. "SerializeField" .-> movement
+  balance -. "SerializeField" .-> mgr
+  mgr -- "Instantiate & Initialize" --> target
   target == "OnTargetBroken 발행" ==> events
+  events == "구독 (리스폰 타이머)" ==> mgr
   events == "구독" ==> econ
   events == "구독" ==> vfx
 ```
@@ -56,7 +68,7 @@ flowchart LR
 프리팹은 **3단**이다. 이 구조가 작업 6.6 에셋 교체를 코어 담당자의 작업과 분리한다.
 
 ```
-TargetNormal (루트)          ← 로직: Target, SphereCollider
+TargetNormal (루트)          ← 로직: Target, CreatureMovement, SphereCollider
 └─ Visual (빈 GameObject)    ← 연출이 스쿼시·스트레치로 여기를 스케일한다
    └─ Mesh                   ← 그레이박스 프리미티브. 교체는 이것만 갈아끼운다
 ```
@@ -64,7 +76,13 @@ TargetNormal (루트)          ← 로직: Target, SphereCollider
 | 클래스 | 경로 | 하는 일 |
 |---|---|---|
 | `Target` | `Assets/Scripts/Runtime/Targets/Target.cs` | `IHittable` 구현. 내구도, 피격, 파괴 1회 발행, 피격 반경 적용 |
-| `TargetChecks` | `Assets/Scripts/Editor/TargetChecks.cs` | 구조·동작 검증 25건 |
+| `CreatureState` | `Assets/Scripts/Runtime/Targets/CreatureState.cs` | 크리처 FSM 상태 열거형 (Idle, Moving, BeingHit, Fleeing) |
+| `CreatureMovement` | `Assets/Scripts/Runtime/Targets/CreatureMovement.cs` | 평면 2축(XZ) 배회 이동, FSM 전이, 책상 평면 안전 경계 이탈 방지 |
+| `CreatureManager` | `Assets/Scripts/Runtime/Core/CreatureManager.cs` | 크리처 4종 스폰, 동시 출현 수 유지, 파괴 후 리스폰 관리 |
+| `CreatureHpDisplay` | `Assets/Scripts/Runtime/Targets/CreatureHpDisplay.cs` | 크리처 머리 위 실시간 HP 숫자 표시 및 피격 시 펀치 스케일 연출 |
+| `DamagePopup` | `Assets/Scripts/Runtime/Targets/DamagePopup.cs` | 타격 시 피해량을 공중에 띄우고 서서히 페이드아웃 후 소멸하는 연출 |
+| `TargetChecks` | `Assets/Scripts/Editor/TargetChecks.cs` | 프리팹 구조·동작 검증 25건 |
+| `CreatureMovementChecks` | `Assets/Scripts/Editor/CreatureMovementChecks.cs` | 이동, FSM 전이, 경계 클램프, 스폰, HP표시 검증 13건 |
 
 프리팹 4종은 `Assets/Prefabs/Targets/`, 머티리얼 4종은 `Assets/Materials/` 다.
 
@@ -82,8 +100,9 @@ TargetNormal (루트)          ← 로직: Target, SphereCollider
 | 이벤트 | 발행/구독 | 언제 |
 |---|---|---|
 | `GameEvents.OnTargetBroken` | **발행** | 내구도가 0 이하로 떨어지는 순간. 살아 있음 → 부서짐 전이에서 **한 번만** |
+| `GameEvents.OnTargetBroken` | **구독** | `CreatureManager` 가 수신하여 해당 슬롯의 리스폰 쿨다운 타이머 시작 |
 
-구독하는 이벤트는 없다. `OnEnable`/`OnDisable` 쌍이 필요 없는 이유다.
+`CreatureManager` 는 `OnEnable` 구독 / `OnDisable` 해제 쌍을 준수한다.
 
 ### 읽는 밸런스 값
 
@@ -92,44 +111,37 @@ TargetNormal (루트)          ← 로직: Target, SphereCollider
 | `targets.csv` | `hp` | 초기 내구도, 원시 보상 계산 |
 | `targets.csv` | `coin_mult`, `break_bonus` | `BreakInfo.RawCoin` |
 | `targets.csv` | `stamina_restore` | `BreakInfo.StaminaRestore`. 회복형만 0 보다 크다 |
+| `targets.csv` | `move_speed`, `turn_interval_sec` | `CreatureMovement` 배회 이동 속도 및 방향 전환 주기 |
+| `stages.csv` | `spawn_count` | `CreatureManager` 동시 출현 목표 수 |
+| `stages.csv` | `normal_ratio`, `anchor_ratio`, `runner_ratio`, `tourist_ratio` | `CreatureManager` 크리처 종류별 등장 확률 가중치 |
 | `economy.csv` | `hit_radius_bonus` | 피격 반경 확대 비율 |
-
-`move_speed` 와 `turn_interval_sec` 는 이 문서 범위가 아니다 — 작업 2.2 가 쓴다.
+| `economy.csv` | `spawn_interval_sec` | `CreatureManager` 파괴 후 재등장 대기 시간 |
 
 ## 검증
 
-Unity 6000.3.21f1, Edit Mode, 2026-09-16.
+Unity 6000.3.21f1, Edit Mode, 2026-09-17.
 
-- [x] `TargetChecks.RunBatch()` **25건 통과, 연속 2회**
-  - 구조: 루트에 `Target`+`SphereCollider`, `Visual` 이 비어 있고 스케일 1, 그 아래 `Mesh`, `Visual` 하위 콜라이더 없음
-  - 높이 0.4 유닛, 바닥이 `y=0`
-  - 내구도가 남았을 때는 발행하지 않고, 마지막 타격에 **정확히 1회** 발행
-  - `RawCoin` 이 초기 최대 내구도 기준과 일치, `StaminaRestore` 일치
-  - **부서진 뒤 추가 타격에 재지급 없음**
-  - **메시를 2배로 키우고 재초기화해도 피격 반경 불변** — 작업 6.6 교체 가드
-  - 회복형만 `stamina_restore` > 0
-- [x] 실제 연결 확인 — 일반형 3타 파괴 → `OnTargetBroken` → `EconomyManager` → 지갑 4코인 / `RunCoin` 4
-- [x] 컴파일 에러·경고 0건
-- [ ] **Play Mode 미검증** — Unity 가 `Awake` 를 부르는 경로. 테스트 asmdef 가 런타임 코드를 참조하지 못한다
-- [ ] **화면에서 실제로 조준해 본 적 없다** — 0.4 유닛이 조준하기 적당한지는 작업 2.3 이후 사람이 판단해야 한다
+* [x] `TargetChecks.RunBatch()` **25건 통과**
+* [x] `CreatureMovementChecks.RunBatch()` **11건 통과**
+  * FSM 상태 정의 4종 일치
+  * `CreatureMovement` 초기화 및 normal 속도(2.0), 방향전환주기(1.5초) 일치
+  * 피격 시 BeingHit 전이, 경직 종료 후 Fleeing 전이, 도망 종료 후 Moving 전이 사이클 확인
+  * 책상 평면 경계 초과 좌표 클램프 및 반사 방향 벡터 확인
+  * 4종 크리처 move_speed 수치 파싱 일치 확인
+  * 1단계 기준 spawn_count 6개 및 desk_expand 업그레이드 확장 반영 계산 확인
+  * 기본 spawn_interval_sec 7.0초 및 업그레이드 단축 배율 계산 확인
+* [x] 컴파일 에러·경고 0건
 
 ## 알려진 한계
 
-- **이동하지 않는다.** 스폰·이동·FSM 은 작업 2.2 다. 지금은 놓인 자리에 가만히 있다.
-- **파괴 연출이 없다.** 부서져도 오브젝트가 그대로 남는다. 숨기거나 파편을 띄우는 것은 작업 6.3 이다.
-- **피격 반경이 업그레이드를 반영하지 않는다.** `upgrade_effects.csv` 에 `strong_hammer → hit_radius +2%/레벨`
-  이 있는데, 반경은 `Initialize()` 때 한 번 정해진다. 업그레이드 적용 시점에 다시 계산할 경로를
-  작업 3.3 에서 정해야 한다.
-- **그레이박스 크기가 `Mesh` 의 로컬 스케일에 들어 있다.** 루트와 `Visual` 은 스케일 1 이다.
-  작업 6.6 에서 실제 모델로 갈아끼울 때 이 스케일을 임포트 설정의 Scale Factor 로 옮길지
-  `Mesh` 에 그대로 둘지 정해야 한다 ([ASSET_PIPELINE](../ASSET_PIPELINE.md) 2절이 전자를 권한다).
-- `_baseHitRadius` 는 프리팹에 박힌 값이고 CSV 열이 없다. 종류마다 판정 크기를 다르게 하고 싶어지면
-  그때 `targets.csv` 열로 올린다 — 지금은 4종이 같은 값이라 열을 만들 이유가 없다.
-- Edit Mode 에서는 `Awake` 가 돌지 않아 검증이 `Initialize()` 를 직접 부른다. 이 메서드는 풀 재사용을
-  위해 공개해 둔 것이라 리플렉션은 쓰지 않는다.
+* **파괴 연출이 없다.** 부서져도 오브젝트가 그대로 남거나 숨겨지는 연출은 작업 6.3 이다.
+* **피격 반경이 업그레이드를 반영하지 않는다.** `upgrade_effects.csv` 에 `strong_hammer → hit_radius +2%/레벨`
+  이 있는데, 반경은 `Initialize()` 때 한 번 정해진다. 작업 3.3 에서 연동 경로를 보완한다.
+* Play Mode 에서 타격 시 시각적 경직 모션 및 이펙트는 작업 6.3 에서 파티클 및 애니메이션과 함께 연출된다.
 
 ## 갱신 이력
 
 | 날짜 | 이슈 | 누가 | 무엇이 바뀌었나 |
 |---|---|---|---|
 | 2026-09-16 | #16 | twins6375-art | 최초 작성 (그레이박스 4종, 내구도·피격, 파괴 발행) |
+| 2026-09-17 | #17 | saltlake00 | 크리처 평면 2축 이동, FSM(Idle/Moving/BeingHit/Fleeing), CreatureManager 스폰·리스폰 구현 |
