@@ -37,8 +37,8 @@ namespace NCAIClicker.Core
         private int _currentStageNumber = 1;
 
         /// <summary>
-        /// 업그레이드 실효값 조회 통로 (#116). 이 매니저는 Managers 프리팹에 없어
-        /// GameManager 가 런 시작 때 넣어 준다 (#131). 없으면 CSV 기준값을 그대로 쓴다.
+        /// 업그레이드 실효값 조회 통로 (#116). Managers 프리팹에서 ManagerBootstrap 과
+        /// GameManager 가 넣어 준다 (#131, #140). 없으면 CSV 기준값을 그대로 쓴다.
         /// </summary>
         private IUpgradeStats _upgradeStats;
 
@@ -62,7 +62,7 @@ namespace NCAIClicker.Core
         {
             if (Instance != null && Instance != this)
             {
-                Destroy(gameObject);
+                Destroy(this);
                 return;
             }
             Instance = this;
@@ -141,14 +141,23 @@ namespace NCAIClicker.Core
             }
         }
 
-        private void Start()
-        {
-            InitializeStage(_currentStageNumber);
-        }
-
         private void Update()
         {
             UpdateRespawnTimers(Time.deltaTime);
+        }
+
+        /// <summary>런을 시작한다. GameManager 가 런 시작 직전에 부른다 (IRunScoped, 이슈 #140).</summary>
+        public void BeginRun()
+        {
+            Debug.Log($"[CreatureManager] BeginRun 호출됨 (현재 단계: {_currentStageNumber})");
+            InitializeStage(_currentStageNumber);
+        }
+
+        /// <summary>런을 종료한다. GameManager 가 Result 전이 시 부른다 (IRunScoped, 이슈 #140).</summary>
+        public void EndRun()
+        {
+            Debug.Log("[CreatureManager] EndRun 호출됨 (크리처 정리)");
+            ClearAllCreatures();
         }
 
         /// <summary>
@@ -160,6 +169,7 @@ namespace NCAIClicker.Core
             ClearAllCreatures();
 
             var targetCount = GetRequiredSpawnCount();
+            Debug.Log($"[CreatureManager] {stageNumber}단계 초기화: 크리처 {targetCount}마리 스폰 시작");
             for (var i = 0; i < targetCount; i++)
             {
                 SpawnRandomCreature();
@@ -298,6 +308,7 @@ namespace NCAIClicker.Core
             }
 
             _activeCreatures.Add(instance);
+            Debug.Log($"[CreatureManager] 크리처 스폰 성공: {targetId} at {spawnPos} (현재 {_activeCreatures.Count}마리)");
             return instance;
         }
 

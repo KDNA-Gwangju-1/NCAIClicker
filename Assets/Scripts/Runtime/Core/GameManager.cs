@@ -173,6 +173,10 @@ namespace NCAIClicker.Core
             {
                 return 3;
             }
+            if (typeName.Contains("Creature"))
+            {
+                return 4;
+            }
             return 10;
         }
 
@@ -190,6 +194,7 @@ namespace NCAIClicker.Core
                 return;
             }
 
+            Debug.Log($"[GameManager] NotifyBeginRun 실행 ({_runScopedServices.Length}개 IRunScoped 서비스 활성화)");
             for (int i = 0; i < _runScopedServices.Length; i++)
             {
                 _runScopedServices[i].BeginRun();

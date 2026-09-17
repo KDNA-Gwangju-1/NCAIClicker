@@ -17,6 +17,7 @@ GameObject:
   - component: {fileID: 2531388376023445607}
   - component: {fileID: 5228914001784660330}
   - component: {fileID: 1676715929764144070}
+  - component: {fileID: 290365591482960689}
   - component: {fileID: 5698368792507650637}
   - component: {fileID: 973819007005177771}
   m_Layer: 0
@@ -145,6 +146,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NCAIClicker.Economy.AutoHammerController
   _balanceData: {fileID: 11400000, guid: 148d52a305feece4e9ed4cb51a933689, type: 2}
+--- !u!114 &290365591482960689
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3648626491330066443}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2cca7581ca902bf40bade8fae7a310e7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NCAIClicker.Core.CreatureManager
+  _balanceData: {fileID: 11400000, guid: 148d52a305feece4e9ed4cb51a933689, type: 2}
+  _targetNormalPrefab: {fileID: 4546548138084177262, guid: 97f92a5f98a67c743a32a484234b7048, type: 3}
+  _targetAnchorPrefab: {fileID: 7893189225021298616, guid: 0cb329d029ddcbf40996830aecd3bcfe, type: 3}
+  _targetRunnerPrefab: {fileID: 875064334984069561, guid: d64d25f50930aca47af313f9fc4057f6, type: 3}
+  _targetTouristPrefab: {fileID: 7395411435693180892, guid: 00144c806ceb7f44fab552c551c2a687, type: 3}
+  _deskBounds:
+    m_Center: {x: 0, y: 0, z: 2}
+    m_Extent: {x: 2.4, y: 0.5, z: 2.4}
 --- !u!82 &5698368792507650637
 AudioSource:
   m_ObjectHideFlags: 0
