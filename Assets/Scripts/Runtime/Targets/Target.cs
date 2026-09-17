@@ -39,6 +39,13 @@ namespace NCAIClicker.Targets
         /// 없으면 CSV 기준값을 그대로 쓴다 — 씬에 손으로 놓은 대상도 그대로 동작해야 한다 (#131).
         /// </summary>
         private IUpgradeStats _upgradeStats;
+
+        /// <summary>
+        /// 피격 판정 확대 퍼크가 더하는 비율(percent). 스폰하는 쪽이 넣어 준다 (#126).
+        /// 이 컴포넌트가 OnPerkChosen 을 직접 구독하지 않는 이유는 인스턴스가 여럿이기 때문이다 —
+        /// 화면의 크리처 수만큼 구독자가 생기고, 해제를 한 번만 놓쳐도 누수가 된다.
+        /// </summary>
+        private float _perkHitRadiusPercent;
         private float _currentHp;
         private decimal _rawCoin;
         private float _staminaRestore;
@@ -75,6 +82,16 @@ namespace NCAIClicker.Targets
         public void SetUpgradeStats(IUpgradeStats upgradeStats)
         {
             _upgradeStats = upgradeStats;
+        }
+
+        /// <summary>
+        /// 퍼크로 늘어난 판정 반경 비율을 넣는다. 즉시 반경에 반영하므로 이미 살아 있는
+        /// 크리처에도 런 도중 적용할 수 있다 (#126).
+        /// </summary>
+        public void SetPerkHitRadiusPercent(float percent)
+        {
+            _perkHitRadiusPercent = percent;
+            ApplyHitRadius();
         }
 
         /// <summary>
@@ -126,11 +143,17 @@ namespace NCAIClicker.Targets
                 return;
             }
 
+            if (_balanceData == null)
+            {
+                return;
+            }
+
             var basePercent = _balanceData.Economy.HitRadiusBonusPercent;
             var percent = _upgradeStats == null
                 ? basePercent
                 : _upgradeStats.GetStat(StatId.HitRadius, basePercent);
-            _hitCollider.radius = _baseHitRadius * (1f + percent / 100f);
+            // 업그레이드와 퍼크는 같은 stat 을 건드리므로 비율끼리 더한다 (BALANCE 6절 percent 합산과 같은 규칙).
+            _hitCollider.radius = _baseHitRadius * (1f + (percent + _perkHitRadiusPercent) / 100f);
         }
 
         /// <summary>피격을 외부(FSM 등)에 알리는 이벤트.</summary>

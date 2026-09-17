@@ -13,7 +13,7 @@ namespace NCAIClicker.Core
     /// 재등장 대기는 economy.csv 의 spawn_interval_sec 을 기준으로 하며,
     /// 업그레이드(저금통 수집벽)에 의해 동적으로 변할 수 있도록 계산한다.
     /// </summary>
-    public class CreatureManager : MonoBehaviour
+    public class CreatureManager : MonoBehaviour, IRunScoped
     {
         /// <summary>
         /// 재등장 대기의 하한. 밸런스 수치가 아니라 방어값이다 — 단축 업그레이드가 겹쳐
@@ -42,6 +42,15 @@ namespace NCAIClicker.Core
         /// </summary>
         private IUpgradeStats _upgradeStats;
 
+        /// <summary>
+        /// 피격 판정 확대 퍼크가 더하는 비율(percent). 이번 런에서만 산다 (#126).
+        /// Target 인스턴스가 여럿이라 여기서 한 번 받아 스폰 때 넘긴다.
+        /// </summary>
+        private float _perkHitRadiusPercent;
+        private float _pendingPerkHitRadiusPercent;
+
+        private bool _isRunning;
+
         private readonly List<GameObject> _activeCreatures = new List<GameObject>();
         private readonly List<float> _respawnTimers = new List<float>();
 
@@ -62,11 +71,74 @@ namespace NCAIClicker.Core
         private void OnEnable()
         {
             GameEvents.OnTargetBroken += HandleTargetBroken;
+            GameEvents.OnPerkChosen += HandlePerkChosen;
         }
 
         private void OnDisable()
         {
             GameEvents.OnTargetBroken -= HandleTargetBroken;
+            GameEvents.OnPerkChosen -= HandlePerkChosen;
+        }
+
+        /// <summary>
+        /// 런을 시작한다. 예약해 둔 퍼크가 있으면 여기서 켠다 (IRunScoped, #126).
+        /// GameManager 가 씬 구현체를 따로 모아 불러 준다 — 이 매니저는 Managers 프리팹 밖이다.
+        /// </summary>
+        public void BeginRun()
+        {
+            _isRunning = true;
+            ApplyPerkRadius(_pendingPerkHitRadiusPercent);
+            _pendingPerkHitRadiusPercent = 0f;
+        }
+
+        /// <summary>런을 끝낸다. "이번 런" 퍼크는 여기서 사라진다.</summary>
+        public void EndRun()
+        {
+            _isRunning = false;
+            ApplyPerkRadius(0f);
+        }
+
+        /// <summary>
+        /// 피격 판정 확대 퍼크만 받는다. 런 도중이면 즉시, 밖이면 다음 런 시작에 켠다 (GDD 6절).
+        /// </summary>
+        private void HandlePerkChosen(string perkId)
+        {
+            if (_balanceData == null)
+            {
+                return;
+            }
+
+            var perk = _balanceData.GetPerk(perkId);
+            if (perk == null || perk.Type != PerkType.HitRadiusBoost)
+            {
+                return;
+            }
+
+            if (_isRunning)
+            {
+                ApplyPerkRadius(_perkHitRadiusPercent + perk.Value);
+                return;
+            }
+            _pendingPerkHitRadiusPercent += perk.Value;
+        }
+
+        /// <summary>이미 살아 있는 크리처에도 바로 반영한다. 런 도중에 고른 퍼크가 즉시 들어야 한다.</summary>
+        private void ApplyPerkRadius(float percent)
+        {
+            _perkHitRadiusPercent = percent;
+            for (var i = 0; i < _activeCreatures.Count; i++)
+            {
+                var creature = _activeCreatures[i];
+                if (creature == null)
+                {
+                    continue;
+                }
+                var target = creature.GetComponent<Target>();
+                if (target != null)
+                {
+                    target.SetPerkHitRadiusPercent(percent);
+                }
+            }
         }
 
         private void Start()
@@ -207,6 +279,7 @@ namespace NCAIClicker.Core
                 // 판정 반경에 업그레이드를 반영하려면 Initialize 보다 먼저 넣어야 한다.
                 target.SetUpgradeStats(_upgradeStats);
                 target.Initialize();
+                target.SetPerkHitRadiusPercent(_perkHitRadiusPercent);
             }
 
             var movement = instance.GetComponent<CreatureMovement>();

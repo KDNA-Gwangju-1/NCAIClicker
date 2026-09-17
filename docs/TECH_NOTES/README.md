@@ -135,4 +135,5 @@ AI에게 시켜도 제대로 못 고친다.
 - [업그레이드](upgrades.md) — 레벨과 비용 공식, 실효값 계산, 구매의 원자성, 소비처 배선과 "다음 런부터" 보장
 - [저장·불러오기](save-load.md) — SaveManager, JsonUtility 직렬화, 버전 마이그레이션, null 직렬화 우회
 - [런 상태 머신](run-state.md) — GameManager, 씬 로드 기반 MainMenu/Running 전이, 이벤트 기반 Result 전이
+- [퍼크 효과](perks.md) — 고른 퍼크를 각 소유자가 스스로 적용, 즉시/예약 분기, 런 경계를 씬까지 확장
 - [단계 목표 판정](stage-goal.md) — StageGoalManager, 런 순수입과 GoalCoin 비교, 런당 1회 발행

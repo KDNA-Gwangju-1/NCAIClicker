@@ -47,6 +47,18 @@ namespace NCAIClicker.Economy
         /// 배율 0 은 코인을 통째로 없애는 값이라 초기화 누락과 구별되지 않으면 조용히 수입이 사라진다.
         /// </summary>
         private bool _hasCachedMultipliers;
+
+        /// <summary>
+        /// 코인 획득 강화 퍼크의 배율과 남은 시간 (#126). 코인 배율은 EconomyManager 안에서만
+        /// 적용한다는 규칙(AGENTS.md) 때문에 퍼크라도 여기서 곱한다.
+        /// 런 밖에서 고른 퍼크는 _pendingPerkMultiplier 에 예약했다가 다음 런 시작부터 센다 (GDD 6절).
+        /// </summary>
+        private float _perkCoinMultiplier = 1f;
+        private float _perkRemainingSec;
+        private float _pendingPerkMultiplier;
+        private float _pendingPerkDurationSec;
+
+        private bool _isRunning;
         private long _lastPublishedRunCoin;
 
         public long CurrentCoin => _wallet.CurrentCoin;
@@ -74,6 +86,7 @@ namespace NCAIClicker.Economy
             GameEvents.OnTargetBroken += HandleTargetBroken;
             GameEvents.OnFeverStart += HandleFeverStart;
             GameEvents.OnFeverEnd += HandleFeverEnd;
+            GameEvents.OnPerkChosen += HandlePerkChosen;
         }
 
         private void OnDisable()
@@ -81,6 +94,7 @@ namespace NCAIClicker.Economy
             GameEvents.OnTargetBroken -= HandleTargetBroken;
             GameEvents.OnFeverStart -= HandleFeverStart;
             GameEvents.OnFeverEnd -= HandleFeverEnd;
+            GameEvents.OnPerkChosen -= HandlePerkChosen;
         }
 
         /// <summary>BillManager 가 자기 자신을 넘겨 준다. 구현 클래스를 직접 참조하지 않기 위한 통로다.</summary>
@@ -130,7 +144,15 @@ namespace NCAIClicker.Economy
             _wallet.BeginRun();
             CacheUpgradedMultipliers();
             _isFeverActive = false;
+            _isRunning = true;
             _lastPublishedRunCoin = 0L;
+
+            // 결과 화면에서 고른 기간제 퍼크는 여기서부터 시간을 센다 (GDD 6절).
+            _perkCoinMultiplier = _pendingPerkMultiplier > 0f ? _pendingPerkMultiplier : 1f;
+            _perkRemainingSec = _pendingPerkDurationSec;
+            _pendingPerkMultiplier = 0f;
+            _pendingPerkDurationSec = 0f;
+
             GameEvents.PublishRunCoinChanged(0L);
         }
 
@@ -141,6 +163,65 @@ namespace NCAIClicker.Economy
         public void EndRun()
         {
             _isFeverActive = false;
+            _isRunning = false;
+
+            // 런이 끝나면 남은 기간제 퍼크는 버린다. 런 밖에서는 코인이 들어오지 않아
+            // 시간만 흘려 보내면 다음 런에 껍데기만 남는다.
+            _perkCoinMultiplier = 1f;
+            _perkRemainingSec = 0f;
+        }
+
+        private void Update()
+        {
+            Tick(Time.deltaTime);
+        }
+
+        /// <summary>
+        /// 기간제 퍼크의 남은 시간을 흘린다. Update 에서 분리한 이유는 Edit Mode 검증에서
+        /// 경과 시간을 직접 먹여야 하기 때문이다 — Time.deltaTime 은 에디터 프레임에 좌우된다.
+        /// </summary>
+        private void Tick(float deltaSeconds)
+        {
+            if (!_isRunning || _perkRemainingSec <= 0f)
+            {
+                return;
+            }
+
+            _perkRemainingSec -= deltaSeconds;
+            if (_perkRemainingSec > 0f)
+            {
+                return;
+            }
+            _perkRemainingSec = 0f;
+            _perkCoinMultiplier = 1f;
+        }
+
+        /// <summary>
+        /// 코인 획득 강화 퍼크를 받는다. 값과 지속 시간의 출처는 perks.csv 하나다.
+        /// 런 도중이면 즉시 시작하고, 밖이면 다음 런 시작까지 예약한다 (GDD 6절).
+        /// 같은 퍼크를 또 받으면 덮어쓴다 — 중첩 규칙이 정해져 있지 않다 (docs/TECH_NOTES/perks.md).
+        /// </summary>
+        private void HandlePerkChosen(string perkId)
+        {
+            if (_balanceData == null)
+            {
+                return;
+            }
+
+            var perk = _balanceData.GetPerk(perkId);
+            if (perk == null || perk.Type != PerkType.CoinGainBoost || perk.DurationSec <= 0f)
+            {
+                return;
+            }
+
+            if (_isRunning)
+            {
+                _perkCoinMultiplier = perk.Value;
+                _perkRemainingSec = perk.DurationSec;
+                return;
+            }
+            _pendingPerkMultiplier = perk.Value;
+            _pendingPerkDurationSec = perk.DurationSec;
         }
 
         /// <summary>저장 데이터에서 지갑을 되살린다. SaveManager 가 초기화 때 부른다.</summary>
@@ -213,7 +294,10 @@ namespace NCAIClicker.Economy
                 return 1m;
             }
             EnsureCachedMultipliers();
-            return (decimal)_runBonusMultiplier;
+            // 기간제 퍼크는 보너스 배율에 **곱한다** — perks.csv 의 coin_gain_boost 가
+            // "코인 배율에 곱한다"로 연산을 정한다. 업그레이드(coin_bonus_multiplier)는 같은 자리에
+            // 더해지므로 연산이 서로 다르다. economy.csv 의 note 가 그 둘을 구분해 적어 두었다.
+            return (decimal)_runBonusMultiplier * (decimal)_perkCoinMultiplier;
         }
 
         private decimal GetLoanDailyCut()

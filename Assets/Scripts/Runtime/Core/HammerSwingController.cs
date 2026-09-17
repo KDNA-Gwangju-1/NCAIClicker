@@ -14,7 +14,7 @@ namespace NCAIClicker.Core
     /// 마우스 입력은 프로젝트 설정(Active Input Handling = Input System)에 맞춰
     /// 레거시 UnityEngine.Input이 아니라 Input System의 Mouse.current를 쓴다.
     /// </summary>
-    public class HammerSwingController : MonoBehaviour
+    public class HammerSwingController : MonoBehaviour, IRunScoped
     {
         /// <summary>
         /// 한 스윙에서 훑을 콜라이더 수의 상한. 스윙마다 배열을 새로 만들지 않으려고 미리 잡아 둔다.
@@ -45,6 +45,15 @@ namespace NCAIClicker.Core
 
         /// <summary>런 시작에 굳힌 실효 타격력. 업그레이드는 다음 런부터 반영한다 (BALANCE 6절).</summary>
         private float _runHitPower;
+
+        /// <summary>
+        /// 타격력 강화 퍼크가 더하는 비율(percent). 이번 런에서만 산다 (#126).
+        /// 런 밖에서 고른 퍼크는 여기 바로 넣지 않고 _pendingPerkPercent 에 예약한다 — GDD 6절.
+        /// </summary>
+        private float _perkPowerPercent;
+        private float _pendingPerkPowerPercent;
+
+        private bool _isRunning;
 
         /// <summary>가장 최근 스윙에서 계산된 커서의 책상 평면 위 월드 좌표.</summary>
         public Vector3 CursorWorldPosition { get; private set; }
@@ -81,6 +90,63 @@ namespace NCAIClicker.Core
             CacheUpgradedStats();
         }
 
+        // 정적 이벤트는 구독과 해제를 쌍으로 맞춘다 (AGENTS.md).
+        private void OnEnable()
+        {
+            GameEvents.OnPerkChosen += HandlePerkChosen;
+        }
+
+        private void OnDisable()
+        {
+            GameEvents.OnPerkChosen -= HandlePerkChosen;
+        }
+
+        /// <summary>
+        /// 런을 시작한다. 예약해 둔 퍼크가 있으면 여기서 켠다 (IRunScoped, #126).
+        /// GameManager 가 씬 구현체를 따로 모아 불러 준다 — 이 컴포넌트는 Managers 프리팹 밖이다.
+        /// </summary>
+        public void BeginRun()
+        {
+            _isRunning = true;
+            _perkPowerPercent = _pendingPerkPowerPercent;
+            _pendingPerkPowerPercent = 0f;
+            CacheUpgradedStats();
+        }
+
+        /// <summary>런을 끝낸다. "이번 런" 퍼크는 여기서 사라진다 (perks.csv 의 duration_sec 0).</summary>
+        public void EndRun()
+        {
+            _isRunning = false;
+            _perkPowerPercent = 0f;
+            CacheUpgradedStats();
+        }
+
+        /// <summary>
+        /// 타격력 강화 퍼크만 받는다. 런 도중이면 즉시, 밖이면 다음 런 시작에 켠다 (GDD 6절).
+        /// 값의 출처는 perks.csv 하나이며 여기서 수치를 만들지 않는다.
+        /// </summary>
+        private void HandlePerkChosen(string perkId)
+        {
+            if (_balanceData == null)
+            {
+                return;
+            }
+
+            var perk = _balanceData.GetPerk(perkId);
+            if (perk == null || perk.Type != PerkType.HitPowerBoost)
+            {
+                return;
+            }
+
+            if (_isRunning)
+            {
+                _perkPowerPercent += perk.Value;
+                CacheUpgradedStats();
+                return;
+            }
+            _pendingPerkPowerPercent += perk.Value;
+        }
+
         /// <summary>
         /// 업그레이드 실효값 조회 통로를 넣고 값을 굳힌다. 서비스 계약이 아니라 조립(wiring) 통로다
         /// (ARCHITECTURE "SetBillService" 문단). GameManager 가 Running 전이에서 부른다.
@@ -98,9 +164,12 @@ namespace NCAIClicker.Core
                 return;
             }
             var basePower = _balanceData.Economy.BaseHitPower;
-            _runHitPower = _upgradeStats == null
+            var upgraded = _upgradeStats == null
                 ? basePower
                 : _upgradeStats.GetStat(StatId.BaseHitPower, basePower);
+
+            // 퍼크는 업그레이드가 적용된 값 위에 비율로 얹는다 (BALANCE 6절의 percent 와 같은 순서).
+            _runHitPower = upgraded * (1f + _perkPowerPercent / 100f);
         }
 
         private void Update()
