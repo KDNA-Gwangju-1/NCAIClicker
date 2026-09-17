@@ -226,9 +226,9 @@ stat 은 일부뿐이라(`max_stamina`·`fever_gauge_per_hit`·`coin_bonus_multi
 - **`auto_hammer_count` 를 쓰는 곳이 아직 없다.** 자동 망치는 작업 3.2 이며,
   `AutoHammerController.SetBonusCount(int)` 가 옛 push 방식으로 남아 있다. 그 카드에서
   `IUpgradeStats` 로 통일할 것
-- **조준 원 반경은 아직 코드 상수다.** `HammerSwingController.DefaultReticleRadius` 를 CSV 로
-  옮기는 일은 [#132](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/132) 가 들고 있다.
-  `hit_radius`(대상 콜라이더 확대)와는 다른 숫자다
+- **조준 원 반경은 업그레이드를 받지 않는다.** `economy.csv` 의 `reticle_radius` 로 옮겼고
+  ([#132](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/132)), `hit_radius`(대상 콜라이더
+  확대)와는 다른 축이다. 두 축에 같은 업그레이드를 걸면 효과가 두 번 곱해진다 (BALANCE 6절 표)
 
 ## 갱신 이력
 

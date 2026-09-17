@@ -202,7 +202,7 @@ strong_hammer,hit_radius,percent,2,레벨당 피격 판정 반경 +2%
 | stat 이름 | 기준값이 있는 곳 | 의미 |
 |---|---|---|
 | `base_hit_power` | `economy.csv` → `base_hit_power` | 호버 타격 1회 피해량 |
-| `hit_radius` | `economy.csv` → `hit_radius_bonus` | 피격 판정 확대 비율 |
+| `hit_radius` | `economy.csv` → `hit_radius_bonus` | **대상 콜라이더** 확대 비율 (조준 반경이 아니다) |
 | `auto_hammer_count` | `economy.csv` → `auto_hammer_count_init` | 자동 망치 보유 수 |
 | `auto_hammer_power` | `economy.csv` → `auto_hammer_power` | 자동 망치 타격 1회 피해량 |
 | `auto_hammer_hits_per_sec` | `economy.csv` → `auto_hammer_hits_per_sec` | 자동 망치 초당 타격 |
@@ -224,6 +224,17 @@ strong_hammer,hit_radius,percent,2,레벨당 피격 판정 반경 +2%
 > 구매는 메뉴/결과에서만 허용하고 다음 런에 반영한다. 직렬화된 BalanceData 원본을 변경하지 않는다.
 > 단계 목표는 StageDef.GoalCoin이 우선이며 StageGoalGrowth는 새 단계값 산출 근거로만 쓴다.
 > HitRadius 효과의 기준은 콜라이더 원래 반경이 아니라 CSV의 기본 확대 비율이다.
+
+**"타격 범위"를 정하는 값은 두 축이고 서로 곱해지지 않는다.** 하나만 보고 판단하면 실측이 어긋난다.
+
+| 축 | 값 | 무엇을 키우나 | 업그레이드 |
+|---|---|---|---|
+| 조준 반경 | `economy.csv` → `reticle_radius` | 커서 주변에서 대상을 찾는 거리 | **받지 않는다** |
+| 대상 콜라이더 | `economy.csv` → `hit_radius_bonus` + 대상 프리팹의 기준 반경 | 맞는 쪽의 몸집 | `hit_radius` |
+
+조준 반경을 업그레이드 대상으로 삼지 않는 이유는, 같은 "판정이 넓어진다"를 두 축에 걸면
+효과가 두 번 곱해져 7.2 실측에서 어느 쪽이 기여했는지 분리되지 않기 때문이다 (#132).
+반경 자체를 키우고 싶어지면 이 표를 먼저 고치고 구현한다.
 
 ### 이름만 바꾸고 싶을 때
 
