@@ -131,6 +131,7 @@ AI에게 시켜도 제대로 못 고친다.
 - [타격 대상](hit-targets.md) — 그레이박스 4종, 내구도와 피격, 파괴 시 보상 발행
 - [스태미나](stamina.md) — 시간 감소와 회복형 회복, 소진 시 런 종료 요청, 발행 묶기
 - [피버 게이지](fever-gauge.md) — 적중만 누적, 유예 후 감쇠, 발동과 종료, 런당 발동 빈도 조정
+- [업그레이드](upgrades.md) — 레벨과 비용 공식, 효과 적용된 실효값 계산, 구매의 원자성
 - [저장·불러오기](save-load.md) — SaveManager, JsonUtility 직렬화, 버전 마이그레이션, null 직렬화 우회
 - [런 상태 머신](run-state.md) — GameManager, 씬 로드 기반 MainMenu/Running 전이, 이벤트 기반 Result 전이
 - [단계 목표 판정](stage-goal.md) — StageGoalManager, 런 순수입과 GoalCoin 비교, 런당 1회 발행
