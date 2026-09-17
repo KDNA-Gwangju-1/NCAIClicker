@@ -1,6 +1,6 @@
 # 런 상태 머신
 
-> 관련 이슈: #20, #111, #21 · 최종 수정: 2026-09-17
+> 관련 이슈: #20, #111, #21, #142 · 최종 수정: 2026-09-17
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -106,6 +106,7 @@ Unity MCP 및 에디터 검증 배치로 확인했다.
 ## 알려진 한계
 
 - `RunState`를 다른 모듈이 읽으려면 지금은 `GameManager.Instance`(구체 클래스) 직접 참조뿐이다. 실제 소비자(예: HUD, 결과 화면)가 생기면 "다른 매니저 구현 클래스 직접 참조 금지" 규칙과 부딪히므로, 그때 이벤트 또는 인터페이스 추가를 공용 계약 변경 이슈로 먼저 발의해야 한다.
+  ~~씬 전환 API(`StartRun()` 류)도 같은 문제가 될 것이다~~ — 이슈 #142에서 실제로 그렇게 됐다. 6.7 메인 메뉴(#90)가 `GameManager.Instance`를 구체 클래스로 직접 참조하자 convention-checker가 규칙 위반을 지적했고, `IGameFlowService`(`StartNewRun`/`ContinueRun`/`QuitGame`)를 발의해 `Instance`를 그 인터페이스 타입으로 노출하도록 고쳤다 (상세는 [main-menu.md](main-menu.md), 계약은 [contracts.md](contracts.md)). `CurrentState` 조회는 여전히 소비자가 없어 이 한계가 남아 있다.
 - ~~`EconomyManager.BeginRun()`/`RestoreWallet()` 호출을 GameManager가 아직 연결하지 않았다.~~ — 이슈 #111에서 `IRunScoped` 인터페이스를 확장하고, `GameManager`가 `IRunScoped` 컴포넌트들을 취득해 `BeginRun()`과 `EndRun()`을 일괄 호출하도록 배선 완료.
 - 청구서 마감·납부·대출·파산 판정 등 "하루 종료 순서"(ARCHITECTURE.md 2절) 전체 오케스트레이션은 구현하지 않았다. 이번 이슈는 `Result` 전이 및 매니저 런 라이프사이클 종료만 담당하며, 나머지는 4.x 이슈들 몫이다.
 
@@ -116,3 +117,4 @@ Unity MCP 및 에디터 검증 배치로 확인했다.
 | 2026-09-17 | #20 | Claude | 최초 작성 — `GameManager`/`RunState` 구현, 씬 로드 기반 전이 + `OnStaminaDepleted`/`OnBankrupt` 기반 `Result` 전이 |
 | 2026-09-17 | #111 | saltlake00 | `IRunScoped` 기반 `BeginRun()`/`EndRun()` 매니저 배선 추가, 초기화 순서 준수(Economy -> Stamina -> Fever) |
 | 2026-09-17 | #21 | Claude | 첫 완주 빌드 검증 — 시작→정산→재도전 반복 실행으로 구독 중복(코인 2배 버그) 없음과 상태·런코인 정상 리셋 확인 |
+| 2026-09-17 | #142 | hunil58 | `GameManager.Instance`를 신규 `IGameFlowService` 인터페이스 타입으로 노출(계약 변경). "알려진 한계"가 예견한 대로 6.7 메인 메뉴(#90)가 실제 소비자가 되면서 구체 클래스 직접 참조 위반을 convention-checker가 발견해 정정 |

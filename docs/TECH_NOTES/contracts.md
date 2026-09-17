@@ -1,6 +1,6 @@
 # 공용 계약 (인터페이스·이벤트·DTO)
 
-> 관련 이슈: #3, #71, #116, #24 · 최종 수정: 2026-09-17
+> 관련 이슈: #3, #71, #116, #24, #139, #142 · 최종 수정: 2026-09-17
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -23,6 +23,8 @@ ARCHITECTURE.md 2절과 3절에 명시된 시그니처를 정본으로 코드로
 | `GetStat(StatId)` 편의 오버로드를 추가로 제공 (내부에서 기준값 조회) | ❌ | 기준값 표를 `EconomyManager` 안에 `GetBaseValue` 스위치문으로 복제해야 해 BALANCE.md와 코드 두 곳을 맞춰야 한다. `UpgradeState`가 이미 기준값-인자 방식으로 구현·Edit Mode 22건 검증까지 끝나 있어 굳이 편의 오버로드로 되짚을 이유가 없다 |
 | `EconomyManager` 안에 업그레이드 계산(레벨·비용·실효값)을 직접 구현 | ❌ | Edit Mode는 MonoBehaviour 생명주기를 부르지 않아 그 안에 계산을 두면 검증할 수 없다 (`CoinWallet`·`StaminaPool`·`FeverGauge`와 같은 이유). 처음엔 `_upgradeLevels` 배열로 직접 구현했으나, `Develop`에 이미 병합된 #24의 `UpgradeState`(Unity 비의존 순수 클래스, 테스트 22건 PASS)와 리베이스 중 충돌해 발견 — 중복 구현을 버리고 `UpgradeState`에 위임하는 쪽으로 정리했다 |
 | `OnUpgradePurchased` 등 구매 이벤트 신규 추가 (#116) | ❌ | 이슈 #116 요청 범위 밖(소비처 마이그레이션은 후속 이슈) — 실제로 구독자가 필요해지면 그때 계약에 추가 |
+| `ISaveService`에 `bool HasSave` 프로퍼티 추가 (#139) | ✅ | 6.7 메인 메뉴(#90)의 "저장 없으면 이어하기 비활성" 요건 때문. `Load()`는 파일이 없어도 항상 기본값 `SaveData`를 반환해 "저장 없음"과 "저장은 있는데 전부 기본값"을 구분 못 한다. `SaveManager`가 유일한 구현체라 additive 변경으로 깨지는 곳이 없다 |
+| `SaveData` 필드값(전부 기본값인지)으로 저장 존재 여부 유추 (#139) | ❌ | "저장은 했지만 우연히 전부 기본값인 상태"와 "저장이 아예 없는 상태"를 구분할 수 없어 신뢰할 수 없다 |
 
 ## 구조
 
@@ -67,7 +69,8 @@ flowchart LR
 | `IUpgradeShop` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 업그레이드 레벨·다음 비용 조회, 구매(`TryPurchase`). 메뉴·결과 화면(작업 6.8)이 쓸 예정. `EconomyManager` 구현 (이슈 #116) |
 | `IUpgradePersistence` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 업그레이드 레벨 저장 복원. SaveManager 전용으로 설계했으나 현재 미배선 (이슈 #116) |
 | `UpgradeState` | `Assets/Scripts/Runtime/Economy/UpgradeState.cs` | 업그레이드 레벨·다음 비용·실효값 실제 계산 (Unity 비의존 순수 클래스). `EconomyManager`가 `IUpgradeStats`/`IUpgradeShop`/`IUpgradePersistence` 구현에서 그대로 위임한다 (이슈 #24, twins6375-art, Edit Mode 22건 PASS) |
-| `ISaveService` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | 저장 및 불러오기 인터페이스 |
+| `ISaveService` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | 저장 및 불러오기 인터페이스. `HasSave`로 저장 파일 존재 여부 조회 (이슈 #139) |
+| `IGameFlowService` | `Assets/Scripts/Runtime/Interfaces/IGameFlowService.cs` | MainMenu 버튼의 씬 전환 요청(`StartNewRun`/`ContinueRun`/`QuitGame`). `GameManager` 구현, `GameManager.Instance`가 이 타입으로 노출 (이슈 #142) |
 | `GameEvents` | `Assets/Scripts/Runtime/Events/GameEvents.cs` | 19종 정적 이벤트 및 Publish 메서드, ResetAll 제공 |
 | `ContractsValidationChecks` | `Assets/Scripts/Editor/ContractsValidationChecks.cs` | 계약 정합성 배치 검증(이벤트 Publish·ResetAll, DTO 구조, IRunScoped 구현 및 GameManager 런 라이프사이클 배선). 에디터 전용, `MenuItem` 없이 `RunBatch()` 를 외부에서 호출한다 |
 
@@ -134,3 +137,5 @@ flowchart LR
 | 2026-09-17 | #116 | yahoo-afk | `IUpgradeStats`·`IUpgradeShop`·`IUpgradePersistence` 3개 인터페이스 신설, `EconomyManager` 구현 편입(`GetStat`/`GetStat(StatId, baseValue)`/`GetNextCost`/`TryPurchase`/`RestoreUpgradeLevels`/`CurrentUpgradeLevels`). 소비처 마이그레이션과 SaveManager 배선은 범위 밖으로 남김 |
 | 2026-09-17 | #116, #24 | yahoo-afk | `Develop` 리베이스 중 #24(twins6375-art, PR #120)가 먼저 병합한 `UpgradeState`와 충돌 발견. `IUpgradeStats`를 `GetStat(StatId, baseValue)` 하나로 좁히고(편의 오버로드 제거), `EconomyManager`의 업그레이드 계산 직접 구현(`_upgradeLevels`, `GetBaseValue`)을 버리고 `UpgradeState` 위임으로 교체. `EconomyManager`의 임시 public API(`GetUpgradeLevel`·`IsUpgradeMaxLevel`·`TryGetUpgradeCost`·`TryPurchaseUpgrade`·`GetUpgradedStat`, 중복 `CurrentUpgradeLevels`/`RestoreUpgradeLevels`) 제거 |
 | 2026-09-17 | #28 | soilrist | 이벤트 표에 누락됐던 `OnStageGoalReached`(#26)와 신규 `OnPerkOffered`·`OnPerkChosen`(#28) 추가, 이벤트 종수 16→19 정정 |
+| 2026-09-17 | #139 | hunil58 | `ISaveService`에 `bool HasSave { get; }` 추가, `SaveManager.HasSave => File.Exists(SavePath)` 구현. 6.7 메인 메뉴(#90) 착수 중 발견해 구현 전 계약 변경 이슈로 먼저 발의·승인 |
+| 2026-09-17 | #142 | hunil58 | 신규 `IGameFlowService`(`StartNewRun`/`ContinueRun`/`QuitGame`) 추가, `GameManager`가 구현하고 `Instance`를 이 인터페이스 타입으로 노출. `MainMenuController`가 구체 클래스 `GameManager.Instance`를 직접 참조하던 것을 convention-checker가 발견해 계약 변경으로 정정 (run-state.md #20이 예견한 "실제 소비자가 생기면" 상황) |
