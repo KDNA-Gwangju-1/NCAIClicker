@@ -37,8 +37,8 @@ namespace NCAIClicker.Core
         private int _currentStageNumber = 1;
 
         /// <summary>
-        /// 업그레이드 실효값 조회 통로 (#116). 이 매니저는 Managers 프리팹에 없어
-        /// GameManager 가 런 시작 때 넣어 준다 (#131). 없으면 CSV 기준값을 그대로 쓴다.
+        /// 업그레이드 실효값 조회 통로 (#116). Managers 프리팹에서 ManagerBootstrap 과
+        /// GameManager 가 넣어 준다 (#131, #140). 없으면 CSV 기준값을 그대로 쓴다.
         /// </summary>
         private IUpgradeStats _upgradeStats;
 
@@ -62,7 +62,7 @@ namespace NCAIClicker.Core
         {
             if (Instance != null && Instance != this)
             {
-                Destroy(gameObject);
+                Destroy(this);
                 return;
             }
             Instance = this;
@@ -81,21 +81,30 @@ namespace NCAIClicker.Core
         }
 
         /// <summary>
-        /// 런을 시작한다. 예약해 둔 퍼크가 있으면 여기서 켠다 (IRunScoped, #126).
-        /// GameManager 가 씬 구현체를 따로 모아 불러 준다 — 이 매니저는 Managers 프리팹 밖이다.
+        /// 런을 시작한다. 예약해 둔 퍼크를 켜고 이번 단계의 크리처를 배치한다 (IRunScoped, #126·#140).
+        /// GameManager 가 Managers 프리팹의 IRunScoped 를 모아 불러 준다.
+        ///
+        /// 퍼크를 스폰보다 **먼저** 켠다 — SpawnRandomCreature 가 새 대상에
+        /// _perkHitRadiusPercent 를 그대로 물려주므로 순서가 뒤바뀌면 이번 런의 첫 크리처들이
+        /// 퍼크를 받지 못한다.
+        ///
+        /// 초기 배치를 Start() 가 아니라 여기서 하는 이유는 DontDestroyOnLoad 다. Start 는 생애
+        /// 한 번뿐이라 Game 씬에 두 번째로 들어갈 때 재초기화가 되지 않는다 (#140).
         /// </summary>
         public void BeginRun()
         {
             _isRunning = true;
             ApplyPerkRadius(_pendingPerkHitRadiusPercent);
             _pendingPerkHitRadiusPercent = 0f;
+            InitializeStage(_currentStageNumber);
         }
 
-        /// <summary>런을 끝낸다. "이번 런" 퍼크는 여기서 사라진다.</summary>
+        /// <summary>런을 끝낸다. "이번 런" 퍼크와 필드에 남은 크리처는 여기서 사라진다.</summary>
         public void EndRun()
         {
             _isRunning = false;
             ApplyPerkRadius(0f);
+            ClearAllCreatures();
         }
 
         /// <summary>
@@ -141,11 +150,6 @@ namespace NCAIClicker.Core
             }
         }
 
-        private void Start()
-        {
-            InitializeStage(_currentStageNumber);
-        }
-
         private void Update()
         {
             UpdateRespawnTimers(Time.deltaTime);
@@ -160,6 +164,7 @@ namespace NCAIClicker.Core
             ClearAllCreatures();
 
             var targetCount = GetRequiredSpawnCount();
+            Debug.Log($"[CreatureManager] {stageNumber}단계 초기화: 크리처 {targetCount}마리 스폰 시작");
             for (var i = 0; i < targetCount; i++)
             {
                 SpawnRandomCreature();
@@ -167,21 +172,22 @@ namespace NCAIClicker.Core
         }
 
         /// <summary>
-        /// 업그레이드 실효값 조회 통로를 넣고, 늘어난 동시 출현 수만큼 즉시 채운다.
-        /// 서비스 계약이 아니라 조립(wiring) 통로다 (ARCHITECTURE "SetBillService" 문단).
+        /// 업그레이드 실효값 조회 통로를 넣는다. 서비스 계약이 아니라 조립(wiring) 통로다
+        /// (ARCHITECTURE "SetBillService" 문단).
         ///
         /// 이전에는 조립 지점이 증분을 직접 계산해 넘기는 SetUpgradeOverrides(int, float) 였다.
         /// stat 마다 인자를 늘려야 하고 반영 경로가 IUpgradeStats 와 두 갈래가 되어 걷어냈다 (#131).
+        ///
+        /// **여기서 스폰하지 않는다** (#140). 늘어난 동시 출현 수만큼 즉시 채우던 코드가 있었는데,
+        /// 이 매니저가 Managers 프리팹으로 옮겨 오면서 ManagerBootstrap 이 **씬 로드 전에** 이
+        /// 메서드를 부르게 됐다. 그 결과 런이 시작되기도 전에, 그것도 MainMenu 씬에서 크리처가
+        /// 6마리 생겼다. 조립 통로는 부수효과를 갖지 않는다 — 늘어난 수는 다음 BeginRun 의
+        /// InitializeStage 가 반영한다 (업그레이드는 메뉴·결과 화면에서만 사므로 런 도중에
+        /// 목표치가 변할 일이 없다. BALANCE 6절).
         /// </summary>
         public void SetUpgradeStats(IUpgradeStats upgradeStats)
         {
             _upgradeStats = upgradeStats;
-
-            var needed = GetRequiredSpawnCount() - _activeCreatures.Count - _respawnTimers.Count;
-            for (var i = 0; i < needed; i++)
-            {
-                SpawnRandomCreature();
-            }
         }
 
         /// <summary>
@@ -298,6 +304,7 @@ namespace NCAIClicker.Core
             }
 
             _activeCreatures.Add(instance);
+            Debug.Log($"[CreatureManager] 크리처 스폰 성공: {targetId} at {spawnPos} (현재 {_activeCreatures.Count}마리)");
             return instance;
         }
 

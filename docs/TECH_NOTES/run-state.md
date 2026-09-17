@@ -1,6 +1,6 @@
 # 런 상태 머신
 
-> 관련 이슈: #20, #111, #21, #142 · 최종 수정: 2026-09-17
+> 관련 이슈: #20, #111, #21, #142, #140 · 최종 수정: 2026-09-17
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -10,7 +10,7 @@
 `MainMenu ↔ Running` 전이는 실제로 로드된 Unity 씬을 그대로 따르고, `Running → Result` 전이는
 스태미나 소진·파산 이벤트로 결정한다.
 
-이슈 #111에서 `Running` 전이 시 `IRunScoped.BeginRun()`, `Result` 전이 시 `IRunScoped.EndRun()` 을
+이슈 #111과 #140에서 `Running` 전이 시 `IRunScoped.BeginRun()`, `Result` 전이 시 `IRunScoped.EndRun()` 을
 호출하여 매니저 구현 클래스를 직접 잡지 않고 다형적으로 런 시작과 종료를 배선한다.
 게임 규칙은 [GDD](../GDD.md)에 있으니 여기서 반복하지 않는다.
 
@@ -23,7 +23,7 @@
 | `Running → Result` 전이에 새 이벤트(`OnRunStateChanged` 류)를 추가 | ❌ | ARCHITECTURE.md 3절에 동결된 이벤트 목록에 없다. 새 이벤트 추가는 공용 계약 변경이라 구현 전 별도 이슈 발의가 필요한데(AGENTS.md), 지금 이 이벤트를 소비할 코드가 없어 필요성이 확인되지 않았다 |
 | `Running → Result` 전이에 기존 동결 이벤트(`OnStaminaDepleted`, `OnBankrupt`) 재사용 | ✅ | ARCHITECTURE.md 2절 "하루 종료 순서"에 "GameManager만 이 두 이벤트를 구독해 종료 순서를 조정한다"고 이미 명시돼 있다. 새 계약이 필요 없다 |
 | 매니저 구현 클래스를 직접 참조해 `BeginRun()`/`EndRun()` 호출 | ❌ | AGENTS.md "다른 매니저 구현 클래스를 직접 참조하지 않는다" 규칙을 위반한다 |
-| `IRunScoped` 인터페이스 목록을 취득해 일괄 호출 (`GetComponentsInChildren<IRunScoped>`) | ✅ | 구체 클래스 의존성을 100% 제거하고 다형적으로 라이프사이클을 통지한다 (이슈 #111) |
+| `IRunScoped` 인터페이스 목록을 취득해 일괄 호출 (`GetComponentsInChildren<IRunScoped>`) | ✅ | 구체 클래스 의존성을 100% 제거하고 다형적으로 라이프사이클을 통지한다 (이슈 #111, #140) |
 | `RunState` 조회용 새 인터페이스(`IRunStateService`) 추가 | ❌ | ARCHITECTURE.md 2절에 동결된 인터페이스는 `IHittable`/`IEconomyService`/`IBillService`/`ISaveService` 넷뿐이다. 아직 `RunState`를 읽어야 하는 다른 모듈이 없어 인터페이스를 먼저 얼릴 근거가 없다 |
 | `RunState` 조회는 `GameManager.Instance` 정적 프로퍼티(구체 클래스)로 노출 | ✅ (임시) | 당장 소비자가 없으므로 `SaveManager.Instance` 패턴(구체 싱글톤)만 따르고, 실제 소비자가 생기면 그때 공용 계약(이벤트 또는 인터페이스) 추가를 먼저 발의한다 |
 
@@ -43,6 +43,7 @@ flowchart LR
     economy[EconomyManager]
     stamina[StaminaManager]
     fever[FeverManager]
+    creature[CreatureManager]
   end
 
   events{{"GameEvents<br/>(정적 이벤트)"}}
@@ -52,6 +53,7 @@ flowchart LR
   gm -- "Running: BeginRun()<br/>Result: EndRun()" --> economy
   gm -- "Running: BeginRun()<br/>Result: EndRun()" --> stamina
   gm -- "Running: BeginRun()<br/>Result: EndRun()" --> fever
+  gm -- "Running: BeginRun()<br/>Result: EndRun()" --> creature
 ```
 
 <!-- GameEvents 를 거치는 관계는 이벤트 노드를 경유해 그린다. 모듈끼리 직접 잇지 않는다 -->
@@ -99,9 +101,8 @@ Unity MCP 및 에디터 검증 배치로 확인했다.
 - [x] `GameManager`/`StaminaManager` 인스턴스가 재도전 반복 동안 `DontDestroyOnLoad`로 동일 인스턴스 유지(재생성 아님)
 - [x] 콘솔 warning/error 0건
 
-**한계**: 패키징된 빌드가 아닌 에디터 Play Mode에서 검증했다. 결과 화면 UI(#34, 재도전 버튼)가 아직 없어
-`SceneManager.LoadScene("Game")` 직접 호출로 재도전을 대신했다. 스태미나 자연 소진(자동 망치 타격 누적)이
-아닌 `GameEvents.PublishStaminaDepleted()` 직접 발행으로 소진을 시뮬레이션했다.
+**한계**: 결과 화면 UI(#34, 재도전 버튼)가 아직 없어 `SceneManager.LoadScene("Game")` 직접 호출로 재도전을 대신했다. 스태미나 자연 소진(자동 망치 타격 누적)이 아닌 `GameEvents.PublishStaminaDepleted()` 직접 발행으로 소진을 시뮬레이션했다.
+(참고: "빌드에 크리처가 없다"는 결함은 #140 에서 `CreatureManager` 를 `Managers` 프리팹으로 옮겨 고쳤고, 패키징 빌드 실행으로 컴포넌트가 빌드에 살아 있음을 확인했다. 런 시작 시 스폰도 **패키징된 빌드에서 `MainMenu` → `새 회차 시작` 경로로 확인했다** — 무인 실행으로는 `Game` 씬에 닿지 못해 사람이 눌러 검증했다. 상세는 [manager-bootstrap.md](manager-bootstrap.md) 검증 절.)
 
 ## 알려진 한계
 
@@ -118,3 +119,4 @@ Unity MCP 및 에디터 검증 배치로 확인했다.
 | 2026-09-17 | #111 | saltlake00 | `IRunScoped` 기반 `BeginRun()`/`EndRun()` 매니저 배선 추가, 초기화 순서 준수(Economy -> Stamina -> Fever) |
 | 2026-09-17 | #21 | Claude | 첫 완주 빌드 검증 — 시작→정산→재도전 반복 실행으로 구독 중복(코인 2배 버그) 없음과 상태·런코인 정상 리셋 확인 |
 | 2026-09-17 | #142 | hunil58 | `GameManager.Instance`를 신규 `IGameFlowService` 인터페이스 타입으로 노출(계약 변경). "알려진 한계"가 예견한 대로 6.7 메인 메뉴(#90)가 실제 소비자가 되면서 구체 클래스 직접 참조 위반을 convention-checker가 발견해 정정 |
+| 2026-09-17 | #140 | saltlake00 | `CreatureManager`를 `IRunScoped` 라이프사이클에 배선(순서 4). 프리팹으로 옮겨 온 뒤 `WireSceneConsumers` 와 이중으로 잡혀 `BeginRun` 이 두 번 불리던 것을 제거 — 두 번째 호출이 퍼크 반경을 지웠다 |

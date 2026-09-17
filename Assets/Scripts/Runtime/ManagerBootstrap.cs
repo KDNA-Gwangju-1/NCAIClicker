@@ -49,10 +49,10 @@ namespace NCAIClicker
         }
 
         /// <summary>
-        /// 업그레이드 실효값 조회 통로를 프리팹 안의 소비처에 넣는다 (#131).
+        /// 업그레이드 실효값 조회 통로를 프리팹 안의 소비처에 넣는다 (#131, #140).
         /// 공급자는 인터페이스로만 찾으므로 여기서 EconomyManager 를 다시 알 필요가 없다.
         ///
-        /// 씬에 사는 소비처(HammerSwingController·CreatureManager)는 여기서 닿지 못한다 —
+        /// 씬에 사는 소비처(HammerSwingController)는 여기서 닿지 못한다 —
         /// 이 메서드는 씬 로드 **전**에 돌기 때문이다. 그쪽은 GameManager 가 런 시작 때 넣는다.
         /// </summary>
         private static void WireUpgradeStats(GameObject managers)
@@ -74,6 +74,12 @@ namespace NCAIClicker
             if (fever != null)
             {
                 fever.SetUpgradeStats(upgradeStats);
+            }
+
+            var creatures = managers.GetComponentInChildren<CreatureManager>(true);
+            if (creatures != null)
+            {
+                creatures.SetUpgradeStats(upgradeStats);
             }
         }
     }

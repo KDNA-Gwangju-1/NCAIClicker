@@ -173,6 +173,10 @@ namespace NCAIClicker.Core
             {
                 return 3;
             }
+            if (typeName.Contains("Creature"))
+            {
+                return 4;
+            }
             return 10;
         }
 
@@ -190,6 +194,7 @@ namespace NCAIClicker.Core
                 return;
             }
 
+            Debug.Log($"[GameManager] NotifyBeginRun 실행 ({_runScopedServices.Length}개 IRunScoped 서비스 활성화)");
             for (int i = 0; i < _runScopedServices.Length; i++)
             {
                 _runScopedServices[i].BeginRun();
@@ -227,31 +232,27 @@ namespace NCAIClicker.Core
         /// 여기가 그 한 곳이다 — 조립이 끝난 뒤의 상호작용은 인터페이스로만 한다.
         ///
         /// 씬이 다시 로드되면 인스턴스가 새로 생기므로 런을 시작할 때마다 다시 찾는다.
+        ///
+        /// **CreatureManager 는 여기서 다루지 않는다** (#140). Managers 프리팹으로 옮겨 갔으므로
+        /// 업그레이드 주입은 ManagerBootstrap 이, 런 경계는 EnsureRunScopedServices 가 맡는다.
+        /// 여기에 다시 넣으면 BeginRun() 이 두 경로로 각각 불려 두 번 실행되고, 두 번째 호출이
+        /// 방금 켠 퍼크 반경을 지운다 (#126 회귀).
         /// </summary>
         private void WireSceneConsumers()
         {
             var hammer = FindFirstObjectByType<HammerSwingController>(FindObjectsInactive.Include);
-            var creatures = FindFirstObjectByType<CreatureManager>(FindObjectsInactive.Include);
 
             var upgradeStats = GetComponentInChildren<IUpgradeStats>(true);
-            if (upgradeStats != null)
+            if (upgradeStats != null && hammer != null)
             {
-                if (hammer != null)
-                {
-                    hammer.SetUpgradeStats(upgradeStats);
-                }
-                if (creatures != null)
-                {
-                    creatures.SetUpgradeStats(upgradeStats);
-                }
+                hammer.SetUpgradeStats(upgradeStats);
             }
 
-            // 런 경계도 같이 넘긴다. 이 둘은 Managers 프리팹 밖이라
+            // 런 경계도 같이 넘긴다. 이것은 Managers 프리팹 밖이라
             // GetComponentsInChildren<IRunScoped> 에 잡히지 않는다 (#126).
             _sceneRunScopedServices = new IRunScoped[]
             {
                 hammer,
-                creatures,
             };
         }
 
