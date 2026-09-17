@@ -12,7 +12,7 @@ namespace NCAIClicker.EditorTools
 {
     /// <summary>
     /// 하루 진행(BeginRun/EndRun), 청구서 발행(IssueBill), 조기 납부·퍼크 선택(TryPay/TryChoosePerk, #28)을 검증한다.
-    /// 대출(TryTakeLoan/TryRepayLoan)은 아직 항상 실패하는 스텁이므로 반환값만 본다 (4.3 범위 밖).
+    /// 대출(TryTakeLoan/TryRepayLoan, #29)은 해금 순번·이자·징수율·동시 건수·쿨다운을 RunLoanChecks 에서 따로 본다.
     /// TryPay 는 실제 EconomyManager 대신 FakeEconomyService 로 코인 차감 성공/실패를 제어해 격리한다
     /// (EconomyManagerChecks 의 FakeBillService 와 같은 패턴).
     ///
@@ -29,6 +29,7 @@ namespace NCAIClicker.EditorTools
             AssertCondition(balance.Perks.Count >= 3, "perks.csv 행이 3개 미만입니다. 퍼크 후보 3종을 뽑을 수 없습니다.");
 
             var checkCount = RunManagerChecks(balance);
+            checkCount += RunLoanChecks(balance);
             Debug.Log("[BillManagerChecks] PASS " + checkCount + " checks.");
         }
 
@@ -225,11 +226,6 @@ namespace NCAIClicker.EditorTools
                     GameEvents.OnPerkChosen -= onChosen;
                 }
 
-                // 대출(4.3)은 항상 실패하는 스텁이다.
-                AssertCondition(manager.TryTakeLoan(100L) == false, "TryTakeLoan 이 false 를 돌려주지 않았습니다.");
-                AssertCondition(manager.TryRepayLoan() == false, "TryRepayLoan 이 false 를 돌려주지 않았습니다.");
-                AssertCondition(manager.LoanDailyCut == 0f, "LoanDailyCut 이 0 이 아닙니다: " + manager.LoanDailyCut);
-                checkCount++;
 
                 _ = stage2; // 2단계는 자체 _billIndex 순번 설계상 이 매니저 인스턴스에서는 미납 때문에 도달하지 않는다. 값만 참조해 미사용 경고를 막는다.
             }
@@ -238,6 +234,94 @@ namespace NCAIClicker.EditorTools
                 GameEvents.OnBillIssued -= onIssued;
                 GameEvents.OnDayEnded -= onDayEnded;
                 GameEvents.OnBillDueSoon -= onDueSoon;
+                TearDown(ref manager, ref host);
+            }
+
+            return checkCount;
+        }
+
+        /// <summary>
+        /// 대출(#29)을 전용 매니저 인스턴스로 검증한다 — 해금 순번·한도·이자·징수율·동시 건수·쿨다운은
+        /// 날짜와 청구서 순번에 얽혀 있어 납부 검증이 끝난 인스턴스를 재활용하면 상태가 섞인다.
+        /// </summary>
+        private static int RunLoanChecks(BalanceData balance)
+        {
+            var checkCount = 0;
+            var config = balance.Bill;
+            var economy = new FakeEconomyService();
+            var manager = CreateManager(balance, out var host);
+            manager.SetEconomyService(economy);
+
+            try
+            {
+                // 첫 청구서에서는 아직 대출을 쓸 수 없다 (loan_unlock_bill_index).
+                manager.BeginRun();
+                var firstBill = manager.ActiveBill;
+                AssertCondition(firstBill != null, "첫 청구서가 발행되지 않았습니다.");
+                AssertCondition(manager.TryTakeLoan(1L) == false, "첫 청구서인데 대출이 성공했습니다.");
+                AssertCondition(manager.LoanDailyCut == 0f, "대출이 없는데 LoanDailyCut 이 0 이 아닙니다: " + manager.LoanDailyCut);
+                checkCount++;
+
+                // 첫 청구서를 내고 하루를 넘기면 두 번째 청구서가 나오고 대출이 열린다.
+                economy.NextSpendSucceeds = true;
+                AssertCondition(manager.TryPay(firstBill), "첫 청구서 납부가 실패했습니다.");
+                manager.BeginRun();
+                var secondBill = manager.ActiveBill;
+                AssertCondition(secondBill != null, "두 번째 청구서가 발행되지 않았습니다.");
+                checkCount++;
+
+                // 한도는 활성 청구서 금액이다. 한 푼이라도 넘으면 거부한다.
+                AssertCondition(manager.TryTakeLoan(secondBill.Amount + 1L) == false,
+                    "청구서 금액을 넘는 대출이 성공했습니다.");
+                checkCount++;
+
+                // 전액을 빌리면 성공하고, 이자는 올림으로 확정되며 징수율은 상한이 된다.
+                AssertCondition(manager.TryTakeLoan(secondBill.Amount), "해금 뒤에도 대출이 실패했습니다.");
+                var expectedOwed = (long)Math.Ceiling(secondBill.Amount * (1m + (decimal)config.LoanInterestRate));
+                AssertCondition(economy.LastLoanPrincipal == secondBill.Amount,
+                    "원금이 AddLoanPrincipal 로 입금되지 않았습니다: " + economy.LastLoanPrincipal);
+                AssertCondition(Mathf.Approximately(manager.LoanDailyCut, config.LoanDailyCutMax),
+                    "전액 대출인데 징수율이 상한이 아닙니다: " + manager.LoanDailyCut);
+                checkCount++;
+
+                // 동시 1건. 갚기 전에는 다시 빌릴 수 없다.
+                AssertCondition(manager.TryTakeLoan(1L) == false, "대출이 남아 있는데 또 빌릴 수 있었습니다.");
+                checkCount++;
+
+                // 잔액이 모자라면 상환은 실패하고 대출은 그대로 남는다.
+                economy.NextSpendSucceeds = false;
+                AssertCondition(manager.TryRepayLoan() == false, "잔액이 없는데 상환이 성공했습니다.");
+                AssertCondition(Mathf.Approximately(manager.LoanDailyCut, config.LoanDailyCutMax),
+                    "실패한 상환이 징수율을 바꿨습니다: " + manager.LoanDailyCut);
+                checkCount++;
+
+                // 상환은 이자 포함 전액을 떼고, 끝나면 징수가 멎는다.
+                economy.NextSpendSucceeds = true;
+                AssertCondition(manager.TryRepayLoan(), "상환이 실패했습니다.");
+                AssertCondition(economy.LastSpendAmount == expectedOwed,
+                    "상환액이 이자 포함 금액과 다릅니다: " + economy.LastSpendAmount + " (기대 " + expectedOwed + ")");
+                AssertCondition(manager.LoanDailyCut == 0f, "상환 뒤에도 징수가 남아 있습니다: " + manager.LoanDailyCut);
+                checkCount++;
+
+                // 완제 직후에는 재대출 쿨다운에 걸린다.
+                manager.BeginRun();
+                AssertCondition(manager.TryTakeLoan(1L) == false, "완제 직후인데 재대출이 성공했습니다.");
+                checkCount++;
+
+                // 쿨다운 일수만큼 날이 지나면 다시 빌릴 수 있고, 조금만 빌리면 징수율은 하한에 가깝다.
+                for (var i = 0; i < config.LoanCooldownDays; i++)
+                {
+                    manager.BeginRun();
+                }
+                AssertCondition(manager.TryTakeLoan(1L), "쿨다운이 지났는데 재대출이 실패했습니다.");
+                AssertCondition(manager.LoanDailyCut < config.LoanDailyCutMax,
+                    "소액 대출인데 징수율이 상한입니다: " + manager.LoanDailyCut);
+                AssertCondition(manager.LoanDailyCut >= config.LoanDailyCutMin,
+                    "징수율이 하한보다 낮습니다: " + manager.LoanDailyCut);
+                checkCount++;
+            }
+            finally
+            {
                 TearDown(ref manager, ref host);
             }
 
@@ -291,7 +375,8 @@ namespace NCAIClicker.EditorTools
             public long CurrentCoin => 0L;
             public long RunCoin => 0L;
             public void AddCoin(decimal rawAmount) { }
-            public void AddLoanPrincipal(long amount) { }
+            public long LastLoanPrincipal { get; private set; } = -1L;
+            public void AddLoanPrincipal(long amount) { LastLoanPrincipal = amount; }
 
             public bool TrySpendCoin(long amount)
             {
