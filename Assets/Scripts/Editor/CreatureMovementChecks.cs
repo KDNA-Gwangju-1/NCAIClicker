@@ -112,7 +112,6 @@ namespace NCAIClicker.EditorTools
                 passedCount++;
 
                 // 리스폰 타이머 처리 검증
-                var initialTimers = 0;
                 mgr.UpdateRespawnTimers(1.0f);
                 passedCount++;
             }
