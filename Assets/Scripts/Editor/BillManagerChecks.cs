@@ -114,11 +114,22 @@ namespace NCAIClicker.EditorTools
                 checkCount++;
 
                 // EndRun 은 런 종료를 하루 종료로 집계한다 — 호출당 정확히 한 번만 발행한다.
+                // 마감한 날을 미리 잡아 둔다. 지금은 여기서 파산이 나면서 CurrentDay 가 1 로
+                // 되돌아가므로(4.4/#30), EndRun 뒤의 CurrentDay 와 비교하면 안 된다.
                 dayEndedCount = 0;
+                var endedDay = manager.CurrentDay;
                 manager.EndRun();
                 AssertCondition(dayEndedCount == 1, "EndRun 1회에 OnDayEnded 가 1번 발행되지 않았습니다: " + dayEndedCount);
-                AssertCondition(lastCompletedDay == manager.CurrentDay,
-                                "OnDayEnded 인자가 CurrentDay 와 다릅니다: " + lastCompletedDay);
+                AssertCondition(lastCompletedDay == endedDay,
+                                "OnDayEnded 인자가 마감한 날과 다릅니다: " + lastCompletedDay);
+                checkCount++;
+
+                // 위에서 기한을 넘긴 청구서를 그대로 뒀으므로 이 EndRun 에서 파산했다.
+                // 파산 자체는 BankruptcyChecks 가 본다 — 여기서는 납부 검증을 이어 가기 위해
+                // 새 회차의 청구서를 다시 받아 둔다. onIssued 가 lastIssued 를 갱신한다.
+                AssertCondition(manager.ActiveBill == null, "파산 후에도 청구서가 남아 있습니다.");
+                manager.BeginRun();
+                AssertCondition(manager.ActiveBill != null, "파산 후 첫 BeginRun 이 청구서를 발행하지 않았습니다.");
                 checkCount++;
 
                 // EconomyService 가 없으면 조기 납부는 항상 실패하고 청구서가 그대로 남는다.
@@ -227,7 +238,7 @@ namespace NCAIClicker.EditorTools
                 }
 
 
-                _ = stage2; // 2단계는 자체 _billIndex 순번 설계상 이 매니저 인스턴스에서는 미납 때문에 도달하지 않는다. 값만 참조해 미사용 경고를 막는다.
+                _ = stage2; // 단계는 IStageService 가 단일 출처라(#150) 주입이 없는 이 인스턴스는 1단계로 폴백한다. 값만 참조해 미사용 경고를 막는다.
             }
             finally
             {
