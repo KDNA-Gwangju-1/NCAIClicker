@@ -19,7 +19,7 @@ NCAI 과정 팀 프로젝트. 5명이 7일간 Unity로 만드는 **시간 제한
 | 설계 판단이 필요할 때 | [docs/PATTERNS.md](docs/PATTERNS.md) — 쓰는 패턴과 쓰지 않는 패턴 |
 | 수치를 바꿔야 할 때 | [docs/BALANCE.md](docs/BALANCE.md) |
 | "원작은 어떻게 했나" | [docs/REFERENCE_ANALYSIS.md](docs/REFERENCE_ANALYSIS.md) |
-| 3D 에셋 | [docs/ASSET_PIPELINE.md](docs/ASSET_PIPELINE.md) |
+| 3D 에셋 · 원작 아트 레퍼런스 | [docs/ASSET_PIPELINE.md](docs/ASSET_PIPELINE.md) — 레퍼런스는 `python tools/fetch_reference.py` 로 받는다 |
 | 빌드·배포 | [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md) |
 | 이 기능이 **실제로 어떻게 구현됐나** | [docs/TECH_NOTES/](docs/TECH_NOTES/) — 이슈별 기술 문서 + C4 도식 |
 | 브랜치·커밋·PR·이슈 | [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md) — **규칙 정본** |
