@@ -123,7 +123,7 @@ AI에게 시켜도 제대로 못 고친다.
 
 - [밸런스 임포트](balance-import.md) — 검증 후 반영, GUID 보존, 회귀 검증
 - [진행 대시보드](project-dashboard.md) — 선행 파서와 전체 페이지 조회, 작업 번호 중복 검출, `/list-work` 와 공유하는 판정
-- [에디터 검증 하네스](validation-harness.md) — `*Checks` 를 리플렉션으로 모아 한 번에 실행, 예외 격리와 통과/실패 요약
+- [에디터 검증 하네스](validation-harness.md) — `*Checks` 를 리플렉션으로 모아 실행, 항목 선택 창, 예외 격리와 통과/실패 요약
 - [초기 PC 설정](project-setup.md) — 창·리로드·검증 범위
 - [공용 계약](contracts.md) — 인터페이스, 이벤트 버스, DTO 규격 동결
 - [매니저 자동 생성](manager-bootstrap.md) — RuntimeInitializeOnLoadMethod 로 Resources 프리팹을 씬 로드 전 1회 생성
