@@ -18,7 +18,6 @@ namespace NCAIClicker.EditorTools
         private const string NormalPrefabPath = "Assets/Prefabs/Targets/TargetNormal.prefab";
         private const string BalanceAssetPath = "Assets/GameData/Generated/BalanceData.asset";
 
-        [MenuItem("NCAI/망치 스윙 타격 판정 검증")]
         public static void RunBatch()
         {
             var passedCount = 0;
