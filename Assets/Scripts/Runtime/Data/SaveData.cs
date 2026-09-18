@@ -8,7 +8,7 @@ namespace NCAIClicker.Data
     [Serializable]
     public class SaveData
     {
-        public const int CurrentVersion = 2;
+        public const int CurrentVersion = 3;
 
         public int Version = CurrentVersion;
         public long TotalCoin;
@@ -34,5 +34,10 @@ namespace NCAIClicker.Data
         public bool IsCompleted;
         public string[] OfferedPerkIds;
         public string[] PendingPerkIds;
+
+        // 파산을 넘어 남는 영구 성장 (이슈 #175·#183). 위의 다른 값과 달리
+        // 회차 초기화에서 건드리지 않는다 — 그것이 이 두 필드의 존재 이유다.
+        public long LegacyPoints;
+        public int[] RingLevels;
     }
 }

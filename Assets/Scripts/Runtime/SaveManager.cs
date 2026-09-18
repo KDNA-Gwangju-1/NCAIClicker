@@ -103,6 +103,12 @@ namespace NCAIClicker
                     // SaveData의 필드 이니셜라이저 기본값(CurrentDay=1, BillIndex=1 등)을
                     // 이미 채워 넣으므로 별도 보정 코드가 필요 없다.
                     break;
+                case 2:
+                    // v2에는 레거시 포인트·반지가 없었다. LegacyPoints는 0으로 오지만
+                    // **RingLevels는 null로 온다** — JsonUtility는 없는 배열 필드를 빈 배열이
+                    // 아니라 null로 되살린다(OfferedPerkIds와 같다). 복원하는 쪽이 null을
+                    // 감당해야 하므로 여기서 억지로 채우지 않는다 (이슈 #175).
+                    break;
                 case SaveData.CurrentVersion:
                     break;
                 default:
