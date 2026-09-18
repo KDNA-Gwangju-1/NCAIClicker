@@ -55,10 +55,11 @@ namespace NCAIClicker.EditorTools
             var mainMenuButton = CreateButton("MainMenuButton", panelRoot, font, new Vector2(220f, 56f), "메인 메뉴",
                 new Color(0.18f, 0.16f, 0.14f), new Color(0.36f, 0.33f, 0.29f), Parchment, 24);
             var mainMenuRect = mainMenuButton.GetComponent<RectTransform>();
-            mainMenuRect.anchorMin = new Vector2(1f, 0f);
-            mainMenuRect.anchorMax = new Vector2(1f, 0f);
-            mainMenuRect.pivot = new Vector2(1f, 0f);
-            mainMenuRect.anchoredPosition = new Vector2(-SafeInset.x, SafeInset.y);
+            // 우하단에 두면 하단 액션 행과 겹친다. 액션 행은 가운데 정렬이라 좌하단이 비어 있다.
+            mainMenuRect.anchorMin = Vector2.zero;
+            mainMenuRect.anchorMax = Vector2.zero;
+            mainMenuRect.pivot = Vector2.zero;
+            mainMenuRect.anchoredPosition = SafeInset;
 
             bound["_panelRoot"] = panelRoot;
             bound["_settlementContainer"] = settlement;
@@ -103,6 +104,8 @@ namespace NCAIClicker.EditorTools
 
             // 본문 두 컬럼.
             var columns = CreateHorizontal("ColumnsRow", settlement, 28f);
+            // 남는 폭을 균등 분배하면 우측 집계가 좌측 명세만큼 넓어진다. 주인공은 좌측이다.
+            columns.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = false;
             SetFlexibleHeight(columns, 1f);
 
             var ledger = CreatePanel("LedgerPanel", columns, 24f, 10f);
@@ -111,7 +114,9 @@ namespace NCAIClicker.EditorTools
             bound["_runCoinText"] = CreateStatRow("CoinCountRow", ledger, font, "코인:", "102", RowFill, Cream, 40);
             bound["_denomCountTexts"] = CreateDenomRow(ledger, font);
             bound["_grossText"] = CreateStatRow("GrossRow", ledger, font, "합계:", ResultUIController.UnwiredPlaceholder, RowFill, Cream, 40);
-            bound["_feeText"] = CreateStatRow("FeeRow", ledger, font, "토니의 몫 (10%)", ResultUIController.UnwiredPlaceholder, LossRowFill, Loss, 38);
+            bound["_feeText"] = CreateStatRow("LoanCutRow", ledger, font, "빅 토니 징수", ResultUIController.UnwiredPlaceholder, LossRowFill, Loss, 38);
+            bound["_loanCutRow"] = ledger.transform.Find("LoanCutRow").gameObject;
+            bound["_loanCutLabelText"] = ledger.transform.Find("LoanCutRow/LabelText").GetComponent<TextMeshProUGUI>();
             bound["_netText"] = CreateStatRow("NetRow", ledger, font, "내 몫:", ResultUIController.UnwiredPlaceholder, NetRowFill, Gold, 48);
 
             var side = CreateVertical("SideColumn", columns, 24f);
@@ -144,11 +149,6 @@ namespace NCAIClicker.EditorTools
             payButton.interactable = false;
             bound["_payButton"] = payButton;
             bound["_payCaptionText"] = CreateLabel("PayCaptionText", payColumn, font, 22, Muted, TextAlignmentOptions.Center, "준비 중");
-
-            var gambleButton = CreateButton("GambleButton", actions, font, new Vector2(400f, 108f), "더블 오어 낫싱",
-                new Color(0.08f, 0.06f, 0.05f), new Color(0.36f, 0.27f, 0.15f), Gold, 34);
-            gambleButton.interactable = false;
-            bound["_gambleButton"] = gambleButton;
 
             bound["_continueButton"] = CreateButton("ContinueButton", actions, font, new Vector2(320f, 108f), "다음 날 진행",
                 new Color(0.11f, 0.31f, 0.45f), new Color(0.24f, 0.51f, 0.71f), new Color(0.9f, 0.95f, 0.98f), 32);

@@ -168,10 +168,13 @@ namespace NCAIClicker.EditorTools
 
             // 동작이 없는 버튼은 눌리면 안 된다. 눌리면 아무 일도 안 일어나고 플레이어는 고장으로 읽는다.
             var payButton = FindButton(prefab, "PayButton");
-            var gambleButton = FindButton(prefab, "GambleButton");
-            AssertCondition(payButton != null && gambleButton != null, "납부/도박 버튼을 프리팹에서 찾지 못했습니다.");
+            AssertCondition(payButton != null, "납부 버튼을 프리팹에서 찾지 못했습니다.");
             AssertCondition(!payButton.interactable, "PayButton 은 배선 전까지 interactable = false 여야 합니다.");
-            AssertCondition(!gambleButton.interactable, "GambleButton 은 배선 전까지 interactable = false 여야 합니다.");
+            checkCount++;
+
+            // 도박(더블 오어 낫싱)은 MVP 밖이다 — REFERENCE_ANALYSIS.md 가 "추가 목표, 우선순위 낮음"
+            // 으로 분류했다. 기획에 없는 기능이 화면에 남아 있으면 구현된 줄 알고 눌러 본다.
+            AssertCondition(FindButton(prefab, "GambleButton") == null, "GambleButton 은 MVP 범위 밖이라 프리팹에 없어야 합니다.");
             checkCount++;
 
             return checkCount;

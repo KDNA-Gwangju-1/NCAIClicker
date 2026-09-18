@@ -49,8 +49,13 @@ namespace NCAIClicker.UI
         [SerializeField] private TextMeshProUGUI[] _brokenChipTexts;
         [SerializeField] private TextMeshProUGUI _codexProgressText;
         [SerializeField] private Button _payButton;
-        [SerializeField] private Button _gambleButton;
         [SerializeField] private TextMeshProUGUI _payCaptionText;
+
+        // 빅 토니 징수는 대출이 있을 때만 존재하는 항목이다. 원작의 "토니의 몫 10%" 처럼
+        // 늘 떼이는 수수료가 아니다 (GDD 4절 대출). 대출이 없으면 행을 통째로 숨긴다 —
+        // "0원 징수" 를 보여 주면 있지도 않은 빚이 있는 것처럼 읽힌다.
+        [SerializeField] private GameObject _loanCutRow;
+        [SerializeField] private TextMeshProUGUI _loanCutLabelText;
 
         [Header("파산 화면 UI")]
         [SerializeField] private TextMeshProUGUI _bankruptcyTitleText;
@@ -334,11 +339,28 @@ namespace NCAIClicker.UI
             SetPlaceholders(_brokenChipTexts);
 
             SetLocked(_payButton);
-            SetLocked(_gambleButton);
+            UpdateLoanCutRow();
 
             if (_payCaptionText != null)
             {
                 _payCaptionText.text = "준비 중";
+            }
+        }
+
+        /// <summary>대출이 있을 때만 징수 행을 보인다. 비율은 조회로 채우고 금액은 아직 배선이 없다.</summary>
+        private void UpdateLoanCutRow()
+        {
+            var dailyCut = _billService != null ? _billService.LoanDailyCut : 0f;
+            var hasLoan = dailyCut > 0f;
+
+            if (_loanCutRow != null)
+            {
+                _loanCutRow.SetActive(hasLoan);
+            }
+
+            if (hasLoan && _loanCutLabelText != null)
+            {
+                _loanCutLabelText.text = $"빅 토니 징수 ({dailyCut * 100f:F0}%)";
             }
         }
 
