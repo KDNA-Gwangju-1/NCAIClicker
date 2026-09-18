@@ -43,6 +43,11 @@ namespace NCAIClicker.Core
         private IUpgradeStats _upgradeStats;
 
         /// <summary>
+        /// 단계 진행 상태 조회 통로 (이슈 #150). 없으면 기본값 1을 쓴다.
+        /// </summary>
+        private IStageService _stageService;
+
+        /// <summary>
         /// 피격 판정 확대 퍼크가 더하는 비율(percent). 이번 런에서만 산다 (#126).
         /// Target 인스턴스가 여럿이라 여기서 한 번 받아 스폰 때 넘긴다.
         /// </summary>
@@ -96,6 +101,10 @@ namespace NCAIClicker.Core
             _isRunning = true;
             ApplyPerkRadius(_pendingPerkHitRadiusPercent);
             _pendingPerkHitRadiusPercent = 0f;
+            if (_stageService != null)
+            {
+                _currentStageNumber = _stageService.CurrentStageNumber;
+            }
             InitializeStage(_currentStageNumber);
         }
 
@@ -188,6 +197,15 @@ namespace NCAIClicker.Core
         public void SetUpgradeStats(IUpgradeStats upgradeStats)
         {
             _upgradeStats = upgradeStats;
+        }
+
+        /// <summary>
+        /// 단계 진행 상태 조회 통로를 넣는다 (이슈 #150).
+        /// 매 런 시작 시 이 통로의 현재 단계 번호로 InitializeStage 를 부른다.
+        /// </summary>
+        public void SetStageService(IStageService stageService)
+        {
+            _stageService = stageService;
         }
 
         /// <summary>

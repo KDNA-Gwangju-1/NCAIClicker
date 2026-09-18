@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using NCAIClicker.Core;
 using NCAIClicker.Data;
 using NCAIClicker.Economy;
 using NCAIClicker.Events;
@@ -8,16 +9,24 @@ using UnityEngine;
 namespace NCAIClicker.EditorTools
 {
     /// <summary>
-    /// StageGoalManager 의 이벤트 배선과 판정 로직을 검증한다.
-    ///
-    /// 한계: Edit Mode 에서는 Unity 가 OnEnable/OnDisable 을 부르지 않는다.
-    /// 그래서 여기서는 두 메서드를 직접 불러 구독과 해제가 짝을 이루는지를 본다.
-    /// Unity 가 실제로 그 시점에 불러 주는지는 Play Mode 확인이 필요하나,
-    /// 현재 테스트 asmdef 가 런타임 코드(Assembly-CSharp)를 참조하지 못해 미검증으로 남는다.
+    /// StageGoalManager 의 이벤트 배선, 목표 판정, 단계 진행, 소비처 연동을 검증한다.
+    /// 완료 기준의 정본은 GitHub 이슈 #26 및 #150 (3.7).
     /// </summary>
     public static class StageGoalManagerChecks
     {
         public static void RunBatch()
+        {
+            var checkCount = 0;
+            checkCount += RunGoalChecks();
+            checkCount += RunProgressionChecks();
+            checkCount += RunConsumerWiringChecks();
+            Debug.Log("[StageGoalManagerChecks] PASS " + checkCount + " checks.");
+        }
+
+        /// <summary>
+        /// 이슈 #26: 런 순수입에 따른 목표 도달 판정과 이벤트 1회 발행 검증.
+        /// </summary>
+        private static int RunGoalChecks()
         {
             var checkCount = 0;
             var balanceData = ScriptableObject.CreateInstance<BalanceData>();
@@ -34,7 +43,6 @@ namespace NCAIClicker.EditorTools
             StageGoalManager manager = null;
             GameObject host = null;
 
-            // 정리는 전부 finally 에 둔다. 구독이 남으면 다음 실행에서 판정이 중복된다.
             try
             {
                 GameEvents.OnStageGoalReached += onReached;
@@ -82,7 +90,7 @@ namespace NCAIClicker.EditorTools
                 AssertCondition(reachedCount == 2, "해제 후에도 판정됐습니다. 구독 해제가 빠졌습니다.");
                 checkCount++;
 
-                Debug.Log("[StageGoalManagerChecks] PASS " + checkCount + " checks.");
+                return checkCount;
             }
             finally
             {
@@ -92,7 +100,174 @@ namespace NCAIClicker.EditorTools
             }
         }
 
-        /// <summary>구독을 먼저 풀고 오브젝트를 지운다. 순서를 바꾸면 해제 대상이 이미 파괴돼 있다.</summary>
+        /// <summary>
+        /// 이슈 #150: 목표 달성에 따른 EndRun 단계 진행 및 최대 단계 가드 검증.
+        /// </summary>
+        private static int RunProgressionChecks()
+        {
+            var checkCount = 0;
+            var balanceData = ScriptableObject.CreateInstance<BalanceData>();
+            balanceData.Stages.Add(new StageDef { Stage = 1, GoalCoin = 100L });
+            balanceData.Stages.Add(new StageDef { Stage = 2, GoalCoin = 200L });
+            balanceData.Stages.Add(new StageDef { Stage = 3, GoalCoin = 300L });
+
+            StageGoalManager manager = null;
+            GameObject host = null;
+
+            try
+            {
+                manager = CreateManager(balanceData, out host);
+                manager.BeginRun();
+
+                // 1단계 시작 상태 확인
+                AssertCondition(manager.CurrentStageIndex == 0, "초기 단계 인덱스가 0이 아닙니다.");
+                AssertCondition(manager.CurrentStageNumber == 1, "초기 단계 번호가 1이 아닙니다.");
+                AssertCondition(!manager.IsMaxStage, "초기 상태인데 최고 단계로 판정되었습니다.");
+                checkCount++;
+
+                // 목표 미달 후 런 종료 -> 단계 유지
+                GameEvents.PublishRunCoinChanged(50L);
+                manager.EndRun();
+                AssertCondition(manager.CurrentStageIndex == 0, "목표 미달인데 다음 단계로 진행했습니다.");
+                checkCount++;
+
+                // 목표 달성 후 런 종료 -> 2단계로 진행
+                GameEvents.PublishRunCoinChanged(100L);
+                AssertCondition(manager.IsGoalReached, "목표 코인에 도달했으나 판정되지 않았습니다.");
+                manager.EndRun();
+                AssertCondition(manager.CurrentStageIndex == 1, "목표 달성 후 런 종료 시 2단계(인덱스 1)로 진행하지 않았습니다.");
+                AssertCondition(manager.CurrentStageNumber == 2, "단계 번호가 2가 아닙니다.");
+                AssertCondition(!manager.IsMaxStage, "2단계인데 최고 단계로 판정되었습니다.");
+                checkCount++;
+
+                // 2단계 시작 -> 판정 플래그 리셋 확인
+                manager.BeginRun();
+                AssertCondition(!manager.IsGoalReached, "새 런 시작 후 목표 달성 플래그가 리셋되지 않았습니다.");
+                checkCount++;
+
+                // 2단계 목표 달성 후 3단계 진행
+                GameEvents.PublishRunCoinChanged(200L);
+                manager.EndRun();
+                AssertCondition(manager.CurrentStageIndex == 2, "3단계(인덱스 2)로 진행하지 않았습니다.");
+                AssertCondition(manager.CurrentStageNumber == 3, "단계 번호가 3이 아닙니다.");
+                AssertCondition(manager.IsMaxStage, "3단계(마지막 단계)인데 IsMaxStage 가 false 입니다.");
+                checkCount++;
+
+                // 3단계(최고 단계) 목표 달성 후에도 3단계 초과 없이 유지
+                manager.BeginRun();
+                GameEvents.PublishRunCoinChanged(300L);
+                manager.EndRun();
+                AssertCondition(manager.CurrentStageIndex == 2, "최고 단계를 초과하여 진행되었습니다.");
+                AssertCondition(manager.CurrentStageNumber == 3, "최고 단계 초과 번호가 되었습니다.");
+                checkCount++;
+
+                // RestoreStage 로 1단계(인덱스 0) 복원
+                manager.RestoreStage(0);
+                AssertCondition(manager.CurrentStageIndex == 0, "RestoreStage 로 1단계 복원이 실패했습니다.");
+                AssertCondition(!manager.IsGoalReached, "RestoreStage 후 IsGoalReached 가 false 가 아닙니다.");
+                checkCount++;
+
+                return checkCount;
+            }
+            finally
+            {
+                TearDown(ref manager, ref host);
+                UnityEngine.Object.DestroyImmediate(balanceData);
+            }
+        }
+
+        /// <summary>
+        /// 이슈 #150: CreatureManager 및 BillManager 에 IStageService 가 올바르게 연동되는지 검증.
+        /// </summary>
+        private static int RunConsumerWiringChecks()
+        {
+            var checkCount = 0;
+            var balanceData = ScriptableObject.CreateInstance<BalanceData>();
+            balanceData.Stages.Add(new StageDef
+            {
+                Stage = 1,
+                GoalCoin = 100L,
+                BillAmount = 450L,
+                DueDays = 5,
+                SpawnCount = 6,
+                NormalRatio = 0.6f,
+                AnchorRatio = 0.15f,
+                RunnerRatio = 0.1f,
+                TouristRatio = 0.15f
+            });
+            balanceData.Stages.Add(new StageDef
+            {
+                Stage = 2,
+                GoalCoin = 200L,
+                BillAmount = 1125L,
+                DueDays = 4,
+                SpawnCount = 7,
+                NormalRatio = 0.45f,
+                AnchorRatio = 0.2f,
+                RunnerRatio = 0.2f,
+                TouristRatio = 0.15f
+            });
+
+            StageGoalManager stageManager = null;
+            GameObject stageHost = null;
+            CreatureManager creatureManager = null;
+            GameObject creatureHost = null;
+            BillManager billManager = null;
+            GameObject billHost = null;
+
+            try
+            {
+                stageManager = CreateManager(balanceData, out stageHost);
+
+                // CreatureManager 조립 및 1단계 스폰 검증
+                creatureHost = new GameObject("CheckCreature") { hideFlags = HideFlags.HideAndDontSave };
+                creatureManager = creatureHost.AddComponent<CreatureManager>();
+                SetField(creatureManager, "_balanceData", balanceData);
+                creatureManager.SetStageService(stageManager);
+
+                creatureManager.BeginRun();
+                AssertCondition(creatureManager.CurrentStageNumber == 1, "CreatureManager 1단계 반영 실패");
+                AssertCondition(creatureManager.GetRequiredSpawnCount() == 6, "CreatureManager 1단계 스폰 수 6 불일치: " + creatureManager.GetRequiredSpawnCount());
+                creatureManager.EndRun();
+                checkCount++;
+
+                // BillManager 조립 및 1단계 청구서 검증
+                billHost = new GameObject("CheckBill") { hideFlags = HideFlags.HideAndDontSave };
+                billManager = billHost.AddComponent<BillManager>();
+                SetField(billManager, "_balanceData", balanceData);
+                billManager.SetStageService(stageManager);
+
+                billManager.BeginRun();
+                AssertCondition(billManager.ActiveBill != null, "1단계 청구서 발행 실패");
+                AssertCondition(billManager.ActiveBill.Amount == 450L, "1단계 청구서 금액 450 불일치: " + billManager.ActiveBill.Amount);
+                AssertCondition(billManager.ActiveBill.DueDay == billManager.CurrentDay + 5 - 1, "1단계 청구서 기한 5일 불일치");
+                checkCount++;
+
+                // 단계 진행: 1단계 목표 달성 -> EndRun -> 2단계 진행
+                stageManager.BeginRun();
+                GameEvents.PublishRunCoinChanged(100L);
+                stageManager.EndRun();
+                AssertCondition(stageManager.CurrentStageNumber == 2, "2단계 진행 실패");
+                checkCount++;
+
+                // 2단계에서 CreatureManager 스폰 수 7 반영 확인
+                creatureManager.BeginRun();
+                AssertCondition(creatureManager.CurrentStageNumber == 2, "CreatureManager 2단계 반영 실패");
+                AssertCondition(creatureManager.GetRequiredSpawnCount() == 7, "CreatureManager 2단계 스폰 수 7 불일치: " + creatureManager.GetRequiredSpawnCount());
+                creatureManager.EndRun();
+                checkCount++;
+
+                return checkCount;
+            }
+            finally
+            {
+                TearDown(ref stageManager, ref stageHost);
+                if (creatureHost != null) UnityEngine.Object.DestroyImmediate(creatureHost);
+                if (billHost != null) UnityEngine.Object.DestroyImmediate(billHost);
+                UnityEngine.Object.DestroyImmediate(balanceData);
+            }
+        }
+
         private static void TearDown(ref StageGoalManager manager, ref GameObject host)
         {
             if (manager != null)
@@ -107,10 +282,6 @@ namespace NCAIClicker.EditorTools
             }
         }
 
-        /// <summary>
-        /// 비활성 상태로 만들어 컴포넌트를 붙이고 BalanceData 를 넣은 뒤 켠다.
-        /// 씬을 더럽히지 않도록 HideAndDontSave 로 둔다.
-        /// </summary>
         private static StageGoalManager CreateManager(BalanceData balanceData, out GameObject host)
         {
             host = new GameObject("StageGoalManagerCheck")
@@ -119,24 +290,25 @@ namespace NCAIClicker.EditorTools
             };
             host.SetActive(false);
             var manager = host.AddComponent<StageGoalManager>();
-            var field = typeof(StageGoalManager).GetField("_balanceData",
-                BindingFlags.NonPublic | BindingFlags.Instance);
-            AssertCondition(field != null, "_balanceData 필드를 찾지 못했습니다. 이름이 바뀌었습니까?");
-            field.SetValue(manager, balanceData);
+            SetField(manager, "_balanceData", balanceData);
             host.SetActive(true);
             InvokeLifecycle(manager, "OnEnable");
             return manager;
         }
 
-        private static void SetStageIndex(StageGoalManager manager, int stageIndex)
+        private static void SetField(object target, string fieldName, object value)
         {
-            var field = typeof(StageGoalManager).GetField("_stageIndex",
+            var field = target.GetType().GetField(fieldName,
                 BindingFlags.NonPublic | BindingFlags.Instance);
-            AssertCondition(field != null, "_stageIndex 필드를 찾지 못했습니다. 이름이 바뀌었습니까?");
-            field.SetValue(manager, stageIndex);
+            AssertCondition(field != null, fieldName + " 필드를 찾지 못했습니다. 이름이 바뀌었습니까?");
+            field.SetValue(target, value);
         }
 
-        /// <summary>Edit Mode 에서는 Unity 가 부르지 않으므로 직접 부른다. 위 클래스 주석의 한계 참고.</summary>
+        private static void SetStageIndex(StageGoalManager manager, int stageIndex)
+        {
+            SetField(manager, "_stageIndex", stageIndex);
+        }
+
         private static void InvokeLifecycle(StageGoalManager manager, string methodName)
         {
             var method = typeof(StageGoalManager).GetMethod(methodName,

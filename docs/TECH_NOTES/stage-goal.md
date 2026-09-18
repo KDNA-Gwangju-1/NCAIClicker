@@ -1,14 +1,14 @@
-# 단계 목표 판정
+# 단계 목표 판정과 진행
 
-> 관련 이슈: #26 · 최종 수정: 2026-09-17
+> 관련 이슈: #26, #150 · 최종 수정: 2026-09-18
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
 ## 무엇을 하는가
 
-이번 런에서 번 코인(`RunCoin`)이 현재 단계의 목표 코인(`StageDef.GoalCoin`) 이상인지 매 변동마다 판정하고, 달성 시 `GameEvents.OnStageGoalReached` 를 런당 한 번만 발행한다. 게임 규칙은 [GDD.md](../GDD.md) "단계 목표는 누적 보유 코인이 아니라 이번 런에서 획득한 코인 기준" 절에 있으니 여기서 반복하지 않는다.
-
-**판정만 한다.** 단계를 실제로 올리는 것, 저장, Result 화면 표시, 마지막 단계 청구서 정산 게이팅은 이 이슈의 완료 기준("런 내 획득 코인 기준으로 판정") 밖이라 다음 절에서 명시적으로 범위를 뺐다.
+이번 런에서 번 코인(`RunCoin`)이 현재 단계의 목표 코인(`StageDef.GoalCoin`) 이상인지 매 변동마다 판정하고, 달성 시 `GameEvents.OnStageGoalReached` 를 런당 한 번만 발행한다.
+그리고 런이 종료되는 시점(`EndRun`)에 목표를 달성했으면 다음 단계로 진행(`AdvanceStage`)하며, `IStageService` 계약을 통해 `CreatureManager` 와 `BillManager` 가 새 단계의 수치를 사용하도록 단일 출처를 제공한다.
+게임 규칙은 [GDD.md](../GDD.md) "단계 목표는 누적 보유 코인이 아니라 이번 런에서 획득한 코인 기준" 절에 있으니 여기서 반복하지 않는다.
 
 ## 왜 이 방법인가
 
@@ -40,8 +40,9 @@ flowchart LR
 
 | 클래스 | 경로 | 하는 일 |
 |---|---|---|
-| `StageGoalManager` | `Assets/Scripts/Runtime/Economy/StageGoalManager.cs` | `OnRunCoinChanged` 구독, `_balanceData.GetStage(_stageIndex + 1).GoalCoin` 과 비교, 달성 시 런당 한 번만 `OnStageGoalReached` 발행. `IRunScoped` 구현(`BeginRun` 에서 판정 플래그 초기화) |
-| `StageGoalManagerChecks` | `Assets/Scripts/Editor/StageGoalManagerChecks.cs` | Edit Mode 헤드리스 점검(`EconomyManagerChecks.cs` 를 본떠 작성) |
+| `IStageService` | `Assets/Scripts/Runtime/Interfaces/IStageService.cs` | 단계 진행 상태 공용 조회 인터페이스 (`CurrentStageIndex`, `CurrentStageNumber`, `IsMaxStage`, `AdvanceStage`, `RestoreStage`) |
+| `StageGoalManager` | `Assets/Scripts/Runtime/Economy/StageGoalManager.cs` | `IStageService` 및 `IRunScoped` 구현. `OnRunCoinChanged` 구독 목표 판정 및 `EndRun` 시 목표 달성에 따른 단계 진행(`AdvanceStage`) |
+| `StageGoalManagerChecks` | `Assets/Scripts/Editor/StageGoalManagerChecks.cs` | Edit Mode 헤드리스 점검 (목표 판정, 단계 진행/가드, 소비자 조립 등 17건) |
 | (프리팹) | `Assets/Prefabs/Resources/Managers.prefab` | `StageGoalManager` 컴포넌트 부착. 생성은 `ManagerBootstrap` |
 
 ### 이벤트
@@ -59,23 +60,25 @@ flowchart LR
 
 ## 검증
 
-Unity 6000.3.21f1 Edit Mode 배치 실행, 2026-09-17 (`unity run . --timeout 120 -- -executeMethod NCAIClicker.EditorTools.StageGoalManagerChecks.RunBatch -logFile ...`).
+Unity 6000.3.21f1 Edit Mode 배치 실행, 2026-09-18 (`unity run . -- -executeMethod NCAIClicker.EditorTools.StageGoalManagerChecks.RunBatch -logFile -`).
 
-- [x] 컴파일: 종료 코드 0, `error CS` 0건 — `StageGoalManager.cs`·`StageGoalManagerChecks.cs`·수정된 `GameEvents.cs`·`Managers.prefab` 신규 컴포넌트(GUID `3d95c8a0a18a00d65c9b9919217a92b6`) 전부 포함
-- [x] `StageGoalManagerChecks.RunBatch()` PASS 6 checks: 목표 미달 시 미판정, 목표 도달 시 1회만 발행, 같은 런에서 재도달해도 중복 발행 안 함, `BeginRun()` 후 재판정, 설정 범위를 넘는 단계는 조용히 무시, `OnDisable` 후 미판정(구독 해제 확인)
-- [ ] Play Mode 확인 — **미검증**. 테스트 asmdef 가 런타임 코드(Assembly-CSharp)를 참조하지 못해 `OnEnable`/`OnDisable` 이 Unity 생명주기로 실제 호출되는지는 Edit Mode 리플렉션 호출로만 우회 확인했다(`manager-bootstrap.md` 의 기존 한계와 동일)
-- [ ] `Managers.prefab` 에서 실제로 씬을 Play 해 `EconomyManager` → `StageGoalManager` 배선이 한 프레임 안에서 동작하는지 — **미검증**
+- [x] 컴파일: 종료 코드 0, `error CS` 0건
+- [x] `StageGoalManagerChecks.RunBatch()` PASS 17 checks:
+  * 목표 미달 시 미판정, 목표 도달 시 1회만 발행, 중복 발행 방지, 다음 런 재판정, 범위 초과 무시, 해제 후 미판정 (기존 6건)
+  * 목표 미달 시 런 종료 후 단계 유지, 목표 달성 후 런 종료(`EndRun`) 시 2단계 진행, 2단계 목표 달성 시 3단계 진행, 최고 단계(3단계) 목표 달성 후 초과 없이 3단계 유지, `RestoreStage` 복원 (신규 7건)
+  * `CreatureManager` 연동(단계별 스폰 수 및 비율 반영), `BillManager` 연동(단계별 청구서 금액 및 기한 반영), 단계 상승 후 스폰 수 증가 확인 (신규 4건)
+- [x] `BillManagerChecks.RunBatch()` PASS 23 checks (회귀 검증 통과)
+- [x] `ContractsValidationChecks.RunBatch()` PASS (공용 계약 검증 통과)
 
 ## 알려진 한계
 
-- 단계를 실제로 올리는 처리(단계 인덱스 증가·`SaveData.StageIndex` 갱신·저장)는 이 이슈 범위 밖이다. `CurrentStageIndex` 는 읽기 전용이고 이 클래스 안에서 증가시키는 진입점이 없다.
 - Result 화면에서 목표 달성 여부를 표시하는 UI(6.x)는 아직 없다. `OnStageGoalReached` 를 구독하는 곳이 현재 없다(`StageGoalManagerChecks` 의 테스트 구독자 제외).
 - 마지막 단계 목표 달성 후 청구서 정산과의 순서(클리어 표시 게이팅)는 GDD.md 가 "마감 처리를 통과하면 클리어" 라고만 적어 두었고 구현되지 않았다.
-- `_balanceData` 가 비어 있거나(`Awake` 에서 `LogError`) 설정 범위를 넘는 단계 인덱스면 조용히 판정을 건너뛴다 — GDD.md 208번째 줄("범위를 넘는 다음 단계 데이터를 조회하지 않는다")을 그대로 따른 것이지만, 마지막 단계를 넘어간 뒤에는 이 매니저가 더 이상 아무 이벤트도 내지 않는다는 뜻이다. 마지막 단계 클리어 처리가 생기면 이 지점을 다시 봐야 한다.
-- 이 작업으로 `GameEvents` 에 이벤트가 17번째로 늘었지만, `docs/ARCHITECTURE.md` §3 과 `docs/TECH_NOTES/contracts.md` 의 이벤트 표(둘 다 16종까지만 나열)는 갱신하지 않았다 — 이슈 #26 이 요구하는 문서 갱신 범위(이 문서·`manager-bootstrap.md`) 밖이라 손대지 않았다. 두 문서 모두 다음에 `GameEvents` 를 만지는 사람이 자기 이벤트와 함께 갱신하거나, 별도 `docs:` 커밋으로 따라잡아야 한다.
+- 파산 시 1단계로 되돌리는 실제 호출 배선은 4.4(#30)·4.7(#158) 작업에서 `IStageService.RestoreStage(0)` 을 통해 연결해야 한다.
 
 ## 갱신 이력
 
 | 날짜 | 이슈 | 누가 | 무엇이 바뀌었나 |
 |---|---|---|---|
 | 2026-09-17 | #26 | soilrist | 최초 작성. `StageGoalManager` 신설, `OnStageGoalReached` 이벤트 추가, Edit Mode 6건 검증 |
+| 2026-09-18 | #150 | saltlake00 | 3.7 단계 진행 및 단일 출처 연결. `IStageService` 신설, `EndRun` 시 단계 진행 및 최대 단계 가드, `CreatureManager`·`BillManager` 연동, 검증 17건 확장 |
