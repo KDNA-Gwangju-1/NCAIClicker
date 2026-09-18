@@ -201,9 +201,11 @@ namespace NCAIClicker.EditorTools
                 // 정상 파괴: 치운 수만큼 예약된다. 필드 + 예약의 합이 항상 목표치여야 한다.
                 for (var i = 0; i < 2; i++)
                 {
-                    var victim = mgr.ActiveCreatures[0].GetComponent<Target>();
+                    var victimGo = mgr.ActiveCreatures[0];
+                    var victim = victimGo.GetComponent<Target>();
                     Assert(victim.IsAlive, "스폰된 대상이 살아 있지 않습니다. 스텁 초기화를 확인하세요.");
                     victim.OnHit(new HitInfo(HitSource.Hover, victim.MaxHp, Vector3.zero));
+                    Assert(victimGo == null, "파괴된 크리처 GameObject가 즉시 파괴되지 않고 씬에 남아 있습니다 (#161).");
                 }
                 Assert(mgr.ActiveCreatures.Count + timers.Count == required,
                        "파괴 후 필드+예약 합이 목표치와 다릅니다: " + mgr.ActiveCreatures.Count
