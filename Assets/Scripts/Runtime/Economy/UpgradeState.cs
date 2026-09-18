@@ -7,9 +7,8 @@ namespace NCAIClicker.Economy
     /// 업그레이드의 계산부. 레벨 보유, 다음 레벨 비용, 효과가 적용된 실효값만 담당한다.
     /// 코인을 차감하지 않고 이벤트도 발행하지 않는다 — 구매는 EconomyManager 가 맡는다.
     ///
-    /// 계산 규칙의 정본은 docs/BALANCE.md 6절이다.
-    ///   실효값 = 기준값 × (1 + percent 합 / 100) + add 합
-    ///   비용   = ceil(InitCost × CostGrowth^현재레벨)
+    /// 계산 규칙의 정본은 docs/BALANCE.md 6절이고, 식 자체는 <see cref="GrowthFormula"/> 가
+    /// 한 벌만 들고 있다 — 반지(<see cref="RingState"/>)가 같은 식을 쓰기 때문이다.
     ///
     /// 생성된 BalanceData 는 읽기만 한다. CSV 산출물이라 런타임에 고치지 않는다 (AGENTS.md).
     /// </summary>
@@ -67,8 +66,7 @@ namespace NCAIClicker.Economy
             // (BALANCE 3절 "비용 성장률은 4종 공통").
             var growth = def.CostGrowth > 0f ? def.CostGrowth : _balance.Economy.UpgradeCostGrowth;
 
-            var raw = def.InitCost * Math.Pow(growth, _levels[index]);
-            cost = (long)Math.Ceiling(raw);
+            cost = GrowthFormula.NextCost(def.InitCost, growth, _levels[index]);
             return true;
         }
 
@@ -106,33 +104,11 @@ namespace NCAIClicker.Economy
 
             for (var i = 0; i < _levels.Length; i++)
             {
-                var level = _levels[i];
-                if (level <= 0)
-                {
-                    continue;
-                }
-
-                foreach (var effect in _balance.Upgrades[i].Effects)
-                {
-                    if (effect.Stat != stat)
-                    {
-                        continue;
-                    }
-
-                    // 레벨당 값이므로 보유 레벨만큼 곱해 누적한다.
-                    if (effect.Type == EffectType.Add)
-                    {
-                        addSum += effect.ValuePerLevel * level;
-                    }
-                    else
-                    {
-                        percentSum += effect.ValuePerLevel * level;
-                    }
-                }
+                GrowthFormula.Accumulate(_balance.Upgrades[i].Effects, _levels[i], stat,
+                                         ref addSum, ref percentSum);
             }
 
-            // percent 를 먼저 곱하고 add 를 더한다. 순서를 바꾸면 더한 값에도 비율이 걸린다.
-            return baseValue * (1f + percentSum / 100f) + addSum;
+            return GrowthFormula.Compose(baseValue, addSum, percentSum);
         }
 
         /// <summary>

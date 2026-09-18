@@ -21,7 +21,7 @@ namespace NCAIClicker.Economy
     /// Managers 프리팹(Resources/Managers)에 붙인다. 생성은 ManagerBootstrap 이 한다.
     /// </summary>
     public class EconomyManager : MonoBehaviour, IEconomyService, IRunScoped, IWalletPersistence,
-        IUpgradeStats, IUpgradeShop, IUpgradePersistence, ILegacyService, ILegacyPersistence
+        IUpgradeStats, IUpgradeShop, IUpgradePersistence, ILegacyService, IRingShop, ILegacyPersistence
     {
         /// <summary>
         /// 코인 조회 통로. BillManager.Instance(IBillService)·SaveManager.Instance(ISaveService)·
@@ -83,10 +83,10 @@ namespace NCAIClicker.Economy
         private long _legacyPoints;
 
         /// <summary>
-        /// 반지 레벨(정렬 순서 기준). 반지 데이터와 구매는 #183 에서 붙는다 — 지금은 저장만
-        /// 오가게 두어 그때까지 사용자의 값이 사라지지 않게 한다.
+        /// 반지의 계산부 (#183). 업그레이드와 나란히 둔다 — 레벨·비용·효과 계산은 같고
+        /// 화폐(레거시 포인트)와 저장 수명(파산해도 남는다)만 다르다.
         /// </summary>
-        private int[] _ringLevels = Array.Empty<int>();
+        private RingState _rings;
 
         private bool _isRunning;
         private long _lastPublishedRunCoin;
@@ -113,6 +113,7 @@ namespace NCAIClicker.Economy
             }
 
             _upgrades = new UpgradeState(_balanceData);
+            _rings = new RingState(_balanceData);
             CacheUpgradedMultipliers();
         }
 
@@ -368,7 +369,12 @@ namespace NCAIClicker.Economy
         /// </summary>
         public float GetStat(StatId stat, float baseValue)
         {
-            return _upgrades == null ? baseValue : _upgrades.GetStat(stat, baseValue);
+            var afterUpgrades = _upgrades == null ? baseValue : _upgrades.GetStat(stat, baseValue);
+
+            // **업그레이드 먼저, 반지 나중.** 반지는 파산을 넘어 남는 영구 층이라 회차 성장
+            // 위에 얹힌다는 3층 구조(#183)를 순서로 못 박는다. 지금 반지 효과가 전부 add 라
+            // 순서를 바꿔도 값이 같지만, percent 효과가 생기는 순간 결과가 갈린다.
+            return _rings == null ? afterUpgrades : _rings.GetStat(stat, afterUpgrades);
         }
 
         // ---- IUpgradeShop ----
@@ -479,10 +485,50 @@ namespace NCAIClicker.Economy
         public void RestoreLegacy(long points, int[] ringLevelsBySortOrder)
         {
             _legacyPoints = points < 0L ? 0L : points;
-            _ringLevels = ringLevelsBySortOrder ?? Array.Empty<int>();
+            _rings?.RestoreLevels(ringLevelsBySortOrder);
         }
 
         /// <summary>SaveManager 가 저장 직전에 읽어 SaveData.RingLevels 에 그대로 넣는다.</summary>
-        public int[] CurrentRingLevels => _ringLevels ?? Array.Empty<int>();
+        public int[] CurrentRingLevels => _rings == null ? Array.Empty<int>() : _rings.ToArray();
+
+        // ---------------------------------------------------------------- IRingShop (#183)
+
+        public int GetRingLevel(string ringId)
+        {
+            return _rings == null ? 0 : _rings.GetLevel(ringId);
+        }
+
+        /// <summary>
+        /// 다음 반지 레벨의 **레거시 포인트** 비용. 최대 레벨이거나 없는 id 면 더 살 수 없다는
+        /// 뜻으로 long.MaxValue 를 돌려준다 — IUpgradeShop.GetNextCost 와 같은 약속이다.
+        /// </summary>
+        public long GetNextRingCost(string ringId)
+        {
+            if (_rings == null || !_rings.TryGetNextCost(ringId, out var cost))
+            {
+                return long.MaxValue;
+            }
+            return cost;
+        }
+
+        /// <summary>
+        /// 반지를 한 레벨 산다. **코인이 아니라 레거시 포인트를 쓴다** — 두 화폐가 섞이지
+        /// 않도록 차감은 TrySpendLegacyPoints 하나로만 한다.
+        /// 차감과 레벨업이 함께 성공하거나 함께 실패한다 (TryPurchase 와 같은 규칙).
+        /// </summary>
+        public bool TryPurchaseRing(string ringId)
+        {
+            if (_rings == null || !_rings.TryGetNextCost(ringId, out var cost))
+            {
+                return false;
+            }
+            if (!TrySpendLegacyPoints(cost))
+            {
+                return false;
+            }
+
+            _rings.LevelUp(ringId);
+            return true;
+        }
     }
 }
