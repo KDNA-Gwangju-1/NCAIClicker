@@ -41,6 +41,9 @@ namespace NCAIClicker.Core
         private float _swingInterval;
 
         private float _timer;
+        private bool _isVisible;
+
+        public bool IsVisible => _isVisible;
 
         private void Awake()
         {
@@ -64,6 +67,7 @@ namespace NCAIClicker.Core
             }
 
             BuildVisuals();
+            SetVisible(_isVisible);
         }
 
         /// <summary>
@@ -197,6 +201,7 @@ namespace NCAIClicker.Core
             var headMat = new Material(litShader);
             headMat.color = new Color(0.18f, 0.22f, 0.28f);
             headRenderer.material = headMat;
+            SetVisible(_isVisible);
         }
 
         private static Material CreateTransparentMaterial(Shader shader)
@@ -261,8 +266,29 @@ namespace NCAIClicker.Core
             return tex;
         }
 
+        /// <summary>
+        /// 레티클과 망치 비주얼의 가시성을 설정한다.
+        /// </summary>
+        public void SetVisible(bool isVisible)
+        {
+            _isVisible = isVisible;
+            if (_reticleRoot != null)
+            {
+                _reticleRoot.gameObject.SetActive(isVisible);
+            }
+            if (_hammerPivot != null)
+            {
+                _hammerPivot.gameObject.SetActive(isVisible);
+            }
+        }
+
         private void Update()
         {
+            if (!_isVisible)
+            {
+                return;
+            }
+
             if (_aimCamera == null)
             {
                 _aimCamera = Camera.main;
