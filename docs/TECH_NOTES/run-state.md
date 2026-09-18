@@ -84,7 +84,7 @@ flowchart LR
 | 이벤트 | 발행/구독 | 언제 |
 |---|---|---|
 | `GameEvents.OnStaminaDepleted` | 구독 | `CurrentState == Running`일 때만 `Result`로 전이 |
-| `GameEvents.OnBankrupt` | 구독 | `CurrentState == Running`일 때만 `Result`로 전이 |
+| `GameEvents.OnBankrupt` | 구독 | `CurrentState == Running`일 때만 `Result`로 전이. **실제 경로에서는 전이가 일어나지 않는다** — `BillManager.EndRun()` 이 발행하는데 그때는 이미 `Result` 다 (#164). 구독은 다른 경로에서 직접 발행될 때를 위한 방어다 (ARCHITECTURE "하루 종료 순서", #158) |
 
 `GameManager`는 이번 작업에서 새 이벤트를 발행하지 않는다 (위 "왜 이 방법인가" 참고).
 
@@ -136,6 +136,6 @@ Unity MCP 및 에디터 검증 배치로 확인했다.
 | 2026-09-17 | #20 | Claude | 최초 작성 — `GameManager`/`RunState` 구현, 씬 로드 기반 전이 + `OnStaminaDepleted`/`OnBankrupt` 기반 `Result` 전이 |
 | 2026-09-17 | #111 | saltlake00 | `IRunScoped` 기반 `BeginRun()`/`EndRun()` 매니저 배선 추가, 초기화 순서 준수(Economy -> Stamina -> Fever) |
 | 2026-09-17 | #21 | Claude | 첫 완주 빌드 검증 — 시작→정산→재도전 반복 실행으로 구독 중복(코인 2배 버그) 없음과 상태·런코인 정상 리셋 확인 |
-| 2026-09-18 | #164 | twins6375-art | `BillManager` 가 `IRunScoped` 를 구현해 런 경계에 붙었다. `GetServiceOrder` 에 `Stage`=5·`Bill`=6 추가 — 파산이 되돌린 단계를 목표 달성이 다시 올리는 경합을 막는다. `RunWiringChecks` 신규 |
 | 2026-09-17 | #142 | hunil58 | `GameManager.Instance`를 신규 `IGameFlowService` 인터페이스 타입으로 노출(계약 변경). "알려진 한계"가 예견한 대로 6.7 메인 메뉴(#90)가 실제 소비자가 되면서 구체 클래스 직접 참조 위반을 convention-checker가 발견해 정정 |
 | 2026-09-17 | #140 | saltlake00 | `CreatureManager`를 `IRunScoped` 라이프사이클에 배선(순서 4). 프리팹으로 옮겨 온 뒤 `WireSceneConsumers` 와 이중으로 잡혀 `BeginRun` 이 두 번 불리던 것을 제거 — 두 번째 호출이 퍼크 반경을 지웠다 |
+| 2026-09-18 | #164 | twins6375-art | `BillManager` 가 `IRunScoped` 를 구현해 런 경계에 붙었다. `GetServiceOrder` 에 `Stage`=5·`Bill`=6 추가 — 파산이 되돌린 단계를 목표 달성이 다시 올리는 경합을 막는다. `RunWiringChecks` 신규 |

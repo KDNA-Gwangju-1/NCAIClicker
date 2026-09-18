@@ -1,6 +1,6 @@
 # 단계 목표 판정과 진행
 
-> 관련 이슈: #26, #150 · 최종 수정: 2026-09-18
+> 관련 이슈: #26, #150, #164 · 최종 수정: 2026-09-18
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -84,3 +84,4 @@ Unity 6000.3.21f1 Edit Mode 배치 실행, 2026-09-18 (`unity run . -- -executeM
 |---|---|---|---|
 | 2026-09-17 | #26 | soilrist | 최초 작성. `StageGoalManager` 신설, `OnStageGoalReached` 이벤트 추가, Edit Mode 6건 검증 |
 | 2026-09-18 | #150 | saltlake00 | 3.7 단계 진행 및 단일 출처 연결. `IStageService` 신설, `EndRun` 시 단계 진행 및 최대 단계 가드, `CreatureManager`·`BillManager` 연동, 검증 17건 확장 |
+| 2026-09-18 | #164 | twins6375-art | `BillManager` 가 런 경계에 붙어 `RestoreStage(0)` 이 실제로 돌기 시작한 것을 반영. `EndRun` 순서 제약(`Stage`=5 < `Bill`=6)을 알려진 한계에 명시 |
