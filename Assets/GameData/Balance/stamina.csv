@@ -1,6 +1,6 @@
 key,value,unit,note
 max_stamina,120,point,#5에서 확정. 원작 최초 기본 최대치로 확인된 값은 아니다
-idle_drain_per_sec,1.6,point/sec,플레이 중 항상 감소한다. 기본 런 75초 + 회복형 연장. 검증은 BALANCE.md 2절
+idle_drain_per_sec,6.5,point/sec,플레이 중 항상 감소한다. 기본 런 약 18.5초와 회복형 연장. 검증은 BALANCE.md 2절
 move_drain_per_unit,0,point/world-unit,원작형 규칙에서는 커서 이동에 추가 비용이 없다
 hit_drain_per_swing,0,point/swing,호버 자동 타격과 자동 망치는 추가 스태미나를 소모하지 않는다
 fever_drain_multiplier,1.0,ratio,피버도 스태미나 감소 속도를 바꾸지 않는다

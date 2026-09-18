@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NCAIClicker.Data.BalanceData
   Stamina:
     Max: 120
-    IdleDrainPerSec: 1.6
+    IdleDrainPerSec: 6.5
     MoveDrainPerUnit: 0
     HitDrainPerSwing: 0
     FeverDrainMultiplier: 1
