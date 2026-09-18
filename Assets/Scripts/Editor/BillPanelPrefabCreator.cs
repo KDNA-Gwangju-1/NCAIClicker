@@ -9,7 +9,7 @@ using UnityEngine.UI;
 namespace NCAIClicker.EditorTools
 {
     /// <summary>
-    /// 고지서 패널 프리팹을 만든다 (이슈 #34).
+    /// 청구서 패널 프리팹을 만든다 (이슈 #34).
     ///
     /// 원작은 화면 가운데 세로로 긴 종이 한 장이고, 그 아래에 버튼이 쌓인다.
     /// 우측 가장자리에 "파산 선고" 탭이 붙는다. 실측 비율은 종이 폭 33% / 높이 72%.
@@ -25,7 +25,7 @@ namespace NCAIClicker.EditorTools
         private static readonly Color InkFaint = new Color(0.482f, 0.42f, 0.31f);
         private static readonly Color Warn = new Color(0.62f, 0.184f, 0.133f);
 
-        [MenuItem("NCAI/UI/고지서 패널 프리팹 생성")]
+        [MenuItem("NCAI/UI/청구서 패널 프리팹 생성")]
         public static void CreatePrefab()
         {
             var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPath);
@@ -48,10 +48,20 @@ namespace NCAIClicker.EditorTools
             tabRect.pivot = new Vector2(0.5f, 1f);
             tabRect.sizeDelta = new Vector2(900f, 60f);
             tabRect.anchoredPosition = new Vector2(0f, -30f);
-            CreateLabel("TabBill", tabBar, font, 30, Color.white, "고지서");
+            CreateLabel("TabBill", tabBar, font, 30, Color.white, "청구서");
             CreateLabel("TabUpgrade", tabBar, font, 30, InkFaint, "업그레이드");
             CreateLabel("TabCodex", tabBar, font, 30, InkFaint, "저금통 도감");
             bound["_tabBar"] = tabBar;
+
+            // 보유 코인 — 낼 수 있는지 판단하려면 지금 얼마를 들고 있는지가 같이 보여야 한다.
+            var balanceLabel = CreateLabel("BalanceText", panelRoot, font, 34, new Color(0.992f, 0.953f, 0.874f), "보유 $0");
+            var balanceRect = balanceLabel.GetComponent<RectTransform>();
+            balanceRect.anchorMin = new Vector2(1f, 1f);
+            balanceRect.anchorMax = new Vector2(1f, 1f);
+            balanceRect.pivot = new Vector2(1f, 1f);
+            balanceRect.sizeDelta = new Vector2(360f, 56f);
+            balanceRect.anchoredPosition = new Vector2(-60f, -40f);
+            bound["_balanceText"] = balanceLabel;
 
             // 종이. 원작 실측 비율 (1920x1080 기준 폭 630 / 높이 780).
             var paper = CreateObject("Paper", panelRoot);
@@ -75,7 +85,7 @@ namespace NCAIClicker.EditorTools
             bound["_titleText"] = CreateLabel("TitleText", paper, font, 44, Ink, "전기 요금", TextAlignmentOptions.Left);
             CreateDivider("Divider1", paper);
             CreateLabel("NoticeText", paper, font, 22, InkSoft,
-                "공지: 고지서를 납부하지 않으면 파산에 이르게 될 것입니다…", TextAlignmentOptions.TopLeft, 70f, true);
+                "공지: 청구서를 납부하지 않으면 파산에 이르게 될 것입니다…", TextAlignmentOptions.TopLeft, 70f, true);
             CreateDivider("Divider2", paper);
 
             CreateLabel("AmountLabel", paper, font, 24, Warn, "납부 금액");

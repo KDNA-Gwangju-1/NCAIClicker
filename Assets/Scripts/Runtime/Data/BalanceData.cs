@@ -23,7 +23,7 @@ namespace NCAIClicker.Data
         public List<StageDef> Stages = new();
         public List<PerkDef> Perks = new();
 
-        /// <summary>고지서에 찍히는 발신처와 제목. 금액·기한과 무관한 표기용 데이터다 (이슈 #34).</summary>
+        /// <summary>청구서에 찍히는 발신처와 제목. 금액·기한과 무관한 표기용 데이터다 (이슈 #34).</summary>
         public List<BillNameDef> BillNames = new();
 
         public TargetDef GetTarget(string id) => Targets.Find(t => t.Id == id);
@@ -33,15 +33,24 @@ namespace NCAIClicker.Data
         /// <summary>stageNumber 는 1부터 시작한다.</summary>
         public StageDef GetStage(int stageNumber) => Stages.Find(s => s.Stage == stageNumber);
 
-        /// <summary>청구서 번호로 이름을 고른다. 목록을 순환해 같은 회차에서 같은 순서가 나오게 한다.</summary>
-        public BillNameDef GetBillName(int billIndex)
+        /// <summary>
+        /// 씨앗값으로 청구서 이름을 고른다. 청구서마다 다른 이름이 나오되, **같은 청구서를 다시 열면
+        /// 같은 이름**이 나와야 한다 — 열 때마다 바뀌면 "아까 그 청구서가 맞나" 를 의심하게 된다.
+        /// 그래서 난수 생성기 대신 씨앗값을 흩는 해시를 쓴다.
+        /// </summary>
+        public BillNameDef GetBillName(int seed)
         {
             if (BillNames.Count == 0)
             {
                 return null;
             }
-            var i = Mathf.Abs(billIndex) % BillNames.Count;
-            return BillNames[i];
+
+            // 작은 씨앗값이 순서대로 들어와도 결과가 이웃하지 않게 흩는다 (Knuth 곱셈 해시).
+            unchecked
+            {
+                var hashed = (uint)seed * 2654435761u;
+                return BillNames[(int)(hashed % (uint)BillNames.Count)];
+            }
         }
     }
 

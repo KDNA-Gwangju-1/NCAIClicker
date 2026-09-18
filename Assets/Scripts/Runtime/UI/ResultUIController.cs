@@ -65,10 +65,19 @@ namespace NCAIClicker.UI
         [SerializeField] private TextMeshProUGUI _bankruptcyCoinLossText;
         [SerializeField] private Button _restartButton;
 
+        // 업그레이드 상점은 MainMenu 씬에 놓이도록 만들어진 패널이다 (#91). 정산창에서는 씬을
+        // 바꾸지 않고 같은 화면 위에 덮는다 — 원작도 정산창에서 메뉴로 들어갔다 돌아온다.
+        // 남의 프리팹을 고치지 않으려고 여기서 껍데기(암전 + 닫기)만 만들고 안에 띄운다.
+        [Header("업그레이드 오버레이")]
+        [SerializeField] private GameObject _upgradeOverlay;
+        [SerializeField] private Transform _upgradeContent;
+        [SerializeField] private GameObject _upgradeShopPrefab;
+        [SerializeField] private Button _upgradeCloseButton;
+
         [Header("공통 UI")]
         [SerializeField] private Button _mainMenuButton;
 
-        // 정산창의 납부 버튼은 고지서 모달을 연다. 조립 지점이 넣어 준다.
+        // 정산창의 납부 버튼은 청구서 모달을 연다. 조립 지점이 넣어 준다.
         private BillPanelController _billPanel;
 
         private IEconomyService _economyService;
@@ -117,6 +126,10 @@ namespace NCAIClicker.UI
             {
                 _payButton.onClick.AddListener(HandlePayClicked);
             }
+            if (_upgradeCloseButton != null)
+            {
+                _upgradeCloseButton.onClick.AddListener(CloseUpgradeOverlay);
+            }
         }
 
         private void OnDisable()
@@ -145,12 +158,36 @@ namespace NCAIClicker.UI
             {
                 _payButton.onClick.RemoveListener(HandlePayClicked);
             }
+            if (_upgradeCloseButton != null)
+            {
+                _upgradeCloseButton.onClick.RemoveListener(CloseUpgradeOverlay);
+            }
+            if (_billPanel != null)
+            {
+                _billPanel.Closed -= HandleBillPanelClosed;
+            }
         }
 
-        /// <summary>고지서 패널을 잇는다. 없으면 납부 버튼은 잠긴 채로 둔다.</summary>
+        /// <summary>청구서 패널을 잇는다. 없으면 납부 버튼은 잠긴 채로 둔다.</summary>
         public void SetBillPanel(BillPanelController billPanel)
         {
+            if (_billPanel != null)
+            {
+                _billPanel.Closed -= HandleBillPanelClosed;
+            }
+
             _billPanel = billPanel;
+
+            if (_billPanel != null)
+            {
+                _billPanel.Closed += HandleBillPanelClosed;
+            }
+        }
+
+        /// <summary>청구서를 닫으면 정산으로 돌아온다. 하루가 아직 안 끝났기 때문이다.</summary>
+        private void HandleBillPanelClosed()
+        {
+            ShowSettlement();
         }
 
         /// <summary>테스트 또는 외부 주입용 서비스 설정 메서드.</summary>
@@ -244,6 +281,7 @@ namespace NCAIClicker.UI
 
         public void HideAll()
         {
+            CloseUpgradeOverlay();
             if (_panelRoot != null)
             {
                 _panelRoot.SetActive(false);
@@ -368,6 +406,12 @@ namespace NCAIClicker.UI
             UpdatePayButton();
             UpdateLoanCutRow();
 
+            // 상점 프리팹이 빠졌으면 눌러도 아무 일이 없다. 그럴 바엔 잠근다.
+            if (_upgradeButton != null)
+            {
+                _upgradeButton.interactable = _upgradeShopPrefab != null && _upgradeOverlay != null;
+            }
+
             if (_payCaptionText != null)
             {
                 // 원작은 버튼 자체가 정보다 — "$5,800 / 4일 남음".
@@ -379,7 +423,7 @@ namespace NCAIClicker.UI
         }
 
         /// <summary>
-        /// 낼 청구서가 있고 고지서 패널이 이어져 있을 때만 납부 버튼을 연다.
+        /// 낼 청구서가 있고 청구서 패널이 이어져 있을 때만 납부 버튼을 연다.
         /// 배선이 없는데 열어 두면 눌러도 아무 일이 없어 고장으로 읽힌다.
         /// </summary>
         private void UpdatePayButton()
@@ -399,6 +443,9 @@ namespace NCAIClicker.UI
             {
                 return;
             }
+
+            // 원작은 청구서가 뜨면 정산창이 보이지 않는다. 겹쳐 두면 글자가 서로 비쳐 읽히지 않는다.
+            HideAll();
             _billPanel.ShowAsModal();
         }
 
@@ -483,14 +530,33 @@ namespace NCAIClicker.UI
         }
 
         /// <summary>
-        /// 업그레이드 화면으로 간다. 원작에서 정산창은 하루의 끝이자 다음 하루의 관문이라,
-        /// 여기서 메뉴로 들어갔다가 나오면 곧 다음 런이 시작된다. 우리는 MainMenu 씬이
-        /// 그 자리다 (GDD 6절 "메인 및 업그레이드").
+        /// 업그레이드 상점을 정산창 위에 덮는다. 씬을 바꾸지 않는 이유는 두 가지다 —
+        /// 원작이 정산창에서 메뉴로 들어갔다 그대로 돌아오고, MainMenu 로 보내면 정산 내용이
+        /// 사라져 "얼마 벌었더라" 를 다시 볼 수 없다.
+        ///
+        /// 패널은 살아날 때마다 스스로 다시 배선하고 그린다 (#91). 여기서는 켜 주기만 한다.
         /// </summary>
         private void HandleUpgradeClicked()
         {
-            HideAll();
-            SceneManager.LoadScene(MainMenuSceneName);
+            if (_upgradeOverlay == null || _upgradeContent == null || _upgradeShopPrefab == null)
+            {
+                return;
+            }
+
+            if (_upgradeContent.childCount == 0)
+            {
+                Instantiate(_upgradeShopPrefab, _upgradeContent, false);
+            }
+
+            _upgradeOverlay.SetActive(true);
+        }
+
+        private void CloseUpgradeOverlay()
+        {
+            if (_upgradeOverlay != null)
+            {
+                _upgradeOverlay.SetActive(false);
+            }
         }
 
         private void HandleMainMenuClicked()

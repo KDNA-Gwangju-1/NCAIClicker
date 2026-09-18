@@ -67,6 +67,32 @@ namespace NCAIClicker.EditorTools
             mainMenuRect.anchoredPosition = new Vector2(-SafeInset.x, -SafeInset.y);
 
             bound["_panelRoot"] = panelRoot;
+
+            // 업그레이드 상점을 덮어 띄울 자리. 상점 프리팹 자체는 #91 산출물이라 건드리지 않고
+            // 껍데기(암전 + 닫기)만 여기서 만든다.
+            var overlay = CreateStretchedObject("UpgradeOverlay", root);
+            overlay.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.92f);
+            bound["_upgradeOverlay"] = overlay;
+
+            var overlayContent = CreateStretchedObject("Content", overlay);
+            var contentRect = overlayContent.GetComponent<RectTransform>();
+            contentRect.offsetMin = new Vector2(SafeInset.x, SafeInset.y + 120f);
+            contentRect.offsetMax = -SafeInset;
+            bound["_upgradeContent"] = overlayContent.transform;
+
+            var closeButton = CreateButton("UpgradeCloseButton", overlay, font, new Vector2(320f, 96f), "돌아가기",
+                new Color(0.18f, 0.16f, 0.14f), new Color(0.36f, 0.33f, 0.29f), Parchment, 30);
+            var closeRect = closeButton.GetComponent<RectTransform>();
+            closeRect.anchorMin = new Vector2(0.5f, 0f);
+            closeRect.anchorMax = new Vector2(0.5f, 0f);
+            closeRect.pivot = new Vector2(0.5f, 0f);
+            closeRect.anchoredPosition = new Vector2(0f, SafeInset.y);
+            bound["_upgradeCloseButton"] = closeButton;
+
+            bound["_upgradeShopPrefab"] = AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Prefabs/UI/UpgradeShopPanel.prefab");
+
+            overlay.SetActive(false);
             bound["_settlementContainer"] = settlement;
             bound["_bankruptcyContainer"] = bankruptcy;
             bound["_mainMenuButton"] = mainMenuButton;
@@ -161,7 +187,7 @@ namespace NCAIClicker.EditorTools
 
             // 원작 버튼 둘은 폭이 거의 같다 (365 / 362). flexibleWidth 를 0 으로 못 박지 않으면
             // 남는 폭이 이쪽으로 몰려 버튼 하나만 배너처럼 늘어난다.
-            // 원작 정산창은 버튼이 넷이다 — 업그레이드 / 고지서 / 계속 / 도박.
+            // 원작 정산창은 버튼이 넷이다 — 업그레이드 / 청구서 / 계속 / 도박.
             // 정산창이 하루의 끝이자 다음 하루의 관문이라 여기서 갈라진다. 도박만 MVP 밖이다.
             var upgradeButton = CreateButton("UpgradeButton", actions, font, new Vector2(300f, 104f), "업그레이드",
                 new Color(0.08f, 0.06f, 0.05f), new Color(0.36f, 0.27f, 0.15f), Gold, 30);

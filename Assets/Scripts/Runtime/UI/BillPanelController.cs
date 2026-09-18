@@ -1,3 +1,4 @@
+using System;
 using NCAIClicker.Core;
 using NCAIClicker.Data;
 using NCAIClicker.Interfaces;
@@ -8,7 +9,7 @@ using UnityEngine.UI;
 namespace NCAIClicker.UI
 {
     /// <summary>
-    /// 고지서 화면. 같은 패널이 두 가지 상태로 쓰인다 (이슈 #34).
+    /// 청구서 화면. 같은 패널이 두 가지 상태로 쓰인다 (이슈 #34).
     ///
     /// - <b>모달</b>: 정산창에서 "납부하기" 를 누르면 뜬다. 상단 탭 줄이 없다
     /// - <b>탭</b>: 다음 턴 시작 전에 남은 날짜와 목표를 확인하는 화면. 우하단 "계속하기" 가 런을 연다
@@ -23,12 +24,15 @@ namespace NCAIClicker.UI
         [SerializeField] private GameObject _tabBar;
         [SerializeField] private GameObject _continueRow;
 
-        [Header("고지서 종이")]
+        [Header("청구서 종이")]
         [SerializeField] private TextMeshProUGUI _issuerText;
         [SerializeField] private TextMeshProUGUI _titleText;
         [SerializeField] private TextMeshProUGUI _amountText;
         [SerializeField] private TextMeshProUGUI _dueLabelText;
         [SerializeField] private TextMeshProUGUI _dueValueText;
+
+        [Header("보유 코인")]
+        [SerializeField] private TextMeshProUGUI _balanceText;
 
         [Header("버튼")]
         [SerializeField] private Button _payButton;
@@ -44,6 +48,7 @@ namespace NCAIClicker.UI
         [SerializeField] private BalanceData _balanceData;
 
         private IBillService _billService;
+        private IEconomyService _economyService;
 
         /// <summary>어느 상태로 열려 있는가. 탭일 때만 탭 줄과 계속하기가 보인다.</summary>
         public enum Mode
@@ -53,6 +58,9 @@ namespace NCAIClicker.UI
         }
 
         private Mode _mode = Mode.Modal;
+
+        /// <summary>패널이 닫힐 때 알린다. 정산창이 이걸 듣고 자기 화면을 다시 켠다.</summary>
+        public event Action Closed;
 
         public bool IsOpen => _panelRoot != null && _panelRoot.activeSelf;
         public Mode CurrentMode => _mode;
@@ -95,9 +103,10 @@ namespace NCAIClicker.UI
         }
 
         /// <summary>조립 지점이 넣어 준다. 소비처가 구현 클래스를 직접 찾지 않는다.</summary>
-        public void SetServices(IBillService billService)
+        public void SetServices(IBillService billService, IEconomyService economyService = null)
         {
             _billService = billService;
+            _economyService = economyService;
         }
 
         /// <summary>검증에서 데이터만 갈아끼울 때 쓴다.</summary>
@@ -120,6 +129,11 @@ namespace NCAIClicker.UI
             {
                 _panelRoot.SetActive(true);
             }
+
+            // 같은 캔버스의 형제끼리는 계층 순서대로 그려진다. 먼저 생성된 쪽이 뒤로 가므로
+            // 열 때마다 맨 앞으로 올린다 — 생성 순서에 기대면 조립 순서만 바뀌어도 가려진다.
+            transform.SetAsLastSibling();
+
             if (_tabBar != null)
             {
                 _tabBar.SetActive(mode == Mode.Tab);
@@ -134,21 +148,73 @@ namespace NCAIClicker.UI
 
         public void Close()
         {
+            var wasOpen = IsOpen;
             if (_panelRoot != null)
             {
                 _panelRoot.SetActive(false);
+            }
+            if (wasOpen)
+            {
+                Closed?.Invoke();
+            }
+        }
+
+        /// <summary>
+        /// 조립이 한 번에 성공하지 못했을 때를 대비한다. 로더가 넣어 주는 것이 정상 경로지만,
+        /// 놓치면 화면이 "청구서 없음" 으로 보여 납부할 방법이 사라진다 — 실제로 그렇게 됐다.
+        /// 구현 클래스가 아니라 인터페이스로만 찾는다 (AGENTS.md).
+        /// </summary>
+        private void EnsureServices()
+        {
+            if (_billService != null)
+            {
+                return;
+            }
+
+            var managersGo = GameObject.Find("Managers");
+            if (managersGo != null)
+            {
+                _billService = managersGo.GetComponentInChildren<IBillService>(true);
+                _economyService = managersGo.GetComponentInChildren<IEconomyService>(true);
+            }
+
+            if (_billService != null)
+            {
+                return;
+            }
+
+            var behaviours = FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < behaviours.Length; i++)
+            {
+                if (_economyService == null && behaviours[i] is IEconomyService economy)
+                {
+                    _economyService = economy;
+                }
+                if (behaviours[i] is IBillService bill)
+                {
+                    _billService = bill;
+                    return;
+                }
             }
         }
 
         private void Render()
         {
+            EnsureServices();
             var bill = _billService?.ActiveBill;
+
+            if (_balanceText != null)
+            {
+                // 낼 수 있는지 판단하려면 지금 얼마를 들고 있는지가 같이 보여야 한다.
+                var economy = _economyService;
+                _balanceText.text = economy != null ? $"보유 ${economy.CurrentCoin:N0}" : string.Empty;
+            }
 
             if (_issuerText != null || _titleText != null)
             {
-                // 이름은 청구서 번호로 고른다. 같은 청구서를 두 번 열어도 이름이 바뀌지 않아야 한다.
-                var billIndex = bill != null ? bill.IssuedDay : 0;
-                var name = _balanceData != null ? _balanceData.GetBillName(billIndex) : null;
+                // 씨앗값은 청구서가 가진 값으로 만든다. 같은 청구서면 늘 같은 이름이 나오고,
+                // 청구서가 바뀌면 이름도 바뀐다. 난수를 따로 굴리면 화면을 다시 열 때마다 바뀐다.
+                var name = _balanceData != null ? _balanceData.GetBillName(MakeNameSeed(bill)) : null;
 
                 if (_issuerText != null)
                 {
@@ -167,6 +233,19 @@ namespace NCAIClicker.UI
 
             RenderDue(bill);
             RenderButtons(bill);
+        }
+
+        /// <summary>청구서를 식별하는 씨앗값. 발행일과 금액이 다르면 다른 청구서다.</summary>
+        private static int MakeNameSeed(Bill bill)
+        {
+            if (bill == null)
+            {
+                return 0;
+            }
+            unchecked
+            {
+                return bill.IssuedDay * 397 ^ (int)(bill.Amount % int.MaxValue);
+            }
         }
 
         private void RenderDue(Bill bill)
@@ -234,7 +313,9 @@ namespace NCAIClicker.UI
 
             if (_billService.TryPay(bill))
             {
-                Render();
+                // 납부가 끝나면 닫는다. 납부 완료 화면에 머물면 납부·아직 버튼이 모두 사라져
+                // 빠져나갈 길이 없다.
+                Close();
             }
         }
 

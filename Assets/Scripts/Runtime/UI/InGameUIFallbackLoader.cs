@@ -65,7 +65,7 @@ namespace NCAIClicker.UI
             var managersGo = GameObject.Find("Managers");
             var billService = managersGo != null ? managersGo.GetComponentInChildren<IBillService>(true) : null;
 
-            // 고지서 패널을 먼저 띄운다. 정산창이 납부 버튼에서 이 패널을 열기 때문이다.
+            // 청구서 패널을 먼저 띄운다. 정산창이 납부 버튼에서 이 패널을 열기 때문이다.
             BillPanelController billPanel = null;
             var billPrefab = Resources.Load<GameObject>(BillPrefabResourcePath);
             if (billPrefab != null)
