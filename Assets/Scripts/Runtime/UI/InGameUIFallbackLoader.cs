@@ -61,7 +61,6 @@ namespace NCAIClicker.UI
                 new GameObject("Runtime_Fallback_EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
             }
 
-            if (existingResult == null)
             {
                 var prefab = Resources.Load<GameObject>(ResultPrefabResourcePath);
                 if (prefab != null)
