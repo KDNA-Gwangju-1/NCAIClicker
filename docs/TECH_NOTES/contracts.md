@@ -1,6 +1,6 @@
 # 공용 계약 (인터페이스·이벤트·DTO)
 
-> 관련 이슈: #3, #71, #116, #24, #139, #142 · 최종 수정: 2026-09-17
+> 관련 이슈: #3, #71, #116, #24, #139, #142, #150 · 최종 수정: 2026-09-18
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -71,6 +71,7 @@ flowchart LR
 | `UpgradeState` | `Assets/Scripts/Runtime/Economy/UpgradeState.cs` | 업그레이드 레벨·다음 비용·실효값 실제 계산 (Unity 비의존 순수 클래스). `EconomyManager`가 `IUpgradeStats`/`IUpgradeShop`/`IUpgradePersistence` 구현에서 그대로 위임한다 (이슈 #24, twins6375-art, Edit Mode 22건 PASS) |
 | `ISaveService` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | 저장 및 불러오기 인터페이스. `HasSave`로 저장 파일 존재 여부 조회 (이슈 #139) |
 | `IGameFlowService` | `Assets/Scripts/Runtime/Interfaces/IGameFlowService.cs` | MainMenu 버튼의 씬 전환 요청(`StartNewRun`/`ContinueRun`/`QuitGame`). `GameManager` 구현, `GameManager.Instance`가 이 타입으로 노출 (이슈 #142) |
+| `IStageService` | `Assets/Scripts/Runtime/Interfaces/IStageService.cs` | 단계 진행 상태 공용 조회(`CurrentStageIndex`/`CurrentStageNumber`/`IsGoalReached`/`IsMaxStage`/`AdvanceStage`/`RestoreStage`). `StageGoalManager` 구현, `ManagerBootstrap`이 `CreatureManager`·`BillManager`에 주입 (이슈 #150) |
 | `GameEvents` | `Assets/Scripts/Runtime/Events/GameEvents.cs` | 19종 정적 이벤트 및 Publish 메서드, ResetAll 제공 |
 | `ContractsValidationChecks` | `Assets/Scripts/Editor/ContractsValidationChecks.cs` | 계약 정합성 배치 검증(이벤트 Publish·ResetAll, DTO 구조, IRunScoped 구현 및 GameManager 런 라이프사이클 배선). 에디터 전용, `MenuItem` 없이 `RunBatch()` 를 외부에서 호출한다 |
 
@@ -139,3 +140,4 @@ flowchart LR
 | 2026-09-17 | #28 | soilrist | 이벤트 표에 누락됐던 `OnStageGoalReached`(#26)와 신규 `OnPerkOffered`·`OnPerkChosen`(#28) 추가, 이벤트 종수 16→19 정정 |
 | 2026-09-17 | #139 | hunil58 | `ISaveService`에 `bool HasSave { get; }` 추가, `SaveManager.HasSave => File.Exists(SavePath)` 구현. 6.7 메인 메뉴(#90) 착수 중 발견해 구현 전 계약 변경 이슈로 먼저 발의·승인 |
 | 2026-09-17 | #142 | hunil58 | 신규 `IGameFlowService`(`StartNewRun`/`ContinueRun`/`QuitGame`) 추가, `GameManager`가 구현하고 `Instance`를 이 인터페이스 타입으로 노출. `MainMenuController`가 구체 클래스 `GameManager.Instance`를 직접 참조하던 것을 convention-checker가 발견해 계약 변경으로 정정 (run-state.md #20이 예견한 "실제 소비자가 생기면" 상황) |
+| 2026-09-18 | #150 | saltlake00 | 신규 `IStageService`(`CurrentStageIndex`/`CurrentStageNumber`/`IsGoalReached`/`IsMaxStage`/`AdvanceStage`/`RestoreStage`) 추가. `StageGoalManager`가 구현하고 `CreatureManager`·`BillManager`가 소비한다 — 단계 수치의 출처를 매니저별 자체 순번에서 이 계약 하나로 모았다 |
