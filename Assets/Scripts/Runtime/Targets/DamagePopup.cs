@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.Pool;
+using UnityEngine.SceneManagement;
 
 namespace NCAIClicker.Targets
 {
@@ -17,6 +18,29 @@ namespace NCAIClicker.Targets
         private static ObjectPool<DamagePopup> Pool =>
             _pool ??= new ObjectPool<DamagePopup>(CreatePooled, OnGet, OnRelease, OnDestroyPooled, maxSize: MaxPoolSize);
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void RegisterSceneCleanup()
+        {
+            ClearPool();
+            SceneManager.sceneLoaded -= HandleSceneLoaded;
+            SceneManager.sceneLoaded += HandleSceneLoaded;
+        }
+
+        private static void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            ClearPool();
+        }
+
+        /// <summary>풀의 정적 참조를 비워 씬 전환 시 파괴된 오브젝트 접근을 방지한다 (이슈 #197).</summary>
+        public static void ClearPool()
+        {
+            if (_pool != null)
+            {
+                _pool.Clear();
+                _pool = null;
+            }
+        }
+
         private TextMeshPro _textMesh;
         private Camera _mainCamera;
         private float _elapsedTime;
@@ -27,7 +51,23 @@ namespace NCAIClicker.Targets
         /// <summary>풀에서 팝업을 꺼내 표시한다.</summary>
         public static DamagePopup Spawn(Vector3 worldPosition, float damage)
         {
-            var popup = Pool.Get();
+            DamagePopup popup = null;
+            try
+            {
+                popup = Pool.Get();
+            }
+            catch (MissingReferenceException)
+            {
+                ClearPool();
+                popup = Pool.Get();
+            }
+
+            if (popup == null || popup.gameObject == null)
+            {
+                ClearPool();
+                popup = Pool.Get();
+            }
+
             popup.transform.position = worldPosition;
             popup.Setup(damage);
             return popup;

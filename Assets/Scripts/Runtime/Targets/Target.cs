@@ -180,7 +180,15 @@ namespace NCAIClicker.Targets
             }
 
             _currentHp -= info.Damage;
-            OnHitReceived(info);
+
+            try
+            {
+                OnHitReceived(info);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogException(ex);
+            }
 
             if (_currentHp > 0f)
             {
