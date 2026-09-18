@@ -51,9 +51,10 @@ namespace NCAIClicker.UI
         [SerializeField] private Button _payButton;
         [SerializeField] private TextMeshProUGUI _payCaptionText;
 
-        // 빅 토니 징수는 대출이 있을 때만 존재하는 항목이다. 원작의 "토니의 몫 10%" 처럼
-        // 늘 떼이는 수수료가 아니다 (GDD 4절 대출). 대출이 없으면 행을 통째로 숨긴다 —
-        // "0원 징수" 를 보여 주면 있지도 않은 빚이 있는 것처럼 읽힌다.
+        // 빅 토니 징수는 대출이 있을 때만 존재하는 항목이다. 원작도 같다 —
+        // 게임 내 안내문이 "Tony takes 5 to 10% of your earnings every day until you repay
+        // the loan" 이라고 못 박는다 (REFERENCE_ANALYSIS.md 대출 절, 등급 A 플레이 영상).
+        // 대출이 없으면 행을 통째로 숨긴다 — "0원 징수" 를 보여 주면 없는 빚이 있는 것처럼 읽힌다.
         [SerializeField] private GameObject _loanCutRow;
         [SerializeField] private TextMeshProUGUI _loanCutLabelText;
 

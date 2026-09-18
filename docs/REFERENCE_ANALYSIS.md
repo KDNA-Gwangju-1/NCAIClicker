@@ -189,7 +189,36 @@ Steam 태그에 `3D`가 명시되어 있고, 실제 게임 화면에서도 확�
 
 공식 페이지로 확인한 시간 기반 스태미나·The Tourist의 파괴 회복·종류별 드랍은 유지한다.
 문서에서 과거에 언급한 미납 허용 횟수·파산 반액 정산은 현재 MVP 규칙이 아니며 CSV에 추가하지 않는다.
-대출의 수입 징수는 별도 규칙으로 유지한다. 납부 횟수에 따른 레거시·장신구 성장은 MVP에서 제외한다.
+대출의 수입 징수는 별도 규칙으로 유지한다 (바로 아래 절에서 원문으로 확정했다). 납부 횟수에 따른 레거시·장신구 성장은 MVP에서 제외한다.
+
+### 확정 — 빅 토니 징수는 대출이 있을 때만 발생한다
+
+정산 화면의 "Tony's cut" 을 **상시 수수료로 오해하기 쉽다.** 정산창 스크린샷만 보면 매 정산마다
+10% 를 떼는 고정 항목처럼 보이기 때문이다. 실제로 그렇게 단정했다가 틀린 적이 있다.
+
+게임 내 안내문을 소리 내어 읽는 구간(등급 A)이 원문으로 못 박는다.
+
+> Take 410 out at 10%. You owe 451.
+> **Tony takes 5 to 10% of your earnings every day until you repay the loan.**
+> **That cut does not reduce your debt.** Once you pay it back, Tony won't lend again for 5 days.
+>
+> — `TUelRO1J0Vg.txt` 70:15–70:27
+
+같은 영상 71:24 에서 플레이어가 "What do you mean Tony's cut? 1,500. I only owe Tony 450." 라며
+정산창의 해당 항목을 읽는데, **이때 그는 빚이 있는 상태다.** 화면 우상단에도 남은 빚이 함께 표시된다.
+
+| 원작 규칙 | 근거 | 우리 `bills.csv` |
+|---|---|---|
+| 상환 전까지 매일 수입의 5~10% 징수 | 위 원문 | `loan_daily_cut_min` 0.05 / `loan_daily_cut_max` 0.10 ✅ |
+| 징수분은 부채를 줄이지 않는다 | 위 원문 | 주석에 동일 명시 ✅ |
+| 완제 후 5일간 재대출 불가 | 위 원문 | `loan_cooldown_days` 5 ✅ |
+| 이자 10% | 위 원문 (410 → 451) | `loan_interest_rate` 0.10 ✅ |
+
+**우리 CSV 는 이미 원작과 같다.** 그러므로 정산 화면의 징수 항목은 **대출이 있을 때만 보여야 한다.**
+빚이 없는데 항목이 떠 있으면 원작과도 우리 규칙과도 어긋난다.
+
+부수적으로 확인된 것: 원작에는 "after borrowing, Tony skips his cut for one day" 퍼크가 있다
+(`TUelRO1J0Vg.txt` 97:55). 우리 `perks.csv` 에는 없으며 MVP 범위 밖이다.
 
 ### 새로 드러난 것 — 저금통 6종과 각자의 역할
 
