@@ -164,13 +164,27 @@ namespace NCAIClicker.EditorTools
                     throw new InvalidOperationException("PublishStaminaDepleted failed to transition to Result and call EndRun");
                 }
 
-                // 4. 파산 이벤트 시 Result 전이 및 EndRun 호출 확인
+                // 4. 방어적 경로: OnBankrupt 가 Running 중 직접 발행돼도 Result 로 전이한다.
+                //    실제 게임에서는 이렇게 일어나지 않는다 — BillManager.EndRun() 은 이미 Result 로
+                //    전이된 뒤에 불려 그 안에서 OnBankrupt 를 발행한다 (진짜 흐름은 5번 케이스).
+                //    이 케이스는 GameManager 의 구독이 방어적으로 여전히 동작하는지만 본다
+                //    (docs/TECH_NOTES/billing.md "OnBankrupt 로 Result 로 전이한다는 계약은 이 경로에서 늦다").
                 setMethod.Invoke(gm, new object[] { RunState.Running });
                 callOrder.Clear();
                 GameEvents.PublishBankrupt();
                 if (gm.CurrentState != RunState.Result || callOrder.Count != 3)
                 {
                     throw new InvalidOperationException("PublishBankrupt failed to transition to Result and call EndRun");
+                }
+
+                // 5. 진짜 흐름: 이미 Result 로 전이된 뒤(EndRun 도중) 발행되는 OnBankrupt 는
+                //    CurrentState == Running 가드에 막혀 EndRun 을 다시 부르지 않는다.
+                //    OnBankrupt 는 Result 전이의 원인이 아니라 전이 도중 확정되는 결과 통지다.
+                callOrder.Clear();
+                GameEvents.PublishBankrupt();
+                if (gm.CurrentState != RunState.Result || callOrder.Count != 0)
+                {
+                    throw new InvalidOperationException("PublishBankrupt while already in Result must not re-invoke EndRun");
                 }
             }
             finally

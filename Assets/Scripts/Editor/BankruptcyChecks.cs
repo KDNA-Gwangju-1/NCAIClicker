@@ -10,14 +10,13 @@ using UnityEngine;
 namespace NCAIClicker.EditorTools
 {
     /// <summary>
-    /// 마감 미납 파산을 검증한다 (이슈 #30).
+    /// 마감 미납 파산을 검증한다 (이슈 #30, 지갑 초기화는 #158).
     ///
     /// 규칙은 **미납 = 즉시 파산**이고 유예·부분 납부·반액 정산이 없다 (#6 에서 확정).
     /// 여기서는 판정 경계(마감 당일 vs 하루 넘김)와 회차 초기화 범위를 본다.
     ///
-    /// 초기화 범위의 정본은 ARCHITECTURE "저장 경계"다. 이 카드가 닫는 것은 **날짜·청구서·대출·퍼크
-    /// ·단계**까지다 — 코인·소수 잔여는 지갑을 비울 권한이 공용 계약에 막혀 별도 이슈로 뺐다 (#158).
-    /// 단계는 #150 이 IStageService 를 열어 주어 되돌릴 수 있게 됐다.
+    /// 초기화 범위의 정본은 ARCHITECTURE "저장 경계"다. **날짜·청구서·대출·퍼크·단계·코인·소수
+    /// 잔여**까지 전부 이 카드가 닫는다 — 영구 업그레이드만 유지된다.
     ///
     /// 한계: Edit Mode 는 생명주기를 부르지 않아 필요한 곳은 리플렉션으로 직접 부른다.
     /// </summary>
@@ -126,6 +125,8 @@ namespace NCAIClicker.EditorTools
                 manager.SetEconomyService(new AlwaysPaysEconomyService());
                 var stageService = new FakeStageService();
                 manager.SetStageService(stageService);
+                var walletPersistence = new FakeWalletPersistence();
+                manager.SetWalletPersistence(walletPersistence);
 
                 // 며칠 진행해 날짜·청구서를 쌓은 뒤 파산시킨다.
                 AdvanceToDueDay(manager, stage1);
@@ -141,6 +142,15 @@ namespace NCAIClicker.EditorTools
                 // 단계도 1단계로 돌아간다 (IStageService, #150). 주입이 없으면 되돌릴 대상이 없다.
                 AssertCondition(stageService.RestoredIndex == 0,
                                 "파산이 단계를 1단계로 되돌리지 않았습니다: " + stageService.RestoredIndex);
+                checkCount++;
+
+                // 코인·소수 잔여도 0 으로 비운다 (계약 7번 "소수 잔여는 파산 시 버린다", 이슈 #158).
+                AssertCondition(walletPersistence.RestoreCallCount == 1,
+                                "파산 후 지갑 초기화가 정확히 1회 호출되지 않았습니다: " + walletPersistence.RestoreCallCount);
+                AssertCondition(walletPersistence.RestoredBalance == 0L,
+                                "파산 후 지갑 잔액이 0 으로 초기화되지 않았습니다: " + walletPersistence.RestoredBalance);
+                AssertCondition(walletPersistence.RestoredRemainderText == "0",
+                                "파산 후 소수 잔여가 초기화되지 않았습니다: " + walletPersistence.RestoredRemainderText);
                 checkCount++;
 
                 // 다음 런이 1일차 첫 청구서를 발행한다 (ARCHITECTURE "게임 시작과 파산 재시작에도").
@@ -230,6 +240,23 @@ namespace NCAIClicker.EditorTools
             public void RestoreStage(int stageIndex)
             {
                 RestoredIndex = stageIndex;
+            }
+        }
+
+        /// <summary>지갑 초기화 호출을 받았는지만 본다. 실제 CoinWallet 계산은 CoinWalletChecks 의 몫이다.</summary>
+        private class FakeWalletPersistence : IWalletPersistence
+        {
+            public int RestoreCallCount { get; private set; }
+            public long RestoredBalance { get; private set; } = -1L;
+            public string RestoredRemainderText { get; private set; }
+
+            public string CurrentRemainderText => "0";
+
+            public void RestoreWallet(long balance, string remainderText)
+            {
+                RestoreCallCount++;
+                RestoredBalance = balance;
+                RestoredRemainderText = remainderText;
             }
         }
 

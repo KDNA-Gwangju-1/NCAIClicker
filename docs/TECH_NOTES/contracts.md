@@ -64,7 +64,7 @@ flowchart LR
 | `IBillService` | `Assets/Scripts/Runtime/Interfaces/IBillService.cs` | 청구서 납부 및 대출 서비스 인터페이스 |
 | `IEconomyService` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 코인 적립, 지출, 대출 원금 입금 인터페이스 |
 | `IRunScoped` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 런 경계(`BeginRun`·`EndRun`) 인터페이스. GameManager 전용 (이슈 #71, #111) |
-| `IWalletPersistence` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 지갑 저장 복원 인터페이스. SaveManager 전용 (이슈 #71) |
+| `IWalletPersistence` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 지갑 저장 복원 인터페이스. SaveManager·BillManager 가 쓴다 — 후자는 파산 시 회차 초기화용 (이슈 #71, #158) |
 | `IUpgradeStats` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 업그레이드 실효값 조회(`GetStat`). 소비처는 `BalanceData` 기준값 대신 이것을 읽는다. `EconomyManager` 구현 (이슈 #116) |
 | `IUpgradeShop` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 업그레이드 레벨·다음 비용 조회, 구매(`TryPurchase`). 메뉴·결과 화면(작업 6.8)이 쓸 예정. `EconomyManager` 구현 (이슈 #116) |
 | `IUpgradePersistence` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 업그레이드 레벨 저장 복원. SaveManager 전용으로 설계했으나 현재 미배선 (이슈 #116) |
@@ -141,3 +141,4 @@ flowchart LR
 | 2026-09-17 | #139 | hunil58 | `ISaveService`에 `bool HasSave { get; }` 추가, `SaveManager.HasSave => File.Exists(SavePath)` 구현. 6.7 메인 메뉴(#90) 착수 중 발견해 구현 전 계약 변경 이슈로 먼저 발의·승인 |
 | 2026-09-17 | #142 | hunil58 | 신규 `IGameFlowService`(`StartNewRun`/`ContinueRun`/`QuitGame`) 추가, `GameManager`가 구현하고 `Instance`를 이 인터페이스 타입으로 노출. `MainMenuController`가 구체 클래스 `GameManager.Instance`를 직접 참조하던 것을 convention-checker가 발견해 계약 변경으로 정정 (run-state.md #20이 예견한 "실제 소비자가 생기면" 상황) |
 | 2026-09-18 | #150 | saltlake00 | 신규 `IStageService`(`CurrentStageIndex`/`CurrentStageNumber`/`IsGoalReached`/`IsMaxStage`/`AdvanceStage`/`RestoreStage`) 추가. `StageGoalManager`가 구현하고 `CreatureManager`·`BillManager`가 소비한다 — 단계 수치의 출처를 매니저별 자체 순번에서 이 계약 하나로 모았다 |
+| 2026-09-18 | #158 | hunil58 | `IWalletPersistence` 소비자 제한을 "SaveManager 전용"에서 "SaveManager·BillManager"로 넓힘 (A안). `BillManager`가 파산 시 회차 초기화에서 `RestoreWallet(0, "0")`을 호출해 코인·소수 잔여를 비운다 |
