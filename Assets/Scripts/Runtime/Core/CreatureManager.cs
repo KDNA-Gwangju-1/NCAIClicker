@@ -367,27 +367,22 @@ namespace NCAIClicker.Core
 
         private GameObject PickPrefabByStageRatio()
         {
-            var normalRatio = 0.6f;
-            var anchorRatio = 0.15f;
-            var runnerRatio = 0.1f;
-            var touristRatio = 0.15f;
-
-            if (_balanceData != null)
+            // 기본값을 코드에 두지 않는다. CSV 를 못 읽으면 스폰하지 않는 편이 낫다 (AGENTS.md 데이터 절, #148).
+            var stageDef = _balanceData == null ? null : _balanceData.GetStage(_currentStageNumber);
+            if (stageDef == null)
             {
-                var stageDef = _balanceData.GetStage(_currentStageNumber);
-                if (stageDef != null)
-                {
-                    normalRatio = stageDef.NormalRatio;
-                    anchorRatio = stageDef.AnchorRatio;
-                    runnerRatio = stageDef.RunnerRatio;
-                    touristRatio = stageDef.TouristRatio;
-                }
+                return null;
             }
+
+            var normalRatio = stageDef.NormalRatio;
+            var anchorRatio = stageDef.AnchorRatio;
+            var runnerRatio = stageDef.RunnerRatio;
+            var touristRatio = stageDef.TouristRatio;
 
             var total = normalRatio + anchorRatio + runnerRatio + touristRatio;
             if (total <= 0f)
             {
-                return _targetNormalPrefab;
+                return null;
             }
 
             var roll = Random.Range(0f, total);

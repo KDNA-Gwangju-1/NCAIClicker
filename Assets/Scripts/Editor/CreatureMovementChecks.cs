@@ -148,6 +148,15 @@ namespace NCAIClicker.EditorTools
                 // 리스폰 타이머 처리 검증
                 mgr.UpdateRespawnTimers(1.0f);
                 passedCount++;
+
+                // 9. stageDef 가 없는 경로에서 비율 폴백 하드코딩 없이 안전하게 null 반환 검증 (#148)
+                mgr.InitializeStage(9999);
+                Assert(mgr.GetRequiredSpawnCount() == 0,
+                       "없는 단계에서는 spawn_count 가 0 이어야 합니다.");
+                var spawnedInvalid = mgr.SpawnRandomCreature();
+                Assert(spawnedInvalid == null,
+                       "stageDef 가 없을 때는 크리처를 스폰하지 않아야 합니다 (#148).");
+                passedCount++;
             }
             finally
             {

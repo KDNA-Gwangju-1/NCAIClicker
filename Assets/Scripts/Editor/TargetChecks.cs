@@ -112,13 +112,19 @@ namespace NCAIClicker.EditorTools
                     live.Initialize();
                     checkCount++;
 
-                    // --- 내구도를 다 깎기 전에는 부서지지 않는다 ---
+                    // --- 내구도를 다 깎기 전에는 부서지지 않는다 및 HitReceived 이벤트 검증 (#148) ---
                     broken.Clear();
                     var hitsToKill = def.Hp;
+                    var hitReceivedCount = 0;
+                    Action<HitInfo> onHitReceived = hit => hitReceivedCount++;
+                    live.HitReceived += onHitReceived;
+
                     for (var i = 0; i < hitsToKill - 1; i++)
                     {
                         live.OnHit(new HitInfo(HitSource.Hover, 1f, Vector3.zero));
                     }
+                    AssertCondition(hitReceivedCount == hitsToKill - 1,
+                        pair.Key + ": HitReceived 가 타격 횟수만큼 발행되지 않았습니다: " + hitReceivedCount);
                     AssertCondition(broken.Count == 0,
                         pair.Key + ": 내구도가 남았는데 부서졌습니다. " + (hitsToKill - 1) + "타 후 " + broken.Count + "건 발행.");
                     AssertCondition(live.IsAlive, pair.Key + ": 내구도가 남았는데 죽었습니다.");
@@ -126,6 +132,9 @@ namespace NCAIClicker.EditorTools
 
                     // --- 마지막 타격에 정확히 한 번 발행한다 (계약 2번) ---
                     live.OnHit(new HitInfo(HitSource.Hover, 1f, Vector3.zero));
+                    AssertCondition(hitReceivedCount == hitsToKill,
+                        pair.Key + ": 마지막 타격에 HitReceived 가 발행되지 않았습니다.");
+                    live.HitReceived -= onHitReceived;
                     AssertCondition(broken.Count == 1,
                         pair.Key + ": OnTargetBroken 이 " + broken.Count + "번 발행됐습니다. 1번이어야 합니다.");
                     AssertCondition(!live.IsAlive, pair.Key + ": 부서졌는데 살아 있다고 합니다.");
