@@ -22,7 +22,7 @@ namespace NCAIClicker.EditorTools
         private static readonly List<string> _errors = new List<string>();
         private static string _csvDirectory;
 
-        [MenuItem("NCAI/밸런스 CSV 임포트 %#i")]
+        [MenuItem("NCAI/밸런스 CSV 임포트 %#i", false, MenuPriority.BalanceImport)]
         public static void Import()
         {
             if (!TryImport(CsvDir, OutputPath, out var error))
