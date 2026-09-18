@@ -10,7 +10,7 @@ namespace NCAIClicker.Economy
     /// <summary>
     /// 하루 진행과 청구서 발행·조기 납부를 관리한다. 한 번의 런 = 하루 하나 (ARCHITECTURE.md "하루 종료 순서").
     /// 대출(4.3)은 여기서 빌리고 갚는 것까지 맡는다. 다만 수입에서 실제로 떼는 일은 EconomyManager 가 LoanDailyCut 을 읽어 하고,
-    /// 파산 판정(4.4)은 이 클래스의 범위가 아니다.
+    /// 파산 판정(4.4)도 여기서 한다 — ARCHITECTURE 1절이 이 매니저에 맡겨 두었다.
     /// 납부(4.2)의 완료 기준 정본은 GitHub 이슈 #28.
     ///
     /// 퍼크 선택(OnPerkChosen)의 실제 게임플레이 효과 적용은 이 클래스의 범위 밖이다 — 각 시스템이
@@ -123,6 +123,77 @@ namespace NCAIClicker.Economy
         public void EndRun()
         {
             GameEvents.PublishDayEnded(_currentDay);
+
+            if (!IsBillOverdue())
+            {
+                return;
+            }
+            HandleBankruptcy();
+        }
+
+        /// <summary>
+        /// 마감을 넘긴 미납 청구서가 있는가. **미납 = 즉시 파산**이며 유예·부분 납부·반액 정산은
+        /// 없다 (#6 에서 확정, 근거는 REFERENCE_ANALYSIS 6절). 대출로 코인을 만들어 내는 것이
+        /// 유일한 회피 수단이고, 그것도 마감 전에 TryPay 로 내야 한다.
+        ///
+        /// 하루의 끝에서만 판정하므로 "마감 판정 전에 납부 기회를 제공한다"(ARCHITECTURE)를
+        /// 자연히 지킨다 — 런 내내 TryPay 가 열려 있다.
+        /// </summary>
+        private bool IsBillOverdue()
+        {
+            return _activeBill != null && !_activeBill.IsPaid && _currentDay >= _activeBill.DueDay;
+        }
+
+        /// <summary>
+        /// 파산을 알리고 회차를 되돌린다.
+        ///
+        /// **알리는 것이 먼저다.** 되돌린 뒤에 알리면 받는 쪽이 이미 초기화된 상태를 보게 되어
+        /// 결과 화면(작업 6.2)이 무엇이 실패했는지 읽을 수 없다.
+        ///
+        /// **경고: 지금 이 메서드는 게임에서 실행되지 않는다.** BillManager 가 IRunScoped 를
+        /// 구현하지 않아 GameManager 의 GetComponentsInChildren&lt;IRunScoped&gt; 에 잡히지 않고,
+        /// EndRun() 을 부르는 곳이 런타임에 없다. 판정 로직은 Edit Mode 검증으로만 확인했다.
+        /// 배선은 별도 카드에서 다룬다 (docs/TECH_NOTES/billing.md "알려진 한계").
+        ///
+        /// 배선이 붙으면 EndRun 은 Result 전이 도중에 불리게 되므로, OnBankrupt 를 받아
+        /// GameManager 가 Result 로 전이한다는 계약(ARCHITECTURE 3절)은 그때도 이 경로에서는
+        /// 늦다. 파산은 런을 끝내는 원인이 아니라 끝난 런의 결과다 — 마감을 놓치는 순간이 곧
+        /// 하루의 끝이라 런 도중에 파산이 날 길이 없다. 정리는 #158 에서 한다.
+        /// </summary>
+        private void HandleBankruptcy()
+        {
+            GameEvents.PublishBankrupt();
+            ResetRound();
+        }
+
+        /// <summary>
+        /// 새 회차 값으로 되돌린다. 영구 업그레이드와 최고 기록은 건드리지 않는다
+        /// (ARCHITECTURE "저장 경계"). 다음 BeginRun 이 1일차 첫 청구서를 발행한다 —
+        /// _hasBegun 을 내려 두므로 날짜가 증가하지 않는다.
+        ///
+        /// _billIndex 도 되돌린다. #150 이후 이 필드는 단계가 아니라 **누적 청구서 순번**이며
+        /// 대출 해금(loan_unlock_bill_index)의 기준이라, 새 회차에서 다시 1부터 세어야 한다.
+        ///
+        /// 단계는 _stageService 가 단일 출처다 (IStageService, #150). 그쪽 RestoreStage 주석이
+        /// "저장 복원 및 파산 처리용"으로 이 자리를 가리킨다.
+        /// </summary>
+        private void ResetRound()
+        {
+            _currentDay = 1;
+            _billIndex = 1;
+            _hasBegun = false;
+            _activeBill = null;
+            _activeLoan = null;
+            _lastLoanRepaidDay = -1;
+            _offeredPerkIds = Array.Empty<string>();
+
+            // 단계를 1단계로 되돌린다. 인덱스는 0부터라 0 이 1단계다.
+            _stageService?.RestoreStage(0);
+
+            // **코인과 소수 잔여는 여기서 못 비운다.** 지갑을 비울 수 있는 IWalletPersistence 는
+            // "SaveManager 만 쓴다"로 사용자가 묶여 있고, EconomyManager 가 스스로 비우려면
+            // OnBankrupt 를 구독해야 하는데 그것도 "GameManager 만 구독"이다.
+            // 어느 쪽이든 공용 계약을 넓혀야 해서 별도 이슈로 뺐다 — 그때까지 파산해도 돈은 남는다.
         }
 
         /// <summary>
