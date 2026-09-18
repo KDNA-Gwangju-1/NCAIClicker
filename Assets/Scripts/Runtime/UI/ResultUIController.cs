@@ -5,6 +5,8 @@ using NCAIClicker.Events;
 using NCAIClicker.Interfaces;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -89,6 +91,11 @@ namespace NCAIClicker.UI
         private int _brokenTotal;
         private readonly Dictionary<string, int> _brokenByType = new Dictionary<string, int>();
         private bool _isBankrupt;
+
+        // 결과 화면 뒤 3D 장면을 흐리는 데 쓴다. Game 씬의 Global Volume(SampleSceneProfile)에
+        // 이미 있는 DepthOfField 오버라이드를 찾아 active 만 토글한다 — 씬은 코어 플레이 소유라
+        // 새 Volume 을 만들어 넣지 않는다.
+        private DepthOfField _backgroundBlur;
 
         public bool IsPanelActive => _panelRoot != null && _panelRoot.activeSelf;
         public bool IsSettlementActive => _settlementContainer != null && _settlementContainer.activeSelf;
@@ -259,6 +266,7 @@ namespace NCAIClicker.UI
                 _bankruptcyContainer.SetActive(false);
             }
 
+            SetBackgroundBlur(true);
             UpdateSettlementView();
         }
 
@@ -281,6 +289,7 @@ namespace NCAIClicker.UI
                 _bankruptcyContainer.SetActive(true);
             }
 
+            SetBackgroundBlur(true);
             UpdateBankruptcyView();
         }
 
@@ -297,6 +306,30 @@ namespace NCAIClicker.UI
             if (_bankruptcyContainer != null)
             {
                 _bankruptcyContainer.SetActive(false);
+            }
+
+            SetBackgroundBlur(false);
+        }
+
+        /// <summary>
+        /// Game 씬 Global Volume 의 DepthOfField 오버라이드를 켜고 끈다.
+        /// 컴포넌트를 못 찾아도(씬에 Volume 이 없는 테스트 환경 등) 조용히 넘어간다 —
+        /// 블러는 연출일 뿐 결과 화면 동작을 막아서는 안 된다.
+        /// </summary>
+        private void SetBackgroundBlur(bool enabled)
+        {
+            if (_backgroundBlur == null)
+            {
+                var volume = FindFirstObjectByType<Volume>(FindObjectsInactive.Include);
+                if (volume != null && volume.profile != null)
+                {
+                    volume.profile.TryGet(out _backgroundBlur);
+                }
+            }
+
+            if (_backgroundBlur != null)
+            {
+                _backgroundBlur.active = enabled;
             }
         }
 
