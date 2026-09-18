@@ -136,10 +136,10 @@ namespace NCAIClicker.EditorTools
             SetFlexibleHeight(codex, 1f);
             var codexIcon = CreateObject("CodexIcon", codex);
             var codexImage = codexIcon.AddComponent<Image>();
-            codexImage.color = new Color(1f, 1f, 1f, 0.05f);
+            codexImage.color = RowFill;
             SetPreferredHeight(codexIcon, 190f);
             bound["_codexProgressText"] = CreateLabel("CodexProgressText", codex, font, 28, Muted, TextAlignmentOptions.Center, ResultUIController.UnwiredPlaceholder);
-            CreateLabel("CodexCaptionText", codex, font, 20, PanelLine, TextAlignmentOptions.Center, "다음 저금통 해금까지");
+            CreateLabel("CodexCaptionText", codex, font, 20, Muted, TextAlignmentOptions.Center, "다음 저금통 해금까지");
 
             // 하단 액션.
             var actions = CreateHorizontal("ActionRow", settlement, 28f);
@@ -193,7 +193,7 @@ namespace NCAIClicker.EditorTools
             var row = CreateHorizontal("DenomRow", parent, 10f);
             SetPreferredHeight(row, 60f);
             var image = row.AddComponent<Image>();
-            image.color = new Color(1f, 1f, 1f, 0.04f);
+            image.color = RowFill;
 
             var worths = new[] { "$1", "$5", "$25", "$100" };
             var labels = new TextMeshProUGUI[worths.Length];
@@ -202,7 +202,7 @@ namespace NCAIClicker.EditorTools
                 var chip = CreateHorizontal($"DenomChip{i}", row, 8f);
                 chip.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleCenter;
                 labels[i] = CreateLabel("CountText", chip, font, 30, Parchment, TextAlignmentOptions.Right, ResultUIController.UnwiredPlaceholder);
-                CreateLabel("WorthText", chip, font, 20, PanelLine, TextAlignmentOptions.Left, worths[i]);
+                CreateLabel("WorthText", chip, font, 20, Muted, TextAlignmentOptions.Left, worths[i]);
             }
             return labels;
         }
