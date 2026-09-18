@@ -1,6 +1,6 @@
 # 공용 계약 (인터페이스·이벤트·DTO)
 
-> 관련 이슈: #3, #71, #116, #24, #139, #142, #150 · 최종 수정: 2026-09-18
+> 관련 이슈: #3, #71, #116, #24, #139, #142, #150, #171 · 최종 수정: 2026-09-18
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -62,11 +62,11 @@ flowchart LR
 | `SaveData` | `Assets/Scripts/Runtime/Data/SaveData.cs` | 저장 DTO(Version 2 기준 전체 영속 필드) |
 | `IHittable` | `Assets/Scripts/Runtime/Interfaces/IHittable.cs` | 타격 대상 피격(OnHit) 및 생존 여부(IsAlive) 인터페이스 |
 | `IBillService` | `Assets/Scripts/Runtime/Interfaces/IBillService.cs` | 청구서 납부 및 대출 서비스 인터페이스 |
-| `IEconomyService` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 코인 적립, 지출, 대출 원금 입금 인터페이스 |
+| `IEconomyService` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 코인 적립, 지출, 대출 원금 입금 인터페이스. `EconomyManager.Instance` 가 이 타입으로 노출 — UI 가 초기 잔액을 한 번 읽는 통로 (이슈 #171) |
 | `IRunScoped` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 런 경계(`BeginRun`·`EndRun`) 인터페이스. GameManager 전용 (이슈 #71, #111) |
 | `IWalletPersistence` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 지갑 저장 복원 인터페이스. SaveManager·BillManager 가 쓴다 — 후자는 파산 시 회차 초기화용 (이슈 #71, #158) |
 | `IUpgradeStats` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 업그레이드 실효값 조회(`GetStat`). 소비처는 `BalanceData` 기준값 대신 이것을 읽는다. `EconomyManager` 구현 (이슈 #116) |
-| `IUpgradeShop` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 업그레이드 레벨·다음 비용 조회, 구매(`TryPurchase`). 메뉴·결과 화면(작업 6.8)이 쓸 예정. `EconomyManager` 구현 (이슈 #116) |
+| `IUpgradeShop` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 업그레이드 레벨·다음 비용 조회, 구매(`TryPurchase`). `EconomyManager` 구현이고 `EconomyManager.Shop` 이 이 타입으로 노출 (이슈 #116, #171). 소비처는 업그레이드 구매 UI(작업 6.8, #91) |
 | `IUpgradePersistence` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 업그레이드 레벨 저장 복원. SaveManager 전용으로 설계했으나 현재 미배선 (이슈 #116) |
 | `UpgradeState` | `Assets/Scripts/Runtime/Economy/UpgradeState.cs` | 업그레이드 레벨·다음 비용·실효값 실제 계산 (Unity 비의존 순수 클래스). `EconomyManager`가 `IUpgradeStats`/`IUpgradeShop`/`IUpgradePersistence` 구현에서 그대로 위임한다 (이슈 #24, twins6375-art, Edit Mode 22건 PASS) |
 | `ISaveService` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | 저장 및 불러오기 인터페이스. `HasSave`로 저장 파일 존재 여부 조회 (이슈 #139) |
@@ -120,6 +120,7 @@ flowchart LR
 
 * 매니저 구현체는 후속 작업에서 작성된다. 2026-09-17 현재 `EconomyManager`(3.1)·`SaveManager`(3.4) 가 있고 2.x 코어·4.x 청구서·5.x 피버는 진행 중이다.
 * ~~`ActiveBill`·`ActiveLoan` 등 null 허용 참조 필드가 `JsonUtility`로 왕복 직렬화되는지는 문서로만 확정~~ — 이슈 #25에서 실제로 확인한 결과 **문서 서술이 틀렸다.** `JsonUtility`는 참조 타입의 null을 표현하지 못한다. `SaveData`에 `HasActiveBill`·`HasActiveLoan` 플래그를 추가하고 `SaveManager`가 변환하는 방식으로 수정했다 (이슈 #76, ARCHITECTURE.md "직렬화 방식" 참고).
+* ~~#116: 소비처가 `IUpgradeShop` 에 닿을 통로가 없다~~ — #171 에서 `EconomyManager.Shop` 을 열어 풀었다. 다만 실제 소비처(업그레이드 구매 UI)는 6.8(#91)에서 붙는다.
 * #116: 소비처(스탯 표시 UI, 상점 메뉴, 결과 화면 등)를 `BalanceData` 직접 참조에서 `IUpgradeStats`·`IUpgradeShop`로 옮기는 마이그레이션은 이번 작업 범위 밖이다 — 이슈 자체가 계약 동결까지만 요구했다. 후속 이슈에서 실제 배선이 필요하다.
 * #116: `IUpgradePersistence`는 계약과 `EconomyManager` 구현만 있고 `SaveManager`는 아직 `RestoreUpgradeLevels`/`CurrentUpgradeLevels`를 호출하지 않는다. `SaveData.UpgradeLevels` 필드는 이미 존재하나 어디서도 읽거나 쓰지 않는 미사용 상태다.
 * #116/#24: `EconomyManager`는 원래 업그레이드 레벨 배열(`_upgradeLevels`)과 기준값 스위치(`GetBaseValue`)를 직접 들고 있었으나, `Develop`에 먼저 병합된 #24(`UpgradeState`, PR #120)와 겹치는 것을 리베이스 충돌로 뒤늦게 발견했다. 직접 구현을 버리고 `UpgradeState`에 위임하도록 정리했고, `IUpgradeStats`도 애초 계획했던 `GetStat(StatId)` 편의 오버로드를 빼고 `GetStat(StatId, baseValue)` 하나로 좁혔다 — #24 PR의 "자신 없는 곳"에 적힌 대로 `EconomyManager`의 임시 public API(`GetUpgradeLevel` 등 7개)는 이 정리로 제거했다.
@@ -142,3 +143,4 @@ flowchart LR
 | 2026-09-17 | #142 | hunil58 | 신규 `IGameFlowService`(`StartNewRun`/`ContinueRun`/`QuitGame`) 추가, `GameManager`가 구현하고 `Instance`를 이 인터페이스 타입으로 노출. `MainMenuController`가 구체 클래스 `GameManager.Instance`를 직접 참조하던 것을 convention-checker가 발견해 계약 변경으로 정정 (run-state.md #20이 예견한 "실제 소비자가 생기면" 상황) |
 | 2026-09-18 | #150 | saltlake00 | 신규 `IStageService`(`CurrentStageIndex`/`CurrentStageNumber`/`IsGoalReached`/`IsMaxStage`/`AdvanceStage`/`RestoreStage`) 추가. `StageGoalManager`가 구현하고 `CreatureManager`·`BillManager`가 소비한다 — 단계 수치의 출처를 매니저별 자체 순번에서 이 계약 하나로 모았다 |
 | 2026-09-18 | #158 | hunil58 | `IWalletPersistence` 소비자 제한을 "SaveManager 전용"에서 "SaveManager·BillManager"로 넓힘 (A안). `BillManager`가 파산 시 회차 초기화에서 `RestoreWallet(0, "0")`을 호출해 코인·소수 잔여를 비운다 |
+| 2026-09-18 | #171 | yahoo-afk | `EconomyManager` 에 정적 조회 통로 2개 추가 — `Instance`(`IEconomyService`)·`Shop`(`IUpgradeShop`). 인터페이스 시그니처는 그대로고 **접근 통로만** 열었다. `BillManager.Instance`·`SaveManager.Instance`·`GameManager.Instance`(#142) 와 같은 패턴이며 `Awake` 첫 부분에서 대입한다. 첫 소비처는 `CoinHud`(잔액 초기값), 다음은 업그레이드 구매 UI(6.8, #91) |
