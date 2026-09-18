@@ -58,13 +58,25 @@ namespace NCAIClicker.EditorTools
             var bankruptcy = BuildBankruptcy(panelRoot, font, out var bankruptcyBound);
 
             // 우상단은 현재 보유액 자리다 (원작). 메인 메뉴는 좌하단으로 작게 물린다.
-            var balanceLabel = CreateLabel("BalanceText", panelRoot, font, 40, Gold, TextAlignmentOptions.Right, "$0");
+            // 글자만 두면 뒤의 3D 책상과 겹쳐 읽히지 않는다 — 원작처럼 배경 상자에 담는다.
+            var balanceBox = CreateObject("BalanceBox", panelRoot);
+            var balanceBoxRect = balanceBox.GetComponent<RectTransform>();
+            balanceBoxRect.anchorMin = new Vector2(1f, 1f);
+            balanceBoxRect.anchorMax = new Vector2(1f, 1f);
+            balanceBoxRect.pivot = new Vector2(1f, 1f);
+            balanceBoxRect.sizeDelta = new Vector2(280f, 76f);
+            balanceBoxRect.anchoredPosition = new Vector2(-SafeInset.x, -SafeInset.y);
+            balanceBox.AddComponent<Image>().color = new Color(0.192f, 0.145f, 0.106f, 0.96f);
+            var balanceOutline = balanceBox.AddComponent<Outline>();
+            balanceOutline.effectColor = new Color(0.42f, 0.33f, 0.21f);
+            balanceOutline.effectDistance = new Vector2(2f, -2f);
+
+            var balanceLabel = CreateLabel("BalanceText", balanceBox, font, 40, Gold, TextAlignmentOptions.Center, "$0");
             var balanceRect = balanceLabel.GetComponent<RectTransform>();
-            balanceRect.anchorMin = new Vector2(1f, 1f);
-            balanceRect.anchorMax = new Vector2(1f, 1f);
-            balanceRect.pivot = new Vector2(1f, 1f);
-            balanceRect.sizeDelta = new Vector2(360f, 56f);
-            balanceRect.anchoredPosition = new Vector2(-SafeInset.x, -SafeInset.y);
+            balanceRect.anchorMin = Vector2.zero;
+            balanceRect.anchorMax = Vector2.one;
+            balanceRect.offsetMin = new Vector2(16f, 0f);
+            balanceRect.offsetMax = new Vector2(-16f, 0f);
             bound["_balanceText"] = balanceLabel;
 
             var mainMenuButton = CreateButton("MainMenuButton", panelRoot, font, new Vector2(180f, 48f), "메인 메뉴",
