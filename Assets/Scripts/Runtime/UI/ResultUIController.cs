@@ -53,6 +53,7 @@ namespace NCAIClicker.UI
         [SerializeField] private Button _payButton;
         [SerializeField] private TextMeshProUGUI _payCaptionText;
         [SerializeField] private TextMeshProUGUI _payButtonLabel;
+        [SerializeField] private TextMeshProUGUI _payDaysLeftText;
 
         // 빅 토니 징수는 대출이 있을 때만 존재하는 항목이다. 원작도 같다 —
         // 게임 내 안내문이 "Tony takes 5 to 10% of your earnings every day until you repay
@@ -394,8 +395,24 @@ namespace NCAIClicker.UI
 
             if (_stageGoalText != null)
             {
-                bool isGoalReached = _stageService != null && _stageService.IsGoalReached;
-                _stageGoalText.text = isGoalReached ? "단계 목표: 달성 완료!" : "단계 목표: 미달성";
+                // "미달성" 만 적으면 얼마가 모자란지 알 수 없어 쓸모가 없다. 숫자를 같이 보여 준다.
+                var stageNumber = _stageService != null ? _stageService.CurrentStageNumber : 1;
+                var stage = _balanceData != null ? _balanceData.GetStage(stageNumber) : null;
+                var earned = _economyService != null ? _economyService.RunCoin : 0L;
+
+                if (stage == null)
+                {
+                    var reached = _stageService != null && _stageService.IsGoalReached;
+                    _stageGoalText.text = reached ? $"{stageNumber}단계 목표 달성" : $"{stageNumber}단계 진행 중";
+                }
+                else if (_stageService != null && _stageService.IsGoalReached)
+                {
+                    _stageGoalText.text = $"{stageNumber}단계 목표 달성 (${stage.GoalCoin:N0})";
+                }
+                else
+                {
+                    _stageGoalText.text = $"{stageNumber}단계 목표 ${earned:N0} / ${stage.GoalCoin:N0}";
+                }
             }
         }
 
@@ -442,19 +459,25 @@ namespace NCAIClicker.UI
                 _upgradeButton.interactable = _billPanel != null;
             }
 
-            // 원작은 버튼 자체가 정보다 — 금액이 크게, 남은 일수가 작게.
+            // 원작은 버튼 자체가 정보다 — 금액이 크게, 남은 일수가 그 아래 작게, 둘 다 버튼 안에.
+            // 버튼 밖 캡션은 "지금 낼 수 있는가" 만 답한다.
             var activeBill = _billService?.ActiveBill;
+            var unpaid = activeBill != null && !activeBill.IsPaid;
+
             if (_payButtonLabel != null)
             {
-                _payButtonLabel.text = activeBill == null || activeBill.IsPaid
-                    ? "납부 완료"
-                    : $"${activeBill.Amount:N0}";
+                _payButtonLabel.text = unpaid ? $"${activeBill.Amount:N0}" : "납부 완료";
+            }
+            if (_payDaysLeftText != null)
+            {
+                _payDaysLeftText.text = unpaid ? $"{_billService.DaysLeft}일 남음" : string.Empty;
             }
             if (_payCaptionText != null)
             {
-                _payCaptionText.text = activeBill == null || activeBill.IsPaid
+                var coin = _economyService != null ? _economyService.CurrentCoin : 0L;
+                _payCaptionText.text = !unpaid
                     ? string.Empty
-                    : $"{_billService.DaysLeft}일 남음";
+                    : coin >= activeBill.Amount ? "납부 가능" : $"${activeBill.Amount - coin:N0} 부족";
             }
         }
 

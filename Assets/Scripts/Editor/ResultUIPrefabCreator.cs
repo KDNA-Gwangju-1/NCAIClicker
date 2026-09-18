@@ -195,11 +195,24 @@ namespace NCAIClicker.EditorTools
             SetPreferredWidth(payColumn, 340f);
             SetFlexibleWidth(payColumn, 0f);
             // 동작이 없는 버튼은 프리팹 단계에서 잠근다. 런타임에 끄면 첫 프레임에 눌릴 수 있다.
-            var payButton = CreateButton("PayButton", payColumn, font, new Vector2(340f, 104f), "지금 납부",
+            // 버튼 안에 두 줄이 들어간다 — 금액이 크게, 남은 일수가 그 아래 작게 (원작).
+            var payButton = CreateButton("PayButton", payColumn, font, new Vector2(340f, 104f), string.Empty,
                 new Color(0.49f, 0.12f, 0.1f), new Color(0.7f, 0.25f, 0.21f), new Color(1f, 0.86f, 0.83f), 34);
             payButton.interactable = false;
             bound["_payButton"] = payButton;
-            bound["_payButtonLabel"] = payButton.GetComponentInChildren<TextMeshProUGUI>(true);
+
+            var payTextRoot = CreateVertical("PayLabels", payButton.gameObject, 0f);
+            var payTextRect = payTextRoot.GetComponent<RectTransform>();
+            payTextRect.anchorMin = Vector2.zero;
+            payTextRect.anchorMax = Vector2.one;
+            payTextRect.offsetMin = new Vector2(8f, 8f);
+            payTextRect.offsetMax = new Vector2(-8f, -8f);
+            payTextRoot.GetComponent<VerticalLayoutGroup>().childAlignment = TextAnchor.MiddleCenter;
+
+            bound["_payButtonLabel"] = CreateLabel("PayAmountText", payTextRoot, font, 38,
+                new Color(1f, 0.86f, 0.83f), TextAlignmentOptions.Center, "$0");
+            bound["_payDaysLeftText"] = CreateLabel("PayDaysLeftText", payTextRoot, font, 24,
+                new Color(0.85f, 0.62f, 0.55f), TextAlignmentOptions.Center, "");
             bound["_payCaptionText"] = CreateLabel("PayCaptionText", payColumn, font, 22, Muted, TextAlignmentOptions.Center, "준비 중");
 
             var continueButton = CreateButton("ContinueButton", actions, font, new Vector2(300f, 104f), "계속",
