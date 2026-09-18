@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Pool;
+using UnityEngine.SceneManagement;
 
 namespace NCAIClicker.Targets
 {
@@ -19,6 +20,29 @@ namespace NCAIClicker.Targets
         private static ObjectPool<Fragment> Pool =>
             _pool ??= new ObjectPool<Fragment>(Create, OnGet, OnRelease, OnDestroyPooled, maxSize: MaxPoolSize);
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void RegisterSceneCleanup()
+        {
+            ClearPool();
+            SceneManager.sceneLoaded -= HandleSceneLoaded;
+            SceneManager.sceneLoaded += HandleSceneLoaded;
+        }
+
+        private static void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            ClearPool();
+        }
+
+        /// <summary>풀의 정적 참조를 비워 씬 전환 시 파괴된 오브젝트 접근을 방지한다 (이슈 #197).</summary>
+        public static void ClearPool()
+        {
+            if (_pool != null)
+            {
+                _pool.Clear();
+                _pool = null;
+            }
+        }
+
         private Rigidbody _rigidbody;
         private float _elapsed;
 
@@ -27,7 +51,23 @@ namespace NCAIClicker.Targets
         {
             for (var i = 0; i < count; i++)
             {
-                var fragment = Pool.Get();
+                Fragment fragment = null;
+                try
+                {
+                    fragment = Pool.Get();
+                }
+                catch (MissingReferenceException)
+                {
+                    ClearPool();
+                    fragment = Pool.Get();
+                }
+
+                if (fragment == null || fragment.gameObject == null)
+                {
+                    ClearPool();
+                    fragment = Pool.Get();
+                }
+
                 fragment.transform.SetPositionAndRotation(worldPosition, Random.rotation);
                 fragment.ResetState();
 

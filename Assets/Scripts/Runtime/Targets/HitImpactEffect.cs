@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Pool;
+using UnityEngine.SceneManagement;
 
 namespace NCAIClicker.Targets
 {
@@ -18,6 +19,29 @@ namespace NCAIClicker.Targets
         private static ObjectPool<HitImpactEffect> Pool =>
             _pool ??= new ObjectPool<HitImpactEffect>(Create, OnGet, OnRelease, OnDestroyPooled, maxSize: MaxPoolSize);
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void RegisterSceneCleanup()
+        {
+            ClearPool();
+            SceneManager.sceneLoaded -= HandleSceneLoaded;
+            SceneManager.sceneLoaded += HandleSceneLoaded;
+        }
+
+        private static void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            ClearPool();
+        }
+
+        /// <summary>풀의 정적 참조를 비워 씬 전환 시 파괴된 오브젝트 접근을 방지한다 (이슈 #197).</summary>
+        public static void ClearPool()
+        {
+            if (_pool != null)
+            {
+                _pool.Clear();
+                _pool = null;
+            }
+        }
+
         private MeshRenderer _renderer;
         private Material _material;
         private Camera _mainCamera;
@@ -26,7 +50,23 @@ namespace NCAIClicker.Targets
         /// <summary>풀에서 이펙트를 꺼내 타격 지점에 재생한다.</summary>
         public static void Spawn(Vector3 worldPosition)
         {
-            var fx = Pool.Get();
+            HitImpactEffect fx = null;
+            try
+            {
+                fx = Pool.Get();
+            }
+            catch (MissingReferenceException)
+            {
+                ClearPool();
+                fx = Pool.Get();
+            }
+
+            if (fx == null || fx.gameObject == null)
+            {
+                ClearPool();
+                fx = Pool.Get();
+            }
+
             fx.transform.position = worldPosition;
             fx.ResetState();
         }
