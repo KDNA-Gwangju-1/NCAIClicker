@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESC 일시정지 — UI 목업 (#192)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; padding: 40px 24px 80px; background: #0d0908; color: #fdf3df; font-family: 'Noto Sans KR', sans-serif; }
+  .page { max-width: 1280px; margin: 0 auto; }
+  .lead { margin: 0 0 8px; font-family: 'Black Han Sans', sans-serif; font-size: 34px; letter-spacing: 2px; }
+  .sub { margin: 0 0 6px; font-size: 17px; line-height: 1.6; color: #c8b79a; }
+  .sub a { color: #e8b04b; }
+  .caption { margin: 48px 0 12px; font-size: 19px; font-weight: 900; color: #e8b04b; letter-spacing: 2px; }
+  .note { margin: 10px 0 0; font-size: 16px; line-height: 1.6; color: #c8b79a; }
+  .screen { width: 1280px; height: 720px; box-sizing: border-box; position: relative; overflow: hidden;
+            background: #0a0705; color: #fdf3df; border: 1px solid #3b3530; }
+  /* 1280 보다 좁은 창에서는 화면비를 유지한 채 줄여 보여 준다 — 수치 자체는 1280x720 기준이다 */
+  .frame { width: 100%; max-width: 1280px; aspect-ratio: 16 / 9; overflow: hidden; }
+  .frame > .screen { transform-origin: top left; transform: scale(var(--s, 1)); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1 class="lead">ESC 일시정지 — UI 목업</h1>
+  <p class="sub">
+    이슈 <a href="https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/192">#192</a> 의 시안이다.
+    기준 해상도 <b>1280×720</b> (16:9). 1920×1080 으로 올릴 때는 1.5배 한다.
+    색·치수의 정본은 이슈 본문의 레이아웃 명세 댓글이며, 이 파일은 그것을 눈으로 확인하는 용도다.
+  </p>
+  <p class="sub">
+    구현물이 아니다. 버튼은 눌러도 아무 일도 일어나지 않는다.
+  </p>
+
+  <div class="caption">1 · 일시정지 패널</div>
+
+  <div class="frame">
+  <div class="screen">
+
+    <div style="position: absolute; left: 0; top: 0; width: 1280px; height: 720px; background: radial-gradient(90% 80% at 50% 45%, #1d140d 0%, #0e0907 60%, #060403 100%);">
+      <div style="position: absolute; left: 150px; top: 250px; width: 150px; height: 150px; border-radius: 24px; background: #241a12;"></div>
+      <div style="position: absolute; left: 980px; top: 330px; width: 120px; height: 120px; border-radius: 20px; background: #201810;"></div>
+      <div style="position: absolute; left: 60px; top: 46px; width: 300px; height: 22px; border-radius: 999px; background: #2b2015;"></div>
+      <div style="position: absolute; left: 60px; top: 82px; width: 190px; height: 18px; border-radius: 999px; background: #241a12;"></div>
+      <div style="position: absolute; left: 1010px; top: 44px; width: 210px; height: 30px; border-radius: 22px; background: #261c13;"></div>
+    </div>
+
+    <div style="position: absolute; left: 390px; top: 62px; width: 500px; box-sizing: border-box; padding: 34px 40px 30px; border-radius: 6px; background: #1b1410; border: 2px solid #8c7f6a; box-shadow: 0 22px 60px #000000; display: flex; flex-direction: column; gap: 22px;">
+
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+        <h2 style="margin: 0; font-family: 'Black Han Sans', sans-serif; font-size: 44px; line-height: 1.1; letter-spacing: 6px; color: #fdf3df;">일시정지</h2>
+        <div style="font-size: 17px; font-weight: 700; color: #c8b79a;">7일차 · 스태미나 [값] / [값]</div>
+      </div>
+
+      <hr style="margin: 0; border: 0; border-top: 1px solid #8c7f6a;">
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <button type="button" style="height: 62px; border-radius: 5px; background: #e8b04b; border: 2px solid #f0c672; color: #16130f; font-family: 'Black Han Sans', sans-serif; font-size: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 12px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="#16130f" aria-hidden="true"><path d="M7 4l12 8-12 8z"></path></svg>
+          계속하기
+        </button>
+
+        <button type="button" style="height: 58px; border-radius: 5px; background: #16130f; border: 2px solid #9a7c46; color: #fdf3df; font-family: 'Noto Sans KR', sans-serif; font-size: 22px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 12px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e8b04b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"></circle><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"></path></svg>
+          설정
+        </button>
+
+        <button type="button" style="height: 58px; border-radius: 5px; background: #3b3530; border: 1px solid #8c7f6a; color: #e8ddcb; font-family: 'Noto Sans KR', sans-serif; font-size: 22px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 12px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e8ddcb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"></path><path d="M5 10v9h14v-9"></path></svg>
+          메인 메뉴
+        </button>
+
+        <button type="button" style="height: 58px; border-radius: 5px; background: #2a1512; border: 2px solid #c08a5a; color: #ffb4a2; font-family: 'Noto Sans KR', sans-serif; font-size: 22px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 12px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffb4a2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 5H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4"></path><path d="M15 12H9M13 8l4 4-4 4"></path></svg>
+          종료
+        </button>
+      </div>
+
+      <div style="display: flex; gap: 10px; align-items: flex-start; padding: 13px 15px; border-radius: 5px; background: #2a1512; border: 1px solid #c08a5a;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffb4a2" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="flex-shrink: 0; margin-top: 1px;"><path d="M12 8v5M12 16.5v.5"></path><circle cx="12" cy="12" r="9"></circle></svg>
+        <div style="font-size: 16px; line-height: 1.5; color: #ffb4a2;">메인 메뉴·종료는 <b>오늘 벌어들인 코인을 버린다.</b> 업그레이드와 납부 기록은 남는다.</div>
+      </div>
+
+      <div style="text-align: center; font-size: 16px; font-weight: 700; color: #c8b79a;">ESC — 계속하기</div>
+    </div>
+  </div>
+  </div>
+
+  <p class="note">
+    뒤쪽 어두운 면은 <b>알파 스크림이 아니라 이미 어두워진 색</b>이다.
+    알파로 톤을 만들면 뒤에 무엇이 깔리느냐에 따라 결과가 달라진다 (이슈 #180).
+    유니티에서도 색으로 칠한다.
+  </p>
+
+  <div class="caption">2 · 설정</div>
+
+  <div class="frame">
+  <div class="screen">
+
+    <div style="position: absolute; left: 0; top: 0; width: 1280px; height: 720px; background: radial-gradient(90% 80% at 50% 45%, #1d140d 0%, #0e0907 60%, #060403 100%);"></div>
+
+    <div style="position: absolute; left: 310px; top: 42px; width: 660px; box-sizing: border-box; padding: 30px 40px 28px; border-radius: 6px; background: #1b1410; border: 2px solid #8c7f6a; box-shadow: 0 22px 60px #000000; display: flex; flex-direction: column; gap: 20px;">
+
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <button type="button" aria-label="뒤로" style="width: 48px; height: 48px; border-radius: 5px; background: #3b3530; border: 1px solid #8c7f6a; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e8ddcb" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+        </button>
+        <h2 style="margin: 0; font-family: 'Black Han Sans', sans-serif; font-size: 34px; letter-spacing: 4px; color: #fdf3df;">설정</h2>
+      </div>
+
+      <hr style="margin: 0; border: 0; border-top: 1px solid #8c7f6a;">
+
+      <div>
+        <div style="font-size: 16px; font-weight: 900; letter-spacing: 2px; color: #e8b04b;">소리</div>
+        <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 16px;">
+
+          <div style="display: flex; align-items: center; gap: 20px;">
+            <span style="width: 120px; font-size: 19px; font-weight: 700;">배경음</span>
+            <div style="flex-grow: 1; height: 10px; border-radius: 999px; background: #3b3530; border: 1px solid #8c7f6a; position: relative;">
+              <div style="width: 70%; height: 100%; border-radius: 999px; background: #e8b04b;"></div>
+              <div style="position: absolute; left: 70%; top: -9px; width: 28px; height: 28px; margin-left: -14px; border-radius: 999px; background: #fdf3df; border: 3px solid #9a7c46;"></div>
+            </div>
+            <span style="width: 54px; text-align: right; font-size: 19px; font-weight: 900;">70</span>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 20px;">
+            <span style="width: 120px; font-size: 19px; font-weight: 700;">효과음</span>
+            <div style="flex-grow: 1; height: 10px; border-radius: 999px; background: #3b3530; border: 1px solid #8c7f6a; position: relative;">
+              <div style="width: 85%; height: 100%; border-radius: 999px; background: #e8b04b;"></div>
+              <div style="position: absolute; left: 85%; top: -9px; width: 28px; height: 28px; margin-left: -14px; border-radius: 999px; background: #fdf3df; border: 3px solid #9a7c46;"></div>
+            </div>
+            <span style="width: 54px; text-align: right; font-size: 19px; font-weight: 900;">85</span>
+          </div>
+        </div>
+      </div>
+
+      <hr style="margin: 0; border: 0; border-top: 1px solid #8c7f6a;">
+
+      <div>
+        <div style="font-size: 16px; font-weight: 900; letter-spacing: 2px; color: #e8b04b;">화면</div>
+        <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 14px;">
+
+          <div style="display: flex; align-items: center; gap: 20px;">
+            <span style="width: 120px; font-size: 19px; font-weight: 700;">창 모드</span>
+            <div style="flex-grow: 1; display: flex; gap: 10px;">
+              <button type="button" aria-pressed="true" style="flex-grow: 1; height: 48px; border-radius: 5px; background: #e8b04b; border: 2px solid #f0c672; color: #16130f; font-family: 'Noto Sans KR', sans-serif; font-size: 18px; font-weight: 900; cursor: pointer;">전체 화면</button>
+              <button type="button" aria-pressed="false" style="flex-grow: 1; height: 48px; border-radius: 5px; background: #3b3530; border: 1px solid #8c7f6a; color: #e8ddcb; font-family: 'Noto Sans KR', sans-serif; font-size: 18px; font-weight: 700; cursor: pointer;">창</button>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 20px;">
+            <span style="width: 120px; font-size: 19px; font-weight: 700;">화면 흔들림</span>
+            <div style="flex-grow: 1; display: flex; align-items: center; gap: 14px;">
+              <button type="button" role="switch" aria-checked="true" aria-label="화면 흔들림" style="width: 68px; height: 36px; border-radius: 999px; background: #e8b04b; border: 2px solid #f0c672; position: relative; cursor: pointer;">
+                <span aria-hidden="true" style="position: absolute; right: 4px; top: 4px; width: 24px; height: 24px; border-radius: 999px; background: #16130f;"></span>
+              </button>
+              <span style="font-size: 17px; color: #c8b79a;">켬 — 타격 연출의 카메라 흔들림</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr style="margin: 0; border: 0; border-top: 1px solid #8c7f6a;">
+
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 20px;">
+        <div>
+          <div style="font-size: 19px; font-weight: 700;">저장 데이터 초기화</div>
+          <div style="margin-top: 3px; font-size: 16px; color: #c8b79a;">업그레이드와 납부 기록이 모두 사라진다</div>
+        </div>
+        <button type="button" style="height: 48px; padding: 0 24px; border-radius: 5px; background: #2a1512; border: 2px solid #c08a5a; color: #ffb4a2; font-family: 'Noto Sans KR', sans-serif; font-size: 18px; font-weight: 700; cursor: pointer;">초기화</button>
+      </div>
+
+      <button type="button" style="height: 56px; border-radius: 5px; background: #16130f; border: 2px solid #9a7c46; color: #fdf3df; font-family: 'Noto Sans KR', sans-serif; font-size: 22px; font-weight: 900; cursor: pointer;">닫기</button>
+    </div>
+  </div>
+  </div>
+
+  <p class="note">
+    설정 항목은 코드에 대응물이 있는 것만 넣었다 — 볼륨은 <code>AudioManager</code>,
+    저장 초기화는 <code>SaveManager</code>, 화면 흔들림은 6.3 타격 연출(#35)에 붙는 스위치다.
+    해상도 선택과 키 리매핑은 7일 일정 밖이라 뺐다.
+  </p>
+
+  <p class="note">
+    <b>이 목업에 없는 것</b>: 메인 메뉴·종료를 누른 뒤 한 번 더 묻는 확인창.
+    #192 의 완료 기준에는 있으므로 구현하는 사람이 같은 화풍으로 한 장 더 만든다.
+  </p>
+</div>
+
+<script>
+  // 창이 1280 보다 좁으면 화면비를 유지한 채 축소한다. 수치는 언제나 1280x720 기준이다.
+  function fit() {
+    document.querySelectorAll('.frame').forEach(function (frame) {
+      var scale = Math.min(1, frame.clientWidth / 1280);
+      frame.style.setProperty('--s', scale);
+      frame.style.height = (720 * scale) + 'px';
+    });
+  }
+  window.addEventListener('resize', fit);
+  fit();
+</script>
+</body>
+</html>
