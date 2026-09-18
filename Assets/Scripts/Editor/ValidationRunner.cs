@@ -11,10 +11,10 @@ namespace NCAIClicker.EditorTools
     /// <summary>검증 하네스 하나의 실행 결과.</summary>
     internal readonly struct ValidationResult
     {
-        public readonly string Name;
+        public string Name { get; }
 
         /// <summary>실패 사유. 통과했으면 null 이다.</summary>
-        public readonly Exception Error;
+        public Exception Error { get; }
 
         public bool IsPassed => Error == null;
 
@@ -28,8 +28,8 @@ namespace NCAIClicker.EditorTools
     /// <summary>실행할 수 있는 검증 하네스 하나.</summary>
     internal readonly struct ValidationEntry
     {
-        public readonly string Name;
-        public readonly MethodInfo Method;
+        public string Name { get; }
+        public MethodInfo Method { get; }
 
         public ValidationEntry(string name, MethodInfo method)
         {
