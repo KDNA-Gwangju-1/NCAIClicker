@@ -68,6 +68,9 @@ namespace NCAIClicker.UI
         [Header("공통 UI")]
         [SerializeField] private Button _mainMenuButton;
 
+        // 정산창의 납부 버튼은 고지서 모달을 연다. 조립 지점이 넣어 준다.
+        private BillPanelController _billPanel;
+
         private IEconomyService _economyService;
         private IBillService _billService;
         private IStageService _stageService;
@@ -110,6 +113,10 @@ namespace NCAIClicker.UI
             {
                 _upgradeButton.onClick.AddListener(HandleUpgradeClicked);
             }
+            if (_payButton != null)
+            {
+                _payButton.onClick.AddListener(HandlePayClicked);
+            }
         }
 
         private void OnDisable()
@@ -134,6 +141,16 @@ namespace NCAIClicker.UI
             {
                 _upgradeButton.onClick.RemoveListener(HandleUpgradeClicked);
             }
+            if (_payButton != null)
+            {
+                _payButton.onClick.RemoveListener(HandlePayClicked);
+            }
+        }
+
+        /// <summary>고지서 패널을 잇는다. 없으면 납부 버튼은 잠긴 채로 둔다.</summary>
+        public void SetBillPanel(BillPanelController billPanel)
+        {
+            _billPanel = billPanel;
         }
 
         /// <summary>테스트 또는 외부 주입용 서비스 설정 메서드.</summary>
@@ -348,7 +365,7 @@ namespace NCAIClicker.UI
             SetPlaceholders(_denomCountTexts);
             SetPlaceholders(_brokenChipTexts);
 
-            SetLocked(_payButton);
+            UpdatePayButton();
             UpdateLoanCutRow();
 
             if (_payCaptionText != null)
@@ -359,6 +376,30 @@ namespace NCAIClicker.UI
                     ? "납부 완료"
                     : $"{_billService.DaysLeft}일 남음";
             }
+        }
+
+        /// <summary>
+        /// 낼 청구서가 있고 고지서 패널이 이어져 있을 때만 납부 버튼을 연다.
+        /// 배선이 없는데 열어 두면 눌러도 아무 일이 없어 고장으로 읽힌다.
+        /// </summary>
+        private void UpdatePayButton()
+        {
+            var bill = _billService?.ActiveBill;
+            var canPay = _billPanel != null && bill != null && !bill.IsPaid;
+
+            if (_payButton != null)
+            {
+                _payButton.interactable = canPay;
+            }
+        }
+
+        private void HandlePayClicked()
+        {
+            if (_billPanel == null)
+            {
+                return;
+            }
+            _billPanel.ShowAsModal();
         }
 
         /// <summary>대출이 있을 때만 징수 행을 보인다. 비율은 조회로 채우고 금액은 아직 배선이 없다.</summary>

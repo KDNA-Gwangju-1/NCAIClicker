@@ -38,8 +38,12 @@ namespace NCAIClicker.UI
         [SerializeField] private Button _continueButton;
         [SerializeField] private Button _declareBankruptcyButton;
 
+        // 다른 프리팹(Target, HammerSwingController)과 같은 방식으로 프리팹에 직렬화해 둔다.
+        // 씬을 건너 주입할 통로를 새로 만들지 않기 위해서다.
+        [Header("데이터")]
+        [SerializeField] private BalanceData _balanceData;
+
         private IBillService _billService;
-        private BalanceData _balanceData;
 
         /// <summary>어느 상태로 열려 있는가. 탭일 때만 탭 줄과 계속하기가 보인다.</summary>
         public enum Mode
@@ -91,9 +95,14 @@ namespace NCAIClicker.UI
         }
 
         /// <summary>조립 지점이 넣어 준다. 소비처가 구현 클래스를 직접 찾지 않는다.</summary>
-        public void SetServices(IBillService billService, BalanceData balanceData)
+        public void SetServices(IBillService billService)
         {
             _billService = billService;
+        }
+
+        /// <summary>검증에서 데이터만 갈아끼울 때 쓴다.</summary>
+        public void SetBalanceData(BalanceData balanceData)
+        {
             _balanceData = balanceData;
         }
 

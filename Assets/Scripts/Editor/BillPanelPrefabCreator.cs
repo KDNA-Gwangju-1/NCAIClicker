@@ -33,6 +33,8 @@ namespace NCAIClicker.EditorTools
 
             var root = CreateStretched("BillPanel", null);
             var controller = root.AddComponent<BillPanelController>();
+            bound["_balanceData"] = AssetDatabase.LoadAssetAtPath<NCAIClicker.Data.BalanceData>(
+                "Assets/GameData/Generated/BalanceData.asset");
 
             var panelRoot = CreateStretched("PanelRoot", root);
             panelRoot.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.8f);

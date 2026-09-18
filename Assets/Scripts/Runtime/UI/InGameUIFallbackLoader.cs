@@ -18,6 +18,7 @@ namespace NCAIClicker.UI
     {
         private const string GameSceneName = "Game";
         private const string ResultPrefabResourcePath = "UI/ResultUI";
+        private const string BillPrefabResourcePath = "UI/BillPanel";
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Init()
@@ -61,22 +62,40 @@ namespace NCAIClicker.UI
                 new GameObject("Runtime_Fallback_EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
             }
 
-            {
-                var prefab = Resources.Load<GameObject>(ResultPrefabResourcePath);
-                if (prefab != null)
-                {
-                    var instance = Object.Instantiate(prefab, canvas.transform, false);
-                    instance.name = "ResultUI (Runtime Fallback)";
+            var managersGo = GameObject.Find("Managers");
+            var billService = managersGo != null ? managersGo.GetComponentInChildren<IBillService>(true) : null;
 
-                    var controller = instance.GetComponent<ResultUIController>();
-                    var managersGo = GameObject.Find("Managers");
-                    if (controller != null && managersGo != null)
+            // 고지서 패널을 먼저 띄운다. 정산창이 납부 버튼에서 이 패널을 열기 때문이다.
+            BillPanelController billPanel = null;
+            var billPrefab = Resources.Load<GameObject>(BillPrefabResourcePath);
+            if (billPrefab != null)
+            {
+                var billInstance = Object.Instantiate(billPrefab, canvas.transform, false);
+                billInstance.name = "BillPanel (Runtime Fallback)";
+                billPanel = billInstance.GetComponent<BillPanelController>();
+                if (billPanel != null)
+                {
+                    billPanel.SetServices(billService);
+                }
+            }
+
+            var prefab = Resources.Load<GameObject>(ResultPrefabResourcePath);
+            if (prefab != null)
+            {
+                var instance = Object.Instantiate(prefab, canvas.transform, false);
+                instance.name = "ResultUI (Runtime Fallback)";
+
+                var controller = instance.GetComponent<ResultUIController>();
+                if (controller != null)
+                {
+                    if (managersGo != null)
                     {
                         controller.SetServices(
                             managersGo.GetComponentInChildren<IEconomyService>(true),
-                            managersGo.GetComponentInChildren<IBillService>(true),
+                            billService,
                             managersGo.GetComponentInChildren<IStageService>(true));
                     }
+                    controller.SetBillPanel(billPanel);
                 }
             }
         }
