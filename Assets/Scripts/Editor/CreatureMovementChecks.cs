@@ -278,9 +278,9 @@ namespace NCAIClicker.EditorTools
                 Assert(hpDisplay != null, "CreatureHpDisplay 컴포넌트 생성 실패");
                 passedCount++;
 
-                var popup = DamagePopup.Create(Vector3.zero, 1.5f);
+                var popup = DamagePopup.Spawn(Vector3.zero, 1.5f);
                 Assert(popup != null, "DamagePopup 생성 실패");
-                UnityEngine.Object.DestroyImmediate(popup.gameObject);
+                popup.Despawn();
                 passedCount++;
             }
             finally

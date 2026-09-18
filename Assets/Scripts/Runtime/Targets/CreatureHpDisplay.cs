@@ -103,7 +103,7 @@ namespace NCAIClicker.Targets
                 Random.Range(0f, 0.1f),
                 Random.Range(-0.15f, 0.15f)
             );
-            DamagePopup.Create(spawnPos + randomOffset, hitInfo.Damage);
+            DamagePopup.Spawn(spawnPos + randomOffset, hitInfo.Damage);
         }
 
         private IEnumerator PunchScaleRoutine()
