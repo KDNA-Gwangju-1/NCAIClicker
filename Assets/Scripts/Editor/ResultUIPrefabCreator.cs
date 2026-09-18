@@ -113,7 +113,10 @@ namespace NCAIClicker.EditorTools
             columns.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = false;
             SetFlexibleHeight(columns, 1f);
 
+            // 좌우 컬럼을 1:1 로 나눈다. 원작도 좌 53 : 우 47 로 거의 같다.
+            // preferredWidth 를 한쪽에만 주면 남는 폭이 그쪽으로 몰린다 (실제로 우측이 1.8 배가 됐다).
             var ledger = CreatePanel("LedgerPanel", columns, 24f, 10f);
+            SetPreferredWidth(ledger, 0f);
             SetFlexibleWidth(ledger, 1f);
             bound["_accuracyText"] = CreateStatRow("AccuracyRow", ledger, font, "정확도:", "71%", RowFill, Cream, 40);
             bound["_runCoinText"] = CreateStatRow("CoinCountRow", ledger, font, "코인:", "102", RowFill, Cream, 40);
@@ -125,7 +128,8 @@ namespace NCAIClicker.EditorTools
             bound["_netText"] = CreateStatRow("NetRow", ledger, font, "내 몫:", ResultUIController.UnwiredPlaceholder, NetRowFill, Gold, 48);
 
             var side = CreateVertical("SideColumn", columns, 24f);
-            SetPreferredWidth(side, 620f);
+            SetPreferredWidth(side, 0f);
+            SetFlexibleWidth(side, 1f);
 
             var broken = CreatePanel("BrokenPanel", side, 22f, 14f);
             SetPreferredHeight(broken, 200f);
