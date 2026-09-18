@@ -174,6 +174,14 @@ namespace NCAIClicker.EditorTools
             public bool TryTakeLoan(long amount) => false;
             public bool TryRepayLoan() => false;
             public bool TryChoosePerk(string perkId) => false;
+
+            /// <summary>이 검증은 자발적 파산을 쓰지 않는다 (계약 #175).</summary>
+            public int DeclaredBankruptcyCount { get; private set; }
+
+            public void DeclareBankruptcy()
+            {
+                DeclaredBankruptcyCount++;
+            }
         }
 
         private static void AssertCondition(bool condition, string message)

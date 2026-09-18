@@ -164,7 +164,8 @@ namespace NCAIClicker.EditorTools
             bound["_continueButton"] = CreateButton("ContinueButton", continueRow, font, new Vector2(260f, 72f), "계속하기",
                 new Color(0.11f, 0.31f, 0.45f), new Color(0.24f, 0.51f, 0.71f), new Color(0.9f, 0.95f, 0.98f), 28);
 
-            // 파산 선고 — 우측 가장자리 탭. 자발적 파산은 #175 범위라 잠근 채 자리만 둔다.
+            // 파산 선고 — 우측 가장자리 탭. #175 에서 잠금을 풀었다. 눌러도 바로 파산하지 않고
+            // 확인창을 거친다 (아래) — 되돌릴 수 없는 선택이다.
             var bankruptcy = CreateButton("DeclareBankruptcyButton", billTabRoot, font, new Vector2(240f, 110f), "파산 선고",
                 new Color(0.369f, 0.102f, 0.094f), new Color(0.753f, 0.541f, 0.353f), new Color(1f, 0.843f, 0.812f), 32);
             var bankruptcyRect = bankruptcy.GetComponent<RectTransform>();
@@ -172,11 +173,10 @@ namespace NCAIClicker.EditorTools
             bankruptcyRect.anchorMax = new Vector2(1f, 0.5f);
             bankruptcyRect.pivot = new Vector2(1f, 0.5f);
             bankruptcyRect.anchoredPosition = new Vector2(0f, 60f);
-            bankruptcy.interactable = false;
             bound["_declareBankruptcyButton"] = bankruptcy;
 
             // 잠긴 버튼은 이유가 보이지 않으면 고장으로 읽힌다. 왜 못 누르는지 옆에 적는다.
-            var bankruptcyCaption = CreateLabel("BankruptcyCaption", billTabRoot, font, 18, InkFaint, "준비 중");
+            var bankruptcyCaption = CreateLabel("BankruptcyCaption", billTabRoot, font, 18, InkFaint, "회차를 접는다");
             var captionRect = bankruptcyCaption.GetComponent<RectTransform>();
             captionRect.anchorMin = new Vector2(1f, 0.5f);
             captionRect.anchorMax = new Vector2(1f, 0.5f);
@@ -185,6 +185,41 @@ namespace NCAIClicker.EditorTools
             captionRect.anchoredPosition = new Vector2(0f, 0f);
             bound["_declareBankruptcyCaptionText"] = bankruptcyCaption;
 
+            // 파산 선고 확인창 (#175). 되돌릴 수 없는 선택이라 한 번 더 묻는다.
+            // 기본은 꺼 둔다 — 컨트롤러가 OnEnable 에서도 다시 내린다.
+            var confirmRoot = CreateStretched("BankruptcyConfirmPanel", root);
+            confirmRoot.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.88f);
+            bound["_bankruptcyConfirmPanel"] = confirmRoot;
+            
+            var confirmText = CreateLabel("BankruptcyConfirmText", confirmRoot, font, 34, Warn,
+                "파산을 선고하면 코인과 진행이 사라지고 1일차로 돌아갑니다.\n반지와 레거시 포인트는 남습니다. 되돌릴 수 없습니다.");
+            var confirmTextRect = confirmText.GetComponent<RectTransform>();
+            confirmTextRect.anchorMin = new Vector2(0.5f, 0.5f);
+            confirmTextRect.anchorMax = new Vector2(0.5f, 0.5f);
+            confirmTextRect.pivot = new Vector2(0.5f, 0f);
+            confirmTextRect.sizeDelta = new Vector2(760f, 160f);
+            confirmTextRect.anchoredPosition = new Vector2(0f, 40f);
+            
+            var yes = CreateButton("BankruptcyConfirmYesButton", confirmRoot, font, new Vector2(240f, 76f), "선고한다",
+                new Color(0.369f, 0.102f, 0.094f), new Color(0.753f, 0.541f, 0.353f), new Color(1f, 0.843f, 0.812f), 28);
+            var yesRect = yes.GetComponent<RectTransform>();
+            yesRect.anchorMin = new Vector2(0.5f, 0.5f);
+            yesRect.anchorMax = new Vector2(0.5f, 0.5f);
+            yesRect.pivot = new Vector2(1f, 1f);
+            yesRect.anchoredPosition = new Vector2(-20f, 0f);
+            bound["_bankruptcyConfirmYesButton"] = yes;
+            
+            var no = CreateButton("BankruptcyConfirmNoButton", confirmRoot, font, new Vector2(240f, 76f), "돌아간다",
+                new Color(0.11f, 0.31f, 0.45f), new Color(0.24f, 0.51f, 0.71f), new Color(0.9f, 0.95f, 0.98f), 28);
+            var noRect = no.GetComponent<RectTransform>();
+            noRect.anchorMin = new Vector2(0.5f, 0.5f);
+            noRect.anchorMax = new Vector2(0.5f, 0.5f);
+            noRect.pivot = new Vector2(0f, 1f);
+            noRect.anchoredPosition = new Vector2(20f, 0f);
+            bound["_bankruptcyConfirmNoButton"] = no;
+            
+            confirmRoot.SetActive(false);
+            
             Bind(controller, bound);
 
             System.IO.Directory.CreateDirectory("Assets/Prefabs/Resources/UI");
