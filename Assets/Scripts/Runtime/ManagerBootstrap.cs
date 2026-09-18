@@ -46,6 +46,7 @@ namespace NCAIClicker
             }
 
             WireUpgradeStats(_instance);
+            WireStageService(_instance);
         }
 
         /// <summary>
@@ -80,6 +81,32 @@ namespace NCAIClicker
             if (creatures != null)
             {
                 creatures.SetUpgradeStats(upgradeStats);
+            }
+        }
+
+        /// <summary>
+        /// 단계 진행 상태 조회 통로를 프리팹 안의 소비처에 넣는다 (이슈 #150).
+        /// StageGoalManager 가 IStageService 를 공급하고, CreatureManager 와 BillManager 가 소비한다.
+        /// </summary>
+        private static void WireStageService(GameObject managers)
+        {
+            var stageService = managers.GetComponentInChildren<IStageService>(true);
+            if (stageService == null)
+            {
+                Debug.LogWarning("[ManagerBootstrap] IStageService 공급자가 없어 단계 진행이 연동되지 않는다.");
+                return;
+            }
+
+            var creatures = managers.GetComponentInChildren<CreatureManager>(true);
+            if (creatures != null)
+            {
+                creatures.SetStageService(stageService);
+            }
+
+            var bills = managers.GetComponentInChildren<BillManager>(true);
+            if (bills != null)
+            {
+                bills.SetStageService(stageService);
             }
         }
     }

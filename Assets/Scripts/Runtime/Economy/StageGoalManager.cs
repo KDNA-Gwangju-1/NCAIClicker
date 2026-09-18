@@ -19,7 +19,7 @@ namespace NCAIClicker.Economy
     ///
     /// Managers 프리팹(Resources/Managers)에 붙인다. 생성은 ManagerBootstrap 이 한다.
     /// </summary>
-    public class StageGoalManager : MonoBehaviour, IRunScoped
+    public class StageGoalManager : MonoBehaviour, IRunScoped, IStageService
     {
         [SerializeField] private BalanceData _balanceData;
 
@@ -31,7 +31,33 @@ namespace NCAIClicker.Economy
         /// <summary>SaveData.StageIndex 와 같은 기준(0부터)이다.</summary>
         public int CurrentStageIndex => _stageIndex;
 
+        public int CurrentStageNumber => _stageIndex + 1;
+
         public bool IsGoalReached => _isGoalReached;
+
+        public bool IsMaxStage => _balanceData != null && _stageIndex >= _balanceData.Stages.Count - 1;
+
+        public bool AdvanceStage()
+        {
+            if (_balanceData == null || _stageIndex >= _balanceData.Stages.Count - 1)
+            {
+                return false;
+            }
+
+            _stageIndex++;
+            Debug.Log($"[StageGoalManager] 목표 달성으로 다음 단계로 진행: {_stageIndex + 1}단계");
+            return true;
+        }
+
+        public void RestoreStage(int stageIndex)
+        {
+            if (_balanceData != null && stageIndex >= _balanceData.Stages.Count)
+            {
+                stageIndex = _balanceData.Stages.Count - 1;
+            }
+            _stageIndex = Mathf.Max(0, stageIndex);
+            _isGoalReached = false;
+        }
 
         private void Awake()
         {
@@ -59,8 +85,13 @@ namespace NCAIClicker.Economy
             _isGoalReached = false;
         }
 
+        /// <summary>런이 끝날 때 목표를 달성했으면 다음 단계로 진행한다 (GDD 92번째 줄, 이슈 #150).</summary>
         public void EndRun()
         {
+            if (_isGoalReached)
+            {
+                AdvanceStage();
+            }
         }
 
         private void HandleRunCoinChanged(long runCoin)

@@ -44,6 +44,9 @@ namespace NCAIClicker.Economy
         /// <summary>코인 차감의 출처. EconomyManager 가 초기화 때 넣어 준다 (ManagerBootstrap). 없으면 납부는 항상 실패한다.</summary>
         private IEconomyService _economyService;
 
+        /// <summary>단계 진행 조회 통로. ManagerBootstrap 이 넣어 준다 (이슈 #150). 없으면 1단계로 폴백한다.</summary>
+        private IStageService _stageService;
+
         public int CurrentDay => _currentDay;
 
         public int DaysLeft => _activeBill == null
@@ -75,6 +78,15 @@ namespace NCAIClicker.Economy
         public void SetEconomyService(IEconomyService economyService)
         {
             _economyService = economyService;
+        }
+
+        /// <summary>
+        /// 단계 진행 상태 조회 통로를 넣는다. 서비스 계약이 아니라 조립(wiring) 통로다 (이슈 #150).
+        /// 청구서 금액과 기한이 단일 출처(IStageService)의 현재 단계를 따른다.
+        /// </summary>
+        public void SetStageService(IStageService stageService)
+        {
+            _stageService = stageService;
         }
 
         /// <summary>
@@ -280,8 +292,8 @@ namespace NCAIClicker.Economy
 
         /// <summary>
         /// stages.csv 의 단계값으로 청구서를 만든다. 마감일 = 발행일 + 기한 - 1 (Bill.DueDay 계약).
-        /// 단계 진행을 관리하는 매니저가 아직 없어 자체 순번(_billIndex)으로 stages.csv 를 순서대로 읽는다
-        /// — 마지막 단계를 넘기면 그 값을 그대로 유지한다.
+        /// 단계는 단일 출처(_stageService)의 현재 단계를 따르고, 없으면 1단계로 폴백한다 (이슈 #150).
+        /// _billIndex 는 대출 해금 등에서 쓸 누적 청구서 순번으로 유지한다.
         /// </summary>
         private void IssueBill()
         {
@@ -290,7 +302,11 @@ namespace NCAIClicker.Economy
                 return;
             }
 
-            var stageNumber = Mathf.Min(_billIndex, _balanceData.Stages.Count);
+            var stageNumber = _stageService != null
+                ? _stageService.CurrentStageNumber
+                : 1;
+            stageNumber = Mathf.Clamp(stageNumber, 1, _balanceData.Stages.Count);
+
             var stage = _balanceData.GetStage(stageNumber);
             if (stage == null)
             {
