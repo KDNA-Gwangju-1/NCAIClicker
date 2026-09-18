@@ -181,10 +181,7 @@ Play Mode 에서 실제로 확인한 것만 적는다.
   (`IEconomyService`)를 열고 `CoinHud.OnEnable` 이 잔액·런 순수입을 한 번 읽도록 고쳐 풀었다.
   `BeginRun()` 이 잔액을 발행하지 않는 것은 그대로지만, 조회 통로가 생겨 UI 가 발행을 기다릴
   이유가 없어졌다.
-- **`Assets/Prefabs/UI/BillHud.prefab` 과 역할이 겹친다.** #27 이 만든 그 프리팹은
-  Canvas + `BillLabel` 만 든 축소판이고, `GameHud.prefab` 이 같은 `BillHud` 를 품고 있다.
-  **둘 다 씬에 올리면 캔버스와 고지서 라벨이 두 개가 된다.** 지금은 `GameHud` 만 배치돼 있다.
-  `BillHud.prefab` 은 쓰지 않는다 — 정리 여부는 #27 담당과 정한다.
+* ~~**`Assets/Prefabs/UI/BillHud.prefab` 과 역할이 겹친다.**~~ #173 (1.25)에서 중복을 해소하기 위해 `BillHud.prefab` 에셋을 삭제하고 `GameHud.prefab` 으로 단일화했다.
 - 저해상도에서 글자 크기를 실측하지 않았다. `CanvasScaler` match 0.5, 기준 1920×1080 이라
   창이 작으면 우상단 정보가 작아진다.
 - 스태미나가 낮을 때의 경고 연출(색 전환·깜빡임)은 넣지 않았다. #33 완료 기준 밖이다.
@@ -195,3 +192,4 @@ Play Mode 에서 실제로 확인한 것만 적는다.
 |---|---|---|---|
 | 2026-09-18 | #33 | yahoo-afk | 최초 작성 — `StaminaHud`/`FeverHud`/`CoinHud`/`DayHud`/`AccuracyHud` 신규, `BillHud` 에 임박 강조·`OnBillPaid` 추가, `GameHud.prefab` 생성 및 `Game` 씬 배치, 게이지 스프라이트 `HudBar.png` 추가 |
 | 2026-09-18 | #171 | yahoo-afk | `CoinHud` 가 `EconomyManager.Instance`(`IEconomyService`)로 잔액·런 순수입 초기값을 한 번 읽는다. "매 런 시작마다 `—`" 한계 해소 |
+| 2026.09.18 | #173 | saltlake00 | 1.25 HUD 프리팹 중복 정리. BillHud.prefab 에셋 삭제 반영 |

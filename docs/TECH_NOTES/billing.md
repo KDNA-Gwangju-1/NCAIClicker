@@ -78,7 +78,7 @@ flowchart LR
 | `BankruptcyChecks` | `Assets/Scripts/Editor/BankruptcyChecks.cs` | 파산 판정 경계와 회차 초기화 범위의 Edit Mode 검증 8건 (#30) |
 | `RunWiringChecks` | `Assets/Scripts/Editor/RunWiringChecks.cs` | 런 경계 **배선과 순서** 검증 5건 (#164) |
 | `BillHud` | `Assets/Scripts/Runtime/UI/BillHud.cs` | `OnBillIssued`/`OnBillDueSoon` 구독, `TextMeshProUGUI`에 "D-N  N원" 형식으로 표시 |
-| (프리팹) | `Assets/Prefabs/UI/BillHud.prefab` | Canvas(ScreenSpaceOverlay) + `BillLabel`(우상단, `BillHud` 부착) |
+| (프리팹) | 삭제됨 (#173) | 본래 Assets/Prefabs/UI/BillHud.prefab 이었으나 GameHud.prefab 으로 단일화되어 삭제됨 |
 | `BillManagerChecks` | `Assets/Scripts/Editor/BillManagerChecks.cs` | EditMode 배치 검증. `MenuItem` 없이 `RunBatch()`를 외부에서 호출한다 |
 
 ### 이벤트
@@ -257,9 +257,7 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 - 대출 상태(`ActiveLoan`·`LastLoanRepaidDay`)가 저장·복원되지 않는다. `SaveData`에 필드는 이미 있지만 `IBillService`에 복원 통로가 없어 재실행하면 빚이 사라진다 — 공용 계약 변경이라 별도 이슈로 발의한다.
 - 징수는 수입이 들어올 때만 일어난다. 하루 종일 한 푼도 벌지 못하면 뜯기는 것도 없다 — 원작이 그러한지는 7.2 실측에서 확인한다.
 - `BillManager`의 날짜·고지서·퍼크 후보(`OfferedPerkIds`) 상태는 저장/복원되지 않는다(`SaveManager` 미연동). ARCHITECTURE.md는 `SaveData.OfferedPerkIds`/`PendingPerkIds` 필드를 이미 계약해 뒀으므로, 저장 연동은 그 필드에 채워 넣는 방식으로 붙이면 된다.
-- `BillHud.prefab`은 **쓰지 않는다.** #33(6.1 인게임 HUD)이 만든 `Assets/Prefabs/UI/GameHud.prefab`이
-  같은 `BillHud` 컴포넌트를 품은 채 `Game.unity`에 배치됐다. 둘 다 올리면 캔버스와 고지서 라벨이
-  두 개가 된다. 정리 여부는 #27 담당과 정한다 — 상세는 [ingame-hud.md](ingame-hud.md).
+* ~~`BillHud.prefab`은 **쓰지 않는다.**~~ #173 (1.25)에서 중복 정리를 위해 `BillHud.prefab` 에셋을 삭제하고 `GameHud.prefab` 으로 단일화했다.
 - ~~퍼크 선택(`OnPerkChosen`)의 실제 게임플레이 효과 적용이 없다.~~ — #126 에서 네 소유자(`StaminaManager`·`EconomyManager`·`HammerSwingController`·`CreatureManager`)가 `OnPerkChosen` 을 구독해 스스로 적용한다. 적용 시점 규칙과 한계는 [퍼크 효과](perks.md).
 - ~~퍼크 선택 UI가 없다.~~ — #92 에서 붙였다. "선택 중 게임 시계 정지"도 함께 들어갔다
   ([퍼크 3장 선택 화면](perk-choice-ui.md)). 다만 **`TryPay` 를 부르는 곳이 없어 정상 플레이로는
@@ -278,3 +276,4 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 | 2026-09-18 | #164 | twins6375-art | `BillManager` 가 `IRunScoped` 를 구현해 런 경계에 붙음 — 4.1~4.4 가 처음으로 실제 동작한다. `GetServiceOrder` 순번 부여, `RunWiringChecks` 신규, Play Mode 확인 |
 | 2026-09-18 | #33 | yahoo-afk | `BillHud`에 마감 임박 강조(`_emphasisDaysLeft`, 기본 2)와 `OnBillPaid` 구독 추가, `OnEnable`에서 `IBillService.ActiveBill`로 금액까지 조회. `GameHud.prefab`이 `BillHud.prefab`을 대체 — [ingame-hud.md](ingame-hud.md) |
 | 2026-09-18 | #92 | twins6375-art | 퍼크 선택 화면이 붙어 관련 한계를 닫았다. 납부 통로가 없다는 사실(`TryPay` 호출처 0)을 한계에 명시 |
+| 2026.09.18 | #173 | saltlake00 | HUD 프리팹 중복 정리. BillHud.prefab 에셋 삭제 및 GameHud 단일화 (1.25) |
