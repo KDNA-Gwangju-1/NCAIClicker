@@ -72,6 +72,49 @@ flowchart LR
 
 직접 CSV를 파싱하지 않으며, IEconomyService, IBillService, IStageService 공용 인터페이스를 통해 런타임 수치를 조회한다.
 
+## 하루의 흐름과 고지서 패널 (#34 범위 확대)
+
+원작을 실측해 보니 결과 화면만으로는 하루가 닫히지 않는다. **정산창이 하루의 끝이면서 다음 하루의
+관문이다.** 별도의 "턴 시작 화면" 은 없다.
+
+```text
+런 종료 → 정산창(지친 손!)
+            ├ [업그레이드]  → 메뉴 화면 → 나가면 다음 런
+            ├ [지금 납부]   → 고지서 모달 → 납부 → 정산창 복귀
+            └ [계속]        → 다음 런
+```
+
+### 고지서 패널은 하나의 프리팹, 두 가지 상태
+
+| | 모달 | 탭 |
+|---|---|---|
+| 언제 | 정산창의 납부 버튼 | 새 청구서가 발행될 때 |
+| 상단 탭 줄 | 감춤 | 보임 |
+| 우하단 계속하기 | 감춤 | 보임 |
+
+**두 벌로 만들지 않는 이유**: 금액과 기한 표기가 조용히 어긋난다. 실제로 이 저장소에서
+`ResultUI.prefab` 이 두 경로에 저장돼 갈라진 적이 있다.
+
+### 기한 당일 처리
+
+기한이 당일이면 기한 칸이 `지금 납부!` 로 바뀌고 **[아직] 버튼이 사라진다.** 잠그는 대신 감추는
+이유는, 잠긴 버튼은 "왜 안 눌리지" 를 만들지만 없는 버튼은 질문을 만들지 않기 때문이다. 원작도 같다.
+
+### 조립
+
+컨트롤러끼리 서로를 찾지 않는다. `InGameUIFallbackLoader` 가 두 프리팹을 띄우고 이어 준다.
+
+```text
+BillPanel 생성 → SetServices(billService)
+ResultUI 생성  → SetServices(경제·청구서·단계) + SetBillPanel(billPanel)
+```
+
+납부 버튼은 **낼 청구서가 있고 패널이 이어져 있을 때만** 열린다. 배선 없이 열어 두면 눌러도
+아무 일이 없어 고장으로 읽힌다.
+
+고지서 발신처와 제목은 `bill_names.csv` 가 정본이다. `BalanceData` 는 `Target`·`HammerSwingController`
+와 같은 방식으로 프리팹에 직렬화해 둔다 — 씬을 건너 주입할 통로를 새로 만들지 않기 위해서다.
+
 ## 검증
 
 EditMode 검증(ResultUIChecks) 및 Unity MCP 런타임 환경에서 확인했다.
@@ -89,7 +132,13 @@ EditMode 검증(ResultUIChecks) 및 Unity MCP 런타임 환경에서 확인했�
 * [x] Assets/Prefabs/Resources/UI/ResultUI.prefab 및 StaminaHud.prefab 단일 원본 유지 및 정상 로드 확인
 * [x] 프리팹의 `[SerializeField]` 참조가 하나도 비어 있지 않음을 리플렉션으로 확인 (배열 원소 포함)
 * [x] Assets/Prefabs/UI/ResultUI.prefab 사본이 남아 있지 않음을 확인
-* [x] PayButton·GambleButton 이 프리팹 저장 시점에 interactable = false 임을 확인
+* [x] PayButton 이 프리팹 저장 시점에 interactable = false 임을 확인
+* [x] GambleButton 이 프리팹에 없음을 확인 (MVP 범위 밖)
+* [x] BillPanel 의 직렬화 참조가 하나도 비어 있지 않음을 확인
+* [x] 모달에서 탭 줄과 계속하기가 감춰지고, 탭에서 둘 다 보임을 확인
+* [x] 기한이 남으면 [아직] 이 보이고, 기한 당일에는 사라지며 표기가 "지금 납부!" 로 바뀜을 확인
+* [x] 납부 완료 시 납부 버튼이 사라지고 표기가 "납부 완료" 로 바뀜을 확인
+* [x] ValidationRunner 전체 19개 하네스 일괄 통과 확인
 
 ## 알려진 한계 및 후속 과제
 
