@@ -48,6 +48,7 @@ namespace NCAIClicker.UI
         [SerializeField] private TextMeshProUGUI _brokenCountText;
         [SerializeField] private TextMeshProUGUI[] _brokenChipTexts;
         [SerializeField] private TextMeshProUGUI _codexProgressText;
+        [SerializeField] private Button _upgradeButton;
         [SerializeField] private Button _payButton;
         [SerializeField] private TextMeshProUGUI _payCaptionText;
 
@@ -105,6 +106,10 @@ namespace NCAIClicker.UI
             {
                 _mainMenuButton.onClick.AddListener(HandleMainMenuClicked);
             }
+            if (_upgradeButton != null)
+            {
+                _upgradeButton.onClick.AddListener(HandleUpgradeClicked);
+            }
         }
 
         private void OnDisable()
@@ -124,6 +129,10 @@ namespace NCAIClicker.UI
             if (_mainMenuButton != null)
             {
                 _mainMenuButton.onClick.RemoveListener(HandleMainMenuClicked);
+            }
+            if (_upgradeButton != null)
+            {
+                _upgradeButton.onClick.RemoveListener(HandleUpgradeClicked);
             }
         }
 
@@ -344,7 +353,11 @@ namespace NCAIClicker.UI
 
             if (_payCaptionText != null)
             {
-                _payCaptionText.text = "준비 중";
+                // 원작은 버튼 자체가 정보다 — "$5,800 / 4일 남음".
+                var bill = _billService?.ActiveBill;
+                _payCaptionText.text = bill == null || bill.IsPaid
+                    ? "납부 완료"
+                    : $"{_billService.DaysLeft}일 남음";
             }
         }
 
@@ -426,6 +439,17 @@ namespace NCAIClicker.UI
         {
             HideAll();
             GameManager.Instance?.StartNewRun();
+        }
+
+        /// <summary>
+        /// 업그레이드 화면으로 간다. 원작에서 정산창은 하루의 끝이자 다음 하루의 관문이라,
+        /// 여기서 메뉴로 들어갔다가 나오면 곧 다음 런이 시작된다. 우리는 MainMenu 씬이
+        /// 그 자리다 (GDD 6절 "메인 및 업그레이드").
+        /// </summary>
+        private void HandleUpgradeClicked()
+        {
+            HideAll();
+            SceneManager.LoadScene(MainMenuSceneName);
         }
 
         private void HandleMainMenuClicked()

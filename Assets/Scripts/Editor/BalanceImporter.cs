@@ -130,6 +130,13 @@ namespace NCAIClicker.EditorTools
                     SpawnCount = ToInt(r["spawn_count"]),
                 });
 
+                data.BillNames = ReadRows("bill_names.csv", r => new BillNameDef
+                {
+                    Id = r["id"],
+                    Issuer = r["issuer"],
+                    Title = r["title"],
+                });
+
                 data.Perks = ReadRows("perks.csv", r =>
                 {
                     PerkType type;

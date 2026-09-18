@@ -23,12 +23,26 @@ namespace NCAIClicker.Data
         public List<StageDef> Stages = new();
         public List<PerkDef> Perks = new();
 
+        /// <summary>고지서에 찍히는 발신처와 제목. 금액·기한과 무관한 표기용 데이터다 (이슈 #34).</summary>
+        public List<BillNameDef> BillNames = new();
+
         public TargetDef GetTarget(string id) => Targets.Find(t => t.Id == id);
         public UpgradeDef GetUpgrade(string id) => Upgrades.Find(u => u.Id == id);
         public PerkDef GetPerk(string id) => Perks.Find(p => p.Id == id);
 
         /// <summary>stageNumber 는 1부터 시작한다.</summary>
         public StageDef GetStage(int stageNumber) => Stages.Find(s => s.Stage == stageNumber);
+
+        /// <summary>청구서 번호로 이름을 고른다. 목록을 순환해 같은 회차에서 같은 순서가 나오게 한다.</summary>
+        public BillNameDef GetBillName(int billIndex)
+        {
+            if (BillNames.Count == 0)
+            {
+                return null;
+            }
+            var i = Mathf.Abs(billIndex) % BillNames.Count;
+            return BillNames[i];
+        }
     }
 
     [Serializable]
@@ -195,6 +209,14 @@ namespace NCAIClicker.Data
         CoinGainBoost,
         HitPowerBoost,
         HitRadiusBoost,
+    }
+
+    [Serializable]
+    public class BillNameDef
+    {
+        public string Id;
+        public string Issuer;
+        public string Title;
     }
 
     [Serializable]

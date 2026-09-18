@@ -185,3 +185,28 @@ MonoBehaviour:
     Type: 3
     Value: 20
     DurationSec: 0
+  BillNames:
+  - Id: electric
+    Issuer: "\uC2DC\uB9BD \uC804\uB825\uACF5\uC0AC"
+    Title: "\uC804\uAE30 \uC694\uAE08"
+  - Id: plumber
+    Issuer: "\uC5D0\uC774\uC2A4 \uBC30\uAD00 \uBC0F \uD3D0\uAE30\uBB3C"
+    Title: "\uBC30\uAD00\uACF5 \uCCAD\uAD6C\uC11C"
+  - Id: car
+    Issuer: "\uC54C\uC758 \uC911\uACE0\uCC28"
+    Title: "\uB179\uC2A8 \uCE90\uB51C\uB77D"
+  - Id: water
+    Issuer: "\uC218\uB3C4 \uC0AC\uC5C5\uC18C"
+    Title: "\uC0C1\uC218\uB3C4 \uC694\uAE08"
+  - Id: gas
+    Issuer: "\uC911\uBD80 \uB3C4\uC2DC\uAC00\uC2A4"
+    Title: "\uAC00\uC2A4 \uC694\uAE08"
+  - Id: rent
+    Issuer: "\uAC74\uBB3C\uC8FC \uBC15\uC528"
+    Title: "\uC774\uBC88 \uB2EC \uC6D4\uC138"
+  - Id: phone
+    Issuer: "\uD55C\uBCC4 \uD1B5\uC2E0"
+    Title: "\uD734\uB300\uD3F0 \uC694\uAE08"
+  - Id: hospital
+    Issuer: "\uBC1D\uC740\uBBF8\uC18C \uCE58\uACFC"
+    Title: "\uC2E0\uACBD\uCE58\uB8CC\uBE44"

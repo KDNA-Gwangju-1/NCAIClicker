@@ -161,17 +161,24 @@ namespace NCAIClicker.EditorTools
 
             // 원작 버튼 둘은 폭이 거의 같다 (365 / 362). flexibleWidth 를 0 으로 못 박지 않으면
             // 남는 폭이 이쪽으로 몰려 버튼 하나만 배너처럼 늘어난다.
+            // 원작 정산창은 버튼이 넷이다 — 업그레이드 / 고지서 / 계속 / 도박.
+            // 정산창이 하루의 끝이자 다음 하루의 관문이라 여기서 갈라진다. 도박만 MVP 밖이다.
+            var upgradeButton = CreateButton("UpgradeButton", actions, font, new Vector2(300f, 104f), "업그레이드",
+                new Color(0.08f, 0.06f, 0.05f), new Color(0.36f, 0.27f, 0.15f), Gold, 30);
+            SetFlexibleWidth(upgradeButton.gameObject, 0f);
+            bound["_upgradeButton"] = upgradeButton;
+
             var payColumn = CreateVertical("PayColumn", actions, 8f);
-            SetPreferredWidth(payColumn, 360f);
+            SetPreferredWidth(payColumn, 340f);
             SetFlexibleWidth(payColumn, 0f);
             // 동작이 없는 버튼은 프리팹 단계에서 잠근다. 런타임에 끄면 첫 프레임에 눌릴 수 있다.
-            var payButton = CreateButton("PayButton", payColumn, font, new Vector2(360f, 104f), "지금 납부",
+            var payButton = CreateButton("PayButton", payColumn, font, new Vector2(340f, 104f), "지금 납부",
                 new Color(0.49f, 0.12f, 0.1f), new Color(0.7f, 0.25f, 0.21f), new Color(1f, 0.86f, 0.83f), 34);
             payButton.interactable = false;
             bound["_payButton"] = payButton;
             bound["_payCaptionText"] = CreateLabel("PayCaptionText", payColumn, font, 22, Muted, TextAlignmentOptions.Center, "준비 중");
 
-            var continueButton = CreateButton("ContinueButton", actions, font, new Vector2(360f, 104f), "다음 날 진행",
+            var continueButton = CreateButton("ContinueButton", actions, font, new Vector2(300f, 104f), "계속",
                 new Color(0.11f, 0.31f, 0.45f), new Color(0.24f, 0.51f, 0.71f), new Color(0.9f, 0.95f, 0.98f), 32);
             SetFlexibleWidth(continueButton.gameObject, 0f);
             bound["_continueButton"] = continueButton;
