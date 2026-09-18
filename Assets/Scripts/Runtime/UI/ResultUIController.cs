@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NCAIClicker.Core;
 using NCAIClicker.Data;
 using NCAIClicker.Events;
@@ -51,6 +52,7 @@ namespace NCAIClicker.UI
         [SerializeField] private Button _upgradeButton;
         [SerializeField] private Button _payButton;
         [SerializeField] private TextMeshProUGUI _payCaptionText;
+        [SerializeField] private TextMeshProUGUI _payButtonLabel;
 
         // 빅 토니 징수는 대출이 있을 때만 존재하는 항목이다. 원작도 같다 —
         // 게임 내 안내문이 "Tony takes 5 to 10% of your earnings every day until you repay
@@ -65,8 +67,12 @@ namespace NCAIClicker.UI
         [SerializeField] private TextMeshProUGUI _bankruptcyCoinLossText;
         [SerializeField] private Button _restartButton;
 
+        [Header("데이터")]
+        [SerializeField] private BalanceData _balanceData;
+
         [Header("공통 UI")]
         [SerializeField] private Button _mainMenuButton;
+        [SerializeField] private TextMeshProUGUI _balanceText;
 
         // 정산창의 납부 버튼은 고지서 모달을 연다. 조립 지점이 넣어 준다.
         private BillPanelController _billPanel;
@@ -77,6 +83,10 @@ namespace NCAIClicker.UI
 
         private int _totalHoverSwings;
         private int _hitHoverSwings;
+
+        // 박살낸 저금통은 파괴 이벤트를 세면 된다. 따로 조회 통로를 만들 필요가 없다.
+        private int _brokenTotal;
+        private readonly Dictionary<string, int> _brokenByType = new Dictionary<string, int>();
         private bool _isBankrupt;
 
         public bool IsPanelActive => _panelRoot != null && _panelRoot.activeSelf;
@@ -94,6 +104,7 @@ namespace NCAIClicker.UI
         private void OnEnable()
         {
             GameEvents.OnSwingResolved += HandleSwingResolved;
+            GameEvents.OnTargetBroken += HandleTargetBroken;
             GameEvents.OnStaminaDepleted += HandleStaminaDepleted;
             GameEvents.OnBankrupt += HandleBankrupt;
 
@@ -122,6 +133,7 @@ namespace NCAIClicker.UI
         private void OnDisable()
         {
             GameEvents.OnSwingResolved -= HandleSwingResolved;
+            GameEvents.OnTargetBroken -= HandleTargetBroken;
             GameEvents.OnStaminaDepleted -= HandleStaminaDepleted;
             GameEvents.OnBankrupt -= HandleBankrupt;
 
@@ -185,6 +197,8 @@ namespace NCAIClicker.UI
         {
             _totalHoverSwings = 0;
             _hitHoverSwings = 0;
+            _brokenTotal = 0;
+            _brokenByType.Clear();
             _isBankrupt = false;
             HideAll();
         }
@@ -201,6 +215,13 @@ namespace NCAIClicker.UI
             {
                 _hitHoverSwings++;
             }
+        }
+
+        public void HandleTargetBroken(BreakInfo info)
+        {
+            _brokenTotal++;
+            _brokenByType.TryGetValue(info.TargetId, out var count);
+            _brokenByType[info.TargetId] = count + 1;
         }
 
         private void HandleStaminaDepleted()
@@ -350,6 +371,13 @@ namespace NCAIClicker.UI
                 _accuracyText.text = $"{Accuracy:F0}%";
             }
 
+            if (_balanceText != null)
+            {
+                // 이번 런 수입까지 더해진 현재 보유액. 다음 판단(살까 낼까)의 기준이 된다.
+                var coin = _economyService != null ? _economyService.CurrentCoin : 0L;
+                _balanceText.text = $"${coin:N0}";
+            }
+
             UpdateUnwiredView();
 
             if (_billStatusText != null)
@@ -377,13 +405,33 @@ namespace NCAIClicker.UI
         /// </summary>
         private void UpdateUnwiredView()
         {
-            SetPlaceholder(_grossText);
-            SetPlaceholder(_feeText);
-            SetPlaceholder(_netText);
-            SetPlaceholder(_brokenCountText);
+            // 합계는 이번 런 수입 그대로다. 액면이 없으니 코인 수와 금액이 같다 (#178 에서 갈라진다).
+            var gross = _economyService != null ? _economyService.RunCoin : 0L;
+            if (_grossText != null)
+            {
+                _grossText.text = $"${gross:N0}";
+            }
+
+            // 내 몫은 징수를 뺀 금액이다. 실제 차감은 EconomyManager 가 한다 — 여기서는 보여만 준다.
+            var cut = _billService != null ? _billService.LoanDailyCut : 0f;
+            var fee = (long)(gross * cut);
+            if (_feeText != null)
+            {
+                _feeText.text = cut > 0f ? $"-${fee:N0}" : UnwiredPlaceholder;
+            }
+            if (_netText != null)
+            {
+                _netText.text = $"${gross - fee:N0}";
+            }
+
+            if (_brokenCountText != null)
+            {
+                _brokenCountText.text = _brokenTotal.ToString();
+            }
+            UpdateBrokenChips();
+
             SetPlaceholder(_codexProgressText);
             SetPlaceholders(_denomCountTexts);
-            SetPlaceholders(_brokenChipTexts);
 
             UpdatePayButton();
             UpdateLoanCutRow();
@@ -394,12 +442,18 @@ namespace NCAIClicker.UI
                 _upgradeButton.interactable = _billPanel != null;
             }
 
+            // 원작은 버튼 자체가 정보다 — 금액이 크게, 남은 일수가 작게.
+            var activeBill = _billService?.ActiveBill;
+            if (_payButtonLabel != null)
+            {
+                _payButtonLabel.text = activeBill == null || activeBill.IsPaid
+                    ? "납부 완료"
+                    : $"${activeBill.Amount:N0}";
+            }
             if (_payCaptionText != null)
             {
-                // 원작은 버튼 자체가 정보다 — "$5,800 / 4일 남음".
-                var bill = _billService?.ActiveBill;
-                _payCaptionText.text = bill == null || bill.IsPaid
-                    ? "납부 완료"
+                _payCaptionText.text = activeBill == null || activeBill.IsPaid
+                    ? string.Empty
                     : $"{_billService.DaysLeft}일 남음";
             }
         }
@@ -445,6 +499,34 @@ namespace NCAIClicker.UI
             if (hasLoan && _loanCutLabelText != null)
             {
                 _loanCutLabelText.text = $"빅 토니 징수 ({dailyCut * 100f:F0}%)";
+            }
+        }
+
+        /// <summary>종류별 파괴 수. targets.csv 순서대로 채운다.</summary>
+        private void UpdateBrokenChips()
+        {
+            if (_brokenChipTexts == null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < _brokenChipTexts.Length; i++)
+            {
+                var label = _brokenChipTexts[i];
+                if (label == null)
+                {
+                    continue;
+                }
+
+                if (_balanceData == null || i >= _balanceData.Targets.Count)
+                {
+                    label.text = UnwiredPlaceholder;
+                    continue;
+                }
+
+                var target = _balanceData.Targets[i];
+                _brokenByType.TryGetValue(target.Id, out var count);
+                label.text = $"{target.DisplayName} {count}";
             }
         }
 

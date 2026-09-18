@@ -59,9 +59,14 @@ namespace NCAIClicker.EditorTools
             bound["_billTabRoot"] = billTabRoot;
 
             var upgradeTabRoot = CreateStretched("UpgradeTabRoot", panelRoot);
+            // 상점 패널은 MainMenu 용이라 자기 앵커를 갖고 있다. 가운데 고정 크기 상자에 담아
+            // 화면 오른쪽으로 쏠리지 않게 한다.
             var upgradeRect = upgradeTabRoot.GetComponent<RectTransform>();
-            upgradeRect.offsetMin = new Vector2(120f, 180f);
-            upgradeRect.offsetMax = new Vector2(-120f, -110f);
+            upgradeRect.anchorMin = new Vector2(0.5f, 0.5f);
+            upgradeRect.anchorMax = new Vector2(0.5f, 0.5f);
+            upgradeRect.pivot = new Vector2(0.5f, 0.5f);
+            upgradeRect.sizeDelta = new Vector2(1100f, 760f);
+            upgradeRect.anchoredPosition = new Vector2(0f, -20f);
             bound["_upgradeTabRoot"] = upgradeTabRoot;
             bound["_upgradeContent"] = upgradeTabRoot.transform;
             bound["_upgradeShopPrefab"] = AssetDatabase.LoadAssetAtPath<GameObject>(
@@ -160,7 +165,7 @@ namespace NCAIClicker.EditorTools
                 new Color(0.11f, 0.31f, 0.45f), new Color(0.24f, 0.51f, 0.71f), new Color(0.9f, 0.95f, 0.98f), 28);
 
             // 파산 선고 — 우측 가장자리 탭. 자발적 파산은 #175 범위라 잠근 채 자리만 둔다.
-            var bankruptcy = CreateButton("DeclareBankruptcyButton", panelRoot, font, new Vector2(240f, 110f), "파산 선고",
+            var bankruptcy = CreateButton("DeclareBankruptcyButton", billTabRoot, font, new Vector2(240f, 110f), "파산 선고",
                 new Color(0.369f, 0.102f, 0.094f), new Color(0.753f, 0.541f, 0.353f), new Color(1f, 0.843f, 0.812f), 32);
             var bankruptcyRect = bankruptcy.GetComponent<RectTransform>();
             bankruptcyRect.anchorMin = new Vector2(1f, 0.5f);
@@ -171,7 +176,7 @@ namespace NCAIClicker.EditorTools
             bound["_declareBankruptcyButton"] = bankruptcy;
 
             // 잠긴 버튼은 이유가 보이지 않으면 고장으로 읽힌다. 왜 못 누르는지 옆에 적는다.
-            var bankruptcyCaption = CreateLabel("BankruptcyCaption", panelRoot, font, 18, InkFaint, "준비 중");
+            var bankruptcyCaption = CreateLabel("BankruptcyCaption", billTabRoot, font, 18, InkFaint, "준비 중");
             var captionRect = bankruptcyCaption.GetComponent<RectTransform>();
             captionRect.anchorMin = new Vector2(1f, 0.5f);
             captionRect.anchorMax = new Vector2(1f, 0.5f);

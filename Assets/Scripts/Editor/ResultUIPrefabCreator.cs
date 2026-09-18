@@ -53,18 +53,28 @@ namespace NCAIClicker.EditorTools
             panelImage.color = new Color(0f, 0f, 0f, 0.85f);
 
             var settlement = BuildSettlement(panelRoot, font, out var bound);
+            bound["_balanceData"] = AssetDatabase.LoadAssetAtPath<NCAIClicker.Data.BalanceData>(
+                "Assets/GameData/Generated/BalanceData.asset");
             var bankruptcy = BuildBankruptcy(panelRoot, font, out var bankruptcyBound);
 
-            var mainMenuButton = CreateButton("MainMenuButton", panelRoot, font, new Vector2(220f, 56f), "메인 메뉴",
-                new Color(0.18f, 0.16f, 0.14f), new Color(0.36f, 0.33f, 0.29f), Parchment, 24);
+            // 우상단은 현재 보유액 자리다 (원작). 메인 메뉴는 좌하단으로 작게 물린다.
+            var balanceLabel = CreateLabel("BalanceText", panelRoot, font, 40, Gold, TextAlignmentOptions.Right, "$0");
+            var balanceRect = balanceLabel.GetComponent<RectTransform>();
+            balanceRect.anchorMin = new Vector2(1f, 1f);
+            balanceRect.anchorMax = new Vector2(1f, 1f);
+            balanceRect.pivot = new Vector2(1f, 1f);
+            balanceRect.sizeDelta = new Vector2(360f, 56f);
+            balanceRect.anchoredPosition = new Vector2(-SafeInset.x, -SafeInset.y);
+            bound["_balanceText"] = balanceLabel;
+
+            var mainMenuButton = CreateButton("MainMenuButton", panelRoot, font, new Vector2(180f, 48f), "메인 메뉴",
+                new Color(0.18f, 0.16f, 0.14f), new Color(0.36f, 0.33f, 0.29f), Parchment, 22);
             var mainMenuRect = mainMenuButton.GetComponent<RectTransform>();
-            // 하단 두 귀퉁이는 쓸 수 없다 — 우하단은 액션 행과, 좌하단은 인게임 HUD 의
-            // 스태미나 막대와 겹친다(결과창은 HUD 위에 덮일 뿐 HUD 를 지우지 않는다).
-            // 패널 안쪽 우상단에 둔다.
-            mainMenuRect.anchorMin = Vector2.one;
-            mainMenuRect.anchorMax = Vector2.one;
-            mainMenuRect.pivot = Vector2.one;
-            mainMenuRect.anchoredPosition = new Vector2(-SafeInset.x, -SafeInset.y);
+            // 좌하단. 스태미나 HUD 와 겹치지 않도록 한 칸 띄운다.
+            mainMenuRect.anchorMin = Vector2.zero;
+            mainMenuRect.anchorMax = Vector2.zero;
+            mainMenuRect.pivot = Vector2.zero;
+            mainMenuRect.anchoredPosition = new Vector2(SafeInset.x, SafeInset.y + 70f);
 
             bound["_panelRoot"] = panelRoot;
 
@@ -177,6 +187,7 @@ namespace NCAIClicker.EditorTools
                 new Color(0.49f, 0.12f, 0.1f), new Color(0.7f, 0.25f, 0.21f), new Color(1f, 0.86f, 0.83f), 34);
             payButton.interactable = false;
             bound["_payButton"] = payButton;
+            bound["_payButtonLabel"] = payButton.GetComponentInChildren<TextMeshProUGUI>(true);
             bound["_payCaptionText"] = CreateLabel("PayCaptionText", payColumn, font, 22, Muted, TextAlignmentOptions.Center, "준비 중");
 
             var continueButton = CreateButton("ContinueButton", actions, font, new Vector2(300f, 104f), "계속",

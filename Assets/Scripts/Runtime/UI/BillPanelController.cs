@@ -215,6 +215,33 @@ namespace NCAIClicker.UI
             {
                 Instantiate(_upgradeShopPrefab, _upgradeContent, false);
             }
+
+            // 어느 탭에 있는지 버튼 색으로 알린다. 업그레이드를 보고 있는데 고지서가 켜진 것처럼
+            // 보이면 탭이 안 먹은 줄 안다.
+            SetTabSelected(_billTabButton, !showUpgrade);
+            SetTabSelected(_upgradeTabButton, showUpgrade);
+        }
+
+        private static void SetTabSelected(Button tab, bool selected)
+        {
+            if (tab == null)
+            {
+                return;
+            }
+
+            var label = tab.GetComponentInChildren<TextMeshProUGUI>(true);
+            if (label != null)
+            {
+                label.color = selected ? Color.white : new Color(0.55f, 0.48f, 0.38f);
+            }
+
+            var outline = tab.GetComponent<Outline>();
+            if (outline != null)
+            {
+                outline.effectColor = selected
+                    ? new Color(0.91f, 0.69f, 0.29f)
+                    : new Color(0.22f, 0.19f, 0.15f);
+            }
         }
 
         public void Close()
@@ -350,11 +377,12 @@ namespace NCAIClicker.UI
                 _payButton.gameObject.SetActive(hasUnpaidBill);
             }
 
-            // 마감 당일에는 미루는 선택지를 없앤다. 버튼을 잠그는 대신 아예 감춘다 —
-            // 잠긴 버튼은 "왜 안 눌리지" 를 만들지만 없는 버튼은 질문을 만들지 않는다.
+            // "아직" 은 탭 화면으로 빠지는 버튼이다. 이미 탭 화면이면 할 일이 없으므로 감춘다 —
+            // 상단 탭으로 어디든 갈 수 있는 상태에서 또 하나의 출구는 군더더기다.
+            // 마감 당일에도 감춘다. 미루는 선택지 자체를 없애는 것이 원작 규칙이다.
             if (_laterButton != null)
             {
-                _laterButton.gameObject.SetActive(hasUnpaidBill && !isDueToday);
+                _laterButton.gameObject.SetActive(_mode == Mode.Modal && hasUnpaidBill && !isDueToday);
             }
 
             if (_loanButton != null)
