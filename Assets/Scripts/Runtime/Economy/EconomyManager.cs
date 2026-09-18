@@ -23,6 +23,24 @@ namespace NCAIClicker.Economy
     public class EconomyManager : MonoBehaviour, IEconomyService, IRunScoped, IWalletPersistence,
         IUpgradeStats, IUpgradeShop, IUpgradePersistence
     {
+        /// <summary>
+        /// 코인 조회 통로. BillManager.Instance(IBillService)·SaveManager.Instance(ISaveService)·
+        /// GameManager.Instance(IGameFlowService) 와 같은 패턴으로 **공용 인터페이스 타입으로만** 연다
+        /// — 구현 클래스를 밖에 노출하지 않는다 (AGENTS.md).
+        ///
+        /// UI 가 OnEnable 에서 초기 상태를 한 번 읽는 용도다 (ARCHITECTURE 3절). 이후 갱신은
+        /// OnBalanceChanged·OnRunCoinChanged 구독으로 받는다. BeginRun() 은 런 순수입만 발행하고
+        /// 잔액은 발행하지 않아, 이 통로가 없으면 UI 가 런 시작 시 잔액을 알 방법이 없었다 (#171).
+        /// </summary>
+        public static IEconomyService Instance { get; private set; }
+
+        /// <summary>
+        /// 업그레이드 구매 창구. 레벨·다음 비용 조회와 구매를 UI 가 이 통로로만 한다 (#171).
+        /// Instance 와 나눠 둔 이유는 소비처가 다르기 때문이다 — HUD 는 지갑만, 상점 화면(6.8)은
+        /// 이쪽만 쓴다. 한 통로로 묶어 캐스팅하게 두면 인터페이스를 나눈 의미가 없어진다.
+        /// </summary>
+        public static IUpgradeShop Shop { get; private set; }
+
         [SerializeField] private BalanceData _balanceData;
 
         private readonly CoinWallet _wallet = new CoinWallet();
@@ -69,6 +87,12 @@ namespace NCAIClicker.Economy
 
         private void Awake()
         {
+            // 조회 통로는 BalanceData 검사보다 **먼저** 연다. BillManager.Awake 와 같은 순서다 —
+            // 데이터가 없어 매니저가 제 일을 못 하더라도 통로 자체는 있어야, 소비처가
+            // "매니저가 없다"와 "데이터가 없다"를 구별할 수 있다.
+            Instance = this;
+            Shop = this;
+
             if (_balanceData == null)
             {
                 Debug.LogError("[EconomyManager] BalanceData 가 연결되지 않았다. " +
