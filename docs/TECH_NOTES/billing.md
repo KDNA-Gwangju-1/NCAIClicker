@@ -1,19 +1,19 @@
 # 하루 진행과 청구서
 
-> 관련 이슈: #27, #28, #29 · 최종 수정: 2026-09-17
+> 관련 이슈: #27, #28, #29, #150, #30 · 최종 수정: 2026-09-18
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
 ## 무엇을 하는가
 
-런 종료를 하루 종료로 집계하고, 하루가 시작될 때마다 `stages.csv` 단계값으로 청구서(금액·마감일)를 발행한다. HUD는 남은 일수와 금액을 항상 보여준다. 마감 전이면 `TryPay`로 언제든 조기 납부할 수 있고, 납부에 성공하면 `perks.csv`에서 3종을 무작위로 뽑아 `OnPerkOffered`로 알린 뒤 `TryChoosePerk`로 하나를 고른다(#28). 퍼크 효과의 실제 게임플레이 반영은 이 클래스 범위 밖 — 아래 "알려진 한계" 참고. 대출(#29)은 두 번째 청구서부터 활성 청구서 금액을 한도로 빌리고(`TryTakeLoan`), 이자를 더한 전액을 한 번에 갚는다(`TryRepayLoan`). 미상환 기간에는 `LoanDailyCut`이 0이 아니게 되어 `EconomyManager`가 수입에서 그만큼 떼며, 그 징수분은 부채를 줄이지 않는다. 파산 판정(4.4)은 여전히 이 문서 범위 밖이다. 게임 규칙은 [GDD](../GDD.md)에 있으니 여기서 반복하지 않는다.
+런 종료를 하루 종료로 집계하고, 하루가 시작될 때마다 `stages.csv` 단계값으로 청구서(금액·마감일)를 발행한다. HUD는 남은 일수와 금액을 항상 보여준다. 마감 전이면 `TryPay`로 언제든 조기 납부할 수 있고, 납부에 성공하면 `perks.csv`에서 3종을 무작위로 뽑아 `OnPerkOffered`로 알린 뒤 `TryChoosePerk`로 하나를 고른다(#28). 퍼크 효과의 실제 게임플레이 반영은 이 클래스 범위 밖 — 아래 "알려진 한계" 참고. 대출(#29)은 두 번째 청구서부터 활성 청구서 금액을 한도로 빌리고(`TryTakeLoan`), 이자를 더한 전액을 한 번에 갚는다(`TryRepayLoan`). 미상환 기간에는 `LoanDailyCut`이 0이 아니게 되어 `EconomyManager`가 수입에서 그만큼 떼며, 그 징수분은 부채를 줄이지 않는다. **파산 판정(#30)도 여기서 한다** — 아래 "마감 미납과 파산" 절. 게임 규칙은 [GDD](../GDD.md)에 있으니 여기서 반복하지 않는다.
 
 ## 왜 이 방법인가
 
 | 검토한 방법 | 채택 | 이유 |
 |---|---|---|
 | `BillManager`가 `EconomyManager`처럼 싱글톤 + `IBillService` 구현, `Managers` 프리팹에 부착 | ✅ | 기존 매니저(EconomyManager/StaminaManager/SaveManager) 패턴과 동일해 팀이 이미 아는 구조를 그대로 쓴다. `ManagerBootstrap`이 조립 지점에서 `EconomyManager.SetBillService`로 연결한다 |
-| 별도 `StageManager`를 새로 만들어 단계 진행을 관리 | ❌ | 이슈 #27 범위 밖(공용 계약에 없는 새 매니저). 당장은 `BillManager` 내부의 `_billIndex` 순번으로 `stages.csv`를 순서대로 읽는 것으로 충분하고, 단계 진행 전담 매니저가 필요해지면 그때 분리한다 |
+| 별도 `StageManager`를 새로 만들어 단계 진행을 관리 | ❌ → **뒤집힘** | 이슈 #27 범위 밖이라 `_billIndex` 순번으로 `stages.csv`를 순서대로 읽었다. **#150 에서 뒤집혔다** — `StageGoalManager`가 `IStageService`로 단일 출처가 되었고 `_billIndex`는 누적 청구서 순번으로만 남는다 |
 | HUD가 매 프레임 `IBillService.DaysLeft`를 폴링 | ❌ | ARCHITECTURE.md 3절 "UI는 구독 후 공용 조회 인터페이스로 초기 상태를 한 번 읽는다"에 어긋난다. `GameEvents.OnBillDueSoon`(이미 선언돼 있었지만 아무도 발행하지 않던 이벤트)을 `BillManager.BeginRun()` 끝에서 발행하도록 고쳐 HUD가 구독하게 했다 |
 | `OnBillDueSoon`을 "마감 임박" 때만(예: 2일 이하) 발행 | ❌ | 이슈 #27 완료 기준이 "HUD는 항상 일수·금액을 보여준다"라 매일 갱신이 필요하다. `contracts.md`의 "마감 임박 시" 설명과는 결이 다르지만 인자·발행 메서드 시그니처(`Action<int>`, `PublishBillDueSoon(int)`)는 그대로이므로 계약 변경이 아니다 — 다음에 "진짜 임박" 필터가 필요해지면 그때 구독측(HUD)에서 걸러도 된다 |
 | HUD를 `Game.unity`에 직접 배치 | ❌ | `Game.unity`은 "코어 플레이" 모듈 소유 씬이라 남의 씬을 고치면 안 된다(AGENTS.md). 대신 `Assets/Prefabs/UI/BillHud.prefab`(Canvas + TextMeshProUGUI)을 독립 프리팹으로 만들어 넘긴다 — 코어 플레이 담당이 씬에 배치하면 된다 |
@@ -25,6 +25,13 @@
 | (#29) 일일 징수율을 `loan_daily_cut_min`~`max` 범위에서 무작위로 뽑음 | ❌ | 같은 선택이 매번 다른 결과를 내면 7.2 밸런싱 실측도 Edit Mode 검증도 성립하지 않는다. 사채업자 분위기는 살지만 검증 비용이 그보다 크다 |
 | (#29) 빌린 금액에 비례해 정함 — 전액이면 상한, 소액이면 하한 | ✅ | 결정적이라 검증·실측이 가능하고 "많이 빌릴수록 비싸다"는 저울질이 생긴다. `Loan.DailyCut`을 대출 시 1회 결정하고 고정한다는 ARCHITECTURE 계약과도 맞는다 |
 | (#29) 대출 한도를 두지 않고 호출측(UI)에 맡김 | ❌ | 한도가 없으면 한 번에 빚을 몰아 나선형 파산이 난다. BALANCE.md 4절이 "청구서 전액을 빌리면"을 전제로 상환 가능성을 검증하므로 활성 청구서 금액을 상한으로 삼았다 |
+| (#30) 파산 판정을 `BillManager`에서 | ✅ | ARCHITECTURE 1절의 매니저 표가 이 매니저에 "하루 진행, 청구서 마감, 대출과 징수, **파산 판정**"을 맡겨 두었다. 마감일·미납 여부를 아는 곳이 여기 하나뿐이기도 하다 |
+| (#30) 파산 시 상태를 지운 **뒤** `OnBankrupt` 발행 | ❌ | 받는 쪽이 이미 초기화된 상태를 보게 되어 결과 화면(6.2)이 무엇이 실패했는지 읽을 수 없다. 알리는 것이 먼저다 |
+| (#30) 지갑 비우기를 `IEconomyService.TrySpendCoin(CurrentCoin)` 으로 | ❌ | 정수만 떼므로 **소수 잔여가 남는다.** 계약 7번이 "소수 잔여는 파산 시 버린다"고 정했다 |
+| (#30) `IWalletPersistence` 를 조립 통로로 주입받아 `RestoreWallet(0, "0")` | ❌ | 한 번 넣었다가 되돌렸다. 그 인터페이스는 **"SaveManager 만 쓴다"**로 사용자가 묶여 있어 `BillManager` 가 두 번째 사용자가 된다 — 공용 계약 확장이라 이슈가 먼저다 |
+| (#30) `EconomyManager` 가 `OnBankrupt` 를 구독해 스스로 비움 | ❌ | ARCHITECTURE 3절이 "`OnBankrupt`는 GameManager만 구독"으로 막아 두었다. 같은 이유로 막힌다 |
+| (#30) 단계 초기화를 `IStageService.RestoreStage(0)` 로 | ✅ | #150 이 만든 계약을 **쓰기만 한다** — 확장이 필요 없다. 그쪽이 용도까지 "파산 처리용"으로 적어 두었다 |
+| (#30) 지갑 초기화를 이 카드에서 빼고 계약 이슈로 | ✅ | 셋 다 공용 문서를 고쳐야 하는데, 규칙은 **구현 전에** 이슈를 먼저 올리라고 한다. 판정·발행·`BillManager` 자체 초기화는 계약을 건드리지 않으므로 먼저 넣는다 |
 | (#29) 저장·복원을 이 이슈에서 함께 붙임 | ❌ | `IBillService`에 복원 통로를 더하는 공용 계약 변경이라 규칙상 별도 이슈가 먼저다(AGENTS.md). 날짜·청구서·퍼크 후보 저장까지 함께 걸리는 범위라 #29 완료 기준을 넘는다 |
 
 ## 구조
@@ -32,8 +39,9 @@
 ```mermaid
 flowchart LR
   subgraph Economy["경제"]
-    bill[BillManager<br/>하루 진행·청구서 발행·조기 납부·퍼크 제시]
+    bill[BillManager<br/>하루 진행·청구서 발행·조기 납부·퍼크 제시·파산 판정]
     econ[EconomyManager<br/>배율·대출 징수·코인 차감]
+    stage[StageGoalManager<br/>단계 단일 출처]
   end
 
   subgraph UI["UI·연출"]
@@ -49,19 +57,22 @@ flowchart LR
   bill -- "OnBillIssued(Bill) 발행" --> events
   bill -- "OnBillDueSoon(int) 발행" --> events
   bill -- "OnDayEnded(int) 발행" --> events
+  bill -- "OnBankrupt 발행 (#30)" --> events
   bill -- "OnBillPaid(Bill) 발행" --> events
   bill -- "OnPerkOffered(string[]) 발행" --> events
   bill -- "OnPerkChosen(string) 발행" --> events
   events -- "구독" --> hud
   bill -- "IBillService 통로<br/>(SetBillService 로 조립)" --> econ
   bill -- "IEconomyService.TrySpendCoin<br/>(SetEconomyService 로 조립)" --> econ
+  bill -- "IStageService 조회·RestoreStage<br/>(SetStageService 로 조립, #150·#30)" --> stage
 ```
 
 <!-- GameEvents 를 거치는 관계는 이벤트 노드를 경유해 그린다. 모듈끼리 직접 잇지 않는다 -->
 
 | 클래스 | 경로 | 하는 일 |
 |---|---|---|
-| `BillManager` | `Assets/Scripts/Runtime/Economy/BillManager.cs` | `IBillService` 구현. `BeginRun`으로 하루 시작(날짜 증가·청구서 발행), `EndRun`으로 하루 종료(`OnDayEnded` 발행), `TryPay`로 조기 납부(`IEconomyService.TrySpendCoin` 경유) 성공 시 퍼크 3종을 뽑아 `OnPerkOffered` 발행, `TryChoosePerk`로 하나를 고르면 `OnPerkChosen` 발행. 대출은 `TryTakeLoan`으로 빌리고 `TryRepayLoan`으로 갚으며, 징수율은 `LoanDailyCut`으로만 내보낸다(#29) |
+| `BillManager` | `Assets/Scripts/Runtime/Economy/BillManager.cs` | `IBillService` 구현. `BeginRun`으로 하루 시작(날짜 증가·청구서 발행), `EndRun`으로 하루 종료(`OnDayEnded` 발행), `TryPay`로 조기 납부(`IEconomyService.TrySpendCoin` 경유) 성공 시 퍼크 3종을 뽑아 `OnPerkOffered` 발행, `TryChoosePerk`로 하나를 고르면 `OnPerkChosen` 발행. 대출은 `TryTakeLoan`으로 빌리고 `TryRepayLoan`으로 갚으며, 징수율은 `LoanDailyCut`으로만 내보낸다(#29). 마감 미납 파산을 판정해 `OnBankrupt`를 발행하고 회차를 되돌린다(#30) |
+| `BankruptcyChecks` | `Assets/Scripts/Editor/BankruptcyChecks.cs` | 파산 판정 경계와 회차 초기화 범위의 Edit Mode 검증 8건 (#30) |
 | `BillHud` | `Assets/Scripts/Runtime/UI/BillHud.cs` | `OnBillIssued`/`OnBillDueSoon` 구독, `TextMeshProUGUI`에 "D-N  N원" 형식으로 표시 |
 | (프리팹) | `Assets/Prefabs/UI/BillHud.prefab` | Canvas(ScreenSpaceOverlay) + `BillLabel`(우상단, `BillHud` 부착) |
 | `BillManagerChecks` | `Assets/Scripts/Editor/BillManagerChecks.cs` | EditMode 배치 검증. `MenuItem` 없이 `RunBatch()`를 외부에서 호출한다 |
@@ -73,6 +84,7 @@ flowchart LR
 | `GameEvents.OnBillIssued` | `BillManager`가 발행, `BillHud`가 구독 | 새 청구서가 만들어질 때(활성 청구서가 없는 상태에서 `BeginRun` 호출 시) |
 | `GameEvents.OnBillDueSoon` | `BillManager`가 발행, `BillHud`가 구독 | 활성 청구서가 있는 상태로 `BeginRun`이 끝날 때마다(하루마다). 인자는 그 시점의 `DaysLeft` |
 | `GameEvents.OnDayEnded` | `BillManager`가 발행 | `EndRun` 호출 시. 런당 한 번 = 날짜당 한 번 |
+| `GameEvents.OnBankrupt` | `BillManager`가 발행 | `EndRun` 에서 마감 미납이 확정된 순간(#30). **회차를 되돌리기 전에** 발행한다 |
 | `GameEvents.OnBillPaid` | `BillManager`가 발행 | `TryPay` 성공 시(#28). 구독자 아직 없음 — UI는 이슈 범위 밖 |
 | `GameEvents.OnPerkOffered` | `BillManager`가 발행 | `TryPay` 성공 직후, `perks.csv`에서 무작위로 뽑은 퍼크 id 3개(#28). 구독자 아직 없음 — 선택 UI는 이슈 범위 밖 |
 | `GameEvents.OnPerkChosen` | `BillManager`가 발행 | `TryChoosePerk` 성공 시, 고른 퍼크 id(#28). 구독자 아직 없음 — 효과 적용은 각 시스템 몫(알려진 한계 참고) |
@@ -94,6 +106,29 @@ flowchart LR
 
 ## 검증
 
+### 파산 (2026-09-18, #30)
+
+Edit Mode 에서 `BankruptcyChecks.RunBatch()` 로 확인했다 (**8건 PASS**).
+`ValidationRunner.RunAll()`(#159)이 `*Checks` 를 리플렉션으로 모으므로 별도 등록 없이 전체
+하네스와 함께 돈다. `BillManagerChecks` 회귀(24건)도 통과한다.
+
+- [x] 마감 전날까지는 파산하지 않는다
+- [x] 마감 당일이 미납으로 끝나면 파산하고, `OnBankrupt` 가 정확히 1회 나간다
+- [x] 마감 전에 내면 파산하지 않고, 다음 날 새 청구서도 기한 안이면 파산하지 않는다
+- [x] 청구서가 없으면 판정하지 않는다
+- [x] 파산 후 날짜·청구서·대출·퍼크 후보가 새 회차 값이다
+- [x] **단계가 1단계로 돌아간다** (`IStageService.RestoreStage(0)`)
+- [x] 다음 런이 1일차 1단계 청구서를 새로 발행한다
+- [x] `BalanceData` 가 dirty 되지 않는다
+
+검증이 실제로 잡는지도 확인했다. `RestoreStage(0)` 을 빼 보니
+"파산이 단계를 1단계로 되돌리지 않았습니다: -1" 로 실패했다.
+
+**미검증**: Play Mode. `BillManager` 가 `IRunScoped` 를 구현하지 않아 런타임에 `EndRun()` 이
+불리지 않는다 — 확인할 방법 자체가 없다 (위 "알려진 한계", #164).
+
+### 청구서·납부·대출 (2026-09-17, #27·#28·#29)
+
 Unity 6000.3.21f1 헤드리스 배치 실행, 2026-09-17.
 
 - [x] 컴파일: `unity run . -- -executeMethod NCAIClicker.EditorTools.BillManagerChecks.RunBatch -logFile -` → 도메인 리로드 포함 정상 종료, `error CS` 0건
@@ -107,11 +142,76 @@ Unity 6000.3.21f1 헤드리스 배치 실행, 2026-09-17.
 - [ ] 에디터 Play Mode에서 실제 HUD·퍼크 선택 UI 확인 — `Game.unity`에 프리팹을 배치하는 것은 코어 플레이 모듈 담당 몫이고, 퍼크 선택 UI 자체가 아직 없다(알려진 한계 참고). 미검증
 - [ ] `GameManager`가 `BeginRun`/`EndRun`을 실제로 호출하는 배선(작업 2.5) — 아직 없다. 미검증
 
+## 마감 미납과 파산 (#30)
+
+**미납 = 즉시 파산.** 유예·부분 납부·추심 삭감·반액 정산은 없다 (#6 에서 확정, 근거는
+REFERENCE_ANALYSIS 6절). 대출로 코인을 만드는 것이 유일한 회피 수단이고, 그것도 마감 전에
+`TryPay` 로 실제 납부까지 끝내야 한다.
+
+```
+EndRun()  → OnDayEnded 발행
+          → 청구서가 있고 · 미납이고 · 오늘이 마감일 이후면
+          → OnBankrupt 발행 → 회차 초기화
+```
+
+### 마감일은 낼 수 있는 마지막 날이다
+
+`DueDay` 당일에 런이 끝나면서 미납이면 **그 시점에 파산**이다. 하루를 더 넘겨야 파산하는
+것이 아니다. 하루의 끝에서만 판정하므로 "마감 판정 전에 납부 기회를 제공한다"(ARCHITECTURE)는
+자연히 지켜진다 — 런 내내 `TryPay` 가 열려 있다.
+
+검증을 쓰면서 이 경계를 반대로 잡았다가 틀렸다. `DaysLeft == 1`(마감 당일)에서 이미 마지막
+기회를 쓴 것이다.
+
+### 먼저 — 지금 이 판정은 게임에서 실행되지 않는다
+
+`BillManager` 는 **`IRunScoped` 를 구현하지 않는다.** `GameManager` 는
+`GetComponentsInChildren<IRunScoped>` 로만 런 경계를 뿌리므로 `BeginRun()`·`EndRun()` 을
+부르는 곳이 런타임에 없다. 1.16(#111)이 런 경계를 배선할 때 `IRunScoped` 구현체만 모았고,
+`BillManager` 는 메서드 이름만 같을 뿐 인터페이스를 선언하지 않아 빠졌다.
+
+**파산 판정은 Edit Mode 검증으로만 확인했다.** 배선이 붙기 전까지 하루도 흐르지 않고 청구서도
+나가지 않으므로, 4.1~4.4 가 통째로 잠들어 있다. `: IBillService, IRunScoped` 한 줄이면 붙는데,
+그 순간 4.x 전체가 동시에 살아나 다른 카드의 실동작이 처음 드러난다 — 4.4 의 범위를 넘어
+별도 카드로 뺐다.
+
+### `OnBankrupt` 로 Result 로 전이한다는 계약은 이 경로에서 늦다
+
+배선이 붙은 뒤의 이야기다. ARCHITECTURE 3절은 "`OnBankrupt` 는 GameManager 만 구독해 Result 로
+전이시킨다"고 적었지만, `EndRun()` 은 **Result 전이 도중에** 불리게 된다. 발행 시점에는 이미
+Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검사에 걸려 아무 일도
+하지 않는다.
+
+**파산은 런을 끝내는 원인이 아니라 끝난 런의 결과다.** 마감을 놓치는 순간이 곧 하루의 끝이라
+런 도중에 파산이 발생할 길이 없다. 그래서 `OnBankrupt` 는 "이 회차가 파산으로 끝났다"는
+통지로 쓴다. 계약 문구 정리는 [#158](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/158).
+
+### 무엇을 되돌리나
+
+| 대상 | 초기화 | 비고 |
+|---|---|---|
+| 날짜 | 1일차 | `_hasBegun` 을 내려 다음 `BeginRun` 이 날짜를 올리지 않게 한다 |
+| 청구서 순번 | 1부터 | `_billIndex`. #150 이후 이 필드는 단계가 아니라 **누적 발행 순번**이고 대출 해금(`loan_unlock_bill_index`)의 기준이라 새 회차에서 다시 세야 한다 |
+| 활성 청구서 | 버림 | 다음 `BeginRun` 이 1단계 청구서를 새로 낸다 (ARCHITECTURE "게임 시작과 파산 재시작에도") |
+| 대출·재대출 쿨다운 | 없음으로 | |
+| 퍼크 후보 | 비움 | |
+| 코인·소수 잔여 | **되돌리지 못한다** | 지갑을 비울 권한이 공용 계약에 막혀 있다 — 아래 한계 |
+| **영구 업그레이드** | **유지** | 회차를 넘겨 남는 유일한 성장이다 |
+| **단계** | 1단계로 | `IStageService.RestoreStage(0)`. #150 이 단일 출처를 열어 주었고 그 주석이 "저장 복원 및 **파산 처리용**"으로 이 자리를 가리킨다 |
+
 ## 알려진 한계
 
-- `GameManager`가 아직 `BillManager.BeginRun()`/`EndRun()`을 호출하지 않는다(작업 2.5, 이 이슈 범위 밖). 지금은 `BillManagerChecks`가 직접 호출해서만 검증했다.
+- **`GameManager`가 `BillManager.BeginRun()`/`EndRun()`을 호출하지 않는다.** 1.16(#111)이 런 경계를 배선했지만 `IRunScoped` 구현체만 모았고 `BillManager`는 그 인터페이스를 선언하지 않아 빠졌다. 그래서 **하루 진행·청구서 발행·대출 징수·파산 판정이 전부 게임에서 실행되지 않는다** — 검증은 `BillManagerChecks`·`BankruptcyChecks`가 직접 호출해서만 했다. 한 줄로 고칠 수 있지만 4.x 전체가 동시에 살아나는 변화라 별도 카드가 필요하다.
 - ~~단계 진행(`_billIndex`)을 `BillManager`가 자체 순번으로 관리한다.~~ — #150 에서 `IStageService` 단일 출처 연결로 해결됐다. 청구서 금액과 기한은 현재 단계를 따르고, `_billIndex` 는 대출 해금 등에서 쓸 누적 발행 순번으로만 쓰인다.
-- 파산 판정(#30)이 없어 청구서를 기한 내에 내지 않아도 아무 일이 일어나지 않는다. HUD의 "D-0"은 기한 초과 상태를 그대로 보여줄 뿐이다.
+- ~~파산 판정(#30)이 없어 청구서를 기한 내에 내지 않아도 아무 일이 일어나지 않는다.~~ — #30 에서 붙였다. 다만 아래 셋이 남는다.
+- **결과 화면에 "파산"이 뜨지 않는다.** `OnBankrupt` 를 받아 표시할 화면(6.2/#34)이 아직 없다. #34 가 이 카드를 선행으로 잡고 있어 순환이었고, 발행까지가 #30 의 몫이다.
+- **파산 결과가 저장되지 않는다.** `SaveData.WasBankrupt`·`LastCompletedDay` 필드는 있지만 채우는 곳이 없다. `SaveManager` 를 부르는 곳이 `GameManager.StartNewRun()` 하나뿐이고 거기서 `new SaveData()` 빈 객체를 쓴다 — 매니저 상태가 전혀 담기지 않는다.
+- **파산해도 돈이 그대로 남는다 — 페널티가 약하다.** 날짜·청구서·단계는 되돌아가지만
+  보유 코인·소수 잔여는 그대로다. 1단계 청구서를 쥔 돈으로 바로 내고 넘어갈 수 있어, 지금의 파산은
+  벌칙이라기보다 **날짜 되감기**에 가깝다. 지갑을 비우려면 공용 계약을 넓혀야 해서 별도 이슈로 뺐다
+  ([#158](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/158)). **이 카드를 Done 으로 보고
+  넘어가면 안 되는 이유가 이것이다.**
+- **파산 즉시 상태를 되돌리는 것이 임시 방편이다.** 원래는 결과 화면을 보여 준 뒤 새 회차를 시작할 때 되돌리는 것이 맞지만, 새 회차 시작이 매니저 상태를 초기화하지 않아(`DontDestroyOnLoad`) 지금은 여기서 되돌리지 않으면 1일차 재시작이 성립하지 않는다.
 - 대출을 부르는 UI가 없다. `TryTakeLoan`의 금액은 호출측이 정하고 이 클래스는 활성 청구서 금액을 넘지 못하게만 막는다 — 얼마를 빌릴지 고르는 화면은 아직 없다.
 - 대출 상태(`ActiveLoan`·`LastLoanRepaidDay`)가 저장·복원되지 않는다. `SaveData`에 필드는 이미 있지만 `IBillService`에 복원 통로가 없어 재실행하면 빚이 사라진다 — 공용 계약 변경이라 별도 이슈로 발의한다.
 - 징수는 수입이 들어올 때만 일어난다. 하루 종일 한 푼도 벌지 못하면 뜯기는 것도 없다 — 원작이 그러한지는 7.2 실측에서 확인한다.
@@ -128,3 +228,4 @@ Unity 6000.3.21f1 헤드리스 배치 실행, 2026-09-17.
 | 2026-09-17 | #28 | Claude | `TryPay` 조기 납부 구현, `perks.csv`/`PerkType`/`PerkDef` 추가, 납부 성공 시 퍼크 3종 제시(`OnPerkOffered`)·선택(`TryChoosePerk`, `OnPerkChosen`) |
 | 2026-09-17 | #29 | Claude | 대출 구현 — 해금 순번·청구서 금액 한도·이자 올림·금액 비례 징수율·동시 1건·재대출 쿨다운. `BillManagerChecks`에 `RunLoanChecks` 추가 |
 | 2026-09-18 | #150 | saltlake00 | `IStageService` 연결 — 자체 단계 순번을 걷어내고 단일 출처의 현재 단계로 청구서 발행 |
+| 2026-09-18 | #30 | twins6375-art | 마감 미납 파산 판정·`OnBankrupt` 발행·회차 초기화(단계 포함). `BankruptcyChecks` 신규. **지갑 초기화는 공용 계약에 막혀 제외** |
