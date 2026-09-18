@@ -154,7 +154,8 @@ namespace NCAIClicker.Core
             }
 
             var services = GetComponentsInChildren<IRunScoped>(true);
-            // ARCHITECTURE 1절 초기화 순서 준수: 코인(Economy) -> 스태미나/피버
+            // ARCHITECTURE 1절 초기화 순서 준수. 순번은 GetServiceOrder 가 매긴다 —
+            // 코인이 먼저고, 단계는 청구서보다 앞이다 (그 이유는 GetServiceOrder 주석).
             Array.Sort(services, (a, b) => GetServiceOrder(a).CompareTo(GetServiceOrder(b)));
             _runScopedServices = services;
         }
@@ -177,6 +178,19 @@ namespace NCAIClicker.Core
             if (typeName.Contains("Creature"))
             {
                 return 4;
+            }
+            // 단계는 청구서보다 **먼저** 와야 한다 (#164). ARCHITECTURE "하루 종료 순서"가
+            // "런 목표 판정 → ... → 미납 확정 시 파산"으로 이미 정해 둔 순서다. 근거는 EndRun 에서
+            // StageGoalManager 는 목표를 채웠으면 단계를 올리고 BillManager 는 파산이면 0 으로
+            // 되돌리는데, 뒤집히면 파산인데 단계가 올라가기 때문이다. 둘 다 기타(10)로 두면
+            // 동점이라 Array.Sort 가 순서를 보장하지 않는다.
+            if (typeName.Contains("Stage"))
+            {
+                return 5;
+            }
+            if (typeName.Contains("Bill"))
+            {
+                return 6;
             }
             return 10;
         }
