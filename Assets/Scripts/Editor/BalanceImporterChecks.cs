@@ -39,8 +39,8 @@ namespace NCAIClicker.EditorTools
                     new[] { "targets.csv", "runner,고속형,1,", "runner,고속형,0," },
                     new[] { "targets.csv", "normal,일반형,3,", "runner,일반형,3," },
                     new[] { "upgrades.csv", "strong_hammer,악력 단련,", "auto_hammer,악력 단련," },
-                    new[] { "stages.csv", "1,450,450,5,0.6,0.15,0.1,0.15", "1,450,450,5,-0.1,0.85,0.1,0.15" },
-                    new[] { "stages.csv", "1,450,450,5,", "1,450,450,5.5," },
+                    new[] { "stages.csv", "1,450,5,0.6,0.15,0.1,0.15", "1,450,5,-0.1,0.85,0.1,0.15" },
+                    new[] { "stages.csv", "1,450,5,", "1,450,5.5," },
                     new[] { "economy.csv", "base_hit_power,1.0,hp/hit,", "base_hit_power,1.0,hp/hit,extra," },
                     new[] { "stamina.csv", "key,value,unit,note", "key,value,value,note" },
                 };
@@ -65,9 +65,9 @@ namespace NCAIClicker.EditorTools
                 AssertCondition(AssetDatabase.AssetPathToGUID(outputPath) == guid, "재임포트 GUID 변경");
                 checkCount++;
 
-                // 단계 목표는 수입 상한이 아니다. 큰 청구서는 구조 오류로 거부하지 않는다.
+                // 단계 목표는 수입 상한이 아니다. 큰 고지서는 구조 오류로 거부하지 않는다.
                 CopyFixture(fixtureDirectory);
-                ReplaceFixture(fixtureDirectory, "stages.csv", "1,450,450,5,", "1,450,10000,5,");
+                ReplaceFixture(fixtureDirectory, "stages.csv", "1,450,5,", "1,10000,5,");
                 AssertCondition(BalanceImporter.TryImport(fixtureDirectory, outputPath, out error), error);
                 checkCount++;
 

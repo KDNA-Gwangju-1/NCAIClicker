@@ -92,25 +92,28 @@ namespace NCAIClicker.Core
 
         /// <summary>
         /// 레티클·망치 비주얼이 없으면 만든다 (#151).
-        ///
-        /// 전에는 HammerSwingVisual 이 RuntimeInitializeOnLoadMethod(AfterSceneLoad) 로 스스로
-        /// 붙었다. 그 속성은 **앱 시작 시 한 번만** 실행되고 씬을 새로 로드해도 다시 불리지 않는다.
-        /// 빌드는 MainMenu 로 시작하므로 "활성 씬이 Game 인가" 검사에 걸려 조기 반환했고,
-        /// 그 뒤 새 회차를 시작해도 영영 실행되지 않아 **레티클과 망치가 아예 나오지 않았다.**
-        ///
-        /// 이 컴포넌트는 Game 씬에 놓여 있어 Start 가 씬 로드마다 실행된다. 여기서 만들면
-        /// 어느 경로로 Game 씬에 들어와도 비주얼이 생긴다. Awake 가 아니라 Start 인 이유는
-        /// 비주얼이 이 컴포넌트의 HitRadius·SwingIntervalSec 를 읽어 가기 때문이다.
         /// </summary>
         private void Start()
         {
-            if (FindFirstObjectByType<HammerSwingVisual>(FindObjectsInactive.Include) != null)
+            if (FindFirstObjectByType<HammerSwingVisual>(FindObjectsInactive.Include) == null)
             {
-                return;
+                var go = new GameObject("HammerSwingVisual (Auto)");
+                go.AddComponent<HammerSwingVisual>();
             }
 
-            var go = new GameObject("HammerSwingVisual (Auto)");
-            go.AddComponent<HammerSwingVisual>();
+            SetVisualActive(_isRunning);
+        }
+
+        /// <summary>
+        /// 레티클과 망치 비주얼의 활성화 상태를 제어한다.
+        /// </summary>
+        public void SetVisualActive(bool isActive)
+        {
+            var visual = FindFirstObjectByType<HammerSwingVisual>(FindObjectsInactive.Include);
+            if (visual != null)
+            {
+                visual.SetVisible(isActive);
+            }
         }
 
         // 정적 이벤트는 구독과 해제를 쌍으로 맞춘다 (AGENTS.md).
@@ -134,6 +137,7 @@ namespace NCAIClicker.Core
             _perkPowerPercent = _pendingPerkPowerPercent;
             _pendingPerkPowerPercent = 0f;
             CacheUpgradedStats();
+            SetVisualActive(true);
         }
 
         /// <summary>런을 끝낸다. "이번 런" 퍼크는 여기서 사라진다 (perks.csv 의 duration_sec 0).</summary>
@@ -142,6 +146,7 @@ namespace NCAIClicker.Core
             _isRunning = false;
             _perkPowerPercent = 0f;
             CacheUpgradedStats();
+            SetVisualActive(false);
         }
 
         /// <summary>
@@ -197,6 +202,14 @@ namespace NCAIClicker.Core
 
         private void Update()
         {
+            // 런이 끝나면 스윙을 멈춘다. 멈추지 않으면 결과창이 떠 있는 동안 커서가 놀고 있는
+            // 헛스윙이 계속 쌓여 정확도가 눈앞에서 깎인다 — 플레이어가 이미 끝낸 하루의
+            // 성적이 사후에 나빠지는 셈이다. 정확도는 런 단위 집계다 (GDD 6절).
+            if (!_isRunning)
+            {
+                return;
+            }
+
             if (_balanceData == null || _aimCamera == null)
             {
                 return;

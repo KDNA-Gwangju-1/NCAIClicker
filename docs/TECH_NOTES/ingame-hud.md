@@ -7,7 +7,7 @@
 ## 무엇을 하는가
 
 `Game` 씬에서 이번 런의 상태를 화면에 상시 표시한다 — 코인(런 순수입·보유 잔액), 날짜,
-청구서 잔여일과 금액, 정확도, 스태미나(숫자 병기), 피버 게이지. 읽기 전용이며 게임 상태를
+고지서 잔여일과 금액, 정확도, 스태미나(숫자 병기), 피버 게이지. 읽기 전용이며 게임 상태를
 바꾸지 않는다. 게임 규칙은 [GDD](../GDD.md) 에 있으니 여기서 반복하지 않는다.
 
 ## 왜 이 방법인가
@@ -123,9 +123,9 @@ GameHud                     Canvas · CanvasScaler · GraphicRaycaster
 | `GameEvents.OnFeverStart` / `OnFeverEnd` | `FeverHud` 구독 | 발동·종료. 막대 색만 바꾼다 |
 | `GameEvents.OnRunCoinChanged` | `CoinHud` 구독 | 런 순수입 변동. `EconomyManager.BeginRun()` 이 0 을 발행해 초기값이 들어온다 |
 | `GameEvents.OnBalanceChanged` | `CoinHud` 구독 | 지갑 잔액 변동. **런 시작에는 발행되지 않는다** — 아래 "알려진 한계" |
-| `GameEvents.OnBillIssued` | `BillHud` 구독 | 새 청구서 발행. 금액을 받는다 |
+| `GameEvents.OnBillIssued` | `BillHud` 구독 | 새 고지서 발행. 금액을 받는다 |
 | `GameEvents.OnBillDueSoon` | `BillHud`·`DayHud` 구독 | 하루가 시작될 때마다. `BillHud` 는 남은 일수를, `DayHud` 는 "하루가 시작됐다" 신호로 쓴다 |
-| `GameEvents.OnBillPaid` | `BillHud` 구독 | 납부 성공. 표시를 "청구서 없음" 으로 되돌리고 강조를 거둔다 |
+| `GameEvents.OnBillPaid` | `BillHud` 구독 | 납부 성공. 표시를 "고지서 없음" 으로 되돌리고 강조를 거둔다 |
 | `GameEvents.OnDayEnded` | `DayHud` 구독 | 하루 마감. 날짜 뒤에 접미사를 붙인다 |
 | `GameEvents.OnSwingResolved` | `AccuracyHud` 구독 | 스윙마다. **`HitSource.Hover` 만** 집계하고 `AutoHammer` 는 버린다 |
 
@@ -145,8 +145,8 @@ Play Mode 에서 실제로 확인한 것만 적는다.
 
 - [x] 스태미나: `120/120` 숫자 병기와 막대 동시 갱신. 플레이 중 `109/120`, `111/120` 로 줄어드는 것 확인
 - [x] 정확도: 직접 플레이 중 `정확도 62% (5/8)` 표시. 이벤트로 Hover 10회(적중 8) + AutoHammer 20회를 쏴서 **swings=10, hits=8** — 자동 망치가 분모에 섞이지 않음을 확인
-- [x] 청구서 임박 강조: `OnBillDueSoon` 을 3→2→1 로 발행해 **D-3 흰색 → D-2 빨강 → D-1 빨강** 전환 확인
-- [x] 납부 후 강조 해제: `OnBillPaid` 발행 시 "청구서 없음" + 흰색 복귀 확인
+- [x] 고지서 임박 강조: `OnBillDueSoon` 을 3→2→1 로 발행해 **D-3 흰색 → D-2 빨강 → D-1 빨강** 전환 확인
+- [x] 납부 후 강조 해제: `OnBillPaid` 발행 시 "고지서 없음" + 흰색 복귀 확인
 - [x] 피버 색 전환: `OnFeverStart` 로 파랑(0.36,0.62,0.95) → 주황(1,0.55,0.1) 확인
 - [x] 코인: 대상 파괴 시 런 순수입·보유 잔액이 함께 `4` 로 갱신됨을 확인
 - [x] (#171) 초기값 조회: 잔액 600 인 상태에서 씬을 다시 로드해도 HUD 가 `—` 가 아니라 `600` 으로
@@ -165,7 +165,7 @@ Play Mode 에서 실제로 확인한 것만 적는다.
   | 3일차 | `DaysLeft=3` | `Day 3` · `D-3  450원` 흰색 |
   | 4일차 | `DaysLeft=2` | `Day 4` · **`D-2` 빨강** |
   | 5일차(마감) | `DaysLeft=1` | `Day 5` · **`D-1` 빨강** |
-  | 마감 미납 종료 | 파산 → 1일차 재시작, 청구서 재발행 | `Day 1` · `D-5  450원` **흰색 복귀** |
+  | 마감 미납 종료 | 파산 → 1일차 재시작, 고지서 재발행 | `Day 1` · `D-5  450원` **흰색 복귀** |
 
   날짜가 정확히 하나씩 오르고, 강조 경계가 `DaysLeft <= 2` 에서 정확히 켜지고 꺼진다.
   에디터 콘솔 오류·경고 0건
@@ -175,7 +175,7 @@ Play Mode 에서 실제로 확인한 것만 적는다.
 
 ## 알려진 한계
 
-- ~~날짜와 청구서가 움직이지 않는다.~~ — #164(4.8)가 `BillManager` 를 `IRunScoped` 에 붙이면서
+- ~~날짜와 고지서가 움직이지 않는다.~~ — #164(4.8)가 `BillManager` 를 `IRunScoped` 에 붙이면서
   풀렸다. 위 "검증"의 하루 진행 사이클이 그 위에서 돈 것이다.
 - ~~보유 잔액이 매 런 시작마다 `—` 로 비어 보인다.~~ — #171 에서 `EconomyManager.Instance`
   (`IEconomyService`)를 열고 `CoinHud.OnEnable` 이 잔액·런 순수입을 한 번 읽도록 고쳐 풀었다.
@@ -183,7 +183,7 @@ Play Mode 에서 실제로 확인한 것만 적는다.
   이유가 없어졌다.
 - **`Assets/Prefabs/UI/BillHud.prefab` 과 역할이 겹친다.** #27 이 만든 그 프리팹은
   Canvas + `BillLabel` 만 든 축소판이고, `GameHud.prefab` 이 같은 `BillHud` 를 품고 있다.
-  **둘 다 씬에 올리면 캔버스와 청구서 라벨이 두 개가 된다.** 지금은 `GameHud` 만 배치돼 있다.
+  **둘 다 씬에 올리면 캔버스와 고지서 라벨이 두 개가 된다.** 지금은 `GameHud` 만 배치돼 있다.
   `BillHud.prefab` 은 쓰지 않는다 — 정리 여부는 #27 담당과 정한다.
 - 저해상도에서 글자 크기를 실측하지 않았다. `CanvasScaler` match 0.5, 기준 1920×1080 이라
   창이 작으면 우상단 정보가 작아진다.

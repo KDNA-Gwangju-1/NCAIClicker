@@ -3,7 +3,7 @@ using NCAIClicker.Data;
 namespace NCAIClicker.Interfaces
 {
     /// <summary>
-    /// 청구서 및 대출 관리 계약
+    /// 고지서 및 대출 관리 계약
     /// </summary>
     public interface IBillService
     {
@@ -11,7 +11,7 @@ namespace NCAIClicker.Interfaces
         int DaysLeft { get; }
         float LoanDailyCut { get; }
 
-        /// <summary>현재 마감 전인 청구서. 없으면 null.</summary>
+        /// <summary>현재 마감 전인 고지서. 없으면 null.</summary>
         Bill ActiveBill { get; }
 
         /// <summary>납부 직후 골라야 할 퍼크 후보 id 3개. 고르기 전까지만 값이 있고 고르면 비워진다.</summary>

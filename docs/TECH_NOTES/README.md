@@ -139,6 +139,7 @@ AI에게 시켜도 제대로 못 고친다.
 - [퍼크 효과](perks.md) — 고른 퍼크를 각 소유자가 스스로 적용, 즉시/예약 분기, 런 경계를 씬까지 확장
 - [퍼크 3장 선택 화면](perk-choice-ui.md) — 납부 직후 후보 3장 제시, timeScale 정지와 삼중 복원, 취소 없는 선택, Managers 프리팹 자기 배선
 - [단계 목표 판정](stage-goal.md) — StageGoalManager, 런 순수입과 GoalCoin 비교, 런당 1회 발행
-- [효과음](sound-effects.md) — AudioManager, GameEvents 구독 후 PlayOneShot, 타격·코인·피버·청구서 효과음
+- [효과음](sound-effects.md) — AudioManager, GameEvents 구독 후 PlayOneShot, 타격·코인·피버·고지서 효과음
 - [저금통 일반형 3D 에셋](piggy-normal-asset.md) — VARCO 3D 생성 모델, glTFast 스케일 한계로 Visual 프리팹 분리 제작, PiggyController 부재로 Visual 전용 범위
 - [인게임 HUD](ingame-hud.md) — 위젯별 컴포넌트, 이벤트 구독만으로 갱신, 호버 스윙만 세는 정확도, 게이지 스프라이트
+- [결과 화면](results.md) — ResultUIController, 정산과 파산 2종 분기, 조준 정확도 집계, 원작 구조 2컬럼 레이아웃

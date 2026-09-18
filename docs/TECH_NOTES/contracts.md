@@ -34,9 +34,9 @@ flowchart LR
     Hittable["IHittable 구현체<br/>타격 대상 FSM"]
   end
 
-  subgraph Economy["경제 및 청구서"]
+  subgraph Economy["경제 및 고지서"]
     EconService["IEconomyService 구현체<br/>코인 계산 및 지출<br/>IUpgradeStats·IUpgradeShop·IUpgradePersistence 겸함 (#116)<br/>업그레이드 계산은 UpgradeState(#24)에 위임"]
-    BillService["IBillService 구현체<br/>청구서 및 대출 관리"]
+    BillService["IBillService 구현체<br/>고지서 및 대출 관리"]
   end
 
   subgraph Save["저장"]
@@ -56,12 +56,12 @@ flowchart LR
 | `HitSource` | `Assets/Scripts/Runtime/Data/HitSource.cs` | 타격 발신원(Hover, AutoHammer) 열거형 |
 | `HitInfo` | `Assets/Scripts/Runtime/Data/HitInfo.cs` | 단일 타격 정보(Source, Damage, WorldPos) 불변 구조체 |
 | `BreakInfo` | `Assets/Scripts/Runtime/Data/BreakInfo.cs` | 파괴 보상(TargetId, RawCoin, StaminaRestore, WorldPos) 불변 구조체 |
-| `Bill` | `Assets/Scripts/Runtime/Data/Bill.cs` | 청구서 데이터(Amount, IssuedDay, DueDay, IsPaid) 직렬화 클래스 |
+| `Bill` | `Assets/Scripts/Runtime/Data/Bill.cs` | 고지서 데이터(Amount, IssuedDay, DueDay, IsPaid) 직렬화 클래스 |
 | `Loan` | `Assets/Scripts/Runtime/Data/Loan.cs` | 대출 데이터(Principal, Owed, DailyCut) 직렬화 클래스 |
 | `ResumePoint` | `Assets/Scripts/Runtime/Data/ResumePoint.cs` | 재개 지점(MainMenu, Result, PerkSelection) 열거형 |
 | `SaveData` | `Assets/Scripts/Runtime/Data/SaveData.cs` | 저장 DTO(Version 2 기준 전체 영속 필드) |
 | `IHittable` | `Assets/Scripts/Runtime/Interfaces/IHittable.cs` | 타격 대상 피격(OnHit) 및 생존 여부(IsAlive) 인터페이스 |
-| `IBillService` | `Assets/Scripts/Runtime/Interfaces/IBillService.cs` | 청구서 납부 및 대출 서비스 인터페이스 |
+| `IBillService` | `Assets/Scripts/Runtime/Interfaces/IBillService.cs` | 고지서 납부 및 대출 서비스 인터페이스 |
 | `IEconomyService` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 코인 적립, 지출, 대출 원금 입금 인터페이스. `EconomyManager.Instance` 가 이 타입으로 노출 — UI 가 초기 잔액을 한 번 읽는 통로 (이슈 #171) |
 | `IRunScoped` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 런 경계(`BeginRun`·`EndRun`) 인터페이스. GameManager 전용 (이슈 #71, #111) |
 | `IWalletPersistence` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 지갑 저장 복원 인터페이스. SaveManager·BillManager 가 쓴다 — 후자는 파산 시 회차 초기화용 (이슈 #71, #158) |
@@ -82,10 +82,10 @@ flowchart LR
 | `OnCoinEarned` | `long` | 지갑 정수 입금 증분 발생 시 (파괴 수입만) |
 | `OnBalanceChanged` | `long` | 입금, 지출, 대출, 로드 후 지갑 현재 잔액 변동 시 |
 | `OnRunCoinChanged` | `long` | 현재 런 순수입 값 변동 시 |
-| `OnBillIssued` | `Bill` | 새로운 청구서 발행 시 |
-| `OnBillPaid` | `Bill` | 청구서 납부 완료 시 |
+| `OnBillIssued` | `Bill` | 새로운 고지서 발행 시 |
+| `OnBillPaid` | `Bill` | 고지서 납부 완료 시 |
 | `OnDayEnded` | `int` | 하루 런이 종료되고 결과 정산 완료 시 |
-| `OnBillDueSoon` | `int` | 청구서 마감 임박 시 남은 일수 안내 |
+| `OnBillDueSoon` | `int` | 고지서 마감 임박 시 남은 일수 안내 |
 | `OnBankrupt` | 없음 | 마감일 납부 실패로 파산 확정 시 |
 | `OnTargetBroken` | `BreakInfo` | 타격 대상 파괴 시 보상 전달 (코인 지급 유일 출처) |
 | `OnSwingResolved` | `HitSource, bool` | 스윙 판정 완료 시 적중 여부 및 발신원 전달 |
@@ -96,7 +96,7 @@ flowchart LR
 | `OnFeverStart` | 없음 | 피버 모드 진입 시 |
 | `OnFeverEnd` | 없음 | 피버 모드 종료 시 |
 | `OnStageGoalReached` | `int` | 단계 목표(코인) 도달 시 단계 번호 전달 (#26) |
-| `OnPerkOffered` | `string[]` | 청구서 조기 납부 성공 시 뽑힌 퍼크 후보 id 3개 (#28) |
+| `OnPerkOffered` | `string[]` | 고지서 조기 납부 성공 시 뽑힌 퍼크 후보 id 3개 (#28) |
 | `OnPerkChosen` | `string` | 퍼크 후보 중 하나를 고르면 그 id (#28) |
 
 ### 읽는 밸런스 값
@@ -118,7 +118,7 @@ flowchart LR
 
 ## 알려진 한계
 
-* 매니저 구현체는 후속 작업에서 작성된다. 2026-09-17 현재 `EconomyManager`(3.1)·`SaveManager`(3.4) 가 있고 2.x 코어·4.x 청구서·5.x 피버는 진행 중이다.
+* 매니저 구현체는 후속 작업에서 작성된다. 2026-09-17 현재 `EconomyManager`(3.1)·`SaveManager`(3.4) 가 있고 2.x 코어·4.x 고지서·5.x 피버는 진행 중이다.
 * ~~`ActiveBill`·`ActiveLoan` 등 null 허용 참조 필드가 `JsonUtility`로 왕복 직렬화되는지는 문서로만 확정~~ — 이슈 #25에서 실제로 확인한 결과 **문서 서술이 틀렸다.** `JsonUtility`는 참조 타입의 null을 표현하지 못한다. `SaveData`에 `HasActiveBill`·`HasActiveLoan` 플래그를 추가하고 `SaveManager`가 변환하는 방식으로 수정했다 (이슈 #76, ARCHITECTURE.md "직렬화 방식" 참고).
 * ~~#116: 소비처가 `IUpgradeShop` 에 닿을 통로가 없다~~ — #171 에서 `EconomyManager.Shop` 을 열어 풀었다. 다만 실제 소비처(업그레이드 구매 UI)는 6.8(#91)에서 붙는다.
 * #116: 소비처(스탯 표시 UI, 상점 메뉴, 결과 화면 등)를 `BalanceData` 직접 참조에서 `IUpgradeStats`·`IUpgradeShop`로 옮기는 마이그레이션은 이번 작업 범위 밖이다 — 이슈 자체가 계약 동결까지만 요구했다. 후속 이슈에서 실제 배선이 필요하다.

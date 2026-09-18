@@ -11,7 +11,7 @@ using UnityEngine;
 namespace NCAIClicker.EditorTools
 {
     /// <summary>
-    /// 하루 진행(BeginRun/EndRun), 청구서 발행(IssueBill), 조기 납부·퍼크 선택(TryPay/TryChoosePerk, #28)을 검증한다.
+    /// 하루 진행(BeginRun/EndRun), 고지서 발행(IssueBill), 조기 납부·퍼크 선택(TryPay/TryChoosePerk, #28)을 검증한다.
     /// 대출(TryTakeLoan/TryRepayLoan, #29)은 해금 순번·이자·징수율·동시 건수·쿨다운을 RunLoanChecks 에서 따로 본다.
     /// TryPay 는 실제 EconomyManager 대신 FakeEconomyService 로 코인 차감 성공/실패를 제어해 격리한다
     /// (EconomyManagerChecks 의 FakeBillService 와 같은 패턴).
@@ -74,14 +74,14 @@ namespace NCAIClicker.EditorTools
 
                 manager = CreateManager(balance, out host);
 
-                // BeginRun 전에는 청구서가 없다. HUD 가 값을 읽어도 0일차·0원이어야 한다.
+                // BeginRun 전에는 고지서가 없다. HUD 가 값을 읽어도 0일차·0원이어야 한다.
                 AssertCondition(manager.CurrentDay == 1, "시작 전 CurrentDay 가 1 이 아닙니다: " + manager.CurrentDay);
                 AssertCondition(manager.DaysLeft == 0, "시작 전 DaysLeft 가 0 이 아닙니다: " + manager.DaysLeft);
                 checkCount++;
 
-                // 첫 BeginRun: 날짜는 그대로 1일차, 1단계 금액·기한으로 청구서가 나간다 (게임 시작 시 첫 청구서).
+                // 첫 BeginRun: 날짜는 그대로 1일차, 1단계 금액·기한으로 고지서가 나간다 (게임 시작 시 첫 고지서).
                 manager.BeginRun();
-                AssertCondition(issuedCount == 1, "첫 BeginRun 에 청구서가 정확히 1번 발행되지 않았습니다: " + issuedCount);
+                AssertCondition(issuedCount == 1, "첫 BeginRun 에 고지서가 정확히 1번 발행되지 않았습니다: " + issuedCount);
                 AssertCondition(manager.CurrentDay == 1, "첫 BeginRun 후 CurrentDay 가 1 이 아닙니다: " + manager.CurrentDay);
                 AssertCondition(lastIssued.Amount == stage1.BillAmount,
                                 "1단계 청구 금액이 다릅니다: " + lastIssued.Amount);
@@ -94,10 +94,10 @@ namespace NCAIClicker.EditorTools
                                 "OnBillDueSoon 인자가 DaysLeft 와 다릅니다: " + lastDaysLeft);
                 checkCount++;
 
-                // 두 번째 BeginRun 부터 날짜가 하루씩 오른다. 청구서가 아직 안 갚혔으니 새로 나가지 않는다.
+                // 두 번째 BeginRun 부터 날짜가 하루씩 오른다. 고지서가 아직 안 갚혔으니 새로 나가지 않는다.
                 manager.BeginRun();
                 AssertCondition(manager.CurrentDay == 2, "두 번째 BeginRun 후 CurrentDay 가 2 가 아닙니다: " + manager.CurrentDay);
-                AssertCondition(issuedCount == 1, "미납 상태인데 청구서가 다시 발행됐습니다: " + issuedCount);
+                AssertCondition(issuedCount == 1, "미납 상태인데 고지서가 다시 발행됐습니다: " + issuedCount);
                 AssertCondition(manager.DaysLeft == stage1.DueDays - 1,
                                 "하루 지난 뒤 DaysLeft 가 줄지 않았습니다: " + manager.DaysLeft);
                 AssertCondition(dueSoonCount == 2, "두 번째 BeginRun 에 OnBillDueSoon 이 추가로 발행되지 않았습니다: " + dueSoonCount);
@@ -124,28 +124,28 @@ namespace NCAIClicker.EditorTools
                                 "OnDayEnded 인자가 마감한 날과 다릅니다: " + lastCompletedDay);
                 checkCount++;
 
-                // 위에서 기한을 넘긴 청구서를 그대로 뒀으므로 이 EndRun 에서 파산했다.
+                // 위에서 기한을 넘긴 고지서를 그대로 뒀으므로 이 EndRun 에서 파산했다.
                 // 파산 자체는 BankruptcyChecks 가 본다 — 여기서는 납부 검증을 이어 가기 위해
-                // 새 회차의 청구서를 다시 받아 둔다. onIssued 가 lastIssued 를 갱신한다.
-                AssertCondition(manager.ActiveBill == null, "파산 후에도 청구서가 남아 있습니다.");
+                // 새 회차의 고지서를 다시 받아 둔다. onIssued 가 lastIssued 를 갱신한다.
+                AssertCondition(manager.ActiveBill == null, "파산 후에도 고지서가 남아 있습니다.");
                 manager.BeginRun();
-                AssertCondition(manager.ActiveBill != null, "파산 후 첫 BeginRun 이 청구서를 발행하지 않았습니다.");
+                AssertCondition(manager.ActiveBill != null, "파산 후 첫 BeginRun 이 고지서를 발행하지 않았습니다.");
                 checkCount++;
 
-                // EconomyService 가 없으면 조기 납부는 항상 실패하고 청구서가 그대로 남는다.
+                // EconomyService 가 없으면 조기 납부는 항상 실패하고 고지서가 그대로 남는다.
                 AssertCondition(manager.TryPay(lastIssued) == false, "EconomyService 없이 TryPay 가 성공했습니다.");
-                AssertCondition(manager.ActiveBill == lastIssued, "실패한 TryPay 가 청구서를 지웠습니다.");
+                AssertCondition(manager.ActiveBill == lastIssued, "실패한 TryPay 가 고지서를 지웠습니다.");
                 checkCount++;
 
                 var economy = new FakeEconomyService { NextSpendSucceeds = false };
                 manager.SetEconomyService(economy);
 
-                // 코인이 모자라면 실패하고 청구서가 남는다.
+                // 코인이 모자라면 실패하고 고지서가 남는다.
                 AssertCondition(manager.TryPay(lastIssued) == false, "코인이 모자란데 TryPay 가 성공했습니다.");
-                AssertCondition(manager.ActiveBill == lastIssued, "실패한 TryPay 가 청구서를 지웠습니다.");
+                AssertCondition(manager.ActiveBill == lastIssued, "실패한 TryPay 가 고지서를 지웠습니다.");
                 checkCount++;
 
-                // 활성 청구서와 다른 인스턴스는 코인이 충분해도 납부할 수 없다.
+                // 활성 고지서와 다른 인스턴스는 코인이 충분해도 납부할 수 없다.
                 economy.NextSpendSucceeds = true;
                 var foreignBill = new Bill
                 {
@@ -154,7 +154,7 @@ namespace NCAIClicker.EditorTools
                     DueDay = lastIssued.DueDay,
                     IsPaid = false,
                 };
-                AssertCondition(manager.TryPay(foreignBill) == false, "활성 청구서가 아닌데 TryPay 가 성공했습니다.");
+                AssertCondition(manager.TryPay(foreignBill) == false, "활성 고지서가 아닌데 TryPay 가 성공했습니다.");
                 checkCount++;
 
                 var paidCount = 0;
@@ -184,15 +184,15 @@ namespace NCAIClicker.EditorTools
                 GameEvents.OnPerkChosen += onChosen;
                 try
                 {
-                    // 코인이 충분하면 성공한다 — 청구서가 사라지고 OnBillPaid 가 뜨고 퍼크 후보 3종이 제시된다.
+                    // 코인이 충분하면 성공한다 — 고지서가 사라지고 OnBillPaid 가 뜨고 퍼크 후보 3종이 제시된다.
                     AssertCondition(manager.TryPay(lastIssued) == true, "코인이 충분한데 TryPay 가 실패했습니다.");
                     AssertCondition(economy.LastSpendAmount == lastIssued.Amount,
                                     "차감 요청 금액이 청구 금액과 다릅니다: " + economy.LastSpendAmount);
-                    AssertCondition(lastIssued.IsPaid, "납부한 청구서의 IsPaid 가 true 로 바뀌지 않았습니다.");
+                    AssertCondition(lastIssued.IsPaid, "납부한 고지서의 IsPaid 가 true 로 바뀌지 않았습니다.");
                     AssertCondition(manager.ActiveBill == null, "납부 후 ActiveBill 이 비지 않았습니다.");
                     AssertCondition(manager.DaysLeft == 0, "납부 후 DaysLeft 가 0 이 아닙니다: " + manager.DaysLeft);
                     AssertCondition(paidCount == 1, "OnBillPaid 가 정확히 1번 발행되지 않았습니다: " + paidCount);
-                    AssertCondition(lastPaid == lastIssued, "OnBillPaid 인자가 납부한 청구서와 다릅니다.");
+                    AssertCondition(lastPaid == lastIssued, "OnBillPaid 인자가 납부한 고지서와 다릅니다.");
                     checkCount++;
 
                     AssertCondition(offeredCount == 1, "OnPerkOffered 가 정확히 1번 발행되지 않았습니다: " + offeredCount);
@@ -206,8 +206,8 @@ namespace NCAIClicker.EditorTools
                     AssertCondition(lastOffered == manager.OfferedPerkIds, "OnPerkOffered 인자가 OfferedPerkIds 와 다릅니다.");
                     checkCount++;
 
-                    // 이미 낸 청구서는 다시 낼 수 없다.
-                    AssertCondition(manager.TryPay(lastIssued) == false, "이미 낸 청구서를 다시 TryPay 할 수 있었습니다.");
+                    // 이미 낸 고지서는 다시 낼 수 없다.
+                    AssertCondition(manager.TryPay(lastIssued) == false, "이미 낸 고지서를 다시 TryPay 할 수 있었습니다.");
                     checkCount++;
 
                     // 후보에 없는 id 는 고를 수 없고, 후보 목록은 그대로 남는다.
@@ -253,7 +253,7 @@ namespace NCAIClicker.EditorTools
 
         /// <summary>
         /// 대출(#29)을 전용 매니저 인스턴스로 검증한다 — 해금 순번·한도·이자·징수율·동시 건수·쿨다운은
-        /// 날짜와 청구서 순번에 얽혀 있어 납부 검증이 끝난 인스턴스를 재활용하면 상태가 섞인다.
+        /// 날짜와 고지서 순번에 얽혀 있어 납부 검증이 끝난 인스턴스를 재활용하면 상태가 섞인다.
         /// </summary>
         private static int RunLoanChecks(BalanceData balance)
         {
@@ -265,25 +265,25 @@ namespace NCAIClicker.EditorTools
 
             try
             {
-                // 첫 청구서에서는 아직 대출을 쓸 수 없다 (loan_unlock_bill_index).
+                // 첫 고지서에서는 아직 대출을 쓸 수 없다 (loan_unlock_bill_index).
                 manager.BeginRun();
                 var firstBill = manager.ActiveBill;
-                AssertCondition(firstBill != null, "첫 청구서가 발행되지 않았습니다.");
-                AssertCondition(manager.TryTakeLoan(1L) == false, "첫 청구서인데 대출이 성공했습니다.");
+                AssertCondition(firstBill != null, "첫 고지서가 발행되지 않았습니다.");
+                AssertCondition(manager.TryTakeLoan(1L) == false, "첫 고지서인데 대출이 성공했습니다.");
                 AssertCondition(manager.LoanDailyCut == 0f, "대출이 없는데 LoanDailyCut 이 0 이 아닙니다: " + manager.LoanDailyCut);
                 checkCount++;
 
-                // 첫 청구서를 내고 하루를 넘기면 두 번째 청구서가 나오고 대출이 열린다.
+                // 첫 고지서를 내고 하루를 넘기면 두 번째 고지서가 나오고 대출이 열린다.
                 economy.NextSpendSucceeds = true;
-                AssertCondition(manager.TryPay(firstBill), "첫 청구서 납부가 실패했습니다.");
+                AssertCondition(manager.TryPay(firstBill), "첫 고지서 납부가 실패했습니다.");
                 manager.BeginRun();
                 var secondBill = manager.ActiveBill;
-                AssertCondition(secondBill != null, "두 번째 청구서가 발행되지 않았습니다.");
+                AssertCondition(secondBill != null, "두 번째 고지서가 발행되지 않았습니다.");
                 checkCount++;
 
-                // 한도는 활성 청구서 금액이다. 한 푼이라도 넘으면 거부한다.
+                // 한도는 활성 고지서 금액이다. 한 푼이라도 넘으면 거부한다.
                 AssertCondition(manager.TryTakeLoan(secondBill.Amount + 1L) == false,
-                    "청구서 금액을 넘는 대출이 성공했습니다.");
+                    "고지서 금액을 넘는 대출이 성공했습니다.");
                 checkCount++;
 
                 // 전액을 빌리면 성공하고, 이자는 올림으로 확정되며 징수율은 상한이 된다.

@@ -254,7 +254,18 @@ namespace NCAIClicker.EditorTools
             }
             finally
             {
-                UnityEngine.Object.DestroyImmediate(stubPrefab);
+                // 스텁 클론은 hideFlags 를 물려받아 HideAndDontSave 가 된다. DontSave 는
+                // **씬을 새로 로드해도 파괴되지 않는다** — 검증을 돌릴 때마다 클론이 쌓이고,
+                // 플레이 모드로 들어가도 그대로 살아남아 화면에 보라색(머티리얼 없음) 사각형으로
+                // 그려졌다. 하이어라키에는 Hide 라 안 보이니 원인을 찾기도 어렵다.
+                // ActiveCreatures 목록에만 기대지 말고 이름으로 훑어 확실히 지운다.
+                foreach (var leftover in Resources.FindObjectsOfTypeAll<GameObject>())
+                {
+                    if (leftover != null && leftover.name.StartsWith("RespawnCheckStub"))
+                    {
+                        UnityEngine.Object.DestroyImmediate(leftover);
+                    }
+                }
                 UnityEngine.Object.DestroyImmediate(respawnGo);
             }
 

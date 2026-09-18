@@ -8,7 +8,7 @@ using UnityEngine;
 namespace NCAIClicker.Economy
 {
     /// <summary>
-    /// 하루 진행과 청구서 발행·조기 납부를 관리한다. 한 번의 런 = 하루 하나 (ARCHITECTURE.md "하루 종료 순서").
+    /// 하루 진행과 고지서 발행·조기 납부를 관리한다. 한 번의 런 = 하루 하나 (ARCHITECTURE.md "하루 종료 순서").
     /// 대출(4.3)은 여기서 빌리고 갚는 것까지 맡는다. 다만 수입에서 실제로 떼는 일은 EconomyManager 가 LoanDailyCut 을 읽어 하고,
     /// 파산 판정(4.4)도 여기서 한다 — ARCHITECTURE 1절이 이 매니저에 맡겨 두었다.
     /// 납부(4.2)의 완료 기준 정본은 GitHub 이슈 #28.
@@ -76,7 +76,7 @@ namespace NCAIClicker.Economy
             if (_balanceData == null)
             {
                 Debug.LogError("[BillManager] BalanceData 가 연결되지 않았다. " +
-                               "청구서를 발행하지 못하니 Managers 프리팹의 참조를 확인하라.");
+                               "고지서를 발행하지 못하니 Managers 프리팹의 참조를 확인하라.");
             }
         }
 
@@ -97,7 +97,7 @@ namespace NCAIClicker.Economy
 
         /// <summary>
         /// 단계 진행 상태 조회 통로를 넣는다. 서비스 계약이 아니라 조립(wiring) 통로다 (이슈 #150).
-        /// 청구서 금액과 기한이 단일 출처(IStageService)의 현재 단계를 따른다.
+        /// 고지서 금액과 기한이 단일 출처(IStageService)의 현재 단계를 따른다.
         /// </summary>
         public void SetStageService(IStageService stageService)
         {
@@ -106,8 +106,8 @@ namespace NCAIClicker.Economy
 
         /// <summary>
         /// 하루(런)를 시작한다. 첫 호출은 1일차를 그대로 쓰고, 이후 호출마다 날짜를 하루 올린다.
-        /// 활성 청구서가 없을 때만 새 청구서를 발행한다 — 게임 시작·파산 재시작에도 첫 청구서가 나간다.
-        /// 청구서가 있으면 매 호출 끝에 OnBillDueSoon 을 발행한다 — HUD 가 이 이벤트로 남은 일수를 갱신한다
+        /// 활성 고지서가 없을 때만 새 고지서를 발행한다 — 게임 시작·파산 재시작에도 첫 고지서가 나간다.
+        /// 고지서가 있으면 매 호출 끝에 OnBillDueSoon 을 발행한다 — HUD 가 이 이벤트로 남은 일수를 갱신한다
         /// (ARCHITECTURE.md 3절 "UI는 구독 후 공용 조회 인터페이스로 초기 상태를 한 번 읽는다").
         /// GameManager 가 런 시작 직전에 부른다 (IRunScoped, #164).
         /// </summary>
@@ -151,7 +151,7 @@ namespace NCAIClicker.Economy
         }
 
         /// <summary>
-        /// 마감을 넘긴 미납 청구서가 있는가. **미납 = 즉시 파산**이며 유예·부분 납부·반액 정산은
+        /// 마감을 넘긴 미납 고지서가 있는가. **미납 = 즉시 파산**이며 유예·부분 납부·반액 정산은
         /// 없다 (#6 에서 확정, 근거는 REFERENCE_ANALYSIS 6절). 대출로 코인을 만들어 내는 것이
         /// 유일한 회피 수단이고, 그것도 마감 전에 TryPay 로 내야 한다.
         ///
@@ -183,10 +183,10 @@ namespace NCAIClicker.Economy
 
         /// <summary>
         /// 새 회차 값으로 되돌린다. 영구 업그레이드와 최고 기록은 건드리지 않는다
-        /// (ARCHITECTURE "저장 경계"). 다음 BeginRun 이 1일차 첫 청구서를 발행한다 —
+        /// (ARCHITECTURE "저장 경계"). 다음 BeginRun 이 1일차 첫 고지서를 발행한다 —
         /// _hasBegun 을 내려 두므로 날짜가 증가하지 않는다.
         ///
-        /// _billIndex 도 되돌린다. #150 이후 이 필드는 단계가 아니라 **누적 청구서 순번**이며
+        /// _billIndex 도 되돌린다. #150 이후 이 필드는 단계가 아니라 **누적 고지서 순번**이며
         /// 대출 해금(loan_unlock_bill_index)의 기준이라, 새 회차에서 다시 1부터 세어야 한다.
         ///
         /// 단계는 _stageService 가 단일 출처다 (IStageService, #150). 그쪽 RestoreStage 주석이
@@ -212,7 +212,7 @@ namespace NCAIClicker.Economy
         }
 
         /// <summary>
-        /// 마감 전 조기 납부. 활성 청구서와 같은 인스턴스여야 하고, EconomyManager 를 통해 코인을
+        /// 마감 전 조기 납부. 활성 고지서와 같은 인스턴스여야 하고, EconomyManager 를 통해 코인을
         /// 뗀다(경제 계약 — 코인 차감은 EconomyManager 안에서만). 성공하면 퍼크 후보 3종을 뽑아
         /// OnPerkOffered 로 알린다. 고르는 것은 TryChoosePerk 의 몫이다.
         /// </summary>
@@ -266,7 +266,7 @@ namespace NCAIClicker.Economy
                 return false;
             }
 
-            // _billIndex 는 다음에 발행할 순번이라, 지금 손에 든 청구서는 그 하나 앞이다.
+            // _billIndex 는 다음에 발행할 순번이라, 지금 손에 든 고지서는 그 하나 앞이다.
             if (_billIndex - 1 < config.LoanUnlockBillIndex)
             {
                 return false;
@@ -277,8 +277,8 @@ namespace NCAIClicker.Economy
                 return false;
             }
 
-            // 한도는 지금 막아야 할 청구서 금액이다. 낼 청구서가 없으면 빌릴 이유도 없다
-            // (BALANCE.md 4절이 "청구서 전액을 빌리면" 을 상한으로 두고 상환 가능성을 검증한다).
+            // 한도는 지금 막아야 할 고지서 금액이다. 낼 고지서가 없으면 빌릴 이유도 없다
+            // (BALANCE.md 4절이 "고지서 전액을 빌리면" 을 상한으로 두고 상환 가능성을 검증한다).
             if (_activeBill == null || amount > _activeBill.Amount)
             {
                 return false;
@@ -333,7 +333,7 @@ namespace NCAIClicker.Economy
         }
 
         /// <summary>
-        /// 일일 징수율을 빌린 금액에 비례해 정한다 — 청구서 전액을 빌리면 상한, 조금만 빌리면 하한에 가깝다.
+        /// 일일 징수율을 빌린 금액에 비례해 정한다 — 고지서 전액을 빌리면 상한, 조금만 빌리면 하한에 가깝다.
         /// 대출할 때 한 번만 정하고 미상환 기간 내내 고정한다 (ARCHITECTURE.md Loan.DailyCut).
         /// 범위 안에서 무작위로 뽑지 않는 이유: 같은 선택이 늘 같은 결과를 내야 7.2 밸런싱 실측과
         /// Edit Mode 검증이 성립하고, "많이 빌릴수록 비싸다" 는 저울질도 이쪽이 분명하다.
@@ -377,9 +377,9 @@ namespace NCAIClicker.Economy
         }
 
         /// <summary>
-        /// stages.csv 의 단계값으로 청구서를 만든다. 마감일 = 발행일 + 기한 - 1 (Bill.DueDay 계약).
+        /// stages.csv 의 단계값으로 고지서를 만든다. 마감일 = 발행일 + 기한 - 1 (Bill.DueDay 계약).
         /// 단계는 단일 출처(_stageService)의 현재 단계를 따르고, 없으면 1단계로 폴백한다 (이슈 #150).
-        /// _billIndex 는 대출 해금 등에서 쓸 누적 청구서 순번으로 유지한다.
+        /// _billIndex 는 대출 해금 등에서 쓸 누적 고지서 순번으로 유지한다.
         /// </summary>
         private void IssueBill()
         {

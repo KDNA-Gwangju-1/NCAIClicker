@@ -66,14 +66,14 @@ Unity 6000.3.21f1 Edit Mode 배치 실행, 2026-09-18 (`unity run . -- -executeM
 - [x] `StageGoalManagerChecks.RunBatch()` PASS 17 checks:
   * 목표 미달 시 미판정, 목표 도달 시 1회만 발행, 중복 발행 방지, 다음 런 재판정, 범위 초과 무시, 해제 후 미판정 (기존 6건)
   * 목표 미달 시 런 종료 후 단계 유지, 목표 달성 후 런 종료(`EndRun`) 시 2단계 진행, 2단계 목표 달성 시 3단계 진행, 최고 단계(3단계) 목표 달성 후 초과 없이 3단계 유지, `RestoreStage` 복원 (신규 7건)
-  * `CreatureManager` 연동(단계별 스폰 수 및 비율 반영), `BillManager` 연동(단계별 청구서 금액 및 기한 반영), 단계 상승 후 스폰 수 증가 확인 (신규 4건)
+  * `CreatureManager` 연동(단계별 스폰 수 및 비율 반영), `BillManager` 연동(단계별 고지서 금액 및 기한 반영), 단계 상승 후 스폰 수 증가 확인 (신규 4건)
 - [x] `BillManagerChecks.RunBatch()` PASS 23 checks (회귀 검증 통과)
 - [x] `ContractsValidationChecks.RunBatch()` PASS (공용 계약 검증 통과)
 
 ## 알려진 한계
 
 - Result 화면에서 목표 달성 여부를 표시하는 UI(6.x)는 아직 없다. `OnStageGoalReached` 를 구독하는 곳이 현재 없다(`StageGoalManagerChecks` 의 테스트 구독자 제외).
-- 마지막 단계 목표 달성 후 청구서 정산과의 순서(클리어 표시 게이팅)는 GDD.md 가 "마감 처리를 통과하면 클리어" 라고만 적어 두었고 구현되지 않았다.
+- 마지막 단계 목표 달성 후 고지서 정산과의 순서(클리어 표시 게이팅)는 GDD.md 가 "마감 처리를 통과하면 클리어" 라고만 적어 두었고 구현되지 않았다.
 - 파산 시 1단계로 되돌리는 호출은 4.4(#30)가 `IStageService.RestoreStage(0)` 으로 연결했고, 4.8(#164)에서 `BillManager` 가 런 경계에 붙으며 실제로 돌기 시작했다 — Play Mode 에서 파산 후 단계 인덱스가 0 이 되는 것을 확인했다.
 
 **`EndRun` 순서에 제약이 있다.** 이 매니저는 목표를 채웠으면 단계를 올리고 `BillManager` 는 파산이면 0 으로 되돌리므로, **여기가 먼저**여야 한다. 순서는 `GameManager.GetServiceOrder` 가 `Stage`=5 · `Bill`=6 으로 고정한다(#164). 둘 다 순번이 없으면 동점이라 `Array.Sort` 가 순서를 보장하지 않는다.

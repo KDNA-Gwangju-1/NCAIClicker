@@ -3,7 +3,7 @@ using System;
 namespace NCAIClicker.Data
 {
     /// <summary>
-    /// 청구서 데이터
+    /// 고지서 데이터
     /// </summary>
     [Serializable]
     public class Bill
