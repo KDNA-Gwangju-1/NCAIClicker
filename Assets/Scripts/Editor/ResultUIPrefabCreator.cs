@@ -28,14 +28,17 @@ namespace NCAIClicker.EditorTools
 
         private static readonly Color Cream = new Color(0.992f, 0.953f, 0.874f);
         private static readonly Color Parchment = new Color(0.894f, 0.827f, 0.706f);
-        private static readonly Color Muted = new Color(0.702f, 0.624f, 0.498f);
+        private static readonly Color Muted = new Color(0.769f, 0.694f, 0.573f);
         private static readonly Color Gold = new Color(1f, 0.816f, 0.478f);
         private static readonly Color Loss = new Color(1f, 0.553f, 0.478f);
         private static readonly Color PanelFill = new Color(0.027f, 0.016f, 0.016f, 0.94f);
         private static readonly Color PanelLine = new Color(0.227f, 0.165f, 0.11f);
-        private static readonly Color RowFill = new Color(1f, 1f, 1f, 0.07f);
-        private static readonly Color LossRowFill = new Color(0.47f, 0.08f, 0.08f, 0.22f);
-        private static readonly Color NetRowFill = new Color(0.91f, 0.69f, 0.29f, 0.14f);
+        // 알파로 "살짝 밝은 회색" 을 만들면 뒤에 무엇이 깔리느냐에 따라 결과가 달라진다.
+        // 실제로 의도(흰색 7%)보다 훨씬 밝게 나왔다. 톤을 직접 지정해 대비를 고정한다.
+        // 기준: 본문 4.5:1, 행 구분 같은 비텍스트 요소 3:1 (WCAG 1.4.3 / 1.4.11).
+        private static readonly Color RowFill = new Color(0.102f, 0.082f, 0.071f);
+        private static readonly Color LossRowFill = new Color(0.216f, 0.063f, 0.055f);
+        private static readonly Color NetRowFill = new Color(0.208f, 0.157f, 0.071f);
 
         [MenuItem("NCAI/UI/결과 화면 프리팹 생성")]
         public static void CreatePrefab()
@@ -55,11 +58,13 @@ namespace NCAIClicker.EditorTools
             var mainMenuButton = CreateButton("MainMenuButton", panelRoot, font, new Vector2(220f, 56f), "메인 메뉴",
                 new Color(0.18f, 0.16f, 0.14f), new Color(0.36f, 0.33f, 0.29f), Parchment, 24);
             var mainMenuRect = mainMenuButton.GetComponent<RectTransform>();
-            // 우하단에 두면 하단 액션 행과 겹친다. 액션 행은 가운데 정렬이라 좌하단이 비어 있다.
-            mainMenuRect.anchorMin = Vector2.zero;
-            mainMenuRect.anchorMax = Vector2.zero;
-            mainMenuRect.pivot = Vector2.zero;
-            mainMenuRect.anchoredPosition = SafeInset;
+            // 하단 두 귀퉁이는 쓸 수 없다 — 우하단은 액션 행과, 좌하단은 인게임 HUD 의
+            // 스태미나 막대와 겹친다(결과창은 HUD 위에 덮일 뿐 HUD 를 지우지 않는다).
+            // 패널 안쪽 우상단에 둔다.
+            mainMenuRect.anchorMin = Vector2.one;
+            mainMenuRect.anchorMax = Vector2.one;
+            mainMenuRect.pivot = Vector2.one;
+            mainMenuRect.anchoredPosition = new Vector2(-SafeInset.x, -SafeInset.y);
 
             bound["_panelRoot"] = panelRoot;
             bound["_settlementContainer"] = settlement;
