@@ -1,6 +1,6 @@
 # 런 상태 머신
 
-> 관련 이슈: #20, #111, #21, #142, #140 · 최종 수정: 2026-09-17
+> 관련 이슈: #20, #111, #21, #142, #140, #164 · 최종 수정: 2026-09-18
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -24,6 +24,7 @@
 | `Running → Result` 전이에 기존 동결 이벤트(`OnStaminaDepleted`, `OnBankrupt`) 재사용 | ✅ | ARCHITECTURE.md 2절 "하루 종료 순서"에 "GameManager만 이 두 이벤트를 구독해 종료 순서를 조정한다"고 이미 명시돼 있다. 새 계약이 필요 없다 |
 | 매니저 구현 클래스를 직접 참조해 `BeginRun()`/`EndRun()` 호출 | ❌ | AGENTS.md "다른 매니저 구현 클래스를 직접 참조하지 않는다" 규칙을 위반한다 |
 | `IRunScoped` 인터페이스 목록을 취득해 일괄 호출 (`GetComponentsInChildren<IRunScoped>`) | ✅ | 구체 클래스 의존성을 100% 제거하고 다형적으로 라이프사이클을 통지한다 (이슈 #111, #140) |
+| (#164) 순서를 클래스 이름 문자열로 매긴다 (`GetServiceOrder`) | ⚠️ 유지 | 리플렉션·특성 없이 가장 단순하지만, **인터페이스만 구현하고 순번을 안 주면 조용히 기타(10)로 밀린다.** 그 상태에서 같은 값을 건드리는 매니저가 둘이면 동점이라 `Array.Sort` 가 순서를 보장하지 않는다 — #164 에서 실제로 그 경합이 생길 뻔했다 |
 | `RunState` 조회용 새 인터페이스(`IRunStateService`) 추가 | ❌ | ARCHITECTURE.md 2절에 동결된 인터페이스는 `IHittable`/`IEconomyService`/`IBillService`/`ISaveService` 넷뿐이다. 아직 `RunState`를 읽어야 하는 다른 모듈이 없어 인터페이스를 먼저 얼릴 근거가 없다 |
 | `RunState` 조회는 `GameManager.Instance` 정적 프로퍼티(구체 클래스)로 노출 | ✅ (임시) | 당장 소비자가 없으므로 `SaveManager.Instance` 패턴(구체 싱글톤)만 따르고, 실제 소비자가 생기면 그때 공용 계약(이벤트 또는 인터페이스) 추가를 먼저 발의한다 |
 
@@ -39,11 +40,18 @@ flowchart LR
     gm[GameManager<br/>RunState: MainMenu/Running/Result]
   end
 
-  subgraph Lifecycle["런 라이프사이클 (IRunScoped)"]
-    economy[EconomyManager]
-    stamina[StaminaManager]
-    fever[FeverManager]
-    creature[CreatureManager]
+  subgraph Lifecycle["런 라이프사이클 (IRunScoped) — 괄호는 GetServiceOrder 순번"]
+    economy["EconomyManager (1)"]
+    stamina["StaminaManager (2)"]
+    fever["FeverManager (3)"]
+    creature["CreatureManager (4)"]
+    stage["StageGoalManager (5)"]
+    bill["BillManager (6)"]
+    auto["AutoHammerController (10)"]
+  end
+
+  subgraph SceneScoped["씬에 사는 구현체 — GameManager 가 따로 찾는다 (#126)"]
+    hammer[HammerSwingController]
   end
 
   events{{"GameEvents<br/>(정적 이벤트)"}}
@@ -54,12 +62,20 @@ flowchart LR
   gm -- "Running: BeginRun()<br/>Result: EndRun()" --> stamina
   gm -- "Running: BeginRun()<br/>Result: EndRun()" --> fever
   gm -- "Running: BeginRun()<br/>Result: EndRun()" --> creature
+  gm -- "Running: BeginRun()<br/>Result: EndRun()" --> stage
+  gm -- "Running: BeginRun()<br/>Result: EndRun()" --> bill
+  gm -- "Running: BeginRun()<br/>Result: EndRun()" --> auto
+  gm -. "런 시작마다 다시 찾아 호출" .-> hammer
 ```
+
+**단계(5)가 청구서(6)보다 먼저**여야 한다. `EndRun` 에서 앞은 목표 달성 시 단계를 올리고 뒤는
+파산 시 0 으로 되돌리기 때문이다 (#164). 순번을 주지 않으면 둘 다 기타(10)로 동점이 된다.
 
 <!-- GameEvents 를 거치는 관계는 이벤트 노드를 경유해 그린다. 모듈끼리 직접 잇지 않는다 -->
 
 | 클래스 | 경로 | 하는 일 |
 |---|---|---|
+| `RunWiringChecks` | `Assets/Scripts/Editor/RunWiringChecks.cs` | 런 경계 **배선과 순서** 검증 5건 (#164) |
 | `GameManager` | `Assets/Scripts/Runtime/Core/GameManager.cs` | 런 상태 소유. 씬 로드로 `MainMenu`/`Running`을, 이벤트로 `Result`를 결정한다. `IRunScoped` 런 시작·종료 배선. `Managers` 프리팹(Resources)에 부착 |
 | `RunState` | `Assets/Scripts/Runtime/Core/RunState.cs` | `MainMenu` / `Running` / `Result` 세 값의 열거형 |
 
@@ -83,6 +99,7 @@ Unity MCP 및 에디터 검증 배치로 확인했다.
 - [x] `MainMenu` 씬에서 Play → `GameManager.Instance.CurrentState == MainMenu`
 - [x] `SceneManager.LoadScene("Game")` 호출 → 콘솔에 `[GameManager] MainMenu -> Running` 로그, `CurrentState == Running`
 - [x] `Running` 전이 시 `IRunScoped.BeginRun()` 호출 확인 (Economy → Stamina → Fever 순서 보장)
+- [x] (#164) `RunWiringChecks.RunBatch()` — **BeginRun/EndRun 을 가졌는데 `IRunScoped` 를 구현하지 않은 매니저가 없는지** 어셈블리 전체에서 확인. 순서는 `StageGoalManager` → `BillManager` 임을 확인
 - [x] `GameEvents.PublishStaminaDepleted()` 강제 발행(Running 상태에서) → `CurrentState == Result` 및 `IRunScoped.EndRun()` 호출
 - [x] `GameEvents.PublishBankrupt()` 발행 시 → `CurrentState == Result` 및 `IRunScoped.EndRun()` 호출
 - [x] `SceneManager.LoadScene("MainMenu")` 호출 → `CurrentState == MainMenu`로 복귀 및 런 정리
@@ -109,7 +126,8 @@ Unity MCP 및 에디터 검증 배치로 확인했다.
 - `RunState`를 다른 모듈이 읽으려면 지금은 `GameManager.Instance`(구체 클래스) 직접 참조뿐이다. 실제 소비자(예: HUD, 결과 화면)가 생기면 "다른 매니저 구현 클래스 직접 참조 금지" 규칙과 부딪히므로, 그때 이벤트 또는 인터페이스 추가를 공용 계약 변경 이슈로 먼저 발의해야 한다.
   ~~씬 전환 API(`StartRun()` 류)도 같은 문제가 될 것이다~~ — 이슈 #142에서 실제로 그렇게 됐다. 6.7 메인 메뉴(#90)가 `GameManager.Instance`를 구체 클래스로 직접 참조하자 convention-checker가 규칙 위반을 지적했고, `IGameFlowService`(`StartNewRun`/`ContinueRun`/`QuitGame`)를 발의해 `Instance`를 그 인터페이스 타입으로 노출하도록 고쳤다 (상세는 [main-menu.md](main-menu.md), 계약은 [contracts.md](contracts.md)). `CurrentState` 조회는 여전히 소비자가 없어 이 한계가 남아 있다.
 - ~~`EconomyManager.BeginRun()`/`RestoreWallet()` 호출을 GameManager가 아직 연결하지 않았다.~~ — 이슈 #111에서 `IRunScoped` 인터페이스를 확장하고, `GameManager`가 `IRunScoped` 컴포넌트들을 취득해 `BeginRun()`과 `EndRun()`을 일괄 호출하도록 배선 완료.
-- 청구서 마감·납부·대출·파산 판정 등 "하루 종료 순서"(ARCHITECTURE.md 2절) 전체 오케스트레이션은 구현하지 않았다. 이번 이슈는 `Result` 전이 및 매니저 런 라이프사이클 종료만 담당하며, 나머지는 4.x 이슈들 몫이다.
+- ~~청구서 마감·납부·대출·파산 판정 등 "하루 종료 순서" 전체 오케스트레이션은 구현하지 않았다.~~ — #164 에서 `BillManager` 가 `IRunScoped` 를 구현하며 런 경계에 붙었다. 하루 진행·청구서 발행·대출 징수·파산 판정이 실제로 돈다.
+- **순번을 주지 않으면 조용히 기타(10)로 밀린다.** `GetServiceOrder` 가 클래스 이름 문자열로 순서를 매기므로, 새 매니저가 `IRunScoped` 만 구현하고 이름 분기를 안 더하면 순서가 보장되지 않는다. 같은 값을 건드리는 매니저가 둘 이상이면 동점에서 결과가 갈린다 — #164 가 그 경합(단계 vs 파산)을 실제로 발견했다. 이름 문자열 대신 특성(attribute)이나 명시 목록으로 바꾸는 편이 안전하지만, 지금은 분기 여섯 개라 그대로 뒀다.
 
 ## 갱신 이력
 
@@ -118,5 +136,6 @@ Unity MCP 및 에디터 검증 배치로 확인했다.
 | 2026-09-17 | #20 | Claude | 최초 작성 — `GameManager`/`RunState` 구현, 씬 로드 기반 전이 + `OnStaminaDepleted`/`OnBankrupt` 기반 `Result` 전이 |
 | 2026-09-17 | #111 | saltlake00 | `IRunScoped` 기반 `BeginRun()`/`EndRun()` 매니저 배선 추가, 초기화 순서 준수(Economy -> Stamina -> Fever) |
 | 2026-09-17 | #21 | Claude | 첫 완주 빌드 검증 — 시작→정산→재도전 반복 실행으로 구독 중복(코인 2배 버그) 없음과 상태·런코인 정상 리셋 확인 |
+| 2026-09-18 | #164 | twins6375-art | `BillManager` 가 `IRunScoped` 를 구현해 런 경계에 붙었다. `GetServiceOrder` 에 `Stage`=5·`Bill`=6 추가 — 파산이 되돌린 단계를 목표 달성이 다시 올리는 경합을 막는다. `RunWiringChecks` 신규 |
 | 2026-09-17 | #142 | hunil58 | `GameManager.Instance`를 신규 `IGameFlowService` 인터페이스 타입으로 노출(계약 변경). "알려진 한계"가 예견한 대로 6.7 메인 메뉴(#90)가 실제 소비자가 되면서 구체 클래스 직접 참조 위반을 convention-checker가 발견해 정정 |
 | 2026-09-17 | #140 | saltlake00 | `CreatureManager`를 `IRunScoped` 라이프사이클에 배선(순서 4). 프리팹으로 옮겨 온 뒤 `WireSceneConsumers` 와 이중으로 잡혀 `BeginRun` 이 두 번 불리던 것을 제거 — 두 번째 호출이 퍼크 반경을 지웠다 |
