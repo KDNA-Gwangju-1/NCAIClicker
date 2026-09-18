@@ -1,6 +1,6 @@
 # 타격 대상 (크리처)
 
-> 관련 이슈: #16, #17 · 최종 수정: 2026-09-17
+> 관련 이슈: #16, #17, #141, #148, #161 · 최종 수정: 2026-09-18
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -103,8 +103,10 @@ TargetNormal (루트)          ← 로직: Target, CreatureMovement, SphereColli
 |---|---|---|
 | `GameEvents.OnTargetBroken` | **발행** | 내구도가 0 이하로 떨어지는 순간. 살아 있음 → 부서짐 전이에서 **한 번만** |
 | `GameEvents.OnTargetBroken` | **구독** | `CreatureManager` 가 수신하여 **실제로 치운 개체 수만큼** 리스폰 쿨다운을 예약한다 (#141) |
+| `Target.HitReceived` (인스턴스) | **발행** | `Target.OnHit` 호출 시 `OnHitReceived` 메서드를 통해 피격 정보 통지 (#148) |
+| `Target.HitReceived` (인스턴스) | **구독** | `CreatureMovement` (피격 상태 전이 및 도망), `CreatureHpDisplay` (HP 갱신 및 펀치 연출) |
 
-`CreatureManager` 는 `OnEnable` 구독 / `OnDisable` 해제 쌍을 준수한다.
+`CreatureManager`, `CreatureMovement`, `CreatureHpDisplay` 는 `OnEnable` 구독 / `OnDisable` 해제 쌍을 준수한다.
 
 ### 읽는 밸런스 값
 
@@ -169,6 +171,16 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-17.
 * [x] 검증 실행 후 씬에 임시 크리처 오브젝트 잔류 0건
 * [x] 컴파일 에러·경고 0건
 
+### #148 크리처 비율 폴백 제거 및 Target 이벤트 명명 정정 (2026-09-18)
+
+* `CreatureManager.PickPrefabByStageRatio()` 에서 `stages.csv` 를 복제하던 4종 리터럴을 제거하고, `stageDef` 가 없거나 총합이 0 이하면 임의의 비율을 만들지 않고 스폰하지 않음 (`null` 반환)
+* `Target.OnHitReceived` 이벤트를 `HitReceived` 로 변경하고 발행부 `OnHitReceived(HitInfo)` 메서드를 분리하여 `AGENTS.md` 명명 규칙 준수
+* 구독자 2곳(`CreatureHpDisplay`, `CreatureMovement`)의 이벤트 구독 및 해제 코드 동기화
+* [x] `CreatureMovementChecks` 에 `stageDef == null` 시 스폰 미수행 검증 추가 통과
+* [x] `TargetChecks` 에 매 타격 시 `HitReceived` 이벤트 정상 발행 및 구독 해제 단언 검증 추가 통과
+* [x] 전체 검증 하네스 15종 전수 통과
+* [x] `convention-checker` 9대 규칙 전수 점검 통과 (위반 0건)
+
 ## 알려진 한계
 
 * **파괴 연출이 없다.** 부서져도 오브젝트가 그대로 남거나 숨겨지는 연출은 작업 6.3 이다.
@@ -189,3 +201,4 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-17.
 | 2026-09-17 | #17 | saltlake00 | 크리처 평면 2축 이동, FSM(Idle/Moving/BeingHit/Fleeing), CreatureManager 스폰·리스폰 구현 |
 | 2026-09-17 | #141 | saltlake00 | 치운 개수만큼만 재등장을 예약하고 목표치 초과 스폰을 막는다. 검증 3건 추가 |
 | 2026-09-18 | #161 | saltlake00 | SafeDestroy 도입으로 에디트 모드 검증 시 Destroy 오류 제거 및 씬 잔류 방지 (#161) |
+| 2026-09-18 | #148 | saltlake00 | 크리처 스폰 비율 폴백 하드코딩 제거 및 Target.HitReceived 명명 규칙 정정, 검증 보강 |

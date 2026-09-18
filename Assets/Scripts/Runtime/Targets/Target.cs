@@ -157,7 +157,12 @@ namespace NCAIClicker.Targets
         }
 
         /// <summary>피격을 외부(FSM 등)에 알리는 이벤트.</summary>
-        public event System.Action<HitInfo> OnHitReceived;
+        public event System.Action<HitInfo> HitReceived;
+
+        private void OnHitReceived(HitInfo info)
+        {
+            HitReceived?.Invoke(info);
+        }
 
         /// <summary>
         /// 내구도만 깎는다. 코인은 여기서 주지 않는다 — 파괴될 때 한 번에 지급한다 (GDD 4절).
@@ -171,7 +176,7 @@ namespace NCAIClicker.Targets
             }
 
             _currentHp -= info.Damage;
-            OnHitReceived?.Invoke(info);
+            OnHitReceived(info);
 
             if (_currentHp > 0f)
             {

@@ -48,7 +48,7 @@ namespace NCAIClicker.Targets
         {
             if (_target != null)
             {
-                _target.OnHitReceived += HandleHitReceived;
+                _target.HitReceived += HandleHitReceived;
             }
         }
 
@@ -56,7 +56,7 @@ namespace NCAIClicker.Targets
         {
             if (_target != null)
             {
-                _target.OnHitReceived -= HandleHitReceived;
+                _target.HitReceived -= HandleHitReceived;
             }
         }
 
