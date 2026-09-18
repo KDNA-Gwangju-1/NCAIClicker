@@ -1,6 +1,6 @@
 # 인게임 HUD
 
-> 관련 이슈: #33 · 최종 수정: 2026-09-18
+> 관련 이슈: #33, #171 · 최종 수정: 2026-09-18
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -22,7 +22,7 @@
 | 정확도 분모에 자동 망치를 포함 | ❌ | BALANCE 5절·[fever-gauge.md](fever-gauge.md) 가 "정확도는 호버만" 으로 정했다. 자동 망치는 항상 적중으로 발행되므로 섞으면 플레이어 실력이 아니라 업그레이드 레벨을 보여주게 된다 |
 | 날짜를 `OnDayEnded` 로 세어 올림 | ❌ | `OnDayEnded(completedDay)` 는 **방금 끝난 날**이다. 이걸로 올리면 하루씩 밀린다 |
 | 날짜를 `OnBillDueSoon` 신호에 `IBillService.CurrentDay` 재조회 | ✅ | #150(3.7) 이후 날짜가 실제로 올라가는 곳은 `BillManager.BeginRun()` 인데 그쪽은 날짜 이벤트를 발행하지 않고 `OnBillDueSoon` 만 낸다. `BillManager.BeginRun` 주석이 이 방식을 가리킨다. 날짜는 단일 출처에서 읽으므로 세다가 어긋날 일이 없다 |
-| 보유 잔액을 `EconomyManager` 조회로 초기화 | ❌ | 조회 통로가 없다. `BillManager.Instance`·`SaveManager.Instance`·`GameManager.Instance` 와 달리 `EconomyManager` 만 `Instance` 를 열지 않았다. 공용 계약 변경이라 이슈를 먼저 세웠다(#171) |
+| 보유 잔액을 `EconomyManager` 조회로 초기화 | ✅ (#171) | #33 시점에는 조회 통로가 없어 `—` 로 뒀다. 공용 계약 변경이라 이슈를 먼저 세웠고(#171), 거기서 `EconomyManager.Instance`(`IEconomyService`)가 열리면서 `OnEnable` 에서 한 번 읽게 됐다 |
 | `Game.unity` 에 HUD 를 손으로 만들어 넣기 | ❌ | `Game.unity` 는 코어 플레이 모듈 소유 씬이다(ARCHITECTURE 0절). `GameHud.prefab` 을 만들고 씬에는 **프리팹 인스턴스**로 넣어, 이후 수정이 프리팹 한 곳으로 모이게 했다 |
 | 게이지 `Image` 에 스프라이트를 비워 둠 | ❌ | **`sprite` 가 null 이면 `Type=Filled` 가 `fillAmount` 를 무시하고 사각형을 통째로 그린다.** 게이지가 항상 가득 찬 것처럼 보였다 — Play 로 보기 전에는 드러나지 않았다 |
 | 내장 `UI/Skin/UISprite` 를 게이지에 사용 | ❌ | 모서리가 둥근 이미지라 높이 18~28px 막대에서 알약/타원으로 보인다 |
@@ -82,7 +82,7 @@ flowchart LR
 |---|---|---|
 | `StaminaHud` | `Assets/Scripts/Runtime/UI/StaminaHud.cs` | `Image.fillAmount` 와 `75/120` 라벨 갱신. 현재값은 올림 표시하되 실제 0 이면 0 |
 | `FeverHud` | `Assets/Scripts/Runtime/UI/FeverHud.cs` | 게이지 막대 갱신, 발동 중 막대 색 전환 |
-| `CoinHud` | `Assets/Scripts/Runtime/UI/CoinHud.cs` | 런 순수입과 보유 잔액을 별도 라벨로 표시. 잔액 초기값이 없으면 `—` |
+| `CoinHud` | `Assets/Scripts/Runtime/UI/CoinHud.cs` | 런 순수입과 보유 잔액을 별도 라벨로 표시. 초기값은 `EconomyManager.Instance`(`IEconomyService`)로 한 번 읽는다(#171). 매니저가 없으면 `—` |
 | `DayHud` | `Assets/Scripts/Runtime/UI/DayHud.cs` | `Day N` 표시. 하루가 시작되면 `IBillService.CurrentDay` 재조회, 마감되면 접미사 |
 | `AccuracyHud` | `Assets/Scripts/Runtime/UI/AccuracyHud.cs` | 호버 스윙만 집계해 `정확도 N% (적중/전체)` 표시. `OnEnable` 에서 0 으로 초기화 |
 | `BillHud` | `Assets/Scripts/Runtime/UI/BillHud.cs` | (#27 에서 만든 것) D-일수·금액. #33 에서 임박 강조와 `OnBillPaid` 구독 추가 |
@@ -149,6 +149,8 @@ Play Mode 에서 실제로 확인한 것만 적는다.
 - [x] 납부 후 강조 해제: `OnBillPaid` 발행 시 "청구서 없음" + 흰색 복귀 확인
 - [x] 피버 색 전환: `OnFeverStart` 로 파랑(0.36,0.62,0.95) → 주황(1,0.55,0.1) 확인
 - [x] 코인: 대상 파괴 시 런 순수입·보유 잔액이 함께 `4` 로 갱신됨을 확인
+- [x] (#171) 초기값 조회: 잔액 600 인 상태에서 씬을 다시 로드해도 HUD 가 `—` 가 아니라 `600` 으로
+  시작함을 확인. 서비스 값(`CurrentCoin`/`RunCoin`)과 라벨이 일치한다
 - [x] 게이지 `fillAmount`: 스프라이트 교체 후 스태미나 42%·피버 70% 로 부분 표시됨을 확인
 - [x] 컴파일: 에디터 콘솔 에러 0건
 - [x] `convention-checker` 점검 통과 (구독/해제 쌍, 직접 참조, 배율 재적용, 네이밍, 배치, 인코딩)
@@ -175,11 +177,10 @@ Play Mode 에서 실제로 확인한 것만 적는다.
 
 - ~~날짜와 청구서가 움직이지 않는다.~~ — #164(4.8)가 `BillManager` 를 `IRunScoped` 에 붙이면서
   풀렸다. 위 "검증"의 하루 진행 사이클이 그 위에서 돈 것이다.
-- **보유 잔액이 매 런 시작마다 `—` 로 비어 보인다.** `EconomyManager` 에 조회 통로(`Instance`)가
-  없고 `BeginRun()` 이 잔액을 발행하지 않는다. `Game` 씬이 런마다 새로 로드되어 `CoinHud` 도 새로
-  생기므로, **첫 런만이 아니라 모든 런에서** 그 런의 첫 코인이 들어올 때까지 비어 있다.
-  파산 직후(#158의 `RestoreWallet(0,"0")`)처럼 잔액이 바뀌는 시점이 씬 재로드보다 앞서면 그
-  발행도 놓친다. 계약 이슈 **#171** 로 발의했다.
+- ~~보유 잔액이 매 런 시작마다 `—` 로 비어 보인다.~~ — #171 에서 `EconomyManager.Instance`
+  (`IEconomyService`)를 열고 `CoinHud.OnEnable` 이 잔액·런 순수입을 한 번 읽도록 고쳐 풀었다.
+  `BeginRun()` 이 잔액을 발행하지 않는 것은 그대로지만, 조회 통로가 생겨 UI 가 발행을 기다릴
+  이유가 없어졌다.
 - **`Assets/Prefabs/UI/BillHud.prefab` 과 역할이 겹친다.** #27 이 만든 그 프리팹은
   Canvas + `BillLabel` 만 든 축소판이고, `GameHud.prefab` 이 같은 `BillHud` 를 품고 있다.
   **둘 다 씬에 올리면 캔버스와 청구서 라벨이 두 개가 된다.** 지금은 `GameHud` 만 배치돼 있다.
@@ -193,3 +194,4 @@ Play Mode 에서 실제로 확인한 것만 적는다.
 | 날짜 | 이슈 | 누가 | 무엇이 바뀌었나 |
 |---|---|---|---|
 | 2026-09-18 | #33 | yahoo-afk | 최초 작성 — `StaminaHud`/`FeverHud`/`CoinHud`/`DayHud`/`AccuracyHud` 신규, `BillHud` 에 임박 강조·`OnBillPaid` 추가, `GameHud.prefab` 생성 및 `Game` 씬 배치, 게이지 스프라이트 `HudBar.png` 추가 |
+| 2026-09-18 | #171 | yahoo-afk | `CoinHud` 가 `EconomyManager.Instance`(`IEconomyService`)로 잔액·런 순수입 초기값을 한 번 읽는다. "매 런 시작마다 `—`" 한계 해소 |
