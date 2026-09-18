@@ -200,6 +200,17 @@ public interface IGameFlowService
     void QuitGame();
 }
 
+// 단계 진행 상태 조회 계약. StageGoalManager 가 구현하고 CreatureManager 와 BillManager 가 소비한다 (이슈 #150)
+public interface IStageService
+{
+    int CurrentStageIndex { get; }
+    int CurrentStageNumber { get; }
+    bool IsGoalReached { get; }
+    bool IsMaxStage { get; }
+    bool AdvanceStage();
+    void RestoreStage(int stageIndex);
+}
+
 [Serializable]
 public class Bill
 {
