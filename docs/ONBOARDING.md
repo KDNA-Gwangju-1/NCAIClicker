@@ -63,6 +63,7 @@
 |---|---|
 | `.claude/settings.local.json` | 개인 설정. gitignore됨 |
 | `research/transcripts/` | 원작 플레이 영상 자막. 타인의 저작물이라 커밋하지 않는다. 조사 결과는 REFERENCE_ANALYSIS 에 정리되어 있으므로 다시 받을 필요는 없다 |
+| `research/reference/press-kit/` | 원작 아트 레퍼런스(스크린샷·키아트). **`python tools/fetch_reference.py` 로 다시 받는다.** 출처는 공식 프레스킷 <https://rikegames.com/press/bills-must-be-paid/> 이며, 커밋하지 않는 이유와 사용 경계는 [ASSET_PIPELINE.md](ASSET_PIPELINE.md) 1-1 절에 있다 |
 | UnityYAMLMerge git 설정 | 위 3번 |
 | `Library/` | Unity가 재생성한다. 첫 실행이 느린 것은 정상 |
 
