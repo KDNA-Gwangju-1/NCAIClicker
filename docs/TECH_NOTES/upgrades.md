@@ -1,6 +1,6 @@
 # 업그레이드
 
-> 관련 이슈: #24, #32, #131, #140 · 최종 수정: 2026-09-17
+> 관련 이슈: #24, #32, #131, #140, #91 · 최종 수정: 2026-09-18
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -15,6 +15,9 @@
 `IUpgradeStats.GetStat(stat, 기준값)` 을 읽는다. 배선 방식과 "다음 런부터" 규칙을 어떻게
 보장하는지는 아래 "소비처에 닿는 길"에 있다.
 
+**구매 화면은 #91(6.8)에서 붙었다.** `MainMenu` 씬의 `UpgradeShopPanel` 이 4종을 카드로 깔고
+`IUpgradeShop` 으로 사고 읽는다 — 아래 "구매 화면" 절.
+
 ## 왜 이 방법인가
 
 | 검토한 방법 | 채택 | 이유 |
@@ -24,6 +27,11 @@
 | 런타임에 `BalanceData` 값을 직접 고쳐 효과 반영 | ❌ | CSV 산출물이라 손대지 않는다 (AGENTS.md). 한 번 고치면 다음 임포트까지 값이 어긋나고, 에디터에서 에셋이 dirty 로 남는다. **검증에 "dirty 가 아니다" 항목을 넣어 막아 두었다** |
 | `GetStat(StatId)` — 기준값도 내부에서 조회 | ❌ | `spawn_count` 의 기준값은 `stages.csv` 의 **단계별** 값이라 `BalanceData` 한 곳에서 꺼낼 수 없다. 이 stat 하나 때문에 조회 경로가 두 갈래가 된다 |
 | `GetStat(StatId, float baseValue)` — 기준값을 받는다 | ✅ | 호출측이 어차피 기준값을 들고 있다. BALANCE 6절 표를 코드에 복제하지 않아도 되고 단계별 값도 자연히 처리된다 |
+| (6.8) 카드 4장을 패널이 **함께** 다시 그린다 | ✅ | 한 장을 사면 코인이 줄어 **다른 카드의 구매 가능 여부까지 달라진다.** 카드가 자기만 갱신하면 나머지는 살 수 있는 것처럼 남아, 눌러 보고서야 실패한다 |
+| (6.8) 카드가 스스로 `EconomyManager` 를 찾는다 | ❌ | 같은 조회가 4번 일어나고 "누가 언제 잡았나"가 흩어진다. 패널이 한 번 잡아 `Bind` 로 넣어 준다 — 조립 지점을 한 곳으로 (ARCHITECTURE "SetBillService" 문단과 같은 성격) |
+| (6.8) 효과 문구를 `upgrade_effects.csv` 의 `note` 열에서 읽는다 | ❌ | 임포터가 그 열을 읽지 않아 `UpgradeEffect` 에 없다. 읽게 하려면 `BalanceImporter` 와 생성 에셋 스키마를 바꿔야 해 공용 계약 변경이 된다 |
+| (6.8) `StatId` → 한글 이름만 UI 에 두고 값은 CSV 에서 | ✅ | **숫자는 하나도 코드에 없다.** 값·단위·부호는 전부 `upgrade_effects.csv` 산출물에서 읽고, 표시 문자열만 UI 의 몫으로 둔다 (`UpgradeStatNames`) |
+| (6.8) 살 수 없을 때 버튼만 비활성 | ❌ | 이슈 완료 기준이 "부족한 이유가 보이게" 다. 왜 못 사는지 모르면 코인을 더 모아야 하는지 최대 레벨인지 알 수 없다 |
 
 ### 비용 공식에서 `cost_growth` 0 의 뜻
 
@@ -79,15 +87,21 @@ flowchart LR
 | `EconomyManager` | `Assets/Scripts/Runtime/Economy/EconomyManager.cs` | 구매(차감 + 레벨업), 조회 창구 |
 | `UpgradeChecks` | `Assets/Scripts/Editor/UpgradeChecks.cs` | 계산부의 Edit Mode 검증 22건 |
 | `UpgradeConsumerChecks` | `Assets/Scripts/Editor/UpgradeConsumerChecks.cs` | 실효값이 **소비처에 닿는지** 검증 13건 (#131) |
+| `UpgradeShopPanel` | `Assets/Scripts/Runtime/UI/UpgradeShopPanel.cs` | 구매 화면. 서비스를 잡아 카드에 넣고, 잔액 표시와 전체 갱신을 맡는다 (#91) |
+| `UpgradeShopEntry` | `Assets/Scripts/Runtime/UI/UpgradeShopEntry.cs` | 카드 한 장. 이름·설명·효과·레벨·다음 비용 표시, 구매 버튼, 못 사는 이유 (#91) |
+| `UpgradeStatNames` | `Assets/Scripts/Runtime/UI/UpgradeStatNames.cs` | `StatId` → 한글 표시명. **수치는 없다** (#91) |
+| (프리팹) | `Assets/Prefabs/UI/UpgradeShopPanel.prefab` | 패널 + 카드 4장. `MainMenu` 씬 Canvas 아래에 프리팹 인스턴스로 있다 |
 
 ### 이벤트
 
 | 이벤트 | 발행/구독 | 언제 |
 |---|---|---|
-| `GameEvents.OnBalanceChanged` | 발행 | 구매가 **성공했을 때만**. 실패하면 발행하지 않는다 |
+| `GameEvents.OnBalanceChanged` | `EconomyManager` 발행, `UpgradeShopPanel` 구독 | 구매가 **성공했을 때만**. 실패하면 발행하지 않는다 |
 
-업그레이드 전용 이벤트는 만들지 않았다. UI 가 구매 즉시 반응해야 하면
-`OnUpgradePurchased` 가 필요한데, 필요 여부는 작업 6.8 담당자가 판단할 일이라 #116 에 질문으로 남겼다.
+업그레이드 전용 이벤트는 만들지 않았다. #116 이 "6.8 담당자가 판단할 일"로 남겨 둔 질문인데,
+**6.8 에서 필요 없다고 결론 났다.** 구매가 성공하면 코인이 반드시 줄고 그때 `OnBalanceChanged`
+가 나가므로, 화면을 다시 그릴 신호로 그것만으로 충분하다. 구매 직후 갱신은 카드가 패널에
+콜백으로 알려 이벤트를 거치지 않는다 — 같은 프레임에 두 번 그리지 않기 위해서다.
 
 ### 구매가 반쪽 나지 않게 하는 법
 
@@ -99,6 +113,31 @@ flowchart LR
 
 잔액 비교를 `EconomyManager` 에서 따로 하지 않고 `CoinWallet.TrySpendCoin` 하나에 맡긴다.
 양쪽에서 비교하면 두 판단이 어긋날 수 있다.
+
+### 구매 화면 (#91, 6.8)
+
+`MainMenu` 씬 Canvas 아래에 `UpgradeShopPanel.prefab` 인스턴스가 있다. 씬 소유자가 UI·연출이라
+(ARCHITECTURE 0절) 씬에 직접 넣었다.
+
+```
+UpgradeShopPanel      서비스 조립 · 잔액 표시 · 전체 갱신
+├ TitleLabel / BalanceLabel
+└ Entries              (VerticalLayoutGroup)
+  └ Card_<id> × 4      UpgradeShopEntry — 카드 한 장
+    ├ NameLabel / LevelLabel / DescriptionLabel / EffectLabel / ReasonLabel
+    └ PurchaseButton → CostLabel
+```
+
+- 서비스는 `EconomyManager.Shop`(`IUpgradeShop`)·`EconomyManager.Instance`(`IEconomyService`)로
+  잡는다 — #171 이 연 통로다. 패널이 `OnEnable` 마다 다시 잡아 카드에 `Bind` 로 넣는다
+  (매니저는 `DontDestroyOnLoad` 지만 패널은 씬과 함께 다시 생긴다)
+- 표시 값은 전부 조회다. 이름·설명·최대 레벨은 `BalanceData`, 레벨·다음 비용은 `IUpgradeShop`,
+  효과는 `UpgradeDef.Effects` — **UI 에 수치를 적어 두지 않는다** (#91 완료 기준)
+- 못 사는 이유를 글로 보여준다. `GetNextCost` 가 `long.MaxValue` 면 `최대 레벨`,
+  잔액이 모자라면 `코인 N 부족`. 그 `long.MaxValue` 는 숫자가 아니라 "더 살 수 없다"는 계약값이다
+  (`EconomyManager.GetNextCost` 주석)
+- 구매는 `IUpgradeShop.TryPurchase` 하나뿐이다. **UI 가 지갑을 직접 깎지 않는다** —
+  차감은 그 안에서 `TrySpendCoin` 으로 일어난다 (AGENTS.md)
 
 ### 소비처에 닿는 길 (#131)
 
@@ -217,19 +256,38 @@ stat 은 일부뿐이라(`max_stamina`·`fever_gauge_per_hit`·`coin_bonus_multi
 **미검증**: Play Mode. Unity 가 실제로 그 시점에 생명주기를 불러 주는지, `GameManager` 가 씬
 소비처를 제때 찾는지는 확인하지 못했다 — 검증에서는 주입을 직접 부른다.
 
+### 구매 화면 Play Mode 검증 (2026-09-18, #91)
+
+**"사면 다음 런에 세진다"를 처음으로 게임에서 확인했다.** 구매 화면이 없어 못 하던 것이다.
+
+| 확인한 것 | 결과 |
+|---|---|
+| 코인 0 | 4장 모두 버튼 비활성, `코인 50/75/100/120 부족` 표시 |
+| `AddCoin(200)` | `OnBalanceChanged` 로 4장이 함께 갱신되어 전부 구매 가능, 잔액 표시 `200` |
+| 카드 버튼 클릭 (`desk_expand`, 120) | 레벨 0 → 1 · 비용 120 → **138** · 잔액 200 → 80 |
+| 같은 클릭 뒤 **다른 카드** | `fever_boost`(100) 가 `코인 20 부족` 으로 비활성 — 산 카드만이 아니라 전부 재계산된다 |
+| 최대 레벨 (`auto_hammer` 10회 구매) | `Lv 10 / 10` · 비용 표시 `—` · 버튼 비활성 · `최대 레벨` |
+| **다음 런 반영** | `strong_hammer` 4레벨 구매 → 런 도중에는 `_runHitPower` 가 1 그대로, 런을 다시 시작하니 **2.4** (= 1 + 0.35×4, BALANCE 6절) |
+
+에디터 콘솔 오류·경고 0건. 전체 검증 하네스(`ValidationRunner.RunAll`)도 실패 0.
+
 ## 알려진 한계
 
 - ~~**효과가 대부분 게임에 반영되지 않는다.**~~ — #131 에서 소비처를 연결했다. 남은 것은
   `auto_hammer_*` 세 개(작업 3.2)와 조준 원 반경(#132)뿐이다
-- **Play Mode 로 "사면 다음 런에 세진다"를 본 사람이 아직 없다.** 구매 화면(6.8/#91)이 없어
-  런타임에 레벨을 올릴 방법이 없기 때문이다. Edit Mode 로는 확인했다
+- ~~**Play Mode 로 "사면 다음 런에 세진다"를 본 사람이 아직 없다.**~~ — #91 에서 구매 화면이
+  생겨 확인했다 (위 "구매 화면 Play Mode 검증")
 - **저장·복원이 연결되지 않았다.** `RestoreUpgradeLevels`·`CurrentUpgradeLevels` 는 있지만
-  `IUpgradePersistence` (#116) 를 `SaveManager` 가 아직 부르지 않는다
+  `IUpgradePersistence` (#116) 를 `SaveManager` 가 아직 부르지 않는다.
+  **#91 의 구매 화면이 이 구멍을 눈에 보이게 만들었다** — 사서 레벨을 올려도 게임을 껐다 켜면
+  0 으로 돌아간다. 화면이 없을 때는 드러나지 않던 문제다
 - **구매 시점을 강제하지 않는다.** "메뉴·결과 화면에서만, 다음 런부터 반영"(BALANCE 6절)은
   호출측 책임으로 두었다. 런 상태를 매니저가 알면 GameManager 를 직접 참조하게 된다
 - **`auto_hammer_count` 를 쓰는 곳이 아직 없다.** 자동 망치는 작업 3.2 이며,
-  `AutoHammerController.SetBonusCount(int)` 가 옛 push 방식으로 남아 있다. 그 카드에서
-  `IUpgradeStats` 로 통일할 것
+  `AutoHammerController.SetBonusCount(int)` 가 옛 push 방식으로 남아 있고 **부르는 곳이 없다.**
+  #91 확인 중 실측했다 — `auto_hammer` 를 Lv 10 까지 사면 `GetStat(AutoHammerCount)` 는 10 을
+  돌려주는데 `AutoHammerController._bonusCount` 는 0 그대로다. **상점에서는 살 수 있지만
+  게임에는 반영되지 않는 유일한 업그레이드다.** 그 카드에서 `IUpgradeStats` 로 통일할 것
 - **조준 원 반경은 업그레이드를 받지 않는다.** `economy.csv` 의 `reticle_radius` 로 옮겼고
   ([#132](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/132)), `hit_radius`(대상 콜라이더
   확대)와는 다른 축이다. 두 축에 같은 업그레이드를 걸면 효과가 두 번 곱해진다 (BALANCE 6절 표)
@@ -242,3 +300,4 @@ stat 은 일부뿐이라(`max_stamina`·`fever_gauge_per_hit`·`coin_bonus_multi
 | 2026-09-17 | #32 | twins6375-art | `fever_multiplier` 가 실제로 소비되기 시작한 것을 반영 (소비처 한계 축소) |
 | 2026-09-17 | #131 | twins6375-art | 소비처 6곳을 `IUpgradeStats` 로 연결. 런 시작 캐시로 "다음 런부터" 보장, push 방식 `SetUpgradeOverrides` 제거 |
 | 2026-09-17 | #140 | saltlake00 | `CreatureManager` 가 `Managers` 프리팹으로 옮겨 가 주입 주체가 `GameManager` → `ManagerBootstrap` 으로 바뀐 것을 반영 |
+| 2026-09-18 | #91 | yahoo-afk | 구매 화면(6.8) 추가 — `UpgradeShopPanel`/`UpgradeShopEntry`/`UpgradeStatNames` 와 `MainMenu` 씬 배치. #171 이 연 `EconomyManager.Shop` 통로를 첫 소비. "다음 런부터" 를 Play Mode 로 처음 확인 |

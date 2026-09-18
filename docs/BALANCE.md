@@ -217,7 +217,7 @@ strong_hammer,hit_radius,percent,2,레벨당 피격 판정 반경 +2%
 | `move_drain_per_unit` | `stamina.csv` → `move_drain_per_unit` | 원작형 규칙에서는 0으로 고정한 미사용 호환 필드 |
 | `hit_drain_per_swing` | `stamina.csv` → `hit_drain_per_swing` | 원작형 규칙에서는 0으로 고정한 미사용 호환 필드 |
 
-목록을 늘리려면 `BalanceData.cs` 의 `StatId` enum 에 항목을 추가하고 이 표에 한 줄 적는다. **enum 에 없는 이름은 CSV에 적어도 임포트가 거부한다** — 오타가 런타임까지 가지 않게 하려는 의도다.
+목록을 늘리려면 `BalanceData.cs` 의 `StatId` enum 에 항목을 추가하고, 이 표에 한 줄 적고, 화면에 띄울 한글 이름을 `Assets/Scripts/Runtime/UI/UpgradeStatNames.cs` 에 한 줄 더한다 (#91). 마지막을 빠뜨리면 상점 카드에 enum 이름이 그대로 노출된다 — 조용히 비지 않게 해 둔 것이다. **enum 에 없는 이름은 CSV에 적어도 임포트가 거부한다** — 오타가 런타임까지 가지 않게 하려는 의도다.
 
 > 효과값은 `base × (1 + percent 합 / 100) + add 합`으로 계산하며 해당 레벨까지 누적한다.
 > 비용은 `ceil(InitCost × CostGrowth^현재레벨)`이고 CostGrowth가 0이면 EconomyConfig 값을 쓴다.
