@@ -65,7 +65,7 @@ namespace NCAIClicker.EditorTools
                 AssertCondition(AssetDatabase.AssetPathToGUID(outputPath) == guid, "재임포트 GUID 변경");
                 checkCount++;
 
-                // 단계 목표는 수입 상한이 아니다. 큰 청구서는 구조 오류로 거부하지 않는다.
+                // 단계 목표는 수입 상한이 아니다. 큰 고지서는 구조 오류로 거부하지 않는다.
                 CopyFixture(fixtureDirectory);
                 ReplaceFixture(fixtureDirectory, "stages.csv", "1,450,450,5,", "1,450,10000,5,");
                 AssertCondition(BalanceImporter.TryImport(fixtureDirectory, outputPath, out error), error);

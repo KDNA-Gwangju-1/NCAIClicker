@@ -231,16 +231,16 @@ namespace NCAIClicker.EditorTools
                 creatureManager.EndRun();
                 checkCount++;
 
-                // BillManager 조립 및 1단계 청구서 검증
+                // BillManager 조립 및 1단계 고지서 검증
                 billHost = new GameObject("CheckBill") { hideFlags = HideFlags.HideAndDontSave };
                 billManager = billHost.AddComponent<BillManager>();
                 SetField(billManager, "_balanceData", balanceData);
                 billManager.SetStageService(stageManager);
 
                 billManager.BeginRun();
-                AssertCondition(billManager.ActiveBill != null, "1단계 청구서 발행 실패");
-                AssertCondition(billManager.ActiveBill.Amount == 450L, "1단계 청구서 금액 450 불일치: " + billManager.ActiveBill.Amount);
-                AssertCondition(billManager.ActiveBill.DueDay == billManager.CurrentDay + 5 - 1, "1단계 청구서 기한 5일 불일치");
+                AssertCondition(billManager.ActiveBill != null, "1단계 고지서 발행 실패");
+                AssertCondition(billManager.ActiveBill.Amount == 450L, "1단계 고지서 금액 450 불일치: " + billManager.ActiveBill.Amount);
+                AssertCondition(billManager.ActiveBill.DueDay == billManager.CurrentDay + 5 - 1, "1단계 고지서 기한 5일 불일치");
                 checkCount++;
 
                 // 단계 진행: 1단계 목표 달성 -> EndRun -> 2단계 진행

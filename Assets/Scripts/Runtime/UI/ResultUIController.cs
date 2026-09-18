@@ -77,7 +77,7 @@ namespace NCAIClicker.UI
         [Header("공통 UI")]
         [SerializeField] private Button _mainMenuButton;
 
-        // 정산창의 납부 버튼은 청구서 모달을 연다. 조립 지점이 넣어 준다.
+        // 정산창의 납부 버튼은 고지서 모달을 연다. 조립 지점이 넣어 준다.
         private BillPanelController _billPanel;
 
         private IEconomyService _economyService;
@@ -168,7 +168,7 @@ namespace NCAIClicker.UI
             }
         }
 
-        /// <summary>청구서 패널을 잇는다. 없으면 납부 버튼은 잠긴 채로 둔다.</summary>
+        /// <summary>고지서 패널을 잇는다. 없으면 납부 버튼은 잠긴 채로 둔다.</summary>
         public void SetBillPanel(BillPanelController billPanel)
         {
             if (_billPanel != null)
@@ -184,7 +184,7 @@ namespace NCAIClicker.UI
             }
         }
 
-        /// <summary>청구서를 닫으면 정산으로 돌아온다. 하루가 아직 안 끝났기 때문이다.</summary>
+        /// <summary>고지서를 닫으면 정산으로 돌아온다. 하루가 아직 안 끝났기 때문이다.</summary>
         private void HandleBillPanelClosed()
         {
             ShowSettlement();
@@ -374,11 +374,11 @@ namespace NCAIClicker.UI
             {
                 if (_billService != null && _billService.ActiveBill != null && !_billService.ActiveBill.IsPaid)
                 {
-                    _billStatusText.text = $"청구서 마감: {_billService.DaysLeft}일 남음 ({_billService.ActiveBill.Amount:N0}원)";
+                    _billStatusText.text = $"고지서 마감: {_billService.DaysLeft}일 남음 ({_billService.ActiveBill.Amount:N0}원)";
                 }
                 else
                 {
-                    _billStatusText.text = "청구서: 납부 완료";
+                    _billStatusText.text = "고지서: 납부 완료";
                 }
             }
 
@@ -423,7 +423,7 @@ namespace NCAIClicker.UI
         }
 
         /// <summary>
-        /// 낼 청구서가 있고 청구서 패널이 이어져 있을 때만 납부 버튼을 연다.
+        /// 낼 고지서가 있고 고지서 패널이 이어져 있을 때만 납부 버튼을 연다.
         /// 배선이 없는데 열어 두면 눌러도 아무 일이 없어 고장으로 읽힌다.
         /// </summary>
         private void UpdatePayButton()
@@ -444,7 +444,7 @@ namespace NCAIClicker.UI
                 return;
             }
 
-            // 원작은 청구서가 뜨면 정산창이 보이지 않는다. 겹쳐 두면 글자가 서로 비쳐 읽히지 않는다.
+            // 원작은 고지서가 뜨면 정산창이 보이지 않는다. 겹쳐 두면 글자가 서로 비쳐 읽히지 않는다.
             HideAll();
             _billPanel.ShowAsModal();
         }
@@ -508,7 +508,7 @@ namespace NCAIClicker.UI
             {
                 int day = _billService != null ? _billService.CurrentDay : 1;
                 long amount = (_billService != null && _billService.ActiveBill != null) ? _billService.ActiveBill.Amount : 0;
-                _bankruptcyDetailText.text = $"{day}일차 청구서 {amount:N0}원 미납으로 파산하였습니다.";
+                _bankruptcyDetailText.text = $"{day}일차 고지서 {amount:N0}원 미납으로 파산하였습니다.";
             }
 
             if (_bankruptcyCoinLossText != null)

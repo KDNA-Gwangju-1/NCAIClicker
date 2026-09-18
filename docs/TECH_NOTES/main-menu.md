@@ -98,7 +98,7 @@ Unity 6000.3.21f1 에디터, UnityMCP `execute_code`/`manage_camera(screenshot)`
 
 ## 알려진 한계
 
-- **이어하기를 눌러도 실제 저장 데이터(코인·업그레이드 레벨·날짜·청구서·대출)가 복원되지 않는다.**
+- **이어하기를 눌러도 실제 저장 데이터(코인·업그레이드 레벨·날짜·고지서·대출)가 복원되지 않는다.**
   `SaveManager.Load()`를 불러 `EconomyManager`/`BillManager` 등에 복원값을 주입하는 배선은 아직
   아무도 만들지 않았다 — [save-load.md](save-load.md)·[coin-economy.md](coin-economy.md) 알려진
   한계에 이미 기록된 별개 문제이고, 그 자체로 공용 계약 변경이 먼저 필요하다. 지금은 새 회차

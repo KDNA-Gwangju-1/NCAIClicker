@@ -136,7 +136,7 @@ namespace NCAIClicker.EditorTools
             var meta = CreateHorizontal("MetaRow", header, 18f);
             SetPreferredHeight(meta, 30f);
             bound["_dayText"] = CreateLabel("DayText", meta, font, 24, Cream, TextAlignmentOptions.Center, "DAY 1");
-            bound["_billStatusText"] = CreateLabel("BillStatusText", meta, font, 24, Muted, TextAlignmentOptions.Center, "청구서: 납부 완료");
+            bound["_billStatusText"] = CreateLabel("BillStatusText", meta, font, 24, Muted, TextAlignmentOptions.Center, "고지서: 납부 완료");
             bound["_stageGoalText"] = CreateLabel("StageGoalText", meta, font, 24, Muted, TextAlignmentOptions.Center, "단계 목표: 미달성");
 
             // 본문 두 컬럼.
@@ -187,7 +187,7 @@ namespace NCAIClicker.EditorTools
 
             // 원작 버튼 둘은 폭이 거의 같다 (365 / 362). flexibleWidth 를 0 으로 못 박지 않으면
             // 남는 폭이 이쪽으로 몰려 버튼 하나만 배너처럼 늘어난다.
-            // 원작 정산창은 버튼이 넷이다 — 업그레이드 / 청구서 / 계속 / 도박.
+            // 원작 정산창은 버튼이 넷이다 — 업그레이드 / 고지서 / 계속 / 도박.
             // 정산창이 하루의 끝이자 다음 하루의 관문이라 여기서 갈라진다. 도박만 MVP 밖이다.
             var upgradeButton = CreateButton("UpgradeButton", actions, font, new Vector2(300f, 104f), "업그레이드",
                 new Color(0.08f, 0.06f, 0.05f), new Color(0.36f, 0.27f, 0.15f), Gold, 30);
@@ -231,7 +231,7 @@ namespace NCAIClicker.EditorTools
             column.childForceExpandHeight = false;
 
             bound["_bankruptcyTitleText"] = CreateLabel("BankruptcyTitleText", bankruptcy, font, 80, new Color(0.85f, 0.2f, 0.16f), TextAlignmentOptions.Center, "파산");
-            bound["_bankruptcyDetailText"] = CreateLabel("BankruptcyDetailText", bankruptcy, font, 30, Cream, TextAlignmentOptions.Center, "청구서 미납으로 파산하였습니다.");
+            bound["_bankruptcyDetailText"] = CreateLabel("BankruptcyDetailText", bankruptcy, font, 30, Cream, TextAlignmentOptions.Center, "고지서 미납으로 파산하였습니다.");
             bound["_bankruptcyCoinLossText"] = CreateLabel("BankruptcyCoinLossText", bankruptcy, font, 24, Loss, TextAlignmentOptions.Center, "보유 코인이 몰수되며 1일차부터 다시 시작합니다.");
             bound["_restartButton"] = CreateButton("RestartButton", bankruptcy, font, new Vector2(320f, 96f), "1일차 재시작",
                 new Color(0.49f, 0.12f, 0.1f), new Color(0.7f, 0.25f, 0.21f), new Color(1f, 0.86f, 0.83f), 30);

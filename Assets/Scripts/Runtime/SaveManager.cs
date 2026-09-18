@@ -99,7 +99,7 @@ namespace NCAIClicker
             switch (data.Version)
             {
                 case 1:
-                    // v1에는 회차 정보(날짜·청구서·대출 등)가 없었다. JsonUtility가 역직렬화 시
+                    // v1에는 회차 정보(날짜·고지서·대출 등)가 없었다. JsonUtility가 역직렬화 시
                     // SaveData의 필드 이니셜라이저 기본값(CurrentDay=1, BillIndex=1 등)을
                     // 이미 채워 넣으므로 별도 보정 코드가 필요 없다.
                     break;

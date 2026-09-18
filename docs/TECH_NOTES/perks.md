@@ -7,7 +7,7 @@
 ## 무엇을 하는가
 
 고른 퍼크가 실제로 게임에 효과를 내게 한다. 퍼크를 **제시하고 고르는** 쪽은
-[청구서](billing.md)(작업 4.2)이고, 여기는 그 결과(`OnPerkChosen`)를 받아 적용하는 쪽이다.
+[고지서](billing.md)(작업 4.2)이고, 여기는 그 결과(`OnPerkChosen`)를 받아 적용하는 쪽이다.
 
 4.2 가 `OnPerkChosen` 까지 붙였지만 **구독하는 시스템이 한 곳도 없었다.** 퍼크를 골라도
 아무 일도 일어나지 않는 상태였고, 그것이 이 카드다.
@@ -67,7 +67,7 @@
 
 ```mermaid
 flowchart LR
-  subgraph Bills["청구서 (작업 4.2)"]
+  subgraph Bills["고지서 (작업 4.2)"]
     bill["BillManager<br/>납부·퍼크 제시·선택"]
   end
 
@@ -165,7 +165,7 @@ Edit Mode 에서 `PerkEffectChecks.RunBatch()` 로 확인했다 (**21건 PASS**)
 증발하는 것이 그대로 드러났다.
 
 **미검증**: Play Mode. 이슈의 완료 기준이 "퍼크별로 적용 전후 값을 Play 검증으로 기록"인데
-정상 플레이로 퍼크를 고를 수가 없다 — 선택 화면은 #92 에서 붙었지만 청구서를 낼 방법이
+정상 플레이로 퍼크를 고를 수가 없다 — 선택 화면은 #92 에서 붙었지만 고지서를 낼 방법이
 없어(6.10 [#181](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/181)) 후보가 나오는 지점까지 갈 수 없다.
 검증에서는 `OnPerkChosen` 을 직접 발행한다. Unity 가 실제로 그 시점에 생명주기를 불러
 주는지도 확인하지 못했다.

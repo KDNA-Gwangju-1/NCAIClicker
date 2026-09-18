@@ -6,7 +6,7 @@
 
 ## 무엇을 하는가
 
-타격·코인 획득·피버 발동·청구서 발행·청구서 납부 시점에 효과음을 재생한다. `GameEvents` 를 구독해 재생 시점만 판단하고, 재생 자체는 `AudioSource.PlayOneShot` 에 맡긴다.
+타격·코인 획득·피버 발동·고지서 발행·고지서 납부 시점에 효과음을 재생한다. `GameEvents` 를 구독해 재생 시점만 판단하고, 재생 자체는 `AudioSource.PlayOneShot` 에 맡긴다.
 
 ## 왜 이 방법인가
 
@@ -56,8 +56,8 @@ flowchart LR
 | `GameEvents.OnSwingResolved` | 구독 | `isHit == true` 일 때만 `_hitClip` 재생. 헛스윙은 무시 |
 | `GameEvents.OnCoinEarned` | 구독 | 코인 획득마다 `_coinClip` 재생 |
 | `GameEvents.OnFeverStart` | 구독 | 피버 발동 시 `_feverStartClip` 재생 |
-| `GameEvents.OnBillIssued` | 구독 | 청구서 발행 시 `_billIssuedClip` 재생 |
-| `GameEvents.OnBillPaid` | 구독 | 청구서 납부 완료 시 `_billPaidClip` 재생 |
+| `GameEvents.OnBillIssued` | 구독 | 고지서 발행 시 `_billIssuedClip` 재생 |
+| `GameEvents.OnBillPaid` | 구독 | 고지서 납부 완료 시 `_billPaidClip` 재생 |
 
 ### 읽는 밸런스 값
 
@@ -78,7 +78,7 @@ Unity 6000.3.21f1 에디터 Play Mode, 2026-09-17.
 ## 알려진 한계
 
 - 음량 조절·믹서 채널 분리가 없다. 옵션 메뉴에 효과음 볼륨 슬라이더가 생기면 `AudioMixerGroup` 배선이 필요하다.
-- `OnBankrupt`, `OnStageGoalReached` 등 다른 이벤트에는 효과음이 없다 — 이슈 #36 완료 기준(타격·코인·피버·청구서)에 없는 범위라 포함하지 않았다.
+- `OnBankrupt`, `OnStageGoalReached` 등 다른 이벤트에는 효과음이 없다 — 이슈 #36 완료 기준(타격·코인·피버·고지서)에 없는 범위라 포함하지 않았다.
 
 ## 갱신 이력
 

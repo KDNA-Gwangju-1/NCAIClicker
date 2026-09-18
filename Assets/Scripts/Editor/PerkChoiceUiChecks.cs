@@ -167,7 +167,7 @@ namespace NCAIClicker.EditorTools
                 // 납부해야 후보가 나온다. OnPerkOffered 는 TryPay 안에서 발행된다 (#28).
                 bills.BeginRun();
                 var bill = bills.ActiveBill;
-                AssertCondition(bill != null, "청구서가 발행되지 않아 납부할 수 없습니다.");
+                AssertCondition(bill != null, "고지서가 발행되지 않아 납부할 수 없습니다.");
                 AssertCondition(bills.TryPay(bill), "납부가 실패했습니다. FakeEconomy 설정을 확인하십시오.");
 
                 var offered = bills.OfferedPerkIds;
@@ -236,7 +236,7 @@ namespace NCAIClicker.EditorTools
                 // --- 고르지 않은 채 비활성화돼도 시간은 돌아온다 (게임이 영구 정지하는 것을 막는다)
                 bills.BeginRun();
                 var secondBill = bills.ActiveBill;
-                AssertCondition(secondBill != null, "두 번째 청구서가 없습니다.");
+                AssertCondition(secondBill != null, "두 번째 고지서가 없습니다.");
                 AssertCondition(bills.TryPay(secondBill), "두 번째 납부가 실패했습니다.");
                 AssertNear(Time.timeScale, 0f, "두 번째 제시에서 시간이 멈추지 않았습니다.");
 

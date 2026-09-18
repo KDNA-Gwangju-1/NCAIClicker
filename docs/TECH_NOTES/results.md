@@ -6,8 +6,8 @@
 
 ## 무엇을 하는가
 
-스태미나 소진 시의 하루 정산 화면과 청구서 미납 시의 파산 화면 2종을 분기 표시한다.
-이번 런 획득 코인, 조준 정확도, 청구서 마감 상태, 단계 목표 달성 여부를 사용자에게 시각적으로 전달한다.
+스태미나 소진 시의 하루 정산 화면과 고지서 미납 시의 파산 화면 2종을 분기 표시한다.
+이번 런 획득 코인, 조준 정확도, 고지서 마감 상태, 단계 목표 달성 여부를 사용자에게 시각적으로 전달한다.
 
 ## 왜 이 방법인가
 
@@ -65,14 +65,14 @@ flowchart LR
   <tr><th>이벤트</th><th>발행 및 구독</th><th>언제</th></tr>
   <tr><td>GameEvents.OnSwingResolved</td><td>구독</td><td>HitSource.Hover 스윙의 적중 및 실패를 누적하여 정확도 계산</td></tr>
   <tr><td>GameEvents.OnStaminaDepleted</td><td>구독</td><td>스태미나 소진으로 런 정상 종료 시 하루 정산 화면 활성화</td></tr>
-  <tr><td>GameEvents.OnBankrupt</td><td>구독</td><td>청구서 마감 미납 확정 시 파산 화면 활성화</td></tr>
+  <tr><td>GameEvents.OnBankrupt</td><td>구독</td><td>고지서 마감 미납 확정 시 파산 화면 활성화</td></tr>
 </table>
 
 ### 읽는 밸런스 값
 
 직접 CSV를 파싱하지 않으며, IEconomyService, IBillService, IStageService 공용 인터페이스를 통해 런타임 수치를 조회한다.
 
-## 하루의 흐름과 청구서 패널 (#34 범위 확대)
+## 하루의 흐름과 고지서 패널 (#34 범위 확대)
 
 원작을 실측해 보니 결과 화면만으로는 하루가 닫히지 않는다. **정산창이 하루의 끝이면서 다음 하루의
 관문이다.** 별도의 "턴 시작 화면" 은 없다.
@@ -80,15 +80,15 @@ flowchart LR
 ```text
 런 종료 → 정산창(지친 손!)
             ├ [업그레이드]  → 메뉴 화면 → 나가면 다음 런
-            ├ [지금 납부]   → 청구서 모달 → 납부 → 정산창 복귀
+            ├ [지금 납부]   → 고지서 모달 → 납부 → 정산창 복귀
             └ [계속]        → 다음 런
 ```
 
-### 청구서 패널은 하나의 프리팹, 두 가지 상태
+### 고지서 패널은 하나의 프리팹, 두 가지 상태
 
 | | 모달 | 탭 |
 |---|---|---|
-| 언제 | 정산창의 납부 버튼 | 새 청구서가 발행될 때 |
+| 언제 | 정산창의 납부 버튼 | 새 고지서가 발행될 때 |
 | 상단 탭 줄 | 감춤 | 보임 |
 | 우하단 계속하기 | 감춤 | 보임 |
 
@@ -106,13 +106,13 @@ flowchart LR
 
 ```text
 BillPanel 생성 → SetServices(billService)
-ResultUI 생성  → SetServices(경제·청구서·단계) + SetBillPanel(billPanel)
+ResultUI 생성  → SetServices(경제·고지서·단계) + SetBillPanel(billPanel)
 ```
 
-납부 버튼은 **낼 청구서가 있고 패널이 이어져 있을 때만** 열린다. 배선 없이 열어 두면 눌러도
+납부 버튼은 **낼 고지서가 있고 패널이 이어져 있을 때만** 열린다. 배선 없이 열어 두면 눌러도
 아무 일이 없어 고장으로 읽힌다.
 
-청구서 발신처와 제목은 `bill_names.csv` 가 정본이다. `BalanceData` 는 `Target`·`HammerSwingController`
+고지서 발신처와 제목은 `bill_names.csv` 가 정본이다. `BalanceData` 는 `Target`·`HammerSwingController`
 와 같은 방식으로 프리팹에 직렬화해 둔다 — 씬을 건너 주입할 통로를 새로 만들지 않기 위해서다.
 
 ## 검증

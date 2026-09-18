@@ -15,7 +15,7 @@ namespace NCAIClicker.EditorTools
     /// 규칙은 **미납 = 즉시 파산**이고 유예·부분 납부·반액 정산이 없다 (#6 에서 확정).
     /// 여기서는 판정 경계(마감 당일 vs 하루 넘김)와 회차 초기화 범위를 본다.
     ///
-    /// 초기화 범위의 정본은 ARCHITECTURE "저장 경계"다. **날짜·청구서·대출·퍼크·단계·코인·소수
+    /// 초기화 범위의 정본은 ARCHITECTURE "저장 경계"다. **날짜·고지서·대출·퍼크·단계·코인·소수
     /// 잔여**까지 전부 이 카드가 닫는다 — 영구 업그레이드만 유지된다.
     ///
     /// 한계: Edit Mode 는 생명주기를 부르지 않아 필요한 곳은 리플렉션으로 직접 부른다.
@@ -83,21 +83,21 @@ namespace NCAIClicker.EditorTools
                 manager.EndRun();
                 AssertCondition(bankruptCount == 0, "납부했는데 파산했습니다.");
 
-                // 다음 날 새 청구서가 나오고, 그 청구서는 아직 기한이 남아 파산하지 않는다.
-                // 여기서 여러 날을 한꺼번에 밀면 **그 새 청구서**가 연체돼 파산한다 — 그건 정상 동작이다.
+                // 다음 날 새 고지서가 나오고, 그 고지서는 아직 기한이 남아 파산하지 않는다.
+                // 여기서 여러 날을 한꺼번에 밀면 **그 새 고지서**가 연체돼 파산한다 — 그건 정상 동작이다.
                 manager.BeginRun();
-                AssertCondition(manager.ActiveBill != null, "납부 다음 날 청구서가 발행되지 않았습니다.");
+                AssertCondition(manager.ActiveBill != null, "납부 다음 날 고지서가 발행되지 않았습니다.");
                 manager.EndRun();
-                AssertCondition(bankruptCount == 0, "새로 나온 청구서가 기한 안인데 파산했습니다.");
+                AssertCondition(bankruptCount == 0, "새로 나온 고지서가 기한 안인데 파산했습니다.");
                 checkCount++;
 
                 TearDown(ref manager, ref host);
 
-                // 청구서가 없으면 판정할 것이 없다.
+                // 고지서가 없으면 판정할 것이 없다.
                 bankruptCount = 0;
                 manager = CreateManager(balance, out host);
                 manager.EndRun();
-                AssertCondition(bankruptCount == 0, "청구서가 없는데 파산했습니다.");
+                AssertCondition(bankruptCount == 0, "고지서가 없는데 파산했습니다.");
                 checkCount++;
             }
             finally
@@ -128,13 +128,13 @@ namespace NCAIClicker.EditorTools
                 var walletPersistence = new FakeWalletPersistence();
                 manager.SetWalletPersistence(walletPersistence);
 
-                // 며칠 진행해 날짜·청구서를 쌓은 뒤 파산시킨다.
+                // 며칠 진행해 날짜·고지서를 쌓은 뒤 파산시킨다.
                 AdvanceToDueDay(manager, stage1);
                 AssertCondition(manager.CurrentDay > 1, "날짜가 진행되지 않아 초기화를 확인할 수 없습니다.");
                 manager.EndRun();
 
                 AssertCondition(manager.CurrentDay == 1, "파산 후 날짜가 1 이 아닙니다: " + manager.CurrentDay);
-                AssertCondition(manager.ActiveBill == null, "파산 후에도 청구서가 남아 있습니다.");
+                AssertCondition(manager.ActiveBill == null, "파산 후에도 고지서가 남아 있습니다.");
                 AssertCondition(manager.LoanDailyCut == 0f, "파산 후에도 대출 징수가 남아 있습니다.");
                 AssertCondition(manager.OfferedPerkIds.Length == 0, "파산 후에도 퍼크 후보가 남아 있습니다.");
                 checkCount++;
@@ -153,14 +153,14 @@ namespace NCAIClicker.EditorTools
                                 "파산 후 소수 잔여가 초기화되지 않았습니다: " + walletPersistence.RestoredRemainderText);
                 checkCount++;
 
-                // 다음 런이 1일차 첫 청구서를 발행한다 (ARCHITECTURE "게임 시작과 파산 재시작에도").
+                // 다음 런이 1일차 첫 고지서를 발행한다 (ARCHITECTURE "게임 시작과 파산 재시작에도").
                 manager.BeginRun();
                 AssertCondition(manager.CurrentDay == 1, "파산 재시작 첫 런이 1일차가 아닙니다: " + manager.CurrentDay);
-                AssertCondition(manager.ActiveBill != null, "파산 재시작에 청구서가 발행되지 않았습니다.");
+                AssertCondition(manager.ActiveBill != null, "파산 재시작에 고지서가 발행되지 않았습니다.");
                 AssertCondition(manager.ActiveBill.Amount == stage1.BillAmount,
-                                "파산 재시작 청구서가 1단계 금액이 아닙니다: " + manager.ActiveBill.Amount);
+                                "파산 재시작 고지서가 1단계 금액이 아닙니다: " + manager.ActiveBill.Amount);
                 AssertCondition(manager.DaysLeft == stage1.DueDays,
-                                "파산 재시작 청구서의 기한이 1단계 값과 다릅니다: " + manager.DaysLeft);
+                                "파산 재시작 고지서의 기한이 1단계 값과 다릅니다: " + manager.DaysLeft);
                 checkCount++;
             }
             finally

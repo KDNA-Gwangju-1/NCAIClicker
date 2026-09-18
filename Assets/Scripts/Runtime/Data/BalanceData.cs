@@ -23,7 +23,7 @@ namespace NCAIClicker.Data
         public List<StageDef> Stages = new();
         public List<PerkDef> Perks = new();
 
-        /// <summary>청구서에 찍히는 발신처와 제목. 금액·기한과 무관한 표기용 데이터다 (이슈 #34).</summary>
+        /// <summary>고지서에 찍히는 발신처와 제목. 금액·기한과 무관한 표기용 데이터다 (이슈 #34).</summary>
         public List<BillNameDef> BillNames = new();
 
         public TargetDef GetTarget(string id) => Targets.Find(t => t.Id == id);
@@ -34,8 +34,8 @@ namespace NCAIClicker.Data
         public StageDef GetStage(int stageNumber) => Stages.Find(s => s.Stage == stageNumber);
 
         /// <summary>
-        /// 씨앗값으로 청구서 이름을 고른다. 청구서마다 다른 이름이 나오되, **같은 청구서를 다시 열면
-        /// 같은 이름**이 나와야 한다 — 열 때마다 바뀌면 "아까 그 청구서가 맞나" 를 의심하게 된다.
+        /// 씨앗값으로 고지서 이름을 고른다. 고지서마다 다른 이름이 나오되, **같은 고지서를 다시 열면
+        /// 같은 이름**이 나와야 한다 — 열 때마다 바뀌면 "아까 그 고지서가 맞나" 를 의심하게 된다.
         /// 그래서 난수 생성기 대신 씨앗값을 흩는 해시를 쓴다.
         /// </summary>
         public BillNameDef GetBillName(int seed)
@@ -96,16 +96,16 @@ namespace NCAIClicker.Data
     }
 
     /// <summary>
-    /// 청구서와 대출. 한 번의 런이 게임 속 하루이며, 청구서는 며칠 뒤 마감을 갖는다.
+    /// 고지서와 대출. 한 번의 런이 게임 속 하루이며, 고지서는 며칠 뒤 마감을 갖는다.
     /// 마감일까지 못 내면 파산이고, 대출로만 막을 수 있다 (GDD 4절).
     /// </summary>
     [Serializable]
     public class BillConfig
     {
-        /// <summary>청구서 기본 납부 기한(일). 단계별 값은 StageDef.DueDays 가 덮어쓴다.</summary>
+        /// <summary>고지서 기본 납부 기한(일). 단계별 값은 StageDef.DueDays 가 덮어쓴다.</summary>
         public int DueDays;
 
-        /// <summary>대출을 쓸 수 있게 되는 청구서 순번. 첫 청구서는 대출 없이 막아야 한다.</summary>
+        /// <summary>대출을 쓸 수 있게 되는 고지서 순번. 첫 고지서는 대출 없이 막아야 한다.</summary>
         public int LoanUnlockBillIndex;
 
         public float LoanInterestRate;
@@ -197,7 +197,7 @@ namespace NCAIClicker.Data
         public long GoalCoin;
         public long BillAmount;
 
-        /// <summary>이 단계의 청구서 납부 기한(일). 단계가 오르면 짧아진다.</summary>
+        /// <summary>이 단계의 고지서 납부 기한(일). 단계가 오르면 짧아진다.</summary>
         public int DueDays;
 
         public float NormalRatio;
@@ -208,7 +208,7 @@ namespace NCAIClicker.Data
     }
 
     /// <summary>
-    /// 청구서 조기 납부(4.2) 보상 4종. id 는 스네이크 케이스 그대로 PerkType 이름이 된다 —
+    /// 고지서 조기 납부(4.2) 보상 4종. id 는 스네이크 케이스 그대로 PerkType 이름이 된다 —
     /// 4종 고정이라 둘을 분리해도 얻는 게 없다 (ponytail).
     /// 실제 효과 적용은 이 어셈블리의 몫이 아니다 — GetPerk(id)로 값을 읽어 각 시스템이 직접 적용한다.
     /// </summary>

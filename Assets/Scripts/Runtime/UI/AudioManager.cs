@@ -5,7 +5,7 @@ using UnityEngine;
 namespace NCAIClicker.UI
 {
     /// <summary>
-    /// 타격·코인·피버·청구서 이벤트를 구독해 효과음을 재생한다. 완료 기준의 정본은 GitHub 이슈 #36.
+    /// 타격·코인·피버·고지서 이벤트를 구독해 효과음을 재생한다. 완료 기준의 정본은 GitHub 이슈 #36.
     /// 다른 매니저를 참조하지 않고 GameEvents 만 듣는다 (AGENTS.md).
     ///
     /// Managers 프리팹(Resources/Managers)에 붙인다. 생성은 ManagerBootstrap 이 한다.

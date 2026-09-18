@@ -135,7 +135,7 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
   ([퍼크 효과](perks.md)).
 - ~~**파산이 지갑을 비우지 못한다.**~~ — #158 에서 해결. `IWalletPersistence` 소비자에
   `BillManager` 를 추가해(A안) `EconomyManager` 를 직접 구독하지 않고도 파산 시
-  `RestoreWallet(0, "0")` 으로 코인과 소수 잔여를 비운다 ([청구서·파산](billing.md) "마감 미납과 파산").
+  `RestoreWallet(0, "0")` 으로 코인과 소수 잔여를 비운다 ([고지서·파산](billing.md) "마감 미납과 파산").
 - `SaveManager`(작업 3.4)가 없어 지금은 매번 잔액 0 에서 시작한다. 초기화 순서상
   저장 로드가 먼저여야 한다 (ARCHITECTURE 1절).
 

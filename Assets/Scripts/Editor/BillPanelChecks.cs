@@ -9,7 +9,7 @@ using UnityEngine.UI;
 namespace NCAIClicker.EditorTools
 {
     /// <summary>
-    /// 청구서 패널 검증 (이슈 #34).
+    /// 고지서 패널 검증 (이슈 #34).
     ///
     /// 같은 패널이 모달과 탭 두 상태로 쓰이므로, 상태마다 무엇이 보이고 무엇이 감춰지는지를
     /// 못 박아 둔다. 눈으로 보고 넘어가면 한쪽 상태만 고쳐진 채 지나간다.
@@ -34,7 +34,7 @@ namespace NCAIClicker.EditorTools
             var checkCount = 0;
 
             var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
-            Assert(prefab != null, PrefabPath + " 가 없습니다. NCAI > UI > 청구서 패널 프리팹 생성 을 실행하세요.");
+            Assert(prefab != null, PrefabPath + " 가 없습니다. NCAI > UI > 고지서 패널 프리팹 생성 을 실행하세요.");
             checkCount++;
 
             var controller = prefab.GetComponent<BillPanelController>();
@@ -136,8 +136,8 @@ namespace NCAIClicker.EditorTools
         }
 
         /// <summary>
-        /// 청구서 이름은 청구서마다 달라지되 같은 청구서면 늘 같아야 한다.
-        /// 열 때마다 바뀌면 "아까 그 청구서가 맞나" 를 의심하게 된다.
+        /// 고지서 이름은 고지서마다 달라지되 같은 고지서면 늘 같아야 한다.
+        /// 열 때마다 바뀌면 "아까 그 고지서가 맞나" 를 의심하게 된다.
         /// </summary>
         private static int RunNameChecks()
         {
@@ -146,7 +146,7 @@ namespace NCAIClicker.EditorTools
                 "Assets/GameData/Generated/BalanceData.asset");
 
             Assert(balance != null && balance.BillNames.Count >= 4,
-                   "bill_names.csv 가 4행 미만입니다. 청구서 이름이 금방 반복됩니다.");
+                   "bill_names.csv 가 4행 미만입니다. 고지서 이름이 금방 반복됩니다.");
             checkCount++;
 
             foreach (var name in balance.BillNames)
@@ -158,7 +158,7 @@ namespace NCAIClicker.EditorTools
 
             // 같은 씨앗값이면 같은 이름.
             Assert(ReferenceEquals(balance.GetBillName(12345), balance.GetBillName(12345)),
-                   "같은 청구서인데 이름이 달라졌습니다.");
+                   "같은 고지서인데 이름이 달라졌습니다.");
             checkCount++;
 
             // 씨앗값이 이웃해도 결과가 몰리면 안 된다. 20개를 뽑아 최소 3종은 나와야 한다.
@@ -221,7 +221,7 @@ namespace NCAIClicker.EditorTools
             }
         }
 
-        /// <summary>청구서 상태만 바꿔 가며 화면을 확인하려고 쓰는 가짜 서비스.</summary>
+        /// <summary>고지서 상태만 바꿔 가며 화면을 확인하려고 쓰는 가짜 서비스.</summary>
         private sealed class FakeBillService : IBillService
         {
             public int CurrentDay { get; set; } = 1;

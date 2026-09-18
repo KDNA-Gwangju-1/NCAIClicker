@@ -9,7 +9,7 @@ using UnityEngine.UI;
 namespace NCAIClicker.UI
 {
     /// <summary>
-    /// 청구서 화면. 같은 패널이 두 가지 상태로 쓰인다 (이슈 #34).
+    /// 고지서 화면. 같은 패널이 두 가지 상태로 쓰인다 (이슈 #34).
     ///
     /// - <b>모달</b>: 정산창에서 "납부하기" 를 누르면 뜬다. 상단 탭 줄이 없다
     /// - <b>탭</b>: 다음 턴 시작 전에 남은 날짜와 목표를 확인하는 화면. 우하단 "계속하기" 가 런을 연다
@@ -24,7 +24,7 @@ namespace NCAIClicker.UI
         [SerializeField] private GameObject _tabBar;
         [SerializeField] private GameObject _continueRow;
 
-        [Header("청구서 종이")]
+        [Header("고지서 종이")]
         [SerializeField] private TextMeshProUGUI _issuerText;
         [SerializeField] private TextMeshProUGUI _titleText;
         [SerializeField] private TextMeshProUGUI _amountText;
@@ -41,6 +41,7 @@ namespace NCAIClicker.UI
         [SerializeField] private TextMeshProUGUI _loanCaptionText;
         [SerializeField] private Button _continueButton;
         [SerializeField] private Button _declareBankruptcyButton;
+        [SerializeField] private TextMeshProUGUI _declareBankruptcyCaptionText;
 
         // 다른 프리팹(Target, HammerSwingController)과 같은 방식으로 프리팹에 직렬화해 둔다.
         // 씬을 건너 주입할 통로를 새로 만들지 않기 위해서다.
@@ -161,7 +162,7 @@ namespace NCAIClicker.UI
 
         /// <summary>
         /// 조립이 한 번에 성공하지 못했을 때를 대비한다. 로더가 넣어 주는 것이 정상 경로지만,
-        /// 놓치면 화면이 "청구서 없음" 으로 보여 납부할 방법이 사라진다 — 실제로 그렇게 됐다.
+        /// 놓치면 화면이 "고지서 없음" 으로 보여 납부할 방법이 사라진다 — 실제로 그렇게 됐다.
         /// 구현 클래스가 아니라 인터페이스로만 찾는다 (AGENTS.md).
         /// </summary>
         private void EnsureServices()
@@ -212,8 +213,8 @@ namespace NCAIClicker.UI
 
             if (_issuerText != null || _titleText != null)
             {
-                // 씨앗값은 청구서가 가진 값으로 만든다. 같은 청구서면 늘 같은 이름이 나오고,
-                // 청구서가 바뀌면 이름도 바뀐다. 난수를 따로 굴리면 화면을 다시 열 때마다 바뀐다.
+                // 씨앗값은 고지서가 가진 값으로 만든다. 같은 고지서면 늘 같은 이름이 나오고,
+                // 고지서가 바뀌면 이름도 바뀐다. 난수를 따로 굴리면 화면을 다시 열 때마다 바뀐다.
                 var name = _balanceData != null ? _balanceData.GetBillName(MakeNameSeed(bill)) : null;
 
                 if (_issuerText != null)
@@ -222,7 +223,7 @@ namespace NCAIClicker.UI
                 }
                 if (_titleText != null)
                 {
-                    _titleText.text = name != null ? name.Title : "청구서";
+                    _titleText.text = name != null ? name.Title : "고지서";
                 }
             }
 
@@ -235,7 +236,7 @@ namespace NCAIClicker.UI
             RenderButtons(bill);
         }
 
-        /// <summary>청구서를 식별하는 씨앗값. 발행일과 금액이 다르면 다른 청구서다.</summary>
+        /// <summary>고지서를 식별하는 씨앗값. 발행일과 금액이 다르면 다른 고지서다.</summary>
         private static int MakeNameSeed(Bill bill)
         {
             if (bill == null)
@@ -296,10 +297,15 @@ namespace NCAIClicker.UI
                 }
             }
 
-            // 자발적 파산은 #175 범위다. 자리만 두고 잠근다.
+            // 자발적 파산은 #175 범위다. 자리만 두고 잠그되, 왜 못 누르는지 적어 둔다 —
+            // 이유가 안 보이는 잠긴 버튼은 고장으로 읽힌다.
             if (_declareBankruptcyButton != null)
             {
                 _declareBankruptcyButton.interactable = false;
+            }
+            if (_declareBankruptcyCaptionText != null)
+            {
+                _declareBankruptcyCaptionText.text = "준비 중";
             }
         }
 
