@@ -20,6 +20,7 @@ GameObject:
   - component: {fileID: 290365591482960689}
   - component: {fileID: 5698368792507650637}
   - component: {fileID: 973819007005177771}
+  - component: {fileID: 2470400381175560268}
   m_Layer: 0
   m_Name: Managers
   m_TagString: Untagged
@@ -280,3 +281,17 @@ MonoBehaviour:
   _feverStartClip: {fileID: 8300000, guid: e5c7dec7edb21479f81752c3ceb504f7, type: 3}
   _billIssuedClip: {fileID: 8300000, guid: a62fa6fc3a3ce41e7ad05b075f82afe6, type: 3}
   _billPaidClip: {fileID: 8300000, guid: 1f52c062569d5408fa80ecb578d400b2, type: 3}
+--- !u!114 &2470400381175560268
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3648626491330066443}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4fb0d8a7a85044441a3fb15f14dad499, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NCAIClicker.UI.PerkChoiceController
+  _balanceData: {fileID: 11400000, guid: 148d52a305feece4e9ed4cb51a933689, type: 2}
+  _panelPrefab: {fileID: 2817454402918735262, guid: ceeac3dbc831e9947872bc7a8c22dc72, type: 3}
