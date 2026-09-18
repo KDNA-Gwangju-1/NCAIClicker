@@ -1,13 +1,22 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.Pool;
 
 namespace NCAIClicker.Targets
 {
     /// <summary>
     /// 타격 시 피해량을 표시하고 공중에 떠오르며 사라지는 팝업 연출.
+    /// 런당 300회 타격이 발생하므로 풀에서 재사용한다 (docs/PATTERNS.md 7절, 이슈 #35).
     /// </summary>
     public class DamagePopup : MonoBehaviour
     {
+        private const int MaxPoolSize = 32;
+
+        private static ObjectPool<DamagePopup> _pool;
+
+        private static ObjectPool<DamagePopup> Pool =>
+            _pool ??= new ObjectPool<DamagePopup>(CreatePooled, OnGet, OnRelease, OnDestroyPooled, maxSize: MaxPoolSize);
+
         private TextMeshPro _textMesh;
         private Camera _mainCamera;
         private float _elapsedTime;
@@ -15,13 +24,38 @@ namespace NCAIClicker.Targets
         private Vector3 _floatVelocity;
         private Color _baseColor;
 
-        public static DamagePopup Create(Vector3 worldPosition, float damage)
+        /// <summary>풀에서 팝업을 꺼내 표시한다.</summary>
+        public static DamagePopup Spawn(Vector3 worldPosition, float damage)
         {
-            var popupObj = new GameObject("DamagePopup");
-            popupObj.transform.position = worldPosition;
-            var popup = popupObj.AddComponent<DamagePopup>();
+            var popup = Pool.Get();
+            popup.transform.position = worldPosition;
             popup.Setup(damage);
             return popup;
+        }
+
+        /// <summary>팝업을 즉시 풀로 되돌린다. 자연 소멸(Update)을 기다리지 않고 정리해야 할 때 쓴다.</summary>
+        public void Despawn()
+        {
+            Pool.Release(this);
+        }
+
+        private static DamagePopup CreatePooled()
+        {
+            var popupObj = new GameObject("DamagePopup (Pooled)");
+            return popupObj.AddComponent<DamagePopup>();
+        }
+
+        private static void OnGet(DamagePopup popup) => popup.gameObject.SetActive(true);
+
+        private static void OnRelease(DamagePopup popup) => popup.gameObject.SetActive(false);
+
+        private static void OnDestroyPooled(DamagePopup popup)
+        {
+            if (popup == null)
+            {
+                return;
+            }
+            Destroy(popup.gameObject);
         }
 
         private void Awake()
@@ -56,6 +90,9 @@ namespace NCAIClicker.Targets
             // 정수면 소수점 없이, 소수점 있으면 첫째자리까지 표시
             bool isInteger = Mathf.Approximately(damage, Mathf.Round(damage));
             _textMesh.text = isInteger ? Mathf.RoundToInt(damage).ToString() : damage.ToString("0.0");
+
+            // 풀에서 재사용될 때 이전 페이드아웃 알파가 남지 않도록 되돌린다.
+            _textMesh.color = _baseColor;
 
             // 위쪽과 살짝 바깥쪽으로 떠오르는 속도
             float randomX = Random.Range(-0.25f, 0.25f);
@@ -97,7 +134,7 @@ namespace NCAIClicker.Targets
 
             if (_elapsedTime >= _duration)
             {
-                Destroy(gameObject);
+                Pool.Release(this);
             }
         }
 

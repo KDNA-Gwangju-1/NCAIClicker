@@ -73,6 +73,10 @@ namespace NCAIClicker.Targets
             {
                 gameObject.AddComponent<CreatureHpDisplay>();
             }
+            if (GetComponent<TargetHitEffects>() == null)
+            {
+                gameObject.AddComponent<TargetHitEffects>();
+            }
         }
 
         /// <summary>
