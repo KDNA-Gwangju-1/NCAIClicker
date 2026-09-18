@@ -8,5 +8,6 @@ hit_radius_bonus,25,percent,타격 대상 콜라이더를 외형보다 넓히는
 reticle_radius,0.45,world_unit,호버 망치 조준 판정 반경. 커서 주변 이 거리 안의 대상이 맞는다
 spawn_interval_sec,7.0,sec,부서진 자리에 새 저금통이 등장하기까지 걸리는 시간
 coin_bonus_multiplier,1.0,ratio,보너스 배율 기준값. 업그레이드는 여기에 더해지고 기간제 퍼크는 곱해진다 (연산은 각 효과를 정의한 표를 따른다)
+legacy_point_per_amount,50,amount/point,고지서 납부액 이만큼당 레거시 포인트 1점 (원작 안내문 기준 #183). 우리 고지서 금액 축척은 원작과 달라 잠정값이다 — 3.8(#176) 재계산 뒤 확정
 upgrade_cost_growth,1.15,ratio,업그레이드 비용 = 초기비용 * 1.15^레벨
 stage_goal_growth,2.5,ratio,다음 단계 목표 = 이전 목표 * 2.5

@@ -64,6 +64,7 @@ namespace NCAIClicker.EditorTools
                     ReticleRadius = Req(economy, "reticle_radius"),
                     CoinBonusMultiplier = Req(economy, "coin_bonus_multiplier"),
                     SpawnIntervalSec = Req(economy, "spawn_interval_sec"),
+                    LegacyPointPerAmount = Req(economy, "legacy_point_per_amount"),
                     UpgradeCostGrowth = Req(economy, "upgrade_cost_growth"),
                     StageGoalGrowth = Req(economy, "stage_goal_growth"),
                 };

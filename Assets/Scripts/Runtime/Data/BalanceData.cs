@@ -80,6 +80,9 @@ namespace NCAIClicker.Data
 
         /// <summary>부서진 자리에 새 저금통이 등장하기까지의 대기 시간.</summary>
         public float SpawnIntervalSec;
+        /// <summary>고지서 납부액 이만큼당 레거시 포인트 1점 (이슈 #175). 0 이하면 적립하지 않는다.</summary>
+        public float LegacyPointPerAmount;
+
         public float UpgradeCostGrowth;
         public float StageGoalGrowth;
     }

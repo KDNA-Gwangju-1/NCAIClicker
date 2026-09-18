@@ -28,6 +28,7 @@ MonoBehaviour:
     ReticleRadius: 0.45
     CoinBonusMultiplier: 1
     SpawnIntervalSec: 7
+    LegacyPointPerAmount: 50
     UpgradeCostGrowth: 1.15
     StageGoalGrowth: 2.5
   Fever:

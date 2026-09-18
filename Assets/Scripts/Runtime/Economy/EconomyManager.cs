@@ -21,7 +21,7 @@ namespace NCAIClicker.Economy
     /// Managers 프리팹(Resources/Managers)에 붙인다. 생성은 ManagerBootstrap 이 한다.
     /// </summary>
     public class EconomyManager : MonoBehaviour, IEconomyService, IRunScoped, IWalletPersistence,
-        IUpgradeStats, IUpgradeShop, IUpgradePersistence
+        IUpgradeStats, IUpgradeShop, IUpgradePersistence, ILegacyService, ILegacyPersistence
     {
         /// <summary>
         /// 코인 조회 통로. BillManager.Instance(IBillService)·SaveManager.Instance(ISaveService)·
@@ -76,6 +76,18 @@ namespace NCAIClicker.Economy
         private float _pendingPerkMultiplier;
         private float _pendingPerkDurationSec;
 
+        /// <summary>
+        /// 파산을 넘어 남는 영구 화폐 (이슈 #175). **회차 초기화에서 건드리지 않는다** —
+        /// BillManager 의 파산 처리는 IWalletPersistence 로 코인만 비우므로 여기는 그대로 남는다.
+        /// </summary>
+        private long _legacyPoints;
+
+        /// <summary>
+        /// 반지 레벨(정렬 순서 기준). 반지 데이터와 구매는 #183 에서 붙는다 — 지금은 저장만
+        /// 오가게 두어 그때까지 사용자의 값이 사라지지 않게 한다.
+        /// </summary>
+        private int[] _ringLevels = Array.Empty<int>();
+
         private bool _isRunning;
         private long _lastPublishedRunCoin;
 
@@ -111,6 +123,7 @@ namespace NCAIClicker.Economy
             GameEvents.OnFeverStart += HandleFeverStart;
             GameEvents.OnFeverEnd += HandleFeverEnd;
             GameEvents.OnPerkChosen += HandlePerkChosen;
+            GameEvents.OnBillPaid += HandleBillPaid;
         }
 
         private void OnDisable()
@@ -119,6 +132,7 @@ namespace NCAIClicker.Economy
             GameEvents.OnFeverStart -= HandleFeverStart;
             GameEvents.OnFeverEnd -= HandleFeverEnd;
             GameEvents.OnPerkChosen -= HandlePerkChosen;
+            GameEvents.OnBillPaid -= HandleBillPaid;
         }
 
         /// <summary>BillManager 가 자기 자신을 넘겨 준다. 구현 클래스를 직접 참조하지 않기 위한 통로다.</summary>
@@ -409,5 +423,66 @@ namespace NCAIClicker.Economy
 
         /// <summary>SaveManager 가 저장 직전에 읽어 SaveData.UpgradeLevels 에 그대로 넣는다.</summary>
         public int[] CurrentUpgradeLevels => _upgrades == null ? Array.Empty<int>() : _upgrades.ToArray();
+
+        // ---------------------------------------------------------------- 레거시 포인트 (#175)
+
+        public long CurrentLegacyPoints => _legacyPoints;
+
+        /// <summary>
+        /// 고지서를 내면 적립한다. **BillManager 를 건드리지 않는다** — OnBillPaid 가 Bill 을
+        /// 통째로 실어 주므로 여기서 구독해 금액을 읽는다 (ARCHITECTURE 3절 이벤트 버스).
+        ///
+        /// **나머지는 버린다.** 원작이 "쓴 금액 50당 1점"이라 내림이 규칙이고, 코인처럼 소수
+        /// 잔여를 이월하지 않는다. 고지서 금액이 계수보다 작으면 한 푼도 안 쌓인다 —
+        /// 계수가 잠정값이라 3.8(#176) 재계산에서 이 경계를 같이 본다.
+        /// </summary>
+        private void HandleBillPaid(Bill bill)
+        {
+            if (bill == null || _balanceData == null)
+            {
+                return;
+            }
+
+            var perPoint = _balanceData.Economy.LegacyPointPerAmount;
+            if (perPoint <= 0f)
+            {
+                return;
+            }
+
+            var earned = (long)Math.Floor(bill.Amount / (double)perPoint);
+            AddLegacyPoints(earned);
+        }
+
+        public void AddLegacyPoints(long amount)
+        {
+            if (amount <= 0L)
+            {
+                return;
+            }
+            _legacyPoints += amount;
+        }
+
+        public bool TrySpendLegacyPoints(long amount)
+        {
+            if (amount <= 0L || _legacyPoints < amount)
+            {
+                return false;
+            }
+            _legacyPoints -= amount;
+            return true;
+        }
+
+        /// <summary>
+        /// 저장에서 되돌린다. **ringLevelsBySortOrder 는 null 로 올 수 있다** — v2 이하 저장에는
+        /// 이 배열이 없고 JsonUtility 가 빈 배열이 아니라 null 로 되살린다 (SaveManager 의 case 2).
+        /// </summary>
+        public void RestoreLegacy(long points, int[] ringLevelsBySortOrder)
+        {
+            _legacyPoints = points < 0L ? 0L : points;
+            _ringLevels = ringLevelsBySortOrder ?? Array.Empty<int>();
+        }
+
+        /// <summary>SaveManager 가 저장 직전에 읽어 SaveData.RingLevels 에 그대로 넣는다.</summary>
+        public int[] CurrentRingLevels => _ringLevels ?? Array.Empty<int>();
     }
 }
