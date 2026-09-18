@@ -11,8 +11,9 @@ namespace NCAIClicker.Core
     /// 런 상태(MainMenu → Running → Result)를 관리한다. 전이 규칙은 PATTERNS.md 4절.
     /// MainMenu/Running 전이는 현재 로드된 씬을 그대로 따른다 — 개발 중 Game 씬을 바로 열어도
     /// 상태가 맞게 잡혀야 하기 때문이다 (ARCHITECTURE.md 0절).
-    /// Result 전이는 씬 전환 없이 OnStaminaDepleted/OnBankrupt 로 결정한다 (ARCHITECTURE.md 2절
-    /// "하루 종료 순서" — GameManager 만 이 두 이벤트를 구독한다).
+    /// Result 전이는 씬 전환 없이 결정한다. 전이를 실제로 일으키는 것은 OnStaminaDepleted 뿐이고,
+    /// OnBankrupt 는 이미 전이된 뒤 확정되는 결과 통지다 (ARCHITECTURE.md 2절 "하루 종료 순서" —
+    /// GameManager 만 이 두 이벤트를 구독한다).
     ///
     /// Running 진입 시 IRunScoped.BeginRun(), Result 진입 시 IRunScoped.EndRun() 을 호출해
     /// 매니저 구현 클래스를 직접 잡지 않고 런 라이프사이클을 배선한다 (이슈 #111).

@@ -24,7 +24,8 @@ namespace NCAIClicker.Interfaces
     }
 
     /// <summary>
-    /// 저장 복원 계약. SaveManager 만 쓴다 (이슈 #71).
+    /// 저장 복원 계약. SaveManager·BillManager 가 쓴다 — BillManager 는 파산 시 회차 초기화에 쓴다
+    /// (이슈 #71, 파산 초기화는 #158).
     /// </summary>
     public interface IWalletPersistence
     {

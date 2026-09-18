@@ -155,7 +155,7 @@ public interface IRunScoped
     void EndRun();
 }
 
-// 저장 복원. SaveManager 만 쓴다 (이슈 #71)
+// 저장 복원. SaveManager·BillManager 가 쓴다 — BillManager 는 파산 시 회차 초기화에 쓴다 (이슈 #71, #158)
 public interface IWalletPersistence
 {
     void RestoreWallet(long balance, string remainderText);
@@ -326,7 +326,14 @@ public class SaveData
 
 ### 하루 종료 순서
 
-GameManager만 `OnStaminaDepleted`와 `OnBankrupt`를 구독해 종료 순서를 조정한다.
+GameManager만 `OnStaminaDepleted`와 `OnBankrupt`를 구독한다. **Running → Result 전이를 실제로
+일으키는 것은 `OnStaminaDepleted` 뿐이다.** 파산은 마감일에 미납 상태로 하루가 끝나는 것 그
+자체이므로 런 도중에 별도로 발생할 길이 없다 — `BillManager.EndRun()`은 `IRunScoped.EndRun()`
+호출자에 의해 **이미 Result로 전이된 뒤**에 불리고, 그 안에서 미납이 확정되면 `OnBankrupt`를
+발행한다. 그래서 `OnBankrupt`는 전이를 일으키는 사유가 아니라 **전이 도중 확정되는 결과
+통지**다 — 파산은 런을 끝내는 원인이 아니라 끝난 런의 결과다. `GameManager`의 `OnBankrupt`
+구독은 이 통지를 받아 결과 화면이 파산 사유를 읽을 수 있게 하는 동시에, 다른 경로에서 직접
+발행되는 경우에도 안전하게 동작하도록 방어적으로 유지한다.
 입력·스윙 중지 → 확정된 파괴 보상 처리 완료 → 런 목표 판정 → 마감일이면 납부/대출 선택 →
 미납 확정 시 파산 → 결과 스냅샷 저장 순이다. 마감 판정 전에 납부 기회를 제공한다.
 `OnDayEnded`는 날짜당 한 번만 발행한다. 다음 날 시작 때 날짜를 증가시키며,
@@ -346,7 +353,7 @@ GameManager만 `OnStaminaDepleted`와 `OnBankrupt`를 구독해 종료 순서를
 | `OnBillIssued`, `OnBillPaid` | `Bill` | 청구서 발행/납부 |
 | `OnDayEnded` | `int` | 완료된 날짜 |
 | `OnBillDueSoon` | `int` | 남은 일수 |
-| `OnBankrupt` | 없음 | 마감 선택 후 미납 확정 |
+| `OnBankrupt` | 없음 | 런 종료 처리 중(EndRun) 미납이 확정됐다는 결과 통지. Result 전이의 원인이 아니다 |
 | `OnTargetBroken` | `BreakInfo` | 파괴 보상의 유일한 출처 |
 | `OnSwingResolved` | `HitSource, bool` | 소스와 적중 여부. 정확도는 Hover만, 피버는 적중만 |
 | `OnStaminaChanged` | `float, float` | 현재/최대 스태미나 |

@@ -44,6 +44,12 @@ namespace NCAIClicker.Economy
         /// <summary>코인 차감의 출처. EconomyManager 가 초기화 때 넣어 준다 (ManagerBootstrap). 없으면 납부는 항상 실패한다.</summary>
         private IEconomyService _economyService;
 
+        /// <summary>
+        /// 파산 시 지갑을 비우는 통로. EconomyManager 가 초기화 때 넣어 준다 (ManagerBootstrap, 이슈 #158).
+        /// IWalletPersistence 는 SaveManager·BillManager 만 쓴다 — 없으면 지갑을 비우지 않고 건너뛴다.
+        /// </summary>
+        private IWalletPersistence _walletPersistence;
+
         /// <summary>단계 진행 조회 통로. ManagerBootstrap 이 넣어 준다 (이슈 #150). 없으면 1단계로 폴백한다.</summary>
         private IStageService _stageService;
 
@@ -78,6 +84,15 @@ namespace NCAIClicker.Economy
         public void SetEconomyService(IEconomyService economyService)
         {
             _economyService = economyService;
+        }
+
+        /// <summary>
+        /// EconomyManager 가 지갑 초기화 통로를 넘겨 준다. 파산 시 회차 초기화(ResetRound)에서만
+        /// 쓴다 — 코인 지급/차감은 여전히 IEconomyService 하나로만 한다 (이슈 #158).
+        /// </summary>
+        public void SetWalletPersistence(IWalletPersistence walletPersistence)
+        {
+            _walletPersistence = walletPersistence;
         }
 
         /// <summary>
@@ -155,10 +170,10 @@ namespace NCAIClicker.Economy
         /// EndRun() 을 부르는 곳이 런타임에 없다. 판정 로직은 Edit Mode 검증으로만 확인했다.
         /// 배선은 별도 카드에서 다룬다 (docs/TECH_NOTES/billing.md "알려진 한계").
         ///
-        /// 배선이 붙으면 EndRun 은 Result 전이 도중에 불리게 되므로, OnBankrupt 를 받아
-        /// GameManager 가 Result 로 전이한다는 계약(ARCHITECTURE 3절)은 그때도 이 경로에서는
-        /// 늦다. 파산은 런을 끝내는 원인이 아니라 끝난 런의 결과다 — 마감을 놓치는 순간이 곧
-        /// 하루의 끝이라 런 도중에 파산이 날 길이 없다. 정리는 #158 에서 한다.
+        /// 배선이 붙으면 EndRun 은 Result 전이 도중에 불리게 된다. 그래서 OnBankrupt 는 Result
+        /// 전이를 일으키는 사유가 아니라 **전이 도중에 확정되는 결과 통지**다 — 파산은 런을
+        /// 끝내는 원인이 아니라 끝난 런의 결과다. 마감을 놓치는 순간이 곧 하루의 끝이라 런
+        /// 도중에 파산이 날 길이 없다 (계약 문구 정리는 #158, ARCHITECTURE.md "하루 종료 순서").
         /// </summary>
         private void HandleBankruptcy()
         {
@@ -190,10 +205,10 @@ namespace NCAIClicker.Economy
             // 단계를 1단계로 되돌린다. 인덱스는 0부터라 0 이 1단계다.
             _stageService?.RestoreStage(0);
 
-            // **코인과 소수 잔여는 여기서 못 비운다.** 지갑을 비울 수 있는 IWalletPersistence 는
-            // "SaveManager 만 쓴다"로 사용자가 묶여 있고, EconomyManager 가 스스로 비우려면
-            // OnBankrupt 를 구독해야 하는데 그것도 "GameManager 만 구독"이다.
-            // 어느 쪽이든 공용 계약을 넓혀야 해서 별도 이슈로 뺐다 — 그때까지 파산해도 돈은 남는다.
+            // 코인과 소수 잔여도 새 회차 값(0)으로 비운다 (ARCHITECTURE "저장 경계", 계약 7번
+            // "소수 잔여는 파산 시 버린다"). IWalletPersistence 소비자에 BillManager 를 추가해
+            // 열었다 (이슈 #158) — 주입이 없으면 조용히 건너뛴다.
+            _walletPersistence?.RestoreWallet(0L, "0");
         }
 
         /// <summary>

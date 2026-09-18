@@ -33,6 +33,9 @@
 | (#30) 단계 초기화를 `IStageService.RestoreStage(0)` 로 | ✅ | #150 이 만든 계약을 **쓰기만 한다** — 확장이 필요 없다. 그쪽이 용도까지 "파산 처리용"으로 적어 두었다 |
 | (#30) 지갑 초기화를 이 카드에서 빼고 계약 이슈로 | ✅ | 셋 다 공용 문서를 고쳐야 하는데, 규칙은 **구현 전에** 이슈를 먼저 올리라고 한다. 판정·발행·`BillManager` 자체 초기화는 계약을 건드리지 않으므로 먼저 넣는다 |
 | (#29) 저장·복원을 이 이슈에서 함께 붙임 | ❌ | `IBillService`에 복원 통로를 더하는 공용 계약 변경이라 규칙상 별도 이슈가 먼저다(AGENTS.md). 날짜·청구서·퍼크 후보 저장까지 함께 걸리는 범위라 #29 완료 기준을 넘는다 |
+| (#158) `IWalletPersistence` 소비자에 `BillManager` 추가 (A안) | ✅ | #30 에서 이슈로 발의해 합의를 거쳤다. 지금 필요한 곳이 `SaveManager` 외에 하나(`BillManager`)뿐이라 소비자 목록만 넓히는 것이 새 계약(`IRoundResettable` 등)을 파는 것보다 작다 — 소비처가 둘 이상 될 때 승격한다는 #116 의 교훈을 따랐다 |
+| (#158) 전용 `IRoundResettable` 계약 신설 (B안) | ❌ | 구현자가 `EconomyManager` 하나뿐이라 계약만 만들고 소비처가 없던 #116 의 전철을 밟을 위험이 컸다. 3.7(#150)이 되돌릴 대상을 더 만들면 그때 승격한다 |
+| (#158) `EconomyManager` 가 `OnBankrupt` 를 직접 구독 (C안) | ❌ | `OnBankrupt` 는 GameManager 만 구독한다는 제한(ARCHITECTURE 3절)이 흐려지고, "종료 순서는 GameManager 가 조정한다"는 원칙과도 어긋난다 |
 
 ## 구조
 
@@ -106,9 +109,22 @@ flowchart LR
 
 ## 검증
 
+### 지갑 초기화 (2026-09-18, #158)
+
+`ManagerBootstrap`에서 `billManager.SetWalletPersistence(economyManager)`를 추가로 배선했다.
+Edit Mode에서 확인했다 (Unity 6000.3.21f1, MCP로 열린 에디터에 직접 호출):
+
+- [x] `ContractsValidationChecks.RunBatch()`: `[ContractsValidationChecks] All contract checks passed successfully.` — 4번 케이스(방어적 경로)를 유지하고, 이미 Result인 상태에서 `OnBankrupt`가 다시 발행돼도 `EndRun`을 재호출하지 않는 5번 케이스를 추가해 통과 확인
+- [x] `BankruptcyChecks.RunBatch()`: `[BankruptcyChecks] PASS 9 checks.` (기존 8건 + 신규 1건) — 파산 후 `FakeWalletPersistence.RestoreWallet`이 정확히 1회, `balance=0`·`remainderText="0"`으로 호출됨을 확인
+- [x] `ValidationRunner.RunAll()` 전체 하네스: 오류 0건. `BillManagerChecks`(24건)·`CoinWalletChecks`(11건)·`EconomyManagerChecks`(8건) 등 기존 검증에 회귀 없음
+
+**미검증**: Play Mode. `ManagerBootstrap`의 배선은 `RuntimeInitializeOnLoadMethod`라 Play Mode에서만
+실행되는데, #164가 해결되기 전까지는 `BillManager.EndRun()` 자체가 게임에서 불리지 않아 이
+배선이 실제로 타는지 확인할 방법이 없다.
+
 ### 파산 (2026-09-18, #30)
 
-Edit Mode 에서 `BankruptcyChecks.RunBatch()` 로 확인했다 (**8건 PASS**).
+Edit Mode 에서 `BankruptcyChecks.RunBatch()` 로 확인했다 (**8건 PASS**, #158에서 9건으로 증가).
 `ValidationRunner.RunAll()`(#159)이 `*Checks` 를 리플렉션으로 모으므로 별도 등록 없이 전체
 하네스와 함께 돈다. `BillManagerChecks` 회귀(24건)도 통과한다.
 
@@ -184,7 +200,9 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 
 **파산은 런을 끝내는 원인이 아니라 끝난 런의 결과다.** 마감을 놓치는 순간이 곧 하루의 끝이라
 런 도중에 파산이 발생할 길이 없다. 그래서 `OnBankrupt` 는 "이 회차가 파산으로 끝났다"는
-통지로 쓴다. 계약 문구 정리는 [#158](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/158).
+통지로 쓴다. `ARCHITECTURE.md` "하루 종료 순서"의 문구를 이 뜻에 맞게 정리했고,
+`ContractsValidationChecks` 에도 이미 Result 인 상태에서 `OnBankrupt` 가 다시 발행돼도
+`EndRun` 을 재호출하지 않는다는 케이스를 추가했다 ([#158](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/158)).
 
 ### 무엇을 되돌리나
 
@@ -195,7 +213,7 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 | 활성 청구서 | 버림 | 다음 `BeginRun` 이 1단계 청구서를 새로 낸다 (ARCHITECTURE "게임 시작과 파산 재시작에도") |
 | 대출·재대출 쿨다운 | 없음으로 | |
 | 퍼크 후보 | 비움 | |
-| 코인·소수 잔여 | **되돌리지 못한다** | 지갑을 비울 권한이 공용 계약에 막혀 있다 — 아래 한계 |
+| 코인·소수 잔여 | **0 으로 초기화** | `IWalletPersistence` 소비자에 `BillManager` 를 추가해 열었다 (#158) |
 | **영구 업그레이드** | **유지** | 회차를 넘겨 남는 유일한 성장이다 |
 | **단계** | 1단계로 | `IStageService.RestoreStage(0)`. #150 이 단일 출처를 열어 주었고 그 주석이 "저장 복원 및 **파산 처리용**"으로 이 자리를 가리킨다 |
 
@@ -206,11 +224,9 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 - ~~파산 판정(#30)이 없어 청구서를 기한 내에 내지 않아도 아무 일이 일어나지 않는다.~~ — #30 에서 붙였다. 다만 아래 셋이 남는다.
 - **결과 화면에 "파산"이 뜨지 않는다.** `OnBankrupt` 를 받아 표시할 화면(6.2/#34)이 아직 없다. #34 가 이 카드를 선행으로 잡고 있어 순환이었고, 발행까지가 #30 의 몫이다.
 - **파산 결과가 저장되지 않는다.** `SaveData.WasBankrupt`·`LastCompletedDay` 필드는 있지만 채우는 곳이 없다. `SaveManager` 를 부르는 곳이 `GameManager.StartNewRun()` 하나뿐이고 거기서 `new SaveData()` 빈 객체를 쓴다 — 매니저 상태가 전혀 담기지 않는다.
-- **파산해도 돈이 그대로 남는다 — 페널티가 약하다.** 날짜·청구서·단계는 되돌아가지만
-  보유 코인·소수 잔여는 그대로다. 1단계 청구서를 쥔 돈으로 바로 내고 넘어갈 수 있어, 지금의 파산은
-  벌칙이라기보다 **날짜 되감기**에 가깝다. 지갑을 비우려면 공용 계약을 넓혀야 해서 별도 이슈로 뺐다
-  ([#158](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/158)). **이 카드를 Done 으로 보고
-  넘어가면 안 되는 이유가 이것이다.**
+- ~~**파산해도 돈이 그대로 남는다 — 페널티가 약하다.**~~ — #158 에서 해결. `IWalletPersistence`
+  소비자에 `BillManager` 를 추가해(A안) 파산 시 `RestoreWallet(0, "0")` 으로 코인·소수 잔여를
+  비운다. 영구 업그레이드는 여전히 유지된다.
 - **파산 즉시 상태를 되돌리는 것이 임시 방편이다.** 원래는 결과 화면을 보여 준 뒤 새 회차를 시작할 때 되돌리는 것이 맞지만, 새 회차 시작이 매니저 상태를 초기화하지 않아(`DontDestroyOnLoad`) 지금은 여기서 되돌리지 않으면 1일차 재시작이 성립하지 않는다.
 - 대출을 부르는 UI가 없다. `TryTakeLoan`의 금액은 호출측이 정하고 이 클래스는 활성 청구서 금액을 넘지 못하게만 막는다 — 얼마를 빌릴지 고르는 화면은 아직 없다.
 - 대출 상태(`ActiveLoan`·`LastLoanRepaidDay`)가 저장·복원되지 않는다. `SaveData`에 필드는 이미 있지만 `IBillService`에 복원 통로가 없어 재실행하면 빚이 사라진다 — 공용 계약 변경이라 별도 이슈로 발의한다.
@@ -229,3 +245,4 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 | 2026-09-17 | #29 | Claude | 대출 구현 — 해금 순번·청구서 금액 한도·이자 올림·금액 비례 징수율·동시 1건·재대출 쿨다운. `BillManagerChecks`에 `RunLoanChecks` 추가 |
 | 2026-09-18 | #150 | saltlake00 | `IStageService` 연결 — 자체 단계 순번을 걷어내고 단일 출처의 현재 단계로 청구서 발행 |
 | 2026-09-18 | #30 | twins6375-art | 마감 미납 파산 판정·`OnBankrupt` 발행·회차 초기화(단계 포함). `BankruptcyChecks` 신규. **지갑 초기화는 공용 계약에 막혀 제외** |
+| 2026-09-18 | #158 | hunil58 | `IWalletPersistence` 소비자에 `BillManager` 추가(A안) — 파산 시 코인·소수 잔여를 0으로 초기화. `ARCHITECTURE.md` "하루 종료 순서"의 `OnBankrupt` 문구를 "결과 통지"로 정정, `ContractsValidationChecks` 5번 케이스 추가, `BankruptcyChecks`에 지갑 초기화 검증(`FakeWalletPersistence`) 추가 |
