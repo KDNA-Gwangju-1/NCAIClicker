@@ -140,3 +140,4 @@ AI에게 시켜도 제대로 못 고친다.
 - [단계 목표 판정](stage-goal.md) — StageGoalManager, 런 순수입과 GoalCoin 비교, 런당 1회 발행
 - [효과음](sound-effects.md) — AudioManager, GameEvents 구독 후 PlayOneShot, 타격·코인·피버·청구서 효과음
 - [저금통 일반형 3D 에셋](piggy-normal-asset.md) — VARCO 3D 생성 모델, glTFast 스케일 한계로 Visual 프리팹 분리 제작, PiggyController 부재로 Visual 전용 범위
+- [인게임 HUD](ingame-hud.md) — 위젯별 컴포넌트, 이벤트 구독만으로 갱신, 호버 스윙만 세는 정확도, 게이지 스프라이트
