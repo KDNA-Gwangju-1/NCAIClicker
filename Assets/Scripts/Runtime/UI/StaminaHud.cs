@@ -60,7 +60,8 @@ namespace NCAIClicker.UI
             // 올림으로 표시한다 — 0.4 를 0 으로 보여 주면 아직 스윙이 되는데 다 떨어진 것처럼 읽힌다.
             // 다만 실제로 0 이면 0 을 보여야 하므로 아래를 깎지 않는다.
             var shownCurrent = _current <= 0f ? 0 : Mathf.Max(1, Mathf.CeilToInt(_current));
-            _label.text = $"{shownCurrent}/{Mathf.CeilToInt(_max)}";
+            // 원작과 같은 표기. 숫자만 있으면 무엇의 숫자인지 알 수 없다.
+            _label.text = $"스태미나: {shownCurrent}/{Mathf.CeilToInt(_max)}";
         }
     }
 }
