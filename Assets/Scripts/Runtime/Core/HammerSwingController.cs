@@ -202,6 +202,14 @@ namespace NCAIClicker.Core
 
         private void Update()
         {
+            // 런이 끝나면 스윙을 멈춘다. 멈추지 않으면 결과창이 떠 있는 동안 커서가 놀고 있는
+            // 헛스윙이 계속 쌓여 정확도가 눈앞에서 깎인다 — 플레이어가 이미 끝낸 하루의
+            // 성적이 사후에 나빠지는 셈이다. 정확도는 런 단위 집계다 (GDD 6절).
+            if (!_isRunning)
+            {
+                return;
+            }
+
             if (_balanceData == null || _aimCamera == null)
             {
                 return;
