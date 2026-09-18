@@ -18,6 +18,7 @@ assignees: ''
 
 - [ ] 
 - [ ] 
+- [ ] (UI 작업인 경우) `docs/UI_GUIDE.md` 가이드라인 준수 및 `UiGuidelineChecks` 검증 확인
 
 ## 범위 밖
 
@@ -30,6 +31,7 @@ assignees: ''
 <!-- docs/ONBOARDING.md 의 "모듈별로 읽혀야 할 것" 표를 참고해 필요한 절만 짚어줍니다 -->
 
 - `docs/ARCHITECTURE.md` 절
+- `docs/UI_GUIDE.md` (UI 제작·수정 작업인 경우)
 - 
 
 ## 선행
