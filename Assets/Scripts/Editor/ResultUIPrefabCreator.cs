@@ -84,12 +84,18 @@ namespace NCAIClicker.EditorTools
         {
             bound = new Dictionary<string, object>();
 
-            var settlement = CreateStretchedObject("SettlementContainer", parent);
+            // 원작은 화면 가운데 떠 있는 카드다 — 폭 62%, 높이 48% (1920x1080 기준 실측).
+            // 세이프존을 다 채우면 뒤의 책상이 가려지고 글자만 커 보인다.
+            var settlement = CreateObject("SettlementContainer", parent);
             var settlementRect = settlement.GetComponent<RectTransform>();
-            settlementRect.offsetMin = SafeInset;
-            settlementRect.offsetMax = -SafeInset;
+            settlementRect.anchorMin = new Vector2(0.5f, 0.5f);
+            settlementRect.anchorMax = new Vector2(0.5f, 0.5f);
+            settlementRect.pivot = new Vector2(0.5f, 0.5f);
+            settlementRect.sizeDelta = new Vector2(1200f, 880f);
+            settlementRect.anchoredPosition = Vector2.zero;
 
             var column = settlement.AddComponent<VerticalLayoutGroup>();
+            column.childAlignment = TextAnchor.UpperCenter;
             column.spacing = 18f;
             column.childControlWidth = true;
             column.childControlHeight = true;
@@ -111,13 +117,13 @@ namespace NCAIClicker.EditorTools
             var columns = CreateHorizontal("ColumnsRow", settlement, 28f);
             // 남는 폭을 균등 분배하면 우측 집계가 좌측 명세만큼 넓어진다. 주인공은 좌측이다.
             columns.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = false;
-            SetFlexibleHeight(columns, 1f);
+            SetPreferredHeight(columns, 560f);
 
-            // 좌우 컬럼을 1:1 로 나눈다. 원작도 좌 53 : 우 47 로 거의 같다.
-            // preferredWidth 를 한쪽에만 주면 남는 폭이 그쪽으로 몰린다 (실제로 우측이 1.8 배가 됐다).
-            var ledger = CreatePanel("LedgerPanel", columns, 24f, 10f);
+            // 좌 53 : 우 47 (원작 실측 1.12:1). preferredWidth 를 한쪽에만 주면
+            // 남는 폭이 그쪽으로 몰린다 — 실제로 우측이 1.8 배가 됐었다.
+            var ledger = CreatePanel("LedgerPanel", columns, 20f, 8f);
             SetPreferredWidth(ledger, 0f);
-            SetFlexibleWidth(ledger, 1f);
+            SetFlexibleWidth(ledger, 1.12f);
             bound["_accuracyText"] = CreateStatRow("AccuracyRow", ledger, font, "정확도:", "71%", RowFill, Cream, 40);
             bound["_runCoinText"] = CreateStatRow("CoinCountRow", ledger, font, "코인:", "102", RowFill, Cream, 40);
             bound["_denomCountTexts"] = CreateDenomRow(ledger, font);
@@ -127,7 +133,7 @@ namespace NCAIClicker.EditorTools
             bound["_loanCutLabelText"] = ledger.transform.Find("LoanCutRow/LabelText").GetComponent<TextMeshProUGUI>();
             bound["_netText"] = CreateStatRow("NetRow", ledger, font, "내 몫:", ResultUIController.UnwiredPlaceholder, NetRowFill, Gold, 48);
 
-            var side = CreateVertical("SideColumn", columns, 24f);
+            var side = CreateVertical("SideColumn", columns, 18f);
             SetPreferredWidth(side, 0f);
             SetFlexibleWidth(side, 1f);
 
@@ -146,21 +152,29 @@ namespace NCAIClicker.EditorTools
             CreateLabel("CodexCaptionText", codex, font, 20, Muted, TextAlignmentOptions.Center, "다음 저금통 해금까지");
 
             // 하단 액션.
-            var actions = CreateHorizontal("ActionRow", settlement, 28f);
-            actions.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.UpperCenter;
-            SetPreferredHeight(actions, 150f);
+            // 원작 버튼 행은 패널 폭의 63% 를 쓰고 가운데 모인다. 끝까지 늘이면 버튼이 배너가 된다.
+            var actions = CreateHorizontal("ActionRow", settlement, 24f);
+            var actionsGroup = actions.GetComponent<HorizontalLayoutGroup>();
+            actionsGroup.childAlignment = TextAnchor.UpperCenter;
+            actionsGroup.childForceExpandWidth = false;
+            SetPreferredHeight(actions, 140f);
 
+            // 원작 버튼 둘은 폭이 거의 같다 (365 / 362). flexibleWidth 를 0 으로 못 박지 않으면
+            // 남는 폭이 이쪽으로 몰려 버튼 하나만 배너처럼 늘어난다.
             var payColumn = CreateVertical("PayColumn", actions, 8f);
-            SetPreferredWidth(payColumn, 420f);
+            SetPreferredWidth(payColumn, 360f);
+            SetFlexibleWidth(payColumn, 0f);
             // 동작이 없는 버튼은 프리팹 단계에서 잠근다. 런타임에 끄면 첫 프레임에 눌릴 수 있다.
-            var payButton = CreateButton("PayButton", payColumn, font, new Vector2(420f, 108f), "지금 납부",
+            var payButton = CreateButton("PayButton", payColumn, font, new Vector2(360f, 104f), "지금 납부",
                 new Color(0.49f, 0.12f, 0.1f), new Color(0.7f, 0.25f, 0.21f), new Color(1f, 0.86f, 0.83f), 34);
             payButton.interactable = false;
             bound["_payButton"] = payButton;
             bound["_payCaptionText"] = CreateLabel("PayCaptionText", payColumn, font, 22, Muted, TextAlignmentOptions.Center, "준비 중");
 
-            bound["_continueButton"] = CreateButton("ContinueButton", actions, font, new Vector2(320f, 108f), "다음 날 진행",
+            var continueButton = CreateButton("ContinueButton", actions, font, new Vector2(360f, 104f), "다음 날 진행",
                 new Color(0.11f, 0.31f, 0.45f), new Color(0.24f, 0.51f, 0.71f), new Color(0.9f, 0.95f, 0.98f), 32);
+            SetFlexibleWidth(continueButton.gameObject, 0f);
+            bound["_continueButton"] = continueButton;
 
             return settlement;
         }
@@ -231,7 +245,7 @@ namespace NCAIClicker.EditorTools
             var row = CreateHorizontal(name, parent, 16f);
             row.GetComponent<HorizontalLayoutGroup>().padding = new RectOffset(18, 18, 6, 6);
             row.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleLeft;
-            SetPreferredHeight(row, 64f);
+            SetPreferredHeight(row, 62f);
 
             if (fill.a > 0f)
             {
