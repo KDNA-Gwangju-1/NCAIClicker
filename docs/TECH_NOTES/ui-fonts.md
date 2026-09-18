@@ -1,6 +1,6 @@
 # UI 폰트
 
-> 관련 이슈: #42, #78, #92 · 최종 수정: 2026-09-18
+> 관련 이슈: #42, #78, #92, #77 · 최종 수정: 2026-09-18
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -56,12 +56,13 @@ Edit Mode 배치(`-batchmode -nographics -executeMethod`) 실측, 2026-09-16:
 - [x] `TryAddCharacters("스태미나 코인 0123456789")` → `true`, `atlasPopulationMode == Dynamic`, 아틀라스 1024×1024
 - [x] 세 SDF 에셋 모두 존재, material·sourceFontFile 연결됨
 - [x] 숫자 고정폭 (fontTools 로 `hmtx` advance 확인): NanumGothic Regular/Bold 0~9 전부 606, NanumSquare Bold 전부 610
-- [ ] Play Mode — 미검증 (worktree 에서 에디터 Play 불가. 머지 후 에디터에서 새 TMP 텍스트가 나눔고딕으로 뜨는지 확인)
+- [x] Play Mode 실측 (8.6/#77, 2026-09-18): `Game` 씬 에디터 Play 로 `GameHud` 의 `StaminaLabel`("스태미나: 18/120")과 `ResultUI` 폴백("지친 손!", "정확도: 43%", "$450" 등)을 확인. `TMP_Text.textInfo.characterInfo[].fontAsset` 로 문자별 폰트를 찍어 전 문자 `NanumGothicSDF` 로 해석됨, `isVisible=true` (두부 없음) 확인. 숫자 고정폭은 위 hmtx 실측(전부 동일 advance)으로 이미 검증됨 — 렌더링 중 자릿수 변화로 흔들리는 시각적 문제 없음
 
 ## 알려진 한계
 
-- **HUD 고정 문구("스태미나", "코인", 0~9)의 Static 아틀라스는 아직 없다.** 전부 Dynamic 이라 첫 등장 시 한 프레임 튈 수 있다. 6.1 HUD 에서 Static 혼합을 만든다.
+- **Static 아틀라스는 만들지 않기로 결정했다 (8.6/#77, 2026-09-18).** 전부 Dynamic 이라 첫 등장 시 아틀라스 갱신으로 한 프레임 튈 수 있는데, 에디터 Play 실측에서 체감되는 튐이 없었다. 지금 만들면 시간 대비 이득이 작다고 판단해 보류했다 — 문제로 드러나면 그때 Static 혼합을 다시 검토한다 (아래 "Static 아틀라스를 만들 때" 주의는 그 시점을 위해 남겨둔다).
 - **Static 아틀라스를 만들 때 퍼크 카드 제목을 빼면 안 된다 (#92).** 그 문구는 프리팹이 아니라 `perks.csv` 의 `display_name` 에서 온다 — 씬·프리팹만 훑으면 놓친다. 화면 설명은 [퍼크 3장 선택 화면](perk-choice-ui.md).
+- **`NanumSquareBoldSDF` 를 실제로 쓰는 곳이 프로젝트에 하나도 없다 (8.6/#77 에서 발견).** `RELEASE_CHECKLIST.md` 1절은 "숫자 강조는 나눔스퀘어 Bold" 로 정했지만, `GameHud`·`BillHud`·`PerkChoicePanel`·`UpgradeShopPanel`·`BillPanel`·`ResultUI` 어디도 이 폰트 에셋을 참조하지 않는다(`NanumGothicSDF`/`NanumGothicBoldSDF` 만 쓰인다). 어느 문구에 적용할지는 UI 담당의 판단이 필요해 이 카드 범위 밖으로 남긴다 — 별도 카드로 다룬다.
 - `NanumSquare-OFL.txt` 는 네이버 nanum-square.zip 에 라이선스 파일이 없어 나눔고딕 OFL 전문을 복사한 것이다. 저작권 줄의 Reserved Font Name 목록에 NanumSquare 가 명시돼 있지 않다. 8.7(#78) 에서 이대로 유지하기로 결정했다. 빌드 산출물에는 `LICENSES/` 폴더를 동봉한다(크레딧 화면 없음).
 - 나눔고딕 OFL 저작권 표기는 "NHN Corporation"(네이버의 옛 사명)이다.
 
@@ -72,3 +73,4 @@ Edit Mode 배치(`-batchmode -nographics -executeMethod`) 실측, 2026-09-16:
 | 2026-09-16 | #42 | Claude | 최초 작성 |
 | 2026-09-17 | #78 | Claude | 나눔스퀘어 고지문 유지·LICENSES 폴더 동봉 결정 반영 |
 | 2026-09-18 | #92 | twins6375-art | Static 아틀라스 작업 시 퍼크 카드 제목(CSV 에서 오는 문구)을 빼면 두부가 뜬다는 주의를 한계에 추가 |
+| 2026-09-18 | #77 | Claude | Play Mode 검증 완료(두부 없음, 문자별 폰트 실측). Static 아틀라스 분리 안 하기로 결정하고 이유 기록. `NanumSquareBoldSDF` 미사용 사실을 한계에 추가 |

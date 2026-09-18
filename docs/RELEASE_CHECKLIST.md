@@ -23,7 +23,7 @@
 - [x] 폰트 파일을 `Assets/ThirdParty/Fonts/` 원본 및 `Assets/Materials/Fonts/` 생성 TMP 에셋 에 배치 (`.ttf`/`.otf`)
 - [x] TextMeshPro Font Asset 생성 — **Atlas Population Mode 를 `Dynamic` 으로**
   - 한글은 완성형만 11,172자다. Static 아틀라스로 전부 구우면 텍스처가 수십 MB가 되고 빌드가 무거워진다. Dynamic은 실제로 쓰인 글자만 런타임에 채운다.
-  - 단, Dynamic은 첫 등장 시 아틀라스를 갱신하므로 **인게임 중 처음 뜨는 문구에서 한 프레임 튈 수 있다.** HUD에 쓰는 고정 문구("스태미나", "코인", 숫자 0~9)는 Static 아틀라스로 미리 구워두고, 나머지를 Dynamic으로 두는 혼합이 가장 안전하다. — 6.1 HUD 에서
+  - 단, Dynamic은 첫 등장 시 아틀라스를 갱신하므로 **인게임 중 처음 뜨는 문구에서 한 프레임 튈 수 있다.** 8.6(#77)에서 `Game` 씬 에디터 Play 로 실측한 결과 체감되는 튐은 없어, Static 아틀라스 분리 없이 전부 Dynamic 으로 유지하기로 결정했다. 프로파일링(7.1/7.4)에서 실제 문제로 드러나면 그때 다시 검토한다
 - [x] 숫자 글립이 **고정폭(tabular)** 인지 확인 — `34/120` 처럼 매 프레임 바뀌는 숫자가 폭이 들쭉날쭉하면 HUD가 떨린다
 - [x] TMP Settings 의 Default Font Asset 을 교체 (안 하면 새로 만든 텍스트가 영문 기본 폰트로 뜬다)
 
