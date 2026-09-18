@@ -1,6 +1,6 @@
 # 하루 진행과 청구서
 
-> 관련 이슈: #27, #28, #29, #150, #30, #164 · 최종 수정: 2026-09-18
+> 관련 이슈: #27, #28, #29, #150, #30, #164, #92 · 최종 수정: 2026-09-18
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -90,7 +90,7 @@ flowchart LR
 | `GameEvents.OnDayEnded` | `BillManager`가 발행 | `EndRun` 호출 시. 런당 한 번 = 날짜당 한 번 |
 | `GameEvents.OnBankrupt` | `BillManager`가 발행 | `EndRun` 에서 마감 미납이 확정된 순간(#30). **회차를 되돌리기 전에** 발행한다 |
 | `GameEvents.OnBillPaid` | `BillManager`가 발행, `AudioManager`(6.4)가 구독 | `TryPay` 성공 시(#28) |
-| `GameEvents.OnPerkOffered` | `BillManager`가 발행 | `TryPay` 성공 직후, `perks.csv`에서 무작위로 뽑은 퍼크 id 3개(#28). **구독자 아직 없음** — 선택 UI(6.9/#92)가 아직 없다 |
+| `GameEvents.OnPerkOffered` | `BillManager`가 발행, `PerkChoiceController`가 구독(#92) | `TryPay` 성공 직후, `perks.csv`에서 무작위로 뽑은 퍼크 id 3개(#28). 받은 쪽이 선택 화면을 띄운다 — [퍼크 3장 선택 화면](perk-choice-ui.md) |
 | `GameEvents.OnPerkChosen` | `BillManager`가 발행, **네 소유자가 구독**(#126) | `TryChoosePerk` 성공 시, 고른 퍼크 id(#28). 효과 적용은 각 시스템 몫 — [퍼크 효과](perks.md) |
 
 ### 읽는 밸런스 값
@@ -175,7 +175,7 @@ Unity 6000.3.21f1 헤드리스 배치 실행, 2026-09-17.
 - [ ] (#29) 대출을 실제로 쓰는 플레이 흐름 — `TryTakeLoan`을 부르는 UI가 아직 없어 Play Mode 미검증(알려진 한계 참고)
 - [x] `BillHud.prefab` 생성(#27): 임시 `-executeMethod` 스크립트(`TempBillHudPrefabBuilder.Build`, 실행 후 삭제)로 `PrefabUtility.SaveAsPrefabAsset` → `[TempBillHudPrefabBuilder] 저장 완료` 로그 확인, 정상 종료
 - [x] `perks.csv` → `NCAI > 밸런스 CSV 임포트`로 `BalanceData.asset` 재생성, 임포터 검증(4종 고정·`id` 중복 없음·`CoinGainBoost`만 `duration_sec > 0`) 통과
-- [ ] 에디터 Play Mode에서 실제 HUD·퍼크 선택 UI 확인 — `Game.unity`에 프리팹을 배치하는 것은 코어 플레이 모듈 담당 몫이고, 퍼크 선택 UI 자체가 아직 없다(알려진 한계 참고). 미검증
+- [x] 에디터 Play Mode에서 퍼크 선택 UI 확인 — #92 에서 화면이 생겨 확인했다(라이브 `TryPay` 호출로 후보를 띄웠다). HUD 프리팹을 `Game.unity`에 배치하는 것은 여전히 코어 플레이 모듈 담당 몫이다
 - [x] `GameManager`가 `BeginRun`/`EndRun`을 실제로 호출하는 배선 — #164 에서 `IRunScoped` 를 구현해 붙였고, Play Mode 로 하루 진행과 파산 발동을 확인했다 (위 "Play Mode" 절)
 
 ## 마감 미납과 파산 (#30)
@@ -261,7 +261,9 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
   같은 `BillHud` 컴포넌트를 품은 채 `Game.unity`에 배치됐다. 둘 다 올리면 캔버스와 청구서 라벨이
   두 개가 된다. 정리 여부는 #27 담당과 정한다 — 상세는 [ingame-hud.md](ingame-hud.md).
 - ~~퍼크 선택(`OnPerkChosen`)의 실제 게임플레이 효과 적용이 없다.~~ — #126 에서 네 소유자(`StaminaManager`·`EconomyManager`·`HammerSwingController`·`CreatureManager`)가 `OnPerkChosen` 을 구독해 스스로 적용한다. 적용 시점 규칙과 한계는 [퍼크 효과](perks.md).
-- 퍼크 선택 UI가 없다. GDD 6.9절이 요구하는 "선택 중 게임 시계 정지" 같은 연출도 그 UI가 생긴 뒤에야 붙일 수 있다.
+- ~~퍼크 선택 UI가 없다.~~ — #92 에서 붙였다. "선택 중 게임 시계 정지"도 함께 들어갔다
+  ([퍼크 3장 선택 화면](perk-choice-ui.md)). 다만 **`TryPay` 를 부르는 곳이 없어 정상 플레이로는
+  이 화면이 뜨지 않는다** — 납부 UI 는 6.10([#181](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/181))이다.
 
 ## 갱신 이력
 
@@ -275,3 +277,4 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 | 2026-09-18 | #158 | hunil58 | `IWalletPersistence` 소비자에 `BillManager` 추가(A안) — 파산 시 코인·소수 잔여를 0으로 초기화. `ARCHITECTURE.md` "하루 종료 순서"의 `OnBankrupt` 문구를 "결과 통지"로 정정, `ContractsValidationChecks` 5번 케이스 추가, `BankruptcyChecks`에 지갑 초기화 검증(`FakeWalletPersistence`) 추가 |
 | 2026-09-18 | #164 | twins6375-art | `BillManager` 가 `IRunScoped` 를 구현해 런 경계에 붙음 — 4.1~4.4 가 처음으로 실제 동작한다. `GetServiceOrder` 순번 부여, `RunWiringChecks` 신규, Play Mode 확인 |
 | 2026-09-18 | #33 | yahoo-afk | `BillHud`에 마감 임박 강조(`_emphasisDaysLeft`, 기본 2)와 `OnBillPaid` 구독 추가, `OnEnable`에서 `IBillService.ActiveBill`로 금액까지 조회. `GameHud.prefab`이 `BillHud.prefab`을 대체 — [ingame-hud.md](ingame-hud.md) |
+| 2026-09-18 | #92 | twins6375-art | 퍼크 선택 화면이 붙어 관련 한계를 닫았다. 납부 통로가 없다는 사실(`TryPay` 호출처 0)을 한계에 명시 |
