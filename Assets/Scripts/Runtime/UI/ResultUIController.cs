@@ -395,23 +395,17 @@ namespace NCAIClicker.UI
 
             if (_stageGoalText != null)
             {
-                // "미달성" 만 적으면 얼마가 모자란지 알 수 없어 쓸모가 없다. 숫자를 같이 보여 준다.
+                // 단계 클리어는 고지서 납부다 (GDD 5절). 따로 목표 코인을 두지 않는다.
                 var stageNumber = _stageService != null ? _stageService.CurrentStageNumber : 1;
-                var stage = _balanceData != null ? _balanceData.GetStage(stageNumber) : null;
-                var earned = _economyService != null ? _economyService.RunCoin : 0L;
+                var bill = _billService?.ActiveBill;
 
-                if (stage == null)
+                if (bill == null || bill.IsPaid)
                 {
-                    var reached = _stageService != null && _stageService.IsGoalReached;
-                    _stageGoalText.text = reached ? $"{stageNumber}단계 목표 달성" : $"{stageNumber}단계 진행 중";
-                }
-                else if (_stageService != null && _stageService.IsGoalReached)
-                {
-                    _stageGoalText.text = $"{stageNumber}단계 목표 달성 (${stage.GoalCoin:N0})";
+                    _stageGoalText.text = $"{stageNumber}단계 고지서 납부 완료";
                 }
                 else
                 {
-                    _stageGoalText.text = $"{stageNumber}단계 목표 ${earned:N0} / ${stage.GoalCoin:N0}";
+                    _stageGoalText.text = $"{stageNumber}단계 고지서 ${bill.Amount:N0} 미납";
                 }
             }
         }

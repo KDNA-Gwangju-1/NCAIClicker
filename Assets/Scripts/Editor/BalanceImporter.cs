@@ -120,7 +120,6 @@ namespace NCAIClicker.EditorTools
                 data.Stages = ReadRows("stages.csv", r => new StageDef
                 {
                     Stage = ToInt(r["stage"]),
-                    GoalCoin = ToLong(r["goal_coin"]),
                     BillAmount = ToLong(r["bill_amount"]),
                     DueDays = ToInt(r["due_days"]),
                     NormalRatio = ToFloat(r["normal_ratio"]),
@@ -300,8 +299,8 @@ namespace NCAIClicker.EditorTools
                 if (Mathf.Abs(sum - 1f) > 0.001f)
                     _errors.Add(string.Format(
                         "stages.csv: {0}단계 출현 비율 합이 {1:0.###} 입니다. 1이어야 합니다.", s.Stage, sum));
-                if (s.GoalCoin <= 0)
-                    _errors.Add(string.Format("stages.csv: {0}단계 goal_coin 이 0 이하입니다.", s.Stage));
+                if (s.BillAmount <= 0)
+                    _errors.Add(string.Format("stages.csv: {0}단계 bill_amount 가 0 이하입니다.", s.Stage));
             }
 
             if (d.Bill.LoanDailyCutMax > 1f)

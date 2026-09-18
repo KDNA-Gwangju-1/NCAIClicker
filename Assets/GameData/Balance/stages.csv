@@ -1,4 +1,4 @@
-stage,goal_coin,bill_amount,due_days,normal_ratio,anchor_ratio,runner_ratio,tourist_ratio,spawn_count,note
-1,450,450,5,0.6,0.15,0.1,0.15,6,첫 단계는 일반형 위주. 회복형으로 런 연장을 익힌다
-2,1125,1125,4,0.45,0.2,0.2,0.15,7,마감이 하루 짧아진다
-3,2813,2813,3,0.35,0.25,0.25,0.15,8,네 종류가 고르게 섞이고 마감이 가장 짧다
+stage,bill_amount,due_days,normal_ratio,anchor_ratio,runner_ratio,tourist_ratio,spawn_count,note
+1,450,5,0.6,0.15,0.1,0.15,6,첫 단계는 일반형 위주. 회복형으로 런 연장을 익힌다
+2,1125,4,0.45,0.2,0.2,0.15,7,마감이 하루 짧아진다
+3,2813,3,0.35,0.25,0.25,0.15,8,네 종류가 고르게 섞이고 마감이 가장 짧다

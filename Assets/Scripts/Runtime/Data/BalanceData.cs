@@ -194,7 +194,6 @@ namespace NCAIClicker.Data
     public class StageDef
     {
         public int Stage;
-        public long GoalCoin;
         public long BillAmount;
 
         /// <summary>이 단계의 고지서 납부 기한(일). 단계가 오르면 짧아진다.</summary>

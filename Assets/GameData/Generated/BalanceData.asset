@@ -138,7 +138,6 @@ MonoBehaviour:
       ValuePerLevel: -6
   Stages:
   - Stage: 1
-    GoalCoin: 450
     BillAmount: 450
     DueDays: 5
     NormalRatio: 0.6
@@ -147,7 +146,6 @@ MonoBehaviour:
     TouristRatio: 0.15
     SpawnCount: 6
   - Stage: 2
-    GoalCoin: 1125
     BillAmount: 1125
     DueDays: 4
     NormalRatio: 0.45
@@ -156,7 +154,6 @@ MonoBehaviour:
     TouristRatio: 0.15
     SpawnCount: 7
   - Stage: 3
-    GoalCoin: 2813
     BillAmount: 2813
     DueDays: 3
     NormalRatio: 0.35

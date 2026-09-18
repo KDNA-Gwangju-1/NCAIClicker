@@ -24,13 +24,14 @@ namespace NCAIClicker.EditorTools
         }
 
         /// <summary>
-        /// 이슈 #26: 런 순수입에 따른 목표 도달 판정과 이벤트 1회 발행 검증.
+        /// 단계 클리어 판정 — 기준은 고지서 납부다 (GDD 5절). 예전에는 런 순수입이
+        /// goal_coin 에 도달했는지를 봤으나, 그 열은 bill_amount 와 늘 같은 값이었다.
         /// </summary>
         private static int RunGoalChecks()
         {
             var checkCount = 0;
             var balanceData = ScriptableObject.CreateInstance<BalanceData>();
-            balanceData.Stages.Add(new StageDef { Stage = 1, GoalCoin = 100L });
+            balanceData.Stages.Add(new StageDef { Stage = 1, BillAmount = 100L });
 
             var reachedCount = 0;
             var lastReachedStage = 0;
@@ -49,36 +50,35 @@ namespace NCAIClicker.EditorTools
                 manager = CreateManager(balanceData, out host);
                 manager.BeginRun();
 
-                // 목표 미달이면 판정하지 않는다.
-                GameEvents.PublishRunCoinChanged(50L);
-                AssertCondition(!manager.IsGoalReached, "미달인데 달성으로 판정했습니다.");
-                AssertCondition(reachedCount == 0, "미달인데 이벤트가 발행됐습니다.");
+                // 납부 전에는 클리어가 아니다. 코인을 아무리 벌어도 마찬가지다.
+                AssertCondition(!manager.IsStageCleared, "납부 전인데 클리어로 판정했습니다.");
+                AssertCondition(reachedCount == 0, "납부 전인데 이벤트가 발행됐습니다.");
                 checkCount++;
 
-                // 목표에 도달하면 정확히 한 번 발행한다.
-                GameEvents.PublishRunCoinChanged(100L);
-                AssertCondition(manager.IsGoalReached, "도달했는데 달성으로 판정하지 않았습니다.");
+                // 납부하면 정확히 한 번 발행한다.
+                GameEvents.PublishBillPaid(new Bill { Amount = 100L, IsPaid = true });
+                AssertCondition(manager.IsStageCleared, "납부했는데 클리어로 판정하지 않았습니다.");
                 AssertCondition(reachedCount == 1, "달성 이벤트 발행 횟수가 다릅니다: " + reachedCount);
                 AssertCondition(lastReachedStage == 1, "발행된 단계 번호가 다릅니다: " + lastReachedStage);
                 checkCount++;
 
-                // 같은 런에서 다시 넘어도 중복 발행하지 않는다.
-                GameEvents.PublishRunCoinChanged(150L);
+                // 같은 런에서 다시 납부 이벤트가 와도 중복 발행하지 않는다.
+                GameEvents.PublishBillPaid(new Bill { Amount = 100L, IsPaid = true });
                 AssertCondition(reachedCount == 1, "같은 런에서 중복 발행됐습니다: " + reachedCount);
                 checkCount++;
 
                 // 다음 런을 시작하면 플래그가 되돌아가고 다시 판정한다.
                 manager.BeginRun();
-                AssertCondition(!manager.IsGoalReached, "런 시작 후에도 달성 상태가 남아 있습니다.");
-                GameEvents.PublishRunCoinChanged(100L);
+                AssertCondition(!manager.IsStageCleared, "런 시작 후에도 클리어 상태가 남아 있습니다.");
+                GameEvents.PublishBillPaid(new Bill { Amount = 100L, IsPaid = true });
                 AssertCondition(reachedCount == 2, "다음 런에서 재판정되지 않았습니다: " + reachedCount);
                 checkCount++;
 
                 // 설정 범위를 넘는 단계는 조회하지 않고 조용히 무시한다.
                 manager.BeginRun();
                 SetStageIndex(manager, 5);
-                GameEvents.PublishRunCoinChanged(1000L);
-                AssertCondition(!manager.IsGoalReached, "범위를 넘는 단계인데 달성으로 판정했습니다.");
+                GameEvents.PublishBillPaid(new Bill { Amount = 100L, IsPaid = true });
+                AssertCondition(!manager.IsStageCleared, "범위를 넘는 단계인데 클리어로 판정했습니다.");
                 AssertCondition(reachedCount == 2, "범위를 넘는 단계인데 이벤트가 발행됐습니다.");
                 checkCount++;
                 SetStageIndex(manager, 0);
@@ -86,7 +86,7 @@ namespace NCAIClicker.EditorTools
                 // 해제하면 더 이상 판정하지 않는다.
                 InvokeLifecycle(manager, "OnDisable");
                 manager.BeginRun();
-                GameEvents.PublishRunCoinChanged(100L);
+                GameEvents.PublishBillPaid(new Bill { Amount = 100L, IsPaid = true });
                 AssertCondition(reachedCount == 2, "해제 후에도 판정됐습니다. 구독 해제가 빠졌습니다.");
                 checkCount++;
 
@@ -107,9 +107,9 @@ namespace NCAIClicker.EditorTools
         {
             var checkCount = 0;
             var balanceData = ScriptableObject.CreateInstance<BalanceData>();
-            balanceData.Stages.Add(new StageDef { Stage = 1, GoalCoin = 100L });
-            balanceData.Stages.Add(new StageDef { Stage = 2, GoalCoin = 200L });
-            balanceData.Stages.Add(new StageDef { Stage = 3, GoalCoin = 300L });
+            balanceData.Stages.Add(new StageDef { Stage = 1, BillAmount = 100L });
+            balanceData.Stages.Add(new StageDef { Stage = 2, BillAmount = 200L });
+            balanceData.Stages.Add(new StageDef { Stage = 3, BillAmount = 300L });
 
             StageGoalManager manager = null;
             GameObject host = null;
@@ -125,29 +125,26 @@ namespace NCAIClicker.EditorTools
                 AssertCondition(!manager.IsMaxStage, "초기 상태인데 최고 단계로 판정되었습니다.");
                 checkCount++;
 
-                // 목표 미달 후 런 종료 -> 단계 유지
-                GameEvents.PublishRunCoinChanged(50L);
+                // 납부 전에는 런이 끝나도 단계가 그대로다.
                 manager.EndRun();
-                AssertCondition(manager.CurrentStageIndex == 0, "목표 미달인데 다음 단계로 진행했습니다.");
+                AssertCondition(manager.CurrentStageIndex == 0, "납부 전인데 다음 단계로 진행했습니다.");
                 checkCount++;
 
-                // 목표 달성 후 런 종료 -> 2단계로 진행
-                GameEvents.PublishRunCoinChanged(100L);
-                AssertCondition(manager.IsGoalReached, "목표 코인에 도달했으나 판정되지 않았습니다.");
-                manager.EndRun();
-                AssertCondition(manager.CurrentStageIndex == 1, "목표 달성 후 런 종료 시 2단계(인덱스 1)로 진행하지 않았습니다.");
+                // 납부하면 그 자리에서 2단계로 오른다.
+                GameEvents.PublishBillPaid(new Bill { Amount = 100L, IsPaid = true });
+                AssertCondition(manager.IsStageCleared, "납부했으나 클리어로 판정되지 않았습니다.");
+                AssertCondition(manager.CurrentStageIndex == 1, "납부 후 2단계(인덱스 1)로 진행하지 않았습니다.");
                 AssertCondition(manager.CurrentStageNumber == 2, "단계 번호가 2가 아닙니다.");
                 AssertCondition(!manager.IsMaxStage, "2단계인데 최고 단계로 판정되었습니다.");
                 checkCount++;
 
                 // 2단계 시작 -> 판정 플래그 리셋 확인
                 manager.BeginRun();
-                AssertCondition(!manager.IsGoalReached, "새 런 시작 후 목표 달성 플래그가 리셋되지 않았습니다.");
+                AssertCondition(!manager.IsStageCleared, "새 런 시작 후 목표 달성 플래그가 리셋되지 않았습니다.");
                 checkCount++;
 
                 // 2단계 목표 달성 후 3단계 진행
-                GameEvents.PublishRunCoinChanged(200L);
-                manager.EndRun();
+                GameEvents.PublishBillPaid(new Bill { Amount = 100L, IsPaid = true });
                 AssertCondition(manager.CurrentStageIndex == 2, "3단계(인덱스 2)로 진행하지 않았습니다.");
                 AssertCondition(manager.CurrentStageNumber == 3, "단계 번호가 3이 아닙니다.");
                 AssertCondition(manager.IsMaxStage, "3단계(마지막 단계)인데 IsMaxStage 가 false 입니다.");
@@ -155,8 +152,7 @@ namespace NCAIClicker.EditorTools
 
                 // 3단계(최고 단계) 목표 달성 후에도 3단계 초과 없이 유지
                 manager.BeginRun();
-                GameEvents.PublishRunCoinChanged(300L);
-                manager.EndRun();
+                GameEvents.PublishBillPaid(new Bill { Amount = 100L, IsPaid = true });
                 AssertCondition(manager.CurrentStageIndex == 2, "최고 단계를 초과하여 진행되었습니다.");
                 AssertCondition(manager.CurrentStageNumber == 3, "최고 단계 초과 번호가 되었습니다.");
                 checkCount++;
@@ -164,7 +160,7 @@ namespace NCAIClicker.EditorTools
                 // RestoreStage 로 1단계(인덱스 0) 복원
                 manager.RestoreStage(0);
                 AssertCondition(manager.CurrentStageIndex == 0, "RestoreStage 로 1단계 복원이 실패했습니다.");
-                AssertCondition(!manager.IsGoalReached, "RestoreStage 후 IsGoalReached 가 false 가 아닙니다.");
+                AssertCondition(!manager.IsStageCleared, "RestoreStage 후 IsStageCleared 가 false 가 아닙니다.");
                 checkCount++;
 
                 return checkCount;
@@ -186,7 +182,6 @@ namespace NCAIClicker.EditorTools
             balanceData.Stages.Add(new StageDef
             {
                 Stage = 1,
-                GoalCoin = 100L,
                 BillAmount = 450L,
                 DueDays = 5,
                 SpawnCount = 6,
@@ -198,7 +193,6 @@ namespace NCAIClicker.EditorTools
             balanceData.Stages.Add(new StageDef
             {
                 Stage = 2,
-                GoalCoin = 200L,
                 BillAmount = 1125L,
                 DueDays = 4,
                 SpawnCount = 7,
@@ -243,11 +237,10 @@ namespace NCAIClicker.EditorTools
                 AssertCondition(billManager.ActiveBill.DueDay == billManager.CurrentDay + 5 - 1, "1단계 고지서 기한 5일 불일치");
                 checkCount++;
 
-                // 단계 진행: 1단계 목표 달성 -> EndRun -> 2단계 진행
+                // 단계 진행: 1단계 고지서 납부 -> 2단계 진행
                 stageManager.BeginRun();
-                GameEvents.PublishRunCoinChanged(100L);
-                stageManager.EndRun();
-                AssertCondition(stageManager.CurrentStageNumber == 2, "2단계 진행 실패");
+                GameEvents.PublishBillPaid(new Bill { Amount = 450L, IsPaid = true });
+                AssertCondition(stageManager.CurrentStageNumber == 2, "납부 후 2단계 진행 실패");
                 checkCount++;
 
                 // 2단계에서 CreatureManager 스폰 수 7 반영 확인

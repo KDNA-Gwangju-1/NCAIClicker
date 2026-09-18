@@ -13,8 +13,12 @@ namespace NCAIClicker.Interfaces
         /// <summary>1부터 시작하는 단계 번호 (CurrentStageIndex + 1).</summary>
         int CurrentStageNumber { get; }
 
-        /// <summary>이번 런에서 현재 단계의 목표 코인에 도달했는지 여부.</summary>
-        bool IsGoalReached { get; }
+        /// <summary>
+        /// 현재 단계의 고지서를 납부했는지 여부. **고지서 납부가 곧 단계 클리어다** (GDD 5절).
+        /// 별도의 목표 코인은 두지 않는다 — 같은 숫자를 두 축으로 나누면 "고지서는 냈는데
+        /// 단계는 안 올랐다" 같은 설명할 수 없는 상태가 생긴다.
+        /// </summary>
+        bool IsStageCleared { get; }
 
         /// <summary>마지막 단계에 도달했는지 여부.</summary>
         bool IsMaxStage { get; }

@@ -229,7 +229,7 @@ namespace NCAIClicker.EditorTools
 
             public int CurrentStageIndex => 0;
             public int CurrentStageNumber => 1;
-            public bool IsGoalReached => false;
+            public bool IsStageCleared => false;
             public bool IsMaxStage => false;
 
             public bool AdvanceStage()
