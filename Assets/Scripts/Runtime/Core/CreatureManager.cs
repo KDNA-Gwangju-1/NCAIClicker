@@ -67,7 +67,7 @@ namespace NCAIClicker.Core
         {
             if (Instance != null && Instance != this)
             {
-                Destroy(this);
+                SafeDestroy(this);
                 return;
             }
             Instance = this;
@@ -289,7 +289,7 @@ namespace NCAIClicker.Core
                 var target = creature.GetComponent<Target>();
                 if (target != null && !target.IsAlive)
                 {
-                    Destroy(creature);
+                    SafeDestroy(creature);
                     _activeCreatures.RemoveAt(i);
                     removedCount++;
                 }
@@ -424,11 +424,28 @@ namespace NCAIClicker.Core
             {
                 if (creature != null)
                 {
-                    Destroy(creature);
+                    SafeDestroy(creature);
                 }
             }
             _activeCreatures.Clear();
             _respawnTimers.Clear();
+        }
+
+        /// <summary>
+        /// 플레이 모드에서는 Destroy, 에디트 모드 검증 환경에서는 DestroyImmediate 를 호출해
+        /// 에디트 모드에서 Destroy 호출 오류가 발생하거나 씬에 잔류하는 것을 방지한다 (#161).
+        /// </summary>
+        private static void SafeDestroy(UnityEngine.Object obj)
+        {
+            if (obj == null) return;
+            if (Application.isPlaying)
+            {
+                Destroy(obj);
+            }
+            else
+            {
+                DestroyImmediate(obj);
+            }
         }
     }
 }

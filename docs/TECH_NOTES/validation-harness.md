@@ -158,9 +158,10 @@ Edit Mode 에서 실제로 확인했다.
 - **CI 에서 돌지 않는다.** 사람이 Unity 를 열고 메뉴를 눌러야 한다. PR 마다 자동으로 돌지
   않으므로, 러너가 있다는 사실만으로 회귀가 막히지는 않는다. 배치 모드
   (`-executeMethod NCAIClicker.EditorTools.ValidationRunner.RunAll`)로 부를 수는 있으나 배선하지 않았다.
-- **검증 실행 중 `Destroy may not be called from edit mode` 오류가 상시 뜬다.** 원인은
-  `CreatureManager.cs:292`·`:427` 이고 #161 로 따로 올렸다. 정리되지 않은 오브젝트가
-  씬에 남아 뒤에 도는 하네스를 오염시킬 수 있다.
+- ~~**검증 실행 중 `Destroy may not be called from edit mode` 오류가 상시 뜬다.**~~ — #161 에서
+  `CreatureManager` 에 `SafeDestroy` (`Application.isPlaying ? Destroy : DestroyImmediate`) 를
+  도입하여 해결했다. 에디트 모드 검증 중 정리되지 않은 오브젝트가 씬에 남아 하네스를 오염시키는
+  문제가 완전히 차단되었다.
 - **씬·플레이 모드를 건드리는 검증은 포함하지 않는다.** PlayMode 테스트는
   `Assets/Tests/PlayMode/` 에 따로 있고 러너가 그쪽을 실행하지 않는다.
 - 하네스가 만든 `HideFlags.HideAndDontSave` 오브젝트 정리는 각 하네스 책임이다. 러너는
@@ -174,3 +175,4 @@ Edit Mode 에서 실제로 확인했다.
 |---|---|---|---|
 | 2026-09-18 | #159 | saltlake00 | 최초 작성. `ValidationRunner` 신설로 실행할 수 없던 하네스 12종을 되살림 |
 | 2026-09-18 | #159 | saltlake00 | `ValidationWindow`(항목 선택 실행)와 `MenuPriority`(메뉴 순서) 추가, 검증 `MenuItem` 3개를 창으로 흡수, 실패 경로 실측 |
+| 2026-09-18 | #161 | saltlake00 | `CreatureManager` 에디트 모드 Destroy 오류 해결 및 잔류 방지 (#161) 반영 |
