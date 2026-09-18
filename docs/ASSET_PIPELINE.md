@@ -36,11 +36,11 @@ Piggy_Normal (프리팹 루트)
 
 VARCO 3D 의 출력 사양을 팀에서 한 번 확인하고 아래를 채운다. 확인 전에는 에셋을 여러 개 만들지 않는다 — **기준 없이 10개 만들면 10개를 다시 만들어야 한다.**
 
-- [ ] 내보내기 포맷 (`.glb` / `.fbx` / `.obj`) 및 Unity 임포트 시 이상 유무
-- [ ] 폴리곤 수 조절 가능 여부 — 목표는 저금통 1체당 **1,000~2,000 삼각형**
-- [ ] 텍스처 해상도 — 512×512 로 충분하다. 책상 위 작은 오브젝트라 2K는 낭비다
-- [ ] 머티리얼이 URP 셰이더로 들어오는지 (Built-in 셰이더로 들어오면 분홍색으로 보인다 → `Edit > Rendering > Materials > Convert...` 로 일괄 변환)
-- [ ] 생성물의 이용 조건 — 수업/포트폴리오/공개 배포 각각 가능한지 ([THIRD_PARTY.md](THIRD_PARTY.md)에 기록)
+- [x] 내보내기 포맷 (`.glb` / `.fbx` / `.obj`) 및 Unity 임포트 시 이상 유무 — `.glb` 사용. `com.unity.cloud.gltfast` 패키지 설치 후 정상 임포트 확인 (`Transform`/`MeshFilter`/`MeshRenderer` 구성, 저금통 일반형 실측)
+- [x] 폴리곤 수 조절 가능 여부 — 목표는 저금통 1체당 **1,000~2,000 삼각형**. `Generate3D` 노드의 `polygonCount` 파라미터로 지정 가능, 저금통 일반형 실측 1,500삼각형으로 확인
+- [x] 텍스처 해상도 — **1024×1024(BaseColor)/2048×2048(Normal) 그대로 사용한다.** glTFast(`com.unity.cloud.gltfast`)로 임포트한 텍스처는 Unity의 `TextureImporter` Max Size 설정이 적용되지 않는다 (glTFast는 자체 임포터를 쓰며 리플렉션으로 확인한 `ImportSettings`/`InstantiationSettings`/`EditorImportSettings` 어디에도 해상도 조절 필드가 없음). 512 다운스케일은 별도 `AssetPostprocessor`가 필요해 배보다 배꼽이 커짐 — 저금통 1개당 VRAM 약 26MB(BaseColor+Normal, 밉맵 포함)로 예산에 문제없어 그대로 채택
+- [x] 머티리얼이 URP 셰이더로 들어오는지 (Built-in 셰이더로 들어오면 분홍색으로 보인다 → `Edit > Rendering > Materials > Convert...` 로 일괄 변환) — glTFast가 `Shader Graphs/glTF-pbrMetallicRoughness` 셰이더로 임포트, 현재 파이프라인(URP)에서 `isSupported=true` 확인. Built-in 셰이더 아니므로 변환 불필요
+- [x] 생성물의 이용 조건 — 수업/포트폴리오/공개 배포 각각 가능한지 ([THIRD_PARTY.md](THIRD_PARTY.md)에 기록). NC AI 교육 프로그램 하 수업 프로젝트 용도로 사용 가능, 공개 배포·상업적 이용은 별도 확인 필요
 
 ### 스케일 기준
 
@@ -54,7 +54,9 @@ Perspective, FOV 45, 높이 5.64, 내려보기 46.9°)에서 책상 평면의 �
 > 1080p 기준 세로 20픽셀밖에 안 돼 조준이 성립하지 않는다. 카메라가 확정되기 전에 적힌 값이라
 > 구도를 반영하지 못했다. 1유닛=1미터로 읽으면 책상이 6m가 되므로 **미터 환산은 하지 않는다.**
 
-모델마다 크기가 제각각이면 카메라와 이동 속도, 콜라이더 크기가 전부 어긋난다. VARCO 3D 출력이 다른 크기로 나오면 **프리팹에서 스케일을 조정하지 말고 임포트 설정의 Scale Factor 에서 맞춘다** — 프리팹 스케일을 건드리면 자식 파편의 물리 거동이 같이 틀어진다.
+모델마다 크기가 제각각이면 카메라와 이동 속도, 콜라이더 크기가 전부 어긋난다.
+
+> **정정 (glTFast 사용 확인 후)**: 이 절은 원래 FBX `ModelImporter`의 `Scale Factor`를 전제로 썼다. 이 프로젝트는 `.glb`를 glTFast로 임포트하는데, glTFast 임포터에는 전역 스케일 필드가 없다 (리플렉션으로 `ImportSettings`/`InstantiationSettings`/`EditorImportSettings` 전 필드 확인 완료). 대신 **1절 프리팹 구조 규칙이 이미 정해 둔 대로 `Visual` 자식만 스케일한다** — 루트(콜라이더)는 그대로 두므로 판정 크기와 파편 물리 거동은 영향받지 않는다. 저금통 일반형은 `PiggyNormalVisual.prefab`(Visual 루트, `localScale ≈ 0.476`)로 분리 제작했다.
 
 **피격 판정 반경은 이 크기에서 재지 않는다.** 모델이 바뀌어도 판정이 그대로여야 밸런스가 유지되므로,
 반경은 프리팹 루트에 고정값으로 두고 `economy.csv` 의 `hit_radius_bonus` 만 곱한다 (1절).
