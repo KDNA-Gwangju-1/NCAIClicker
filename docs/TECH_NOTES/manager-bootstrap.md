@@ -1,6 +1,6 @@
 # 매니저 자동 생성
 
-> 관련 이슈: #15, #80, #27, #26, #140, #150 · 최종 수정: 2026-09-18
+> 관련 이슈: #15, #80, #27, #26, #140, #150, #164 · 최종 수정: 2026-09-18
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -58,7 +58,7 @@ Unity 6000.3.21f1 배치 실행, 2026-09-16.
 
 ## 알려진 한계
 
-- 붙어 있는 매니저는 `EconomyManager`·`SaveManager`·`StaminaManager`·`GameManager`·`FeverManager`·`BillManager`·`StageGoalManager`·`CreatureManager` 여덟 개다(경제 3.1, 저장 3.4, 스태미나·피버·런 상태 각 모듈, 청구서 마감 #27, 단계 목표 3.5, 크리처 스폰 #140). 매니저 사이의 연결(`EconomyManager.SetBillService`, `CreatureManager.SetUpgradeStats`, `CreatureManager.SetStageService`·`BillManager.SetStageService` 등)은 `ManagerBootstrap`이 생성 직후 코드로 조립한다. 단계 주입은 `StageGoalManager`를 `IStageService`로 찾아 두 소비자에게 같은 인스턴스를 넘기는 방식이다(#150). 컴포넌트 실행 순서는 `GameManager.GetServiceOrder`를 통해 `Economy(1) -> Stamina(2) -> Fever(3) -> Creature(4)` 순으로 런 라이프사이클을 배선한다.
+- 붙어 있는 매니저는 `EconomyManager`·`SaveManager`·`StaminaManager`·`GameManager`·`FeverManager`·`BillManager`·`StageGoalManager`·`CreatureManager` 여덟 개다(경제 3.1, 저장 3.4, 스태미나·피버·런 상태 각 모듈, 청구서 마감 #27, 단계 목표 3.5, 크리처 스폰 #140). 매니저 사이의 연결(`EconomyManager.SetBillService`, `CreatureManager.SetUpgradeStats`, `CreatureManager.SetStageService`·`BillManager.SetStageService` 등)은 `ManagerBootstrap`이 생성 직후 코드로 조립한다. 단계 주입은 `StageGoalManager`를 `IStageService`로 찾아 두 소비자에게 같은 인스턴스를 넘기는 방식이다(#150). 컴포넌트 실행 순서는 `GameManager.GetServiceOrder`를 통해 `Economy(1) -> Stamina(2) -> Fever(3) -> Creature(4) -> Stage(5) -> Bill(6)` 순으로 런 라이프사이클을 배선한다. **단계(5)가 청구서(6)보다 앞인 것은 지켜야 한다** — `EndRun` 에서 앞은 목표 달성 시 단계를 올리고 뒤는 파산 시 0 으로 되돌리기 때문이다(#164). 순번을 주지 않은 구현체는 기타(10)로 밀린다.
 - 에디터에서 `Game` 씬을 직접 열어 Play 하는 경로는 배치 모드(`OpenScene` + `EnterPlaymode`)로만 확인했다 (macOS 빌드는 #110, Windows 독립 빌드 구동은 #80 에서 검증 완료).
 - 테스트 asmdef 는 런타임 코드를 참조하지 않는다(런타임에 asmdef 가 없다). 테스트는 씬의 오브젝트 이름만 본다.
 - `Resources.Load` 의존이라 프리팹 이름(`Managers`)이나 폴더를 바꾸면 소리 없이 실패하고 `LogError` 만 남는다.
@@ -76,3 +76,4 @@ Unity 6000.3.21f1 배치 실행, 2026-09-16.
 | 2026-09-17 | #26 | soilrist | `StageGoalManager` 부착 반영, 프리팹에 붙은 매니저 7종(경제·저장·스태미나·게임·피버·청구서·단계 목표)을 실제 상태로 갱신 |
 | 2026-09-17 | #140 | saltlake00 | `CreatureManager` 부착 및 프리팹 4종·BalanceData 연결, `IRunScoped` 생명주기 배선, 에디터 전용 임시 코드 삭제. 빌드 실행으로 컴포넌트 생존을 확인하고, 그 과정에서 `SetUpgradeStats` 의 스폰 부수효과가 MainMenu 에서 크리처를 만들던 것을 찾아 제거 |
 | 2026-09-18 | #150 | saltlake00 | `IStageService` 주입 조립(`CreatureManager.SetStageService`·`BillManager.SetStageService`)을 조립 설명에 반영 |
+| 2026-09-18 | #164 | twins6375-art | `GetServiceOrder` 순번에 `Stage`(5)·`Bill`(6) 을 더한 것을 조립 설명에 반영. 단계가 청구서보다 앞이어야 하는 이유와 기타(10) 폴백을 적었다 |

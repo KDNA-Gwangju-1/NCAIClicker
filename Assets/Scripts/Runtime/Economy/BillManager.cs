@@ -18,7 +18,7 @@ namespace NCAIClicker.Economy
     ///
     /// Managers 프리팹(Resources/Managers)에 붙인다. 생성은 ManagerBootstrap 이 한다.
     /// </summary>
-    public class BillManager : MonoBehaviour, IBillService
+    public class BillManager : MonoBehaviour, IBillService, IRunScoped
     {
         // SaveManager.Instance 와 같은 패턴 — 공용 인터페이스 타입으로 조회 통로만 연다 (AGENTS.md).
         // OnEnable 시점의 초기 상태를 한 번 읽는 용도(ARCHITECTURE 3절) — 이후 갱신은 OnBillIssued/OnBillDueSoon 구독으로 받는다.
@@ -109,7 +109,7 @@ namespace NCAIClicker.Economy
         /// 활성 청구서가 없을 때만 새 청구서를 발행한다 — 게임 시작·파산 재시작에도 첫 청구서가 나간다.
         /// 청구서가 있으면 매 호출 끝에 OnBillDueSoon 을 발행한다 — HUD 가 이 이벤트로 남은 일수를 갱신한다
         /// (ARCHITECTURE.md 3절 "UI는 구독 후 공용 조회 인터페이스로 초기 상태를 한 번 읽는다").
-        /// GameManager 가 런 시작 직전에 부른다 (작업 2.5, 아직 배선되지 않음).
+        /// GameManager 가 런 시작 직전에 부른다 (IRunScoped, #164).
         /// </summary>
         public void BeginRun()
         {
@@ -133,7 +133,11 @@ namespace NCAIClicker.Economy
         /// <summary>
         /// 하루를 마감한다. 런 종료를 하루 종료로 집계하는 지점 — OnDayEnded 를 발행한다.
         /// 런당 하루이므로 날짜당 한 번만 발행된다는 계약(ARCHITECTURE.md)을 자연히 지킨다.
-        /// GameManager 가 런 종료 처리 중 부른다 (작업 2.5, 아직 배선되지 않음).
+        /// GameManager 가 런 종료 처리 중 부른다 (IRunScoped, #164).
+        ///
+        /// **StageGoalManager 보다 나중에 불려야 한다.** 그쪽은 목표를 채웠으면 단계를 올리고,
+        /// 여기서는 파산이면 단계를 0 으로 되돌린다 — 순서가 뒤집히면 파산인데 단계가 올라간다.
+        /// 순서는 GameManager.GetServiceOrder 가 정한다.
         /// </summary>
         public void EndRun()
         {
@@ -165,15 +169,11 @@ namespace NCAIClicker.Economy
         /// **알리는 것이 먼저다.** 되돌린 뒤에 알리면 받는 쪽이 이미 초기화된 상태를 보게 되어
         /// 결과 화면(작업 6.2)이 무엇이 실패했는지 읽을 수 없다.
         ///
-        /// **경고: 지금 이 메서드는 게임에서 실행되지 않는다.** BillManager 가 IRunScoped 를
-        /// 구현하지 않아 GameManager 의 GetComponentsInChildren&lt;IRunScoped&gt; 에 잡히지 않고,
-        /// EndRun() 을 부르는 곳이 런타임에 없다. 판정 로직은 Edit Mode 검증으로만 확인했다.
-        /// 배선은 별도 카드에서 다룬다 (docs/TECH_NOTES/billing.md "알려진 한계").
-        ///
-        /// 배선이 붙으면 EndRun 은 Result 전이 도중에 불리게 된다. 그래서 OnBankrupt 는 Result
-        /// 전이를 일으키는 사유가 아니라 **전이 도중에 확정되는 결과 통지**다 — 파산은 런을
-        /// 끝내는 원인이 아니라 끝난 런의 결과다. 마감을 놓치는 순간이 곧 하루의 끝이라 런
-        /// 도중에 파산이 날 길이 없다 (계약 문구 정리는 #158, ARCHITECTURE.md "하루 종료 순서").
+        /// EndRun 은 Result 전이 **도중에** 불린다 (IRunScoped, #164). 그래서 OnBankrupt 를 받아
+        /// GameManager 가 Result 로 전이한다는 계약은 이 경로에서 늦다 — 발행 시점에는 이미
+        /// Result 라 GameManager 의 Running 가드에 막힌다. 파산은 런을 끝내는 원인이 아니라
+        /// 끝난 런의 결과다. 마감을 놓치는 순간이 곧 하루의 끝이라 런 도중에 파산이 날 길이 없다.
+        /// 계약 문구는 #158 에서 이 뜻으로 정리했다 (ARCHITECTURE.md "하루 종료 순서").
         /// </summary>
         private void HandleBankruptcy()
         {

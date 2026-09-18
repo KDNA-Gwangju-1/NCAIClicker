@@ -1,6 +1,6 @@
 # 에디터 검증 하네스
 
-> 관련 이슈: #159 · 최종 수정: 2026-09-18
+> 관련 이슈: #159, #164 · 최종 수정: 2026-09-18
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -11,7 +11,7 @@
 
 | 메뉴 | 쓰임 |
 |---|---|
-| `NCAI > 전체 검증 실행` | 15종을 확인 없이 바로 돌린다. PR 올리기 전 한 번 |
+| `NCAI > 전체 검증 실행` | 수집된 전부를 확인 없이 바로 돌린다. PR 올리기 전 한 번 |
 | `NCAI > 검증 창...` | 돌릴 항목을 골라서 돌린다. 한 모듈만 고쳤을 때 |
 
 하네스는 실패를 **예외로 던진다.** 반환값으로 성공 여부를 알리지 않는다.
@@ -34,7 +34,7 @@
 
 ### 왜 창까지 만들었나
 
-15종을 전부 도는 데는 시간이 걸린다. 경제 쪽만 고쳤는데 크리처 이동 검증까지 기다려야 하면
+전부 도는 데는 시간이 걸린다. 경제 쪽만 고쳤는데 크리처 이동 검증까지 기다려야 하면
 **결국 검증을 안 돌리게 된다.** 전부 아니면 전무인 도구는 쓰이지 않는다.
 
 창은 그 밖에 두 가지를 더 해결한다.
@@ -73,7 +73,7 @@ flowchart LR
   subgraph Editor["에디터 전용 (빌드에 포함되지 않음)"]
     window[ValidationWindow<br/>항목 선택·결과 표시<br/>선택 상태 EditorPrefs 보관]
     runner[ValidationRunner<br/>CollectEntries 수집<br/>Run 실행·예외 격리<br/>LogSummary 요약]
-    checks[**Checks 15종<br/>각자 RunBatch 에서<br/>실패 시 예외를 던진다]
+    checks[**Checks<br/>리플렉션으로 수집된다<br/>각자 RunBatch 에서<br/>실패 시 예외를 던진다]
   end
 
   console[["Unity 콘솔<br/>통과 n / 실패 m"]]
@@ -92,7 +92,7 @@ flowchart LR
 | `ValidationRunner` | `Assets/Scripts/Editor/ValidationRunner.cs` | 수집·실행·요약. 창과 공유한다 |
 | `ValidationWindow` | `Assets/Scripts/Editor/ValidationWindow.cs` | 항목 선택 UI. 실행은 러너에 맡긴다 |
 | `MenuPriority` | `Assets/Scripts/Editor/MenuPriority.cs` | `NCAI` 메뉴 표시 순서 |
-| `*Checks` 15종 | `Assets/Scripts/Editor/*Checks.cs` | 각 기능의 검증 본체 |
+| `*Checks` | `Assets/Scripts/Editor/*Checks.cs` | 각 기능의 검증 본체. **개수를 여기 적지 않는다** — 러너가 리플렉션으로 모으므로 적어 두면 카드가 늘 때마다 낡는다 |
 
 **수집과 실행을 창이 따로 구현하지 않는다.** 규칙이 두 곳으로 갈라지면 창에는 보이는데
 전체 실행에서는 빠지는 하네스가 생긴다.
@@ -140,13 +140,14 @@ flowchart LR
 
 ## 검증
 
-Edit Mode 에서 실제로 확인했다.
+Edit Mode 에서 실제로 확인했다. **아래 숫자는 #159 작성 시점(`*Checks` 15종)의 실측값이다** —
+그 뒤 #30·#164 로 17종이 됐다. 러너가 리플렉션으로 모으므로 개수는 계속 늘어난다.
 
 - [x] `NCAI > 전체 검증 실행` — `[ValidationRunner] 통과 15 / 실패 0 (전체 15)`
 - [x] **실패 경로 실측** — `CoinWalletChecks`(순서 3번째)에 임시 예외를 심고 실행한 결과
       `통과 14 / 실패 1`, `- CoinWalletChecks: 실패 경로 실측용 임시 예외`.
       `InnerException` 이 꺼내져 실제 사유가 보였고, 뒤이은 12개가 계속 돌았다. 임시 예외는 원복했다
-- [x] `NCAI > 검증 창...` 이 열리고 15종을 이름순으로 수집한다
+- [x] `NCAI > 검증 창...` 이 열리고 `*Checks` 를 이름순으로 수집한다
 - [x] 선택 실행 — 경제 3종(`BalanceImporterChecks`·`CoinWalletChecks`·`EconomyManagerChecks`)만
       골라 돌려 3종만 실행되는 것을 확인
 - [x] 메뉴 우선순위가 의도대로 (`1`, `20`, `21`, `40`)
@@ -176,3 +177,4 @@ Edit Mode 에서 실제로 확인했다.
 | 2026-09-18 | #159 | saltlake00 | 최초 작성. `ValidationRunner` 신설로 실행할 수 없던 하네스 12종을 되살림 |
 | 2026-09-18 | #159 | saltlake00 | `ValidationWindow`(항목 선택 실행)와 `MenuPriority`(메뉴 순서) 추가, 검증 `MenuItem` 3개를 창으로 흡수, 실패 경로 실측 |
 | 2026-09-18 | #161 | saltlake00 | `CreatureManager` 에디트 모드 Destroy 오류 해결 및 잔류 방지 (#161) 반영 |
+| 2026-09-18 | #164 | twins6375-art | 문서·`ValidationWindow` 주석에 박혀 있던 "15종"을 걷어냈다. 러너가 리플렉션으로 모으므로 개수를 적으면 카드가 늘 때마다 낡는다 — 검증 절의 숫자는 #159 시점 실측값으로 못 박았다 |

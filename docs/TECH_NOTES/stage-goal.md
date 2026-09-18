@@ -1,6 +1,6 @@
 # 단계 목표 판정과 진행
 
-> 관련 이슈: #26, #150 · 최종 수정: 2026-09-18
+> 관련 이슈: #26, #150, #164 · 최종 수정: 2026-09-18
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -74,7 +74,9 @@ Unity 6000.3.21f1 Edit Mode 배치 실행, 2026-09-18 (`unity run . -- -executeM
 
 - Result 화면에서 목표 달성 여부를 표시하는 UI(6.x)는 아직 없다. `OnStageGoalReached` 를 구독하는 곳이 현재 없다(`StageGoalManagerChecks` 의 테스트 구독자 제외).
 - 마지막 단계 목표 달성 후 청구서 정산과의 순서(클리어 표시 게이팅)는 GDD.md 가 "마감 처리를 통과하면 클리어" 라고만 적어 두었고 구현되지 않았다.
-- 파산 시 1단계로 되돌리는 실제 호출 배선은 4.4(#30)·4.7(#158) 작업에서 `IStageService.RestoreStage(0)` 을 통해 연결해야 한다.
+- 파산 시 1단계로 되돌리는 호출은 4.4(#30)가 `IStageService.RestoreStage(0)` 으로 연결했고, 4.8(#164)에서 `BillManager` 가 런 경계에 붙으며 실제로 돌기 시작했다 — Play Mode 에서 파산 후 단계 인덱스가 0 이 되는 것을 확인했다.
+
+**`EndRun` 순서에 제약이 있다.** 이 매니저는 목표를 채웠으면 단계를 올리고 `BillManager` 는 파산이면 0 으로 되돌리므로, **여기가 먼저**여야 한다. 순서는 `GameManager.GetServiceOrder` 가 `Stage`=5 · `Bill`=6 으로 고정한다(#164). 둘 다 순번이 없으면 동점이라 `Array.Sort` 가 순서를 보장하지 않는다.
 
 ## 갱신 이력
 
@@ -82,3 +84,4 @@ Unity 6000.3.21f1 Edit Mode 배치 실행, 2026-09-18 (`unity run . -- -executeM
 |---|---|---|---|
 | 2026-09-17 | #26 | soilrist | 최초 작성. `StageGoalManager` 신설, `OnStageGoalReached` 이벤트 추가, Edit Mode 6건 검증 |
 | 2026-09-18 | #150 | saltlake00 | 3.7 단계 진행 및 단일 출처 연결. `IStageService` 신설, `EndRun` 시 단계 진행 및 최대 단계 가드, `CreatureManager`·`BillManager` 연동, 검증 17건 확장 |
+| 2026-09-18 | #164 | twins6375-art | `BillManager` 가 런 경계에 붙어 `RestoreStage(0)` 이 실제로 돌기 시작한 것을 반영. `EndRun` 순서 제약(`Stage`=5 < `Bill`=6)을 알려진 한계에 명시 |

@@ -1,6 +1,6 @@
 # 하루 진행과 청구서
 
-> 관련 이슈: #27, #28, #29, #150, #30 · 최종 수정: 2026-09-18
+> 관련 이슈: #27, #28, #29, #150, #30, #164 · 최종 수정: 2026-09-18
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -76,6 +76,7 @@ flowchart LR
 |---|---|---|
 | `BillManager` | `Assets/Scripts/Runtime/Economy/BillManager.cs` | `IBillService` 구현. `BeginRun`으로 하루 시작(날짜 증가·청구서 발행), `EndRun`으로 하루 종료(`OnDayEnded` 발행), `TryPay`로 조기 납부(`IEconomyService.TrySpendCoin` 경유) 성공 시 퍼크 3종을 뽑아 `OnPerkOffered` 발행, `TryChoosePerk`로 하나를 고르면 `OnPerkChosen` 발행. 대출은 `TryTakeLoan`으로 빌리고 `TryRepayLoan`으로 갚으며, 징수율은 `LoanDailyCut`으로만 내보낸다(#29). 마감 미납 파산을 판정해 `OnBankrupt`를 발행하고 회차를 되돌린다(#30) |
 | `BankruptcyChecks` | `Assets/Scripts/Editor/BankruptcyChecks.cs` | 파산 판정 경계와 회차 초기화 범위의 Edit Mode 검증 8건 (#30) |
+| `RunWiringChecks` | `Assets/Scripts/Editor/RunWiringChecks.cs` | 런 경계 **배선과 순서** 검증 5건 (#164) |
 | `BillHud` | `Assets/Scripts/Runtime/UI/BillHud.cs` | `OnBillIssued`/`OnBillDueSoon` 구독, `TextMeshProUGUI`에 "D-N  N원" 형식으로 표시 |
 | (프리팹) | `Assets/Prefabs/UI/BillHud.prefab` | Canvas(ScreenSpaceOverlay) + `BillLabel`(우상단, `BillHud` 부착) |
 | `BillManagerChecks` | `Assets/Scripts/Editor/BillManagerChecks.cs` | EditMode 배치 검증. `MenuItem` 없이 `RunBatch()`를 외부에서 호출한다 |
@@ -84,13 +85,13 @@ flowchart LR
 
 | 이벤트 | 발행/구독 | 언제 |
 |---|---|---|
-| `GameEvents.OnBillIssued` | `BillManager`가 발행, `BillHud`가 구독 | 새 청구서가 만들어질 때(활성 청구서가 없는 상태에서 `BeginRun` 호출 시) |
+| `GameEvents.OnBillIssued` | `BillManager`가 발행, `BillHud`·`AudioManager`(6.4)가 구독 | 새 청구서가 만들어질 때(활성 청구서가 없는 상태에서 `BeginRun` 호출 시) |
 | `GameEvents.OnBillDueSoon` | `BillManager`가 발행, `BillHud`가 구독 | 활성 청구서가 있는 상태로 `BeginRun`이 끝날 때마다(하루마다). 인자는 그 시점의 `DaysLeft` |
 | `GameEvents.OnDayEnded` | `BillManager`가 발행 | `EndRun` 호출 시. 런당 한 번 = 날짜당 한 번 |
 | `GameEvents.OnBankrupt` | `BillManager`가 발행 | `EndRun` 에서 마감 미납이 확정된 순간(#30). **회차를 되돌리기 전에** 발행한다 |
-| `GameEvents.OnBillPaid` | `BillManager`가 발행 | `TryPay` 성공 시(#28). 구독자 아직 없음 — UI는 이슈 범위 밖 |
-| `GameEvents.OnPerkOffered` | `BillManager`가 발행 | `TryPay` 성공 직후, `perks.csv`에서 무작위로 뽑은 퍼크 id 3개(#28). 구독자 아직 없음 — 선택 UI는 이슈 범위 밖 |
-| `GameEvents.OnPerkChosen` | `BillManager`가 발행 | `TryChoosePerk` 성공 시, 고른 퍼크 id(#28). 구독자 아직 없음 — 효과 적용은 각 시스템 몫(알려진 한계 참고) |
+| `GameEvents.OnBillPaid` | `BillManager`가 발행, `AudioManager`(6.4)가 구독 | `TryPay` 성공 시(#28) |
+| `GameEvents.OnPerkOffered` | `BillManager`가 발행 | `TryPay` 성공 직후, `perks.csv`에서 무작위로 뽑은 퍼크 id 3개(#28). **구독자 아직 없음** — 선택 UI(6.9/#92)가 아직 없다 |
+| `GameEvents.OnPerkChosen` | `BillManager`가 발행, **네 소유자가 구독**(#126) | `TryChoosePerk` 성공 시, 고른 퍼크 id(#28). 효과 적용은 각 시스템 몫 — [퍼크 효과](perks.md) |
 
 ### 읽는 밸런스 값
 
@@ -119,8 +120,9 @@ Edit Mode에서 확인했다 (Unity 6000.3.21f1, MCP로 열린 에디터에 직�
 - [x] `ValidationRunner.RunAll()` 전체 하네스: 오류 0건. `BillManagerChecks`(24건)·`CoinWalletChecks`(11건)·`EconomyManagerChecks`(8건) 등 기존 검증에 회귀 없음
 
 **미검증**: Play Mode. `ManagerBootstrap`의 배선은 `RuntimeInitializeOnLoadMethod`라 Play Mode에서만
-실행되는데, #164가 해결되기 전까지는 `BillManager.EndRun()` 자체가 게임에서 불리지 않아 이
-배선이 실제로 타는지 확인할 방법이 없다.
+실행된다. 막고 있던 #164(`BillManager.EndRun()` 을 부르는 곳이 없음)는 풀렸지만, 아래 #164 의
+Play Mode 확인은 이 배선이 들어오기 **전**에 돈 것이라 그 회차를 근거로 삼을 수 없다.
+확인하려면 크리처를 때려 코인을 모은 뒤 마감을 넘겨 파산시키고 잔액이 0 이 되는지 봐야 한다.
 
 ### 파산 (2026-09-18, #30)
 
@@ -140,8 +142,26 @@ Edit Mode 에서 `BankruptcyChecks.RunBatch()` 로 확인했다 (**8건 PASS**, 
 검증이 실제로 잡는지도 확인했다. `RestoreStage(0)` 을 빼 보니
 "파산이 단계를 1단계로 되돌리지 않았습니다: -1" 로 실패했다.
 
-**미검증**: Play Mode. `BillManager` 가 `IRunScoped` 를 구현하지 않아 런타임에 `EndRun()` 이
-불리지 않는다 — 확인할 방법 자체가 없다 (위 "알려진 한계", #164).
+### Play Mode — 하루가 실제로 흐른다 (2026-09-18, #164)
+
+배선이 붙어 **처음으로 게임에서 확인했다.** `Game` 씬 Play 후 스태미나 소진을 발행해 런을
+끝내고 씬을 다시 로드하는 식으로 날짜를 넘겼다.
+
+| 단계 | 관찰 |
+|---|---|
+| 런 시작 | `Running` · 1일차 · **1단계 청구서 발행** (금액·기한은 `stages.csv`) |
+| 런 종료 | `Result` 전이 · `OnDayEnded(1)` 발행 |
+| 재도전 | 2일차 · 남은 일수 하나 줄어듦 — 하루가 정확히 하나씩 |
+| 반복 | 마감 당일까지 하루씩 진행 (`due_days` 만큼) |
+| 마감 당일 미납 종료 | **1일차로 되돌아가고 청구서가 사라짐** — 파산 발동 |
+| 파산 재시작 | 1일차 · **1단계 청구서 재발행** · 단계 인덱스 0 |
+
+오류·경고 0건. **마감 경계가 Edit Mode 와 같다** — 남은 일수 1(마감 당일) 종료에서 파산하고,
+2 일 때는 무사하다.
+
+**미검증**: 파산 시 지갑 초기화(#158)는 이 회차로 확인하지 못했다. 이 Play Mode 확인은 #158
+배선이 들어오기 전에 돌았고, 번 돈도 0 이라 초기화 전후의 차이가 보이지 않는다 — 크리처를
+실제로 때려 코인을 모은 뒤 파산시켜야 한다.
 
 ### 청구서·납부·대출 (2026-09-17, #27·#28·#29)
 
@@ -156,7 +176,7 @@ Unity 6000.3.21f1 헤드리스 배치 실행, 2026-09-17.
 - [x] `BillHud.prefab` 생성(#27): 임시 `-executeMethod` 스크립트(`TempBillHudPrefabBuilder.Build`, 실행 후 삭제)로 `PrefabUtility.SaveAsPrefabAsset` → `[TempBillHudPrefabBuilder] 저장 완료` 로그 확인, 정상 종료
 - [x] `perks.csv` → `NCAI > 밸런스 CSV 임포트`로 `BalanceData.asset` 재생성, 임포터 검증(4종 고정·`id` 중복 없음·`CoinGainBoost`만 `duration_sec > 0`) 통과
 - [ ] 에디터 Play Mode에서 실제 HUD·퍼크 선택 UI 확인 — `Game.unity`에 프리팹을 배치하는 것은 코어 플레이 모듈 담당 몫이고, 퍼크 선택 UI 자체가 아직 없다(알려진 한계 참고). 미검증
-- [ ] `GameManager`가 `BeginRun`/`EndRun`을 실제로 호출하는 배선(작업 2.5) — 아직 없다. 미검증
+- [x] `GameManager`가 `BeginRun`/`EndRun`을 실제로 호출하는 배선 — #164 에서 `IRunScoped` 를 구현해 붙였고, Play Mode 로 하루 진행과 파산 발동을 확인했다 (위 "Play Mode" 절)
 
 ## 마감 미납과 파산 (#30)
 
@@ -166,7 +186,7 @@ REFERENCE_ANALYSIS 6절). 대출로 코인을 만드는 것이 유일한 회피 
 
 ```
 EndRun()  → OnDayEnded 발행
-          → 청구서가 있고 · 미납이고 · 오늘이 마감일 이후면
+          → 청구서가 있고 · 미납이고 · 오늘이 마감일 당일이거나 그 뒤면
           → OnBankrupt 발행 → 회차 초기화
 ```
 
@@ -179,21 +199,26 @@ EndRun()  → OnDayEnded 발행
 검증을 쓰면서 이 경계를 반대로 잡았다가 틀렸다. `DaysLeft == 1`(마감 당일)에서 이미 마지막
 기회를 쓴 것이다.
 
-### 먼저 — 지금 이 판정은 게임에서 실행되지 않는다
+### 런 경계에 붙기까지 (#164)
 
-`BillManager` 는 **`IRunScoped` 를 구현하지 않는다.** `GameManager` 는
-`GetComponentsInChildren<IRunScoped>` 로만 런 경계를 뿌리므로 `BeginRun()`·`EndRun()` 을
-부르는 곳이 런타임에 없다. 1.16(#111)이 런 경계를 배선할 때 `IRunScoped` 구현체만 모았고,
-`BillManager` 는 메서드 이름만 같을 뿐 인터페이스를 선언하지 않아 빠졌다.
+**한동안 이 판정은 게임에서 실행되지 않았다.** `BillManager` 가 `BeginRun`/`EndRun` 메서드는
+가졌는데 `IRunScoped` 를 선언하지 않아 `GameManager` 의 `GetComponentsInChildren<IRunScoped>`
+에 잡히지 않았다. 1.16(#111)이 런 경계를 배선할 때 구현체만 모았고, 이 클래스는 이름만 같아
+빠졌다 — **하루 진행·청구서 발행·대출 징수·파산 판정이 전부 잠들어 있었다.**
 
-**파산 판정은 Edit Mode 검증으로만 확인했다.** 배선이 붙기 전까지 하루도 흐르지 않고 청구서도
-나가지 않으므로, 4.1~4.4 가 통째로 잠들어 있다. `: IBillService, IRunScoped` 한 줄이면 붙는데,
-그 순간 4.x 전체가 동시에 살아나 다른 카드의 실동작이 처음 드러난다 — 4.4 의 범위를 넘어
-별도 카드로 뺐다.
+각 기능의 Edit Mode 검증은 `BeginRun`/`EndRun` 을 직접 불러 전부 통과했다. **부르는 주체가
+없다는 것은 아무 검증도 보지 않았다.** 그래서 #164 가 배선 자체를 보는 `RunWiringChecks` 를
+함께 만들었다.
+
+#164 에서 인터페이스를 붙였는데 한 줄로 끝나지 않았다. **`StageGoalManager` 가 `BillManager`
+보다 먼저 불려야 한다** — `EndRun` 에서 앞은 목표를 채웠으면 단계를 올리고 뒤는 파산이면
+단계를 0 으로 되돌린다. 순서가 뒤집히면 **파산인데 단계가 올라간다.** `GetServiceOrder` 는
+클래스 이름으로 순번을 매기는데 둘 다 기타(10)라 동점이었고, `Array.Sort` 는 동점 순서를
+보장하지 않는다. `Stage`=5 · `Bill`=6 을 줘서 고정했다.
 
 ### `OnBankrupt` 로 Result 로 전이한다는 계약은 이 경로에서 늦다
 
-배선이 붙은 뒤의 이야기다. ARCHITECTURE 3절은 "`OnBankrupt` 는 GameManager 만 구독해 Result 로
+ARCHITECTURE 3절은 "`OnBankrupt` 는 GameManager 만 구독해 Result 로
 전이시킨다"고 적었지만, `EndRun()` 은 **Result 전이 도중에** 불리게 된다. 발행 시점에는 이미
 Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검사에 걸려 아무 일도
 하지 않는다.
@@ -219,9 +244,9 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 
 ## 알려진 한계
 
-- **`GameManager`가 `BillManager.BeginRun()`/`EndRun()`을 호출하지 않는다.** 1.16(#111)이 런 경계를 배선했지만 `IRunScoped` 구현체만 모았고 `BillManager`는 그 인터페이스를 선언하지 않아 빠졌다. 그래서 **하루 진행·청구서 발행·대출 징수·파산 판정이 전부 게임에서 실행되지 않는다** — 검증은 `BillManagerChecks`·`BankruptcyChecks`가 직접 호출해서만 했다. 한 줄로 고칠 수 있지만 4.x 전체가 동시에 살아나는 변화라 별도 카드가 필요하다.
+- ~~`GameManager`가 `BillManager.BeginRun()`/`EndRun()`을 호출하지 않는다.~~ — #164 에서 `IRunScoped` 를 구현해 붙였다. Play Mode 로 하루 진행·청구서 발행·파산 발동을 확인했다 (위 검증).
 - ~~단계 진행(`_billIndex`)을 `BillManager`가 자체 순번으로 관리한다.~~ — #150 에서 `IStageService` 단일 출처 연결로 해결됐다. 청구서 금액과 기한은 현재 단계를 따르고, `_billIndex` 는 대출 해금 등에서 쓸 누적 발행 순번으로만 쓰인다.
-- ~~파산 판정(#30)이 없어 청구서를 기한 내에 내지 않아도 아무 일이 일어나지 않는다.~~ — #30 에서 붙였다. 다만 아래 셋이 남는다.
+- ~~파산 판정(#30)이 없어 청구서를 기한 내에 내지 않아도 아무 일이 일어나지 않는다.~~ — #30 에서 붙였다. 함께 남았던 셋 중 지갑 초기화는 #158 이 해결했고 아래 둘이 남는다.
 - **결과 화면에 "파산"이 뜨지 않는다.** `OnBankrupt` 를 받아 표시할 화면(6.2/#34)이 아직 없다. #34 가 이 카드를 선행으로 잡고 있어 순환이었고, 발행까지가 #30 의 몫이다.
 - **파산 결과가 저장되지 않는다.** `SaveData.WasBankrupt`·`LastCompletedDay` 필드는 있지만 채우는 곳이 없다. `SaveManager` 를 부르는 곳이 `GameManager.StartNewRun()` 하나뿐이고 거기서 `new SaveData()` 빈 객체를 쓴다 — 매니저 상태가 전혀 담기지 않는다.
 - ~~**파산해도 돈이 그대로 남는다 — 페널티가 약하다.**~~ — #158 에서 해결. `IWalletPersistence`
@@ -246,3 +271,4 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 | 2026-09-18 | #150 | saltlake00 | `IStageService` 연결 — 자체 단계 순번을 걷어내고 단일 출처의 현재 단계로 청구서 발행 |
 | 2026-09-18 | #30 | twins6375-art | 마감 미납 파산 판정·`OnBankrupt` 발행·회차 초기화(단계 포함). `BankruptcyChecks` 신규. **지갑 초기화는 공용 계약에 막혀 제외** |
 | 2026-09-18 | #158 | hunil58 | `IWalletPersistence` 소비자에 `BillManager` 추가(A안) — 파산 시 코인·소수 잔여를 0으로 초기화. `ARCHITECTURE.md` "하루 종료 순서"의 `OnBankrupt` 문구를 "결과 통지"로 정정, `ContractsValidationChecks` 5번 케이스 추가, `BankruptcyChecks`에 지갑 초기화 검증(`FakeWalletPersistence`) 추가 |
+| 2026-09-18 | #164 | twins6375-art | `BillManager` 가 `IRunScoped` 를 구현해 런 경계에 붙음 — 4.1~4.4 가 처음으로 실제 동작한다. `GetServiceOrder` 순번 부여, `RunWiringChecks` 신규, Play Mode 확인 |
