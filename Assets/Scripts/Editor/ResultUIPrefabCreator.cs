@@ -1,0 +1,382 @@
+using System.Collections.Generic;
+using System.Reflection;
+using NCAIClicker.UI;
+using TMPro;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace NCAIClicker.EditorTools
+{
+    /// <summary>
+    /// ResultUI 프리팹을 생성하는 에디터 헬퍼 (이슈 #34).
+    ///
+    /// 레이아웃은 좌표를 하나씩 미는 대신 LayoutGroup 으로 짠다. 정산 명세는 행이 여섯 줄이라
+    /// 손으로 anchoredPosition 을 밀면 한 줄만 늘어도 아래 전부를 다시 계산해야 한다.
+    ///
+    /// 프리팹은 Resources 아래 **한 벌만** 저장한다. 두 경로에 저장하면 인스펙터에서 고친 쪽과
+    /// 런타임이 읽는 쪽이 갈라진다 (실제로 그렇게 갈라져 있었다).
+    /// </summary>
+    public static class ResultUIPrefabCreator
+    {
+        private const string FontPath = "Assets/Materials/Fonts/NanumGothicBoldSDF.asset";
+        private const string ResourceDir = "Assets/Prefabs/Resources/UI";
+        private const string ResultPrefabPath = ResourceDir + "/ResultUI.prefab";
+
+        // 1920x1080 기준. 타이틀 세이프 90% — 바깥 5% 는 디스플레이가 잘라먹을 수 있다.
+        private static readonly Vector2 SafeInset = new Vector2(96f, 54f);
+
+        private static readonly Color Cream = new Color(0.992f, 0.953f, 0.874f);
+        private static readonly Color Parchment = new Color(0.894f, 0.827f, 0.706f);
+        private static readonly Color Muted = new Color(0.702f, 0.624f, 0.498f);
+        private static readonly Color Gold = new Color(1f, 0.816f, 0.478f);
+        private static readonly Color Loss = new Color(1f, 0.553f, 0.478f);
+        private static readonly Color PanelFill = new Color(0.027f, 0.016f, 0.016f, 0.94f);
+        private static readonly Color PanelLine = new Color(0.227f, 0.165f, 0.11f);
+        private static readonly Color RowFill = new Color(1f, 1f, 1f, 0.07f);
+        private static readonly Color LossRowFill = new Color(0.47f, 0.08f, 0.08f, 0.22f);
+        private static readonly Color NetRowFill = new Color(0.91f, 0.69f, 0.29f, 0.14f);
+
+        [MenuItem("NCAI/UI/결과 화면 프리팹 생성")]
+        public static void CreatePrefab()
+        {
+            var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPath);
+
+            var root = CreateStretchedObject("ResultUI", null);
+            var controller = root.AddComponent<ResultUIController>();
+
+            var panelRoot = CreateStretchedObject("PanelRoot", root);
+            var panelImage = panelRoot.AddComponent<Image>();
+            panelImage.color = new Color(0f, 0f, 0f, 0.85f);
+
+            var settlement = BuildSettlement(panelRoot, font, out var bound);
+            var bankruptcy = BuildBankruptcy(panelRoot, font, out var bankruptcyBound);
+
+            var mainMenuButton = CreateButton("MainMenuButton", panelRoot, font, new Vector2(220f, 56f), "메인 메뉴",
+                new Color(0.18f, 0.16f, 0.14f), new Color(0.36f, 0.33f, 0.29f), Parchment, 24);
+            var mainMenuRect = mainMenuButton.GetComponent<RectTransform>();
+            mainMenuRect.anchorMin = new Vector2(1f, 0f);
+            mainMenuRect.anchorMax = new Vector2(1f, 0f);
+            mainMenuRect.pivot = new Vector2(1f, 0f);
+            mainMenuRect.anchoredPosition = new Vector2(-SafeInset.x, SafeInset.y);
+
+            bound["_panelRoot"] = panelRoot;
+            bound["_settlementContainer"] = settlement;
+            bound["_bankruptcyContainer"] = bankruptcy;
+            bound["_mainMenuButton"] = mainMenuButton;
+            foreach (var pair in bankruptcyBound)
+            {
+                bound[pair.Key] = pair.Value;
+            }
+
+            Bind(controller, bound);
+            SavePrefab(root, ResultPrefabPath);
+        }
+
+        /// <summary>정산 화면. 좌측 명세 / 우측 집계 두 컬럼에 하단 액션 행 (원작 구조).</summary>
+        private static GameObject BuildSettlement(GameObject parent, TMP_FontAsset font, out Dictionary<string, object> bound)
+        {
+            bound = new Dictionary<string, object>();
+
+            var settlement = CreateStretchedObject("SettlementContainer", parent);
+            var settlementRect = settlement.GetComponent<RectTransform>();
+            settlementRect.offsetMin = SafeInset;
+            settlementRect.offsetMax = -SafeInset;
+
+            var column = settlement.AddComponent<VerticalLayoutGroup>();
+            column.spacing = 18f;
+            column.childControlWidth = true;
+            column.childControlHeight = true;
+            column.childForceExpandWidth = true;
+            column.childForceExpandHeight = false;
+
+            // 머리글: 큰 제목 한 줄과 그 아래 얇은 메타 한 줄.
+            var header = CreateVertical("Header", settlement, 4f);
+            SetPreferredHeight(header, 118f);
+            bound["_titleText"] = CreateLabel("TitleText", header, font, 72, Cream, TextAlignmentOptions.Center, "지친 손!");
+
+            var meta = CreateHorizontal("MetaRow", header, 18f);
+            SetPreferredHeight(meta, 30f);
+            bound["_dayText"] = CreateLabel("DayText", meta, font, 24, Cream, TextAlignmentOptions.Center, "DAY 1");
+            bound["_billStatusText"] = CreateLabel("BillStatusText", meta, font, 24, Muted, TextAlignmentOptions.Center, "청구서: 납부 완료");
+            bound["_stageGoalText"] = CreateLabel("StageGoalText", meta, font, 24, Muted, TextAlignmentOptions.Center, "단계 목표: 미달성");
+
+            // 본문 두 컬럼.
+            var columns = CreateHorizontal("ColumnsRow", settlement, 28f);
+            SetFlexibleHeight(columns, 1f);
+
+            var ledger = CreatePanel("LedgerPanel", columns, 24f, 10f);
+            SetFlexibleWidth(ledger, 1f);
+            bound["_accuracyText"] = CreateStatRow("AccuracyRow", ledger, font, "정확도:", "71%", RowFill, Cream, 40);
+            bound["_runCoinText"] = CreateStatRow("CoinCountRow", ledger, font, "코인:", "102", RowFill, Cream, 40);
+            bound["_denomCountTexts"] = CreateDenomRow(ledger, font);
+            bound["_grossText"] = CreateStatRow("GrossRow", ledger, font, "합계:", ResultUIController.UnwiredPlaceholder, RowFill, Cream, 40);
+            bound["_feeText"] = CreateStatRow("FeeRow", ledger, font, "토니의 몫 (10%)", ResultUIController.UnwiredPlaceholder, LossRowFill, Loss, 38);
+            bound["_netText"] = CreateStatRow("NetRow", ledger, font, "내 몫:", ResultUIController.UnwiredPlaceholder, NetRowFill, Gold, 48);
+
+            var side = CreateVertical("SideColumn", columns, 24f);
+            SetPreferredWidth(side, 620f);
+
+            var broken = CreatePanel("BrokenPanel", side, 22f, 14f);
+            SetPreferredHeight(broken, 200f);
+            bound["_brokenCountText"] = CreateStatRow("BrokenHeaderRow", broken, font, "박살낸 저금통:", ResultUIController.UnwiredPlaceholder, Color.clear, Cream, 40);
+            bound["_brokenChipTexts"] = CreateBrokenChipRow(broken, font);
+
+            var codex = CreatePanel("CodexPanel", side, 18f, 10f);
+            SetFlexibleHeight(codex, 1f);
+            var codexIcon = CreateObject("CodexIcon", codex);
+            var codexImage = codexIcon.AddComponent<Image>();
+            codexImage.color = new Color(1f, 1f, 1f, 0.05f);
+            SetPreferredHeight(codexIcon, 190f);
+            bound["_codexProgressText"] = CreateLabel("CodexProgressText", codex, font, 28, Muted, TextAlignmentOptions.Center, ResultUIController.UnwiredPlaceholder);
+            CreateLabel("CodexCaptionText", codex, font, 20, PanelLine, TextAlignmentOptions.Center, "다음 저금통 해금까지");
+
+            // 하단 액션.
+            var actions = CreateHorizontal("ActionRow", settlement, 28f);
+            actions.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.UpperCenter;
+            SetPreferredHeight(actions, 150f);
+
+            var payColumn = CreateVertical("PayColumn", actions, 8f);
+            SetPreferredWidth(payColumn, 420f);
+            // 동작이 없는 버튼은 프리팹 단계에서 잠근다. 런타임에 끄면 첫 프레임에 눌릴 수 있다.
+            var payButton = CreateButton("PayButton", payColumn, font, new Vector2(420f, 108f), "지금 납부",
+                new Color(0.49f, 0.12f, 0.1f), new Color(0.7f, 0.25f, 0.21f), new Color(1f, 0.86f, 0.83f), 34);
+            payButton.interactable = false;
+            bound["_payButton"] = payButton;
+            bound["_payCaptionText"] = CreateLabel("PayCaptionText", payColumn, font, 22, Muted, TextAlignmentOptions.Center, "준비 중");
+
+            var gambleButton = CreateButton("GambleButton", actions, font, new Vector2(400f, 108f), "더블 오어 낫싱",
+                new Color(0.08f, 0.06f, 0.05f), new Color(0.36f, 0.27f, 0.15f), Gold, 34);
+            gambleButton.interactable = false;
+            bound["_gambleButton"] = gambleButton;
+
+            bound["_continueButton"] = CreateButton("ContinueButton", actions, font, new Vector2(320f, 108f), "다음 날 진행",
+                new Color(0.11f, 0.31f, 0.45f), new Color(0.24f, 0.51f, 0.71f), new Color(0.9f, 0.95f, 0.98f), 32);
+
+            return settlement;
+        }
+
+        /// <summary>파산 화면. 이번 이슈의 범위가 아니라 기존 구성을 그대로 옮겼다.</summary>
+        private static GameObject BuildBankruptcy(GameObject parent, TMP_FontAsset font, out Dictionary<string, object> bound)
+        {
+            bound = new Dictionary<string, object>();
+
+            var bankruptcy = CreateStretchedObject("BankruptcyContainer", parent);
+            var rect = bankruptcy.GetComponent<RectTransform>();
+            rect.offsetMin = SafeInset;
+            rect.offsetMax = -SafeInset;
+
+            var column = bankruptcy.AddComponent<VerticalLayoutGroup>();
+            column.spacing = 22f;
+            column.childAlignment = TextAnchor.MiddleCenter;
+            column.childControlWidth = true;
+            column.childControlHeight = true;
+            column.childForceExpandWidth = true;
+            column.childForceExpandHeight = false;
+
+            bound["_bankruptcyTitleText"] = CreateLabel("BankruptcyTitleText", bankruptcy, font, 80, new Color(0.85f, 0.2f, 0.16f), TextAlignmentOptions.Center, "파산");
+            bound["_bankruptcyDetailText"] = CreateLabel("BankruptcyDetailText", bankruptcy, font, 30, Cream, TextAlignmentOptions.Center, "청구서 미납으로 파산하였습니다.");
+            bound["_bankruptcyCoinLossText"] = CreateLabel("BankruptcyCoinLossText", bankruptcy, font, 24, Loss, TextAlignmentOptions.Center, "보유 코인이 몰수되며 1일차부터 다시 시작합니다.");
+            bound["_restartButton"] = CreateButton("RestartButton", bankruptcy, font, new Vector2(320f, 96f), "1일차 재시작",
+                new Color(0.49f, 0.12f, 0.1f), new Color(0.7f, 0.25f, 0.21f), new Color(1f, 0.86f, 0.83f), 30);
+
+            return bankruptcy;
+        }
+
+        private static TextMeshProUGUI[] CreateDenomRow(GameObject parent, TMP_FontAsset font)
+        {
+            var row = CreateHorizontal("DenomRow", parent, 10f);
+            SetPreferredHeight(row, 60f);
+            var image = row.AddComponent<Image>();
+            image.color = new Color(1f, 1f, 1f, 0.04f);
+
+            var worths = new[] { "$1", "$5", "$25", "$100" };
+            var labels = new TextMeshProUGUI[worths.Length];
+            for (var i = 0; i < worths.Length; i++)
+            {
+                var chip = CreateHorizontal($"DenomChip{i}", row, 8f);
+                chip.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleCenter;
+                labels[i] = CreateLabel("CountText", chip, font, 30, Parchment, TextAlignmentOptions.Right, ResultUIController.UnwiredPlaceholder);
+                CreateLabel("WorthText", chip, font, 20, PanelLine, TextAlignmentOptions.Left, worths[i]);
+            }
+            return labels;
+        }
+
+        private static TextMeshProUGUI[] CreateBrokenChipRow(GameObject parent, TMP_FontAsset font)
+        {
+            var row = CreateHorizontal("BrokenChipRow", parent, 18f);
+            row.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleLeft;
+            SetPreferredHeight(row, 54f);
+
+            var labels = new TextMeshProUGUI[3];
+            for (var i = 0; i < labels.Length; i++)
+            {
+                labels[i] = CreateLabel($"BrokenChip{i}", row, font, 28, Parchment, TextAlignmentOptions.Center, ResultUIController.UnwiredPlaceholder);
+            }
+            return labels;
+        }
+
+        /// <summary>라벨은 왼쪽, 값은 오른쪽. 원작 명세의 정렬이 이 한 쌍에서 나온다.</summary>
+        private static TextMeshProUGUI CreateStatRow(string name, GameObject parent, TMP_FontAsset font, string label, string value, Color fill, Color valueColor, int valueSize)
+        {
+            var row = CreateHorizontal(name, parent, 16f);
+            row.GetComponent<HorizontalLayoutGroup>().padding = new RectOffset(18, 18, 6, 6);
+            row.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleLeft;
+            SetPreferredHeight(row, 64f);
+
+            if (fill.a > 0f)
+            {
+                row.AddComponent<Image>().color = fill;
+            }
+
+            var labelText = CreateLabel("LabelText", row, font, 32, Parchment, TextAlignmentOptions.Left, label);
+            SetFlexibleWidth(labelText.gameObject, 1f);
+
+            var valueText = CreateLabel("ValueText", row, font, valueSize, valueColor, TextAlignmentOptions.Right, value);
+            SetPreferredWidth(valueText.gameObject, 240f);
+            return valueText;
+        }
+
+        // --- 조립 헬퍼 -------------------------------------------------------
+
+        private static GameObject CreateObject(string name, GameObject parent)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            if (parent != null)
+            {
+                go.transform.SetParent(parent.transform, false);
+            }
+            return go;
+        }
+
+        private static GameObject CreateStretchedObject(string name, GameObject parent)
+        {
+            var go = CreateObject(name, parent);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            return go;
+        }
+
+        private static GameObject CreateVertical(string name, GameObject parent, float spacing)
+        {
+            var go = CreateObject(name, parent);
+            var group = go.AddComponent<VerticalLayoutGroup>();
+            group.spacing = spacing;
+            group.childControlWidth = true;
+            group.childControlHeight = true;
+            group.childForceExpandWidth = true;
+            group.childForceExpandHeight = false;
+            return go;
+        }
+
+        private static GameObject CreateHorizontal(string name, GameObject parent, float spacing)
+        {
+            var go = CreateObject(name, parent);
+            var group = go.AddComponent<HorizontalLayoutGroup>();
+            group.spacing = spacing;
+            group.childControlWidth = true;
+            group.childControlHeight = true;
+            group.childForceExpandWidth = true;
+            group.childForceExpandHeight = true;
+            return go;
+        }
+
+        private static GameObject CreatePanel(string name, GameObject parent, float padding, float spacing)
+        {
+            var go = CreateVertical(name, parent, spacing);
+            var group = go.GetComponent<VerticalLayoutGroup>();
+            var pad = Mathf.RoundToInt(padding);
+            group.padding = new RectOffset(pad, pad, pad, pad);
+
+            var image = go.AddComponent<Image>();
+            image.color = PanelFill;
+            return go;
+        }
+
+        private static TextMeshProUGUI CreateLabel(string name, GameObject parent, TMP_FontAsset font, int fontSize, Color color, TextAlignmentOptions alignment, string text)
+        {
+            var go = CreateObject(name, parent);
+            var label = go.AddComponent<TextMeshProUGUI>();
+            if (font != null)
+            {
+                label.font = font;
+            }
+            label.fontSize = fontSize;
+            label.color = color;
+            label.alignment = alignment;
+            label.text = text;
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+            return label;
+        }
+
+        private static Button CreateButton(string name, GameObject parent, TMP_FontAsset font, Vector2 size, string label, Color fill, Color line, Color textColor, int fontSize)
+        {
+            var go = CreateObject(name, parent);
+            var rect = go.GetComponent<RectTransform>();
+            rect.sizeDelta = size;
+
+            var image = go.AddComponent<Image>();
+            image.color = fill;
+
+            var outline = go.AddComponent<Outline>();
+            outline.effectColor = line;
+            outline.effectDistance = new Vector2(2f, -2f);
+
+            var button = go.AddComponent<Button>();
+            SetPreferredWidth(go, size.x);
+            SetPreferredHeight(go, size.y);
+
+            var text = CreateLabel("Text", go, font, fontSize, textColor, TextAlignmentOptions.Center, label);
+            var textRect = text.GetComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
+            return button;
+        }
+
+        private static LayoutElement EnsureLayoutElement(GameObject go)
+        {
+            var element = go.GetComponent<LayoutElement>();
+            return element != null ? element : go.AddComponent<LayoutElement>();
+        }
+
+        private static void SetPreferredWidth(GameObject go, float value) => EnsureLayoutElement(go).preferredWidth = value;
+
+        private static void SetPreferredHeight(GameObject go, float value) => EnsureLayoutElement(go).preferredHeight = value;
+
+        private static void SetFlexibleWidth(GameObject go, float value) => EnsureLayoutElement(go).flexibleWidth = value;
+
+        private static void SetFlexibleHeight(GameObject go, float value) => EnsureLayoutElement(go).flexibleHeight = value;
+
+        /// <summary>직렬화 필드는 private 이라 리플렉션으로 넣는다. 이름이 틀리면 조용히 비니까 검증에서 잡는다.</summary>
+        private static void Bind(ResultUIController controller, Dictionary<string, object> bound)
+        {
+            var flags = BindingFlags.NonPublic | BindingFlags.Instance;
+            var type = typeof(ResultUIController);
+
+            foreach (var pair in bound)
+            {
+                var field = type.GetField(pair.Key, flags);
+                if (field == null)
+                {
+                    Debug.LogError($"[ResultUIPrefabCreator] {pair.Key} 필드가 없다. 이름이 바뀌었는지 확인하라.");
+                    continue;
+                }
+                field.SetValue(controller, pair.Value);
+            }
+        }
+
+        private static void SavePrefab(GameObject root, string path)
+        {
+            System.IO.Directory.CreateDirectory(ResourceDir);
+            PrefabUtility.SaveAsPrefabAsset(root, path);
+            Object.DestroyImmediate(root);
+            AssetDatabase.Refresh();
+            Debug.Log("[ResultUIPrefabCreator] 프리팹 생성 완료: " + path);
+        }
+    }
+}
