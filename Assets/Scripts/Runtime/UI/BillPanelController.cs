@@ -24,6 +24,14 @@ namespace NCAIClicker.UI
         [SerializeField] private GameObject _tabBar;
         [SerializeField] private GameObject _continueRow;
 
+        [Header("탭")]
+        [SerializeField] private GameObject _billTabRoot;
+        [SerializeField] private GameObject _upgradeTabRoot;
+        [SerializeField] private Transform _upgradeContent;
+        [SerializeField] private GameObject _upgradeShopPrefab;
+        [SerializeField] private Button _billTabButton;
+        [SerializeField] private Button _upgradeTabButton;
+
         [Header("고지서 종이")]
         [SerializeField] private TextMeshProUGUI _issuerText;
         [SerializeField] private TextMeshProUGUI _titleText;
@@ -58,7 +66,17 @@ namespace NCAIClicker.UI
             Tab,
         }
 
+        /// <summary>탭 화면에서 무엇을 보고 있는가.</summary>
+        public enum Tab
+        {
+            Bill,
+            Upgrade,
+        }
+
         private Mode _mode = Mode.Modal;
+        private Tab _tab = Tab.Bill;
+
+        public Tab CurrentTab => _tab;
 
         /// <summary>패널이 닫힐 때 알린다. 정산창이 이걸 듣고 자기 화면을 다시 켠다.</summary>
         public event Action Closed;
@@ -79,11 +97,21 @@ namespace NCAIClicker.UI
             }
             if (_laterButton != null)
             {
-                _laterButton.onClick.AddListener(Close);
+                // "아직" 은 닫는 버튼이 아니라 **미루는** 버튼이다. 닫아 버리면 바로 다음 런이
+                // 시작돼 업그레이드를 살 기회가 사라진다. 탭 화면으로 나가 선택지를 남긴다.
+                _laterButton.onClick.AddListener(ShowBillTab);
             }
             if (_continueButton != null)
             {
                 _continueButton.onClick.AddListener(HandleContinueClicked);
+            }
+            if (_billTabButton != null)
+            {
+                _billTabButton.onClick.AddListener(ShowBillTab);
+            }
+            if (_upgradeTabButton != null)
+            {
+                _upgradeTabButton.onClick.AddListener(ShowUpgradeTab);
             }
         }
 
@@ -95,11 +123,19 @@ namespace NCAIClicker.UI
             }
             if (_laterButton != null)
             {
-                _laterButton.onClick.RemoveListener(Close);
+                _laterButton.onClick.RemoveListener(ShowBillTab);
             }
             if (_continueButton != null)
             {
                 _continueButton.onClick.RemoveListener(HandleContinueClicked);
+            }
+            if (_billTabButton != null)
+            {
+                _billTabButton.onClick.RemoveListener(ShowBillTab);
+            }
+            if (_upgradeTabButton != null)
+            {
+                _upgradeTabButton.onClick.RemoveListener(ShowUpgradeTab);
             }
         }
 
@@ -119,8 +155,16 @@ namespace NCAIClicker.UI
         /// <summary>정산창에서 납부하러 들어올 때.</summary>
         public void ShowAsModal() => Show(Mode.Modal);
 
-        /// <summary>다음 턴 준비 화면으로 열 때.</summary>
-        public void ShowAsTab() => Show(Mode.Tab);
+        /// <summary>다음 턴 준비 화면으로 열 때. 어느 탭을 펼칠지 고른다.</summary>
+        public void ShowAsTab(Tab tab = Tab.Bill)
+        {
+            _tab = tab;
+            Show(Mode.Tab);
+        }
+
+        private void ShowBillTab() => ShowAsTab(Tab.Bill);
+
+        private void ShowUpgradeTab() => ShowAsTab(Tab.Upgrade);
 
         private void Show(Mode mode)
         {
@@ -144,7 +188,33 @@ namespace NCAIClicker.UI
                 _continueRow.SetActive(mode == Mode.Tab);
             }
 
+            RenderTabs();
             Render();
+        }
+
+        /// <summary>
+        /// 탭을 갈아 끼운다. 업그레이드 상점은 MainMenu 용으로 만들어진 패널이라 (#91)
+        /// 여기서 처음 펼칠 때 한 번만 심고, 이후에는 켜고 끄기만 한다.
+        /// 패널은 살아날 때마다 스스로 다시 배선하고 그린다.
+        /// </summary>
+        private void RenderTabs()
+        {
+            // 모달일 때는 탭이 없다. 고지서만 보인다.
+            var showUpgrade = _mode == Mode.Tab && _tab == Tab.Upgrade;
+
+            if (_billTabRoot != null)
+            {
+                _billTabRoot.SetActive(!showUpgrade);
+            }
+            if (_upgradeTabRoot != null)
+            {
+                _upgradeTabRoot.SetActive(showUpgrade);
+            }
+
+            if (showUpgrade && _upgradeContent != null && _upgradeShopPrefab != null && _upgradeContent.childCount == 0)
+            {
+                Instantiate(_upgradeShopPrefab, _upgradeContent, false);
+            }
         }
 
         public void Close()
@@ -319,9 +389,9 @@ namespace NCAIClicker.UI
 
             if (_billService.TryPay(bill))
             {
-                // 납부가 끝나면 닫는다. 납부 완료 화면에 머물면 납부·아직 버튼이 모두 사라져
-                // 빠져나갈 길이 없다.
-                Close();
+                // 납부가 끝나면 탭 화면으로 나간다. 납부 완료 화면에 머물면 납부·아직 버튼이
+                // 모두 사라져 빠져나갈 길이 없고, 닫아 버리면 업그레이드를 살 기회가 사라진다.
+                ShowBillTab();
             }
         }
 

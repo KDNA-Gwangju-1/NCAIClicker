@@ -65,15 +65,6 @@ namespace NCAIClicker.UI
         [SerializeField] private TextMeshProUGUI _bankruptcyCoinLossText;
         [SerializeField] private Button _restartButton;
 
-        // 업그레이드 상점은 MainMenu 씬에 놓이도록 만들어진 패널이다 (#91). 정산창에서는 씬을
-        // 바꾸지 않고 같은 화면 위에 덮는다 — 원작도 정산창에서 메뉴로 들어갔다 돌아온다.
-        // 남의 프리팹을 고치지 않으려고 여기서 껍데기(암전 + 닫기)만 만들고 안에 띄운다.
-        [Header("업그레이드 오버레이")]
-        [SerializeField] private GameObject _upgradeOverlay;
-        [SerializeField] private Transform _upgradeContent;
-        [SerializeField] private GameObject _upgradeShopPrefab;
-        [SerializeField] private Button _upgradeCloseButton;
-
         [Header("공통 UI")]
         [SerializeField] private Button _mainMenuButton;
 
@@ -126,10 +117,6 @@ namespace NCAIClicker.UI
             {
                 _payButton.onClick.AddListener(HandlePayClicked);
             }
-            if (_upgradeCloseButton != null)
-            {
-                _upgradeCloseButton.onClick.AddListener(CloseUpgradeOverlay);
-            }
         }
 
         private void OnDisable()
@@ -157,10 +144,6 @@ namespace NCAIClicker.UI
             if (_payButton != null)
             {
                 _payButton.onClick.RemoveListener(HandlePayClicked);
-            }
-            if (_upgradeCloseButton != null)
-            {
-                _upgradeCloseButton.onClick.RemoveListener(CloseUpgradeOverlay);
             }
             if (_billPanel != null)
             {
@@ -281,7 +264,6 @@ namespace NCAIClicker.UI
 
         public void HideAll()
         {
-            CloseUpgradeOverlay();
             if (_panelRoot != null)
             {
                 _panelRoot.SetActive(false);
@@ -406,10 +388,10 @@ namespace NCAIClicker.UI
             UpdatePayButton();
             UpdateLoanCutRow();
 
-            // 상점 프리팹이 빠졌으면 눌러도 아무 일이 없다. 그럴 바엔 잠근다.
+            // 패널이 안 이어졌으면 눌러도 아무 일이 없다. 그럴 바엔 잠근다.
             if (_upgradeButton != null)
             {
-                _upgradeButton.interactable = _upgradeShopPrefab != null && _upgradeOverlay != null;
+                _upgradeButton.interactable = _billPanel != null;
             }
 
             if (_payCaptionText != null)
@@ -530,33 +512,19 @@ namespace NCAIClicker.UI
         }
 
         /// <summary>
-        /// 업그레이드 상점을 정산창 위에 덮는다. 씬을 바꾸지 않는 이유는 두 가지다 —
-        /// 원작이 정산창에서 메뉴로 들어갔다 그대로 돌아오고, MainMenu 로 보내면 정산 내용이
-        /// 사라져 "얼마 벌었더라" 를 다시 볼 수 없다.
-        ///
-        /// 패널은 살아날 때마다 스스로 다시 배선하고 그린다 (#91). 여기서는 켜 주기만 한다.
+        /// 업그레이드는 정산창 위에 덮는 것이 아니라 **탭 화면으로 전환**한다.
+        /// 원작에서 업그레이드와 고지서는 같은 메뉴의 두 탭이고, 거기서 계속하기를 눌러야
+        /// 다음 런이 시작된다. 오버레이로 띄우면 정산 내용과 상점이 겹쳐 둘 다 읽히지 않는다.
         /// </summary>
         private void HandleUpgradeClicked()
         {
-            if (_upgradeOverlay == null || _upgradeContent == null || _upgradeShopPrefab == null)
+            if (_billPanel == null)
             {
                 return;
             }
 
-            if (_upgradeContent.childCount == 0)
-            {
-                Instantiate(_upgradeShopPrefab, _upgradeContent, false);
-            }
-
-            _upgradeOverlay.SetActive(true);
-        }
-
-        private void CloseUpgradeOverlay()
-        {
-            if (_upgradeOverlay != null)
-            {
-                _upgradeOverlay.SetActive(false);
-            }
+            HideAll();
+            _billPanel.ShowAsTab(BillPanelController.Tab.Upgrade);
         }
 
         private void HandleMainMenuClicked()

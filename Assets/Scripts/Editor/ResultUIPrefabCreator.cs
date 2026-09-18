@@ -68,31 +68,6 @@ namespace NCAIClicker.EditorTools
 
             bound["_panelRoot"] = panelRoot;
 
-            // 업그레이드 상점을 덮어 띄울 자리. 상점 프리팹 자체는 #91 산출물이라 건드리지 않고
-            // 껍데기(암전 + 닫기)만 여기서 만든다.
-            var overlay = CreateStretchedObject("UpgradeOverlay", root);
-            overlay.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.92f);
-            bound["_upgradeOverlay"] = overlay;
-
-            var overlayContent = CreateStretchedObject("Content", overlay);
-            var contentRect = overlayContent.GetComponent<RectTransform>();
-            contentRect.offsetMin = new Vector2(SafeInset.x, SafeInset.y + 120f);
-            contentRect.offsetMax = -SafeInset;
-            bound["_upgradeContent"] = overlayContent.transform;
-
-            var closeButton = CreateButton("UpgradeCloseButton", overlay, font, new Vector2(320f, 96f), "돌아가기",
-                new Color(0.18f, 0.16f, 0.14f), new Color(0.36f, 0.33f, 0.29f), Parchment, 30);
-            var closeRect = closeButton.GetComponent<RectTransform>();
-            closeRect.anchorMin = new Vector2(0.5f, 0f);
-            closeRect.anchorMax = new Vector2(0.5f, 0f);
-            closeRect.pivot = new Vector2(0.5f, 0f);
-            closeRect.anchoredPosition = new Vector2(0f, SafeInset.y);
-            bound["_upgradeCloseButton"] = closeButton;
-
-            bound["_upgradeShopPrefab"] = AssetDatabase.LoadAssetAtPath<GameObject>(
-                "Assets/Prefabs/UI/UpgradeShopPanel.prefab");
-
-            overlay.SetActive(false);
             bound["_settlementContainer"] = settlement;
             bound["_bankruptcyContainer"] = bankruptcy;
             bound["_mainMenuButton"] = mainMenuButton;

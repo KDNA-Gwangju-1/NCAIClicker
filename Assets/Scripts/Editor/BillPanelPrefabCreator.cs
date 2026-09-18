@@ -48,10 +48,25 @@ namespace NCAIClicker.EditorTools
             tabRect.pivot = new Vector2(0.5f, 1f);
             tabRect.sizeDelta = new Vector2(900f, 60f);
             tabRect.anchoredPosition = new Vector2(0f, -30f);
-            CreateLabel("TabBill", tabBar, font, 30, Color.white, "고지서");
-            CreateLabel("TabUpgrade", tabBar, font, 30, InkFaint, "업그레이드");
-            CreateLabel("TabCodex", tabBar, font, 30, InkFaint, "저금통 도감");
+            bound["_billTabButton"] = CreateButton("TabBillButton", tabBar, font, new Vector2(200f, 56f), "고지서",
+                new Color(0.10f, 0.08f, 0.07f), new Color(0.60f, 0.49f, 0.28f), Color.white, 30);
+            bound["_upgradeTabButton"] = CreateButton("TabUpgradeButton", tabBar, font, new Vector2(240f, 56f), "업그레이드",
+                new Color(0.10f, 0.08f, 0.07f), new Color(0.30f, 0.26f, 0.20f), new Color(0.78f, 0.69f, 0.55f), 30);
             bound["_tabBar"] = tabBar;
+
+            // 탭 내용은 두 덩어리다. 고지서 쪽은 종이와 버튼, 업그레이드 쪽은 상점을 담는 빈 자리.
+            var billTabRoot = CreateStretched("BillTabRoot", panelRoot);
+            bound["_billTabRoot"] = billTabRoot;
+
+            var upgradeTabRoot = CreateStretched("UpgradeTabRoot", panelRoot);
+            var upgradeRect = upgradeTabRoot.GetComponent<RectTransform>();
+            upgradeRect.offsetMin = new Vector2(120f, 180f);
+            upgradeRect.offsetMax = new Vector2(-120f, -110f);
+            bound["_upgradeTabRoot"] = upgradeTabRoot;
+            bound["_upgradeContent"] = upgradeTabRoot.transform;
+            bound["_upgradeShopPrefab"] = AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Prefabs/UI/UpgradeShopPanel.prefab");
+            upgradeTabRoot.SetActive(false);
 
             // 보유 코인 — 낼 수 있는지 판단하려면 지금 얼마를 들고 있는지가 같이 보여야 한다.
             var balanceLabel = CreateLabel("BalanceText", panelRoot, font, 34, new Color(0.992f, 0.953f, 0.874f), "보유 $0");
@@ -64,7 +79,7 @@ namespace NCAIClicker.EditorTools
             bound["_balanceText"] = balanceLabel;
 
             // 종이. 원작 실측 비율 (1920x1080 기준 폭 630 / 높이 780).
-            var paper = CreateObject("Paper", panelRoot);
+            var paper = CreateObject("Paper", billTabRoot);
             var paperRect = paper.GetComponent<RectTransform>();
             paperRect.anchorMin = new Vector2(0.5f, 0.5f);
             paperRect.anchorMax = new Vector2(0.5f, 0.5f);
@@ -97,7 +112,7 @@ namespace NCAIClicker.EditorTools
             CreateLabel("FooterText", paper, font, 18, InkFaint, "즉시 납부 바랍니다");
 
             // 버튼은 종이 아래에 쌓인다.
-            var actions = CreateObject("ActionColumn", panelRoot);
+            var actions = CreateObject("ActionColumn", billTabRoot);
             var actionsRect = actions.GetComponent<RectTransform>();
             actionsRect.anchorMin = new Vector2(0.5f, 0f);
             actionsRect.anchorMax = new Vector2(0.5f, 0f);
