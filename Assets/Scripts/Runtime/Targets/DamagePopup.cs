@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.Pool;
+using UnityEngine.SceneManagement;
 
 namespace NCAIClicker.Targets
 {
@@ -16,6 +17,18 @@ namespace NCAIClicker.Targets
 
         private static ObjectPool<DamagePopup> Pool =>
             _pool ??= new ObjectPool<DamagePopup>(CreatePooled, OnGet, OnRelease, OnDestroyPooled, maxSize: MaxPoolSize);
+
+        /// <summary>
+        /// static 풀은 씬이 아니라 도메인 수명이라, 씬이 통째로 다시 로드돼도 그대로 남는다.
+        /// GameManager.StartNewRun/ContinueRun 이 Game 씬을 SceneManager.LoadScene 으로
+        /// 다시 로드하면 풀에 쌓여 있던 오브젝트는 전부 파괴되는데 풀 자체는 그 사실을 모른다 —
+        /// 참조를 갱신하지 않으면 다음 Spawn 이 이미 파괴된 인스턴스를 꺼내 MissingReferenceException 이 난다.
+        /// 씬이 내려갈 때마다 참조를 버려 다음 Spawn 에서 새 풀을 만들게 한다.
+        /// </summary>
+        static DamagePopup()
+        {
+            SceneManager.sceneUnloaded += _ => _pool = null;
+        }
 
         private TextMeshPro _textMesh;
         private Camera _mainCamera;

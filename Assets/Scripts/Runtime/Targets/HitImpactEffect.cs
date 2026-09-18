@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Pool;
+using UnityEngine.SceneManagement;
 
 namespace NCAIClicker.Targets
 {
@@ -14,9 +15,22 @@ namespace NCAIClicker.Targets
         private static readonly int _baseColorId = Shader.PropertyToID("_BaseColor");
 
         private static ObjectPool<HitImpactEffect> _pool;
+        private static Texture2D _sharedBurstTexture;
 
         private static ObjectPool<HitImpactEffect> Pool =>
             _pool ??= new ObjectPool<HitImpactEffect>(Create, OnGet, OnRelease, OnDestroyPooled, maxSize: MaxPoolSize);
+
+        /// <summary>
+        /// static 풀은 씬이 아니라 도메인 수명이라, 씬이 통째로 다시 로드돼도 그대로 남는다.
+        /// GameManager.StartNewRun/ContinueRun 이 Game 씬을 SceneManager.LoadScene 으로
+        /// 다시 로드하면 풀에 쌓여 있던 오브젝트는 전부 파괴되는데 풀 자체는 그 사실을 모른다 —
+        /// 참조를 갱신하지 않으면 다음 Spawn 이 이미 파괴된 인스턴스를 꺼내 MissingReferenceException 이 난다.
+        /// 씬이 내려갈 때마다 참조를 버려 새 풀을 만들게 한다.
+        /// </summary>
+        static HitImpactEffect()
+        {
+            SceneManager.sceneUnloaded += _ => _pool = null;
+        }
 
         private MeshRenderer _renderer;
         private Material _material;
@@ -72,7 +86,8 @@ namespace NCAIClicker.Targets
                 mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
                 mat.SetInt("_ZWrite", 0);
                 mat.renderQueue = 3000;
-                mat.mainTexture = GenerateBurstTexture();
+                // 모든 인스턴스가 완전히 동일한 그림이므로, 인스턴스마다 다시 굽지 않고 하나만 만들어 공유한다.
+                mat.mainTexture = _sharedBurstTexture ??= GenerateBurstTexture();
                 mat.SetColor(_baseColorId, new Color(1f, 0.95f, 0.75f, 1f));
                 fx._renderer.material = mat;
                 fx._material = mat;
