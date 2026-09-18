@@ -269,6 +269,9 @@ namespace NCAIClicker.EditorTools
 
                 var popup = DamagePopup.Spawn(Vector3.zero, 1.5f);
                 Assert(popup != null, "DamagePopup 생성 실패");
+                // 풀로 되돌려도 오브젝트 자체는 씬에 비활성 상태로 남는다 — 이 검증이 끝난 뒤
+                // 실수로 씬을 저장해도 딸려 들어가지 않도록 저장 대상에서 제외한다.
+                popup.gameObject.hideFlags = HideFlags.DontSave;
                 popup.Despawn();
                 passedCount++;
             }
