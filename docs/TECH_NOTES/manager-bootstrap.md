@@ -58,7 +58,7 @@ Unity 6000.3.21f1 배치 실행, 2026-09-16.
 
 ## 알려진 한계
 
-- 붙어 있는 매니저는 `EconomyManager`·`SaveManager`·`StaminaManager`·`GameManager`·`FeverManager`·`BillManager`·`StageGoalManager`·`CreatureManager` 여덟 개다(경제 3.1, 저장 3.4, 스태미나·피버·런 상태 각 모듈, 청구서 마감 #27, 단계 목표 3.5, 크리처 스폰 #140). 매니저 사이의 연결(`EconomyManager.SetBillService`, `CreatureManager.SetUpgradeStats`, `CreatureManager.SetStageService`·`BillManager.SetStageService` 등)은 `ManagerBootstrap`이 생성 직후 코드로 조립한다. 단계 주입은 `StageGoalManager`를 `IStageService`로 찾아 두 소비자에게 같은 인스턴스를 넘기는 방식이다(#150). 컴포넌트 실행 순서는 `GameManager.GetServiceOrder`를 통해 `Economy(1) -> Stamina(2) -> Fever(3) -> Creature(4)` 순으로 런 라이프사이클을 배선한다.
+- 붙어 있는 매니저는 `EconomyManager`·`SaveManager`·`StaminaManager`·`GameManager`·`FeverManager`·`BillManager`·`StageGoalManager`·`CreatureManager` 여덟 개다(경제 3.1, 저장 3.4, 스태미나·피버·런 상태 각 모듈, 청구서 마감 #27, 단계 목표 3.5, 크리처 스폰 #140). 매니저 사이의 연결(`EconomyManager.SetBillService`, `CreatureManager.SetUpgradeStats`, `CreatureManager.SetStageService`·`BillManager.SetStageService` 등)은 `ManagerBootstrap`이 생성 직후 코드로 조립한다. 단계 주입은 `StageGoalManager`를 `IStageService`로 찾아 두 소비자에게 같은 인스턴스를 넘기는 방식이다(#150). 컴포넌트 실행 순서는 `GameManager.GetServiceOrder`를 통해 `Economy(1) -> Stamina(2) -> Fever(3) -> Creature(4) -> Stage(5) -> Bill(6)` 순으로 런 라이프사이클을 배선한다. **단계(5)가 청구서(6)보다 앞인 것은 지켜야 한다** — `EndRun` 에서 앞은 목표 달성 시 단계를 올리고 뒤는 파산 시 0 으로 되돌리기 때문이다(#164). 순번을 주지 않은 구현체는 기타(10)로 밀린다.
 - 에디터에서 `Game` 씬을 직접 열어 Play 하는 경로는 배치 모드(`OpenScene` + `EnterPlaymode`)로만 확인했다 (macOS 빌드는 #110, Windows 독립 빌드 구동은 #80 에서 검증 완료).
 - 테스트 asmdef 는 런타임 코드를 참조하지 않는다(런타임에 asmdef 가 없다). 테스트는 씬의 오브젝트 이름만 본다.
 - `Resources.Load` 의존이라 프리팹 이름(`Managers`)이나 폴더를 바꾸면 소리 없이 실패하고 `LogError` 만 남는다.
