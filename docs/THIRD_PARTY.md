@@ -10,6 +10,7 @@
 | Impact Sounds (Kenney) | 효과음 | https://kenney.nl/assets/impact-sounds | CC0 1.0 | 고지 의무 없음 (CC0) | 타격음 (`Assets/Audio/HitImpact.ogg`) |
 | Casino Audio (Kenney) | 효과음 | https://kenney.nl/assets/casino-audio | CC0 1.0 | 고지 의무 없음 (CC0) | 코인 획득음 (`Assets/Audio/CoinPickup.ogg`) |
 | Interface Sounds (Kenney) | 효과음 | https://kenney.nl/assets/interface-sounds | CC0 1.0 | 고지 의무 없음 (CC0) | 피버 시작음·청구서 발행음·청구서 납부음 (`Assets/Audio/FeverStart.ogg`, `BillIssued.ogg`, `BillPaid.ogg`) |
+| 저금통 일반형 3D 모델 | 3D 모델 | VARCO 3D (https://3d.varco.ai, NC AI 생성형 AI 도구) | 개인/비상업 라이선스 (일반 약관 기준). NC AI 교육 프로그램으로 제공된 팀 계정으로, 본 수업 팀 프로젝트 용도의 생성·사용은 허용됨. 공개 배포·상업적 이용 가능 여부는 별도 확인 필요 | https://terms.varco.ai (전문 미인용, 요약만 기록) | 저금통 일반형 시각 에셋 (`Assets/Models/PiggyNormal.glb`) |
 
 ## 기록 규칙
 
