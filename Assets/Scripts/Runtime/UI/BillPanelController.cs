@@ -27,6 +27,13 @@ namespace NCAIClicker.UI
         [Header("탭")]
         [SerializeField] private GameObject _billTabRoot;
         [SerializeField] private GameObject _upgradeTabRoot;
+
+        // 반지 탭 (#183). 업그레이드 탭과 같은 방식이다 — 처음 펼칠 때 프리팹을 한 번 심고
+        // 이후에는 켜고 끄기만 한다.
+        [SerializeField] private GameObject _ringTabRoot;
+        [SerializeField] private Button _ringTabButton;
+        [SerializeField] private RectTransform _ringContent;
+        [SerializeField] private GameObject _ringShopPrefab;
         [SerializeField] private Transform _upgradeContent;
         [SerializeField] private GameObject _upgradeShopPrefab;
         [SerializeField] private Button _billTabButton;
@@ -77,6 +84,7 @@ namespace NCAIClicker.UI
         {
             Bill,
             Upgrade,
+            Ring,
         }
 
         private Mode _mode = Mode.Modal;
@@ -119,6 +127,10 @@ namespace NCAIClicker.UI
             {
                 _upgradeTabButton.onClick.AddListener(ShowUpgradeTab);
             }
+            if (_ringTabButton != null)
+            {
+                _ringTabButton.onClick.AddListener(ShowRingTab);
+            }
             if (_declareBankruptcyButton != null)
             {
                 _declareBankruptcyButton.onClick.AddListener(ShowBankruptcyConfirm);
@@ -155,6 +167,10 @@ namespace NCAIClicker.UI
             if (_upgradeTabButton != null)
             {
                 _upgradeTabButton.onClick.RemoveListener(ShowUpgradeTab);
+            }
+            if (_ringTabButton != null)
+            {
+                _ringTabButton.onClick.RemoveListener(ShowRingTab);
             }
             if (_declareBankruptcyButton != null)
             {
@@ -196,6 +212,7 @@ namespace NCAIClicker.UI
         private void ShowBillTab() => ShowAsTab(Tab.Bill);
 
         private void ShowUpgradeTab() => ShowAsTab(Tab.Upgrade);
+        private void ShowRingTab() => ShowAsTab(Tab.Ring);
 
         private void Show(Mode mode)
         {
@@ -232,25 +249,35 @@ namespace NCAIClicker.UI
         {
             // 모달일 때는 탭이 없다. 고지서만 보인다.
             var showUpgrade = _mode == Mode.Tab && _tab == Tab.Upgrade;
+            var showRing = _mode == Mode.Tab && _tab == Tab.Ring;
 
             if (_billTabRoot != null)
             {
-                _billTabRoot.SetActive(!showUpgrade);
+                _billTabRoot.SetActive(!showUpgrade && !showRing);
             }
             if (_upgradeTabRoot != null)
             {
                 _upgradeTabRoot.SetActive(showUpgrade);
+            }
+            if (_ringTabRoot != null)
+            {
+                _ringTabRoot.SetActive(showRing);
             }
 
             if (showUpgrade && _upgradeContent != null && _upgradeShopPrefab != null && _upgradeContent.childCount == 0)
             {
                 Instantiate(_upgradeShopPrefab, _upgradeContent, false);
             }
+            if (showRing && _ringContent != null && _ringShopPrefab != null && _ringContent.childCount == 0)
+            {
+                Instantiate(_ringShopPrefab, _ringContent, false);
+            }
 
             // 어느 탭에 있는지 버튼 색으로 알린다. 업그레이드를 보고 있는데 고지서가 켜진 것처럼
             // 보이면 탭이 안 먹은 줄 안다.
-            SetTabSelected(_billTabButton, !showUpgrade);
+            SetTabSelected(_billTabButton, !showUpgrade && !showRing);
             SetTabSelected(_upgradeTabButton, showUpgrade);
+            SetTabSelected(_ringTabButton, showRing);
         }
 
         private static void SetTabSelected(Button tab, bool selected)

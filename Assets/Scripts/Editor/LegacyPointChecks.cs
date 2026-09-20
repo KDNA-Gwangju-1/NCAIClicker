@@ -76,8 +76,7 @@ namespace NCAIClicker.EditorTools
         {
             var checkCount = 0;
             GameObject host = null;
-            var savedInstance = EconomyManager.Instance;
-            var savedShop = EconomyManager.Shop;
+            var saved = SaveAccessors();
 
             try
             {
@@ -127,7 +126,7 @@ namespace NCAIClicker.EditorTools
             }
             finally
             {
-                TearDown(host, savedInstance, savedShop);
+                TearDown(host, saved);
             }
 
             return checkCount;
@@ -139,8 +138,7 @@ namespace NCAIClicker.EditorTools
         {
             var checkCount = 0;
             GameObject host = null;
-            var savedInstance = EconomyManager.Instance;
-            var savedShop = EconomyManager.Shop;
+            var saved = SaveAccessors();
 
             try
             {
@@ -189,7 +187,7 @@ namespace NCAIClicker.EditorTools
             }
             finally
             {
-                TearDown(host, savedInstance, savedShop);
+                TearDown(host, saved);
             }
 
             return checkCount;
@@ -205,8 +203,7 @@ namespace NCAIClicker.EditorTools
         {
             var checkCount = 0;
             GameObject host = null;
-            var savedInstance = EconomyManager.Instance;
-            var savedShop = EconomyManager.Shop;
+            var saved = SaveAccessors();
 
             try
             {
@@ -259,7 +256,7 @@ namespace NCAIClicker.EditorTools
             }
             finally
             {
-                TearDown(host, savedInstance, savedShop);
+                TearDown(host, saved);
             }
 
             return checkCount;
@@ -281,8 +278,7 @@ namespace NCAIClicker.EditorTools
             var checkCount = 0;
             GameObject host = null;
             BalanceData fake = null;
-            var savedInstance = EconomyManager.Instance;
-            var savedShop = EconomyManager.Shop;
+            var saved = SaveAccessors();
 
             try
             {
@@ -320,7 +316,7 @@ namespace NCAIClicker.EditorTools
             }
             finally
             {
-                TearDown(host, savedInstance, savedShop);
+                TearDown(host, saved);
                 if (fake != null)
                 {
                     UnityEngine.Object.DestroyImmediate(fake);
@@ -348,7 +344,33 @@ namespace NCAIClicker.EditorTools
         /// Awake 가 EconomyManager.Instance·Shop 을 덮어쓰므로 되돌리지 않으면 뒤이어 도는
         /// 하네스가 파괴된 매니저를 잡는다.
         /// </summary>
-        private static void TearDown(GameObject host, IEconomyService savedInstance, IUpgradeShop savedShop)
+        /// <summary>
+        /// EconomyManager 가 Awake 에서 덮어쓰는 정적 통로 전부. 되돌리지 않으면 뒤이어 도는
+        /// 하네스가 파괴된 매니저를 잡는다. **통로가 늘면 여기도 늘려야 한다.**
+        /// </summary>
+        private readonly struct Accessors
+        {
+            public readonly IEconomyService Instance;
+            public readonly IUpgradeShop Shop;
+            public readonly IRingShop RingShop;
+            public readonly ILegacyService Legacy;
+
+            public Accessors(IEconomyService instance, IUpgradeShop shop, IRingShop ringShop, ILegacyService legacy)
+            {
+                Instance = instance;
+                Shop = shop;
+                RingShop = ringShop;
+                Legacy = legacy;
+            }
+        }
+
+        private static Accessors SaveAccessors()
+        {
+            return new Accessors(EconomyManager.Instance, EconomyManager.Shop,
+                                 EconomyManager.RingShop, EconomyManager.Legacy);
+        }
+
+        private static void TearDown(GameObject host, Accessors saved)
         {
             if (host != null)
             {
@@ -360,8 +382,10 @@ namespace NCAIClicker.EditorTools
                 UnityEngine.Object.DestroyImmediate(host);
             }
 
-            SetStatic("Instance", savedInstance);
-            SetStatic("Shop", savedShop);
+            SetStatic("Instance", saved.Instance);
+            SetStatic("Shop", saved.Shop);
+            SetStatic("RingShop", saved.RingShop);
+            SetStatic("Legacy", saved.Legacy);
         }
 
         private static void SetStatic(string propertyName, object value)

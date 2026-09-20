@@ -41,6 +41,19 @@ namespace NCAIClicker.Economy
         /// </summary>
         public static IUpgradeShop Shop { get; private set; }
 
+        /// <summary>
+        /// 반지 구매 창구 (#183). Shop 과 나눠 둔 이유는 **쓰는 화폐가 다르기** 때문이다 —
+        /// 업그레이드는 코인, 반지는 레거시 포인트다. 한 통로로 묶으면 화면이 어느 화폐를
+        /// 쓰는지 캐스팅으로 판단하게 되고, 계약을 나눈 의미가 없어진다.
+        /// </summary>
+        public static IRingShop RingShop { get; private set; }
+
+        /// <summary>
+        /// 레거시 포인트 조회 창구 (#175). 반지 상점이 잔액 표시에 쓴다.
+        /// 코인 잔액(Instance)과 나눠 둔다 — 파산 시 한쪽만 사라지는 서로 다른 화폐다.
+        /// </summary>
+        public static ILegacyService Legacy { get; private set; }
+
         [SerializeField] private BalanceData _balanceData;
 
         private readonly CoinWallet _wallet = new CoinWallet();
@@ -104,6 +117,8 @@ namespace NCAIClicker.Economy
             // "매니저가 없다"와 "데이터가 없다"를 구별할 수 있다.
             Instance = this;
             Shop = this;
+            RingShop = this;
+            Legacy = this;
 
             if (_balanceData == null)
             {

@@ -52,6 +52,8 @@ namespace NCAIClicker.EditorTools
                 new Color(0.10f, 0.08f, 0.07f), new Color(0.60f, 0.49f, 0.28f), Color.white, 30);
             bound["_upgradeTabButton"] = CreateButton("TabUpgradeButton", tabBar, font, new Vector2(240f, 56f), "업그레이드",
                 new Color(0.10f, 0.08f, 0.07f), new Color(0.30f, 0.26f, 0.20f), new Color(0.78f, 0.69f, 0.55f), 30);
+            bound["_ringTabButton"] = CreateButton("TabRingButton", tabBar, font, new Vector2(200f, 56f), "반지",
+                new Color(0.10f, 0.08f, 0.07f), new Color(0.30f, 0.26f, 0.20f), new Color(0.78f, 0.69f, 0.55f), 30);
             bound["_tabBar"] = tabBar;
 
             // 탭 내용은 두 덩어리다. 고지서 쪽은 종이와 버튼, 업그레이드 쪽은 상점을 담는 빈 자리.
@@ -72,6 +74,21 @@ namespace NCAIClicker.EditorTools
             bound["_upgradeShopPrefab"] = AssetDatabase.LoadAssetAtPath<GameObject>(
                 "Assets/Prefabs/UI/UpgradeShopPanel.prefab");
             upgradeTabRoot.SetActive(false);
+
+            // 반지 탭 (#183). 업그레이드 탭과 같은 상자·같은 방식이다 — 처음 펼칠 때
+            // 프리팹을 한 번 심고 이후에는 켜고 끄기만 한다.
+            var ringTabRoot = CreateStretched("RingTabRoot", panelRoot);
+            var ringRect = ringTabRoot.GetComponent<RectTransform>();
+            ringRect.anchorMin = new Vector2(0.5f, 0.5f);
+            ringRect.anchorMax = new Vector2(0.5f, 0.5f);
+            ringRect.pivot = new Vector2(0.5f, 0.5f);
+            ringRect.sizeDelta = new Vector2(1100f, 760f);
+            ringRect.anchoredPosition = new Vector2(0f, -20f);
+            bound["_ringTabRoot"] = ringTabRoot;
+            bound["_ringContent"] = ringTabRoot.transform;
+            bound["_ringShopPrefab"] = AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Prefabs/UI/RingShopPanel.prefab");
+            ringTabRoot.SetActive(false);
 
             // 보유 코인 — 낼 수 있는지 판단하려면 지금 얼마를 들고 있는지가 같이 보여야 한다.
             var balanceLabel = CreateLabel("BalanceText", panelRoot, font, 34, new Color(0.992f, 0.953f, 0.874f), "보유 $0");
