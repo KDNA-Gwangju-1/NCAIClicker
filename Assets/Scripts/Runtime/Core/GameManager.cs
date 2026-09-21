@@ -59,15 +59,16 @@ namespace NCAIClicker.Core
         /// 새 회차 시작. 저장을 기본값으로 덮어쓴 뒤 Game 씬으로 전환한다.
         /// 덮어쓴다는 확인은 호출측(MainMenuController)이 먼저 받는다 — 이슈 #90 완료 기준.
         ///
-        /// **덮어쓴 저장을 곧바로 분배한다** (이슈 #203). 매니저는 DontDestroyOnLoad 라 파일만
-        /// 비우면 업그레이드 레벨·레거시 포인트·반지가 메모리에 그대로 남는다 — 새 회차인데
-        /// 직전 회차의 성장을 달고 시작하게 된다. 여기가 이 게임에서 성장을 지우는 **유일한**
-        /// 지점이다 (파산은 지우지 않는다 — 이슈 #183).
+        /// 지우는 일 자체는 ResetAndDistribute 가 한다 (이슈 #203) — 파일만 비우면 업그레이드
+        /// 레벨·레거시 포인트·반지가 메모리에 남아 직전 회차의 성장을 달고 시작하게 되고,
+        /// 볼륨·창모드 같은 설정까지 함께 날아간다. 설정 초기화(#196)와 **같은 메서드를 쓴다** —
+        /// "무엇을 지우는가" 를 두 곳에 적으면 서로 다른 답을 낸다.
+        ///
+        /// 파산은 성장을 지우지 않는다 (이슈 #183). 지우는 경로는 이것과 설정 초기화 둘뿐이다.
         /// </summary>
         public void StartNewRun()
         {
-            SaveManager.Instance?.Save(new SaveData());
-            SaveManager.Persistence?.LoadAndDistribute();
+            SaveManager.Persistence?.ResetAndDistribute();
             SceneManager.LoadScene(GameSceneName);
         }
 

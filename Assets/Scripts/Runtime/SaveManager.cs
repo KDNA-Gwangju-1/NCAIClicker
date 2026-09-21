@@ -129,6 +129,28 @@ namespace NCAIClicker
             }
         }
 
+        /// <summary>
+        /// 성장을 지운다 (이슈 #203). 빈 저장을 쓴 뒤 곧바로 분배해 **메모리까지** 비운다.
+        ///
+        /// 설정 필드는 현재 저장에서 옮겨 담는다 — 성장이 아니므로 새 회차에서도 지우지 않는다
+        /// (ARCHITECTURE 2절 SaveData, #202). 여기서 AudioManager 를 조회하지 않는 이유는
+        /// 매니저가 매니저를 뒤지지 않기 위해서다. 대신 부르는 쪽이 먼저 반영해 둔다.
+        /// </summary>
+        public void ResetAndDistribute()
+        {
+            var current = Load();
+            var fresh = new SaveData
+            {
+                BgmVolume = current.BgmVolume,
+                SfxVolume = current.SfxVolume,
+                IsFullscreen = current.IsFullscreen,
+                IsScreenShakeEnabled = current.IsScreenShakeEnabled
+            };
+
+            Save(fresh);
+            LoadAndDistribute();
+        }
+
         public SaveData Load()
         {
             if (!File.Exists(SavePath))
