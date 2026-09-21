@@ -8,7 +8,7 @@ namespace NCAIClicker.Data
     [Serializable]
     public class SaveData
     {
-        public const int CurrentVersion = 3;
+        public const int CurrentVersion = 4;
 
         public int Version = CurrentVersion;
         public long TotalCoin;
@@ -39,5 +39,11 @@ namespace NCAIClicker.Data
         // 회차 초기화에서 건드리지 않는다 — 그것이 이 두 필드의 존재 이유다.
         public long LegacyPoints;
         public int[] RingLevels;
+
+        // 설정 패널(이슈 #196, 계약 #202) 값. 재시작 후에도 유지한다.
+        public float BgmVolume = 1f;
+        public float SfxVolume = 1f;
+        public bool IsFullscreen = true;
+        public bool IsScreenShakeEnabled = true;
     }
 }

@@ -1,5 +1,6 @@
 using NCAIClicker.Data;
 using NCAIClicker.Events;
+using NCAIClicker.UI;
 using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -14,6 +15,9 @@ namespace NCAIClicker.Core
     /// 건드리지 않는다 — 그래서 여기서 계산하는 tilt-only 자세가 "흔들림이 빠진 기준 자세"가 되고,
     /// HammerSwingController._aimCamera 를 (실제 렌더링 카메라가 아니라) 이 오브젝트에 얹은 보조
     /// Camera 로 잡아야 조준 판정이 흔들림에 어긋나지 않는다 (#109·#132 재발 방지).
+    ///
+    /// 설정 패널의 화면 흔들림 스위치(이슈 #196, 계약 #202)는 AudioManager.Instance(IAudioService)의
+    /// ScreenShakeEnabled 를 조회만 한다. 새 이벤트를 추가하지 않는다.
     /// </summary>
     [RequireComponent(typeof(CinemachineImpulseSource))]
     public class HammerCameraRig : MonoBehaviour
@@ -66,7 +70,7 @@ namespace NCAIClicker.Core
 
         private void HandleSwingResolved(HitSource source, bool isHit)
         {
-            if (isHit)
+            if (isHit && (AudioManager.Instance?.IsScreenShakeEnabled ?? true))
             {
                 _impulseSource.GenerateImpulseWithForce(_hitImpulseForce);
             }
