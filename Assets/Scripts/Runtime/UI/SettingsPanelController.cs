@@ -47,6 +47,16 @@ namespace NCAIClicker.UI
 
         public event System.Action Closed;
 
+        /// <summary>
+        /// 저장 데이터를 초기화했다 (이슈 #220). 런 도중이라면 구독자가 런을 접고 메인 메뉴로 보낸다.
+        ///
+        /// **이 클래스가 직접 씬을 넘기지 않는 이유**: 일시정지 중이면 `Time.timeScale` 이 0 이고,
+        /// 원래 값을 들고 있는 것은 `PausePanelController` 뿐이다. 여기서 씬을 넘기면 메인 메뉴가
+        /// 0배속으로 열려 멈춰 보인다. 런인지 아닌지도 물을 필요가 없다 — 메인 메뉴에는 일시정지
+        /// 패널이 없어 구독자가 아예 없고, 그때는 패널만 닫히는 것이 맞는 동작이다.
+        /// </summary>
+        public event System.Action ResetPerformed;
+
         private void Awake()
         {
             if (_resetConfirmPanel != null)
@@ -182,16 +192,20 @@ namespace NCAIClicker.UI
         /// 설정을 먼저 파일에 반영하는 이유는 `ResetAndDistribute` 가 설정을 넘겨받지 않고
         /// 현재 저장에서 옮겨 담기 때문이다 — 설정은 패널을 닫을 때만 반영되므로, 열어 둔 채
         /// 초기화하면 방금 조정한 값이 아니라 옛 값이 살아남는다.
+        ///
+        /// **초기화하면 진행 중인 런을 접는다** (이슈 #220). 6.13(#192)이 일시정지에서 이 패널을
+        /// 열 수 있게 하면서 런 한가운데서 초기화가 가능해졌는데, 지운 성장으로 런을 이어가면
+        /// 단계는 0 인데 그 전 단계 크리처가 남고 고지서·날짜는 그대로인 상태가 된다.
+        /// 접는 일 자체는 ResetPerformed 를 받는 쪽이 한다 (위 이벤트 주석).
         /// </summary>
         private void HandleResetConfirmed()
         {
             PersistCurrentSettings();
             SaveManager.Persistence?.ResetAndDistribute();
 
-            if (_resetConfirmPanel != null)
-            {
-                _resetConfirmPanel.SetActive(false);
-            }
+            // **닫은 뒤에 알린다.** 먼저 알리면 구독자가 씬을 넘기는 동안 패널이 떠 있다.
+            Close();
+            ResetPerformed?.Invoke();
         }
 
         private void HandleResetCanceled()

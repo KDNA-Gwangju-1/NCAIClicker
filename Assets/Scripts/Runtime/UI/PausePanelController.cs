@@ -76,6 +76,7 @@ namespace NCAIClicker.UI
             if (_settingsPanel != null)
             {
                 _settingsPanel.Closed -= HandleSettingsClosed;
+                _settingsPanel.ResetPerformed -= HandleSettingsReset;
             }
 
             _settingsPanel = settingsPanel;
@@ -83,6 +84,7 @@ namespace NCAIClicker.UI
             if (_settingsPanel != null && enabled)
             {
                 _settingsPanel.Closed += HandleSettingsClosed;
+                _settingsPanel.ResetPerformed += HandleSettingsReset;
             }
         }
 
@@ -116,6 +118,7 @@ namespace NCAIClicker.UI
             if (_settingsPanel != null)
             {
                 _settingsPanel.Closed += HandleSettingsClosed;
+                _settingsPanel.ResetPerformed += HandleSettingsReset;
             }
 
             if (_resumeButton != null)
@@ -151,6 +154,7 @@ namespace NCAIClicker.UI
             if (_settingsPanel != null)
             {
                 _settingsPanel.Closed -= HandleSettingsClosed;
+                _settingsPanel.ResetPerformed -= HandleSettingsReset;
             }
 
             if (_resumeButton != null)
@@ -317,6 +321,25 @@ namespace NCAIClicker.UI
             {
                 _mainPanel.SetActive(true);
             }
+        }
+
+        /// <summary>
+        /// 설정 패널이 저장을 초기화했다 (이슈 #220). 진행 중이던 런을 접고 메인 메뉴로 보낸다 —
+        /// 방금 지운 성장으로 런을 이어가면 단계는 0 인데 그 전 단계 크리처가 남고, 고지서·날짜는
+        /// 수집 대상이 아니라 그대로 남아 앞뒤가 맞지 않는다.
+        ///
+        /// **"메인 메뉴로" 버튼과 같은 경로를 탄다.** 확인 절차는 설정 패널이 이미 거쳤으므로
+        /// 여기서 다시 묻지 않는다 — 확인을 두 곳에 두면 한쪽을 건너뛰는 경로가 생긴다
+        /// (BillManager.DeclareBankruptcy 주석, #175).
+        ///
+        /// timeScale 복원을 설정 패널이 아니라 여기서 하는 이유는 **원래 값을 아는 것이 이 클래스뿐**
+        /// 이기 때문이다. 일시정지 중이면 0 이라, 복원하지 않고 씬을 넘기면 메뉴가 0배속으로 열린다.
+        /// </summary>
+        private void HandleSettingsReset()
+        {
+            _isPaused = false;
+            Time.timeScale = _timeScaleBeforePause;
+            SceneManager.LoadScene(MainMenuSceneName);
         }
 
         private void HandleMainMenuClicked()
