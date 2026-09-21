@@ -151,17 +151,11 @@ python -B .github/scripts/simulate_balance.py --runs 1000 --seed 46 --uptime 0.6
 ### 코인 액면 추첨 (이슈 #178, 잠정)
 
 파괴 보상은 더 이상 단일 값이 아니다. `targets.csv`의 `coin_count`개를 `coins.csv` 가중치 테이블에서
-추첨하고, 그 액면들의 합이 지급 금액이다. 현재 테이블:
+추첨하고, 그 액면들의 합이 지급 금액이다. 액면·가중치의 정본은 `coins.csv`다 — 현재 5종(c1·c5·c25·
+c100·c1000)이 등록되어 있으며, 수치는 여기 옮겨 적지 않고 CSV를 직접 본다.
 
-| id | value | weight |
-|---|---:|---:|
-| c1 | 1 | 60 |
-| c5 | 5 | 25 |
-| c25 | 25 | 10 |
-| c100 | 100 | 4 |
-| c1000 | 1000 | 1 |
-
-1회 추첨의 기댓값은 `Σ(value × weight) / Σ(weight)` ≈ **18.35** 다. `targets.csv`의
+1회 추첨의 기댓값은 `Σ(value × weight) / Σ(weight)` ≈ **18.35** 다 (`coins.csv` 현재 값 기준 — 값이
+바뀌면 이 숫자도 다시 계산해야 한다). `targets.csv`의
 `coin_count`·`min_denom_id`는 현재 모든 대상에 `1`/`c1`을 넣은 자리표시자이며, 이 기댓값은 위 2절
 이전의 대상별 원시 보상 기준선(예: 일반형 4)보다 훨씬 크다 — 아직 맞지 않는다.
 
@@ -302,6 +296,8 @@ strong_hammer,hit_radius,percent,2,레벨당 피격 판정 반경 +2%
 |---|---|---|
 | `stamina.csv` | 코어 플레이 | 런 길이 = 하루 길이. 변경하면 고지서 수입 계산에 연쇄 영향 |
 | `upgrade_effects.csv` | 성장·저장 | stat 이름은 6절 표에 있는 것만 사용 |
+| `rings.csv` | 반지 정의 (레거시 포인트로 산다) | 경제 |
+| `ring_effects.csv` | 반지 효과. `upgrade_effects.csv` 와 열 구성이 같다 | 경제 |
 | `economy.csv`, `upgrades.csv` | 성장·저장 | |
 | `bills.csv` | 성장·저장 | 마감일·대출 계수. 유효 범위만 임포터가 검사, 납부 가능성은 실측 |
 | `fever.csv` | 피버·보너스 | |
