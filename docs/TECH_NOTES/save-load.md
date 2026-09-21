@@ -189,7 +189,7 @@ Unity 6000.3.21f1 에디터, `UnityMCP execute_code`로 Edit Mode에서 직접 �
 ## 알려진 한계
 
 - ~~**자동 로드/저장 호출부가 없다.**~~ — #203 에서 풀었다. `IEconomyService`에 없는 concrete API 문제는 계약을 늘리는 대신 `ManagerBootstrap` 주입으로 우회했다.
-- **고지서·대출·퍼크 후보를 저장하지 않는다.** `IBillService`에 복원 통로가 없어 담아 봐야 되돌릴 수 없다 — 쓰기만 하고 읽지 못하는 필드는 "저장된다"는 착각만 만든다 ([billing.md](billing.md) 알려진 한계). 별도 계약 이슈가 먼저다. 같은 이유로 `CurrentDay`·`BillIndex`·`LastLoanRepaidDay`·`OfferedPerkIds`·`PendingPerkIds`·`LastRunCoin`·`WasBankrupt`·`ResumePoint`·`BestRunCoin`·`LastCompletedDay`·`IsCompleted` 도 수집하지 않는다 — 수집하는 것은 코인·소수 잔여·업그레이드 레벨·레거시 포인트·반지 레벨·단계 여섯뿐이다.
+- **고지서·대출·퍼크 후보를 저장하지 않는다.** `IBillService`에 복원 통로가 없어 담아 봐야 되돌릴 수 없다 — 쓰기만 하고 읽지 못하는 필드는 "저장된다"는 착각만 만든다 ([billing.md](billing.md) 알려진 한계). 별도 계약 이슈가 먼저다 — **#221(4.14)** 이 그 이슈다. 같은 이유로 `CurrentDay`·`BillIndex`·`LastLoanRepaidDay`·`OfferedPerkIds`·`PendingPerkIds`·`LastRunCoin`·`WasBankrupt`·`ResumePoint`·`BestRunCoin`·`LastCompletedDay`·`IsCompleted` 도 수집하지 않는다 — 수집하는 것은 코인·소수 잔여·업그레이드 레벨·레거시 포인트·반지 레벨·단계 여섯뿐이다.
 - **저장 시점이 ARCHITECTURE 저장 경계보다 성기다.** 경계는 "구매·납부를 완료한 직후"도 요구하지만, 현재 배선은 고지서 화면을 떠날 때(`ContinueRun`)와 하루 종료 직후 둘뿐이다. 구매 직후 앱이 강제 종료되면 그 구매를 잃는다.
 - **런 도중 저장 초기화는 일관성 없는 상태를 남긴다.** #192 가 일시정지 패널에서 설정 패널을
   열 수 있게 하면서, 런 한가운데서 초기화 버튼에 닿을 수 있게 됐다. 그때 `ResetAndDistribute()`

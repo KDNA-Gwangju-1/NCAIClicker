@@ -78,7 +78,7 @@ Unity 6000.3.21f1 에디터 Play Mode, 2026-09-17.
 ## 알려진 한계
 
 - ~~음량 조절·믹서 채널 분리가 없다.~~ — 이슈 #196에서 `IAudioService.SetSfxVolume`으로 `_sfxSource.volume`을 직접 조절하는 방식으로 해소했다(`AudioMixerGroup` 없이 `AudioSource.volume`만 사용). 상세는 [settings-panel.md](settings-panel.md).
-- `OnBankrupt`, `OnStageGoalReached` 등 다른 이벤트에는 효과음이 없다 — 이슈 #36 완료 기준(타격·코인·피버·고지서)에 없는 범위라 포함하지 않았다.
+- `OnBankrupt`, `OnStageGoalReached` 등 다른 이벤트에는 효과음이 없다 — 이슈 #36 완료 기준(타격·코인·피버·고지서)에 없는 범위라 포함하지 않았다 — **#224(6.18)** 에서 보강한다.
 
 ## 갱신 이력
 
