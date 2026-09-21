@@ -22,5 +22,10 @@ namespace NCAIClicker.EditorTools
 
         // 환경
         public const int ProjectSetup = 40;
+
+        // 디버그 (Play Mode)
+        public const int DebugAdvanceToDueDay = 60;
+        public const int DebugDepleteStamina = 61;
+        public const int DebugAdvanceOneDay = 62;
     }
 }

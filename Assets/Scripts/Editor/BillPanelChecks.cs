@@ -89,6 +89,13 @@ namespace NCAIClicker.EditorTools
                 Assert(parts.ContinueRow.activeSelf, "탭 상태에서는 계속하기가 보여야 합니다.");
                 checkCount++;
 
+                controller.ShowAsPrestige(3);
+                Assert(controller.IsOpen, "ShowAsPrestige 후 패널이 열려야 합니다.");
+                Assert(controller.CurrentMode == BillPanelController.Mode.PrestigeOnly, "모드가 PrestigeOnly 이어야 합니다.");
+                Assert(!parts.TabBar.activeSelf, "프레스티지 화면에서는 탭 줄이 숨겨져야 합니다.");
+                Assert(parts.ContinueRow.activeSelf, "프레스티지 화면에서는 사이클 시작 버튼이 보여야 합니다.");
+                checkCount++;
+
                 controller.Close();
                 Assert(!controller.IsOpen, "Close 후 패널이 닫혀야 합니다.");
                 checkCount++;
@@ -123,22 +130,31 @@ namespace NCAIClicker.EditorTools
                 Assert(parts.DueValue.text.Contains("3"), "남은 일수가 표시돼야 합니다: " + parts.DueValue.text);
                 checkCount++;
 
-                service.DaysLeft = 1;
-                controller.ShowAsModal();
-                Assert(parts.LaterButton.activeSelf,
-                       "기한 당일에도 [아직] 은 보여야 합니다 (#212) — 납부 실패 시 빠져나갈 길이 없어지면 안 됩니다.");
-                Assert(parts.DueValue.text == "지금 납부!", "기한 당일 표기가 다릅니다: " + parts.DueValue.text);
-                checkCount++;
-
+                // 기한이 남았을 때 납부 실패는 부족액 캡션을 띄우고 [아직] 버튼을 유지한다.
                 service.ShouldFailPay = true;
-                // onClick.Invoke() 로 클릭을 흉내내지 않는다 — 리스너는 OnEnable 에서 잡히는데,
-                // OnEnable 은 ExecuteAlways 가 없는 한 에디터 모드(플레이 모드 밖)에서는 돌지
-                // 않는다. 이 검증은 플레이 모드 없이 돈다. 실제 클릭이 부르는 메서드를 직접 호출한다.
                 var handlePayClicked = typeof(BillPanelController).GetMethod(
                     "HandlePayClicked", BindingFlags.NonPublic | BindingFlags.Instance);
                 handlePayClicked.Invoke(controller, null);
                 Assert(parts.PayCaption != null && parts.PayCaption.text.Contains("부족"),
-                       "납부 실패 시 부족액 안내가 떠야 합니다 (#212): " +
+                       "기한 전 납부 실패 시 부족액 안내가 떠야 합니다: " +
+                       (parts.PayCaption != null ? parts.PayCaption.text : "null"));
+                checkCount++;
+
+                // 기한 당일에는 [아직] 버튼이 숨겨진다.
+                service.DaysLeft = 1;
+                controller.ShowAsModal();
+                Assert(!parts.LaterButton.activeSelf,
+                       "기한 당일에는 [아직] 버튼이 숨겨져야 합니다 — 미루지 못하고 납부해야 합니다.");
+                Assert(parts.DueValue.text == "지금 납부!", "기한 당일 표기가 다릅니다: " + parts.DueValue.text);
+                checkCount++;
+
+                // 기한 당일 납부 실패 시에도 즉시 파산하지 않고 부족액 캡션을 띄워 대출 기회를 남긴다.
+                service.ShouldFailPay = true;
+                handlePayClicked.Invoke(controller, null);
+                Assert(service.DeclaredBankruptcyCount == 0,
+                       "기한 당일 납부 실패 시 즉시 파산하면 안 됩니다 — 대출 기회가 보장되어야 합니다.");
+                Assert(parts.PayCaption != null && parts.PayCaption.text.Contains("부족"),
+                       "기한 당일 납부 실패 시에도 부족액 안내가 떠야 합니다: " +
                        (parts.PayCaption != null ? parts.PayCaption.text : "null"));
                 checkCount++;
 
@@ -249,6 +265,7 @@ namespace NCAIClicker.EditorTools
         private sealed class FakeBillService : IBillService
         {
             public int CurrentDay { get; set; } = 1;
+            public int CurrentCycle { get; set; } = 1;
             public int DaysLeft { get; set; }
             public float LoanDailyCut { get; set; }
             public Bill ActiveBill { get; set; }
@@ -261,6 +278,8 @@ namespace NCAIClicker.EditorTools
             public bool TryTakeLoan(long amount) => false;
             public bool TryRepayLoan() => false;
             public bool TryChoosePerk(string perkId) => false;
+            public bool TryCloseDay() => false;
+            public void RestoreCycle(int cycle) { CurrentCycle = cycle; }
 
             /// <summary>자발적 파산 호출 횟수 (계약 #175). 확인창을 거치지 않고 불리면 여기서 드러난다.</summary>
             public int DeclaredBankruptcyCount { get; private set; }

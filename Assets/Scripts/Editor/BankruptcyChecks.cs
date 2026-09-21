@@ -66,11 +66,18 @@ namespace NCAIClicker.EditorTools
                 AssertCondition(bankruptCount == 0, "아직 기한이 남았는데 파산했습니다.");
                 checkCount++;
 
-                // 마감 당일이 미납으로 끝나면 파산이다 — 그날이 낼 수 있는 마지막 날이었다.
+                // 마감 당일이 미납으로 끝나도 EndRun 직후에는 파산하지 않는다 (이슈 #211).
+                // 정산창을 보여주고 납부 기회를 보장하기 위해 판정은 TryCloseDay 로 이동했다.
                 manager.BeginRun();
                 AssertCondition(manager.DaysLeft == 1, "마감 당일인데 DaysLeft 가 1 이 아닙니다: " + manager.DaysLeft);
                 manager.EndRun();
-                AssertCondition(bankruptCount == 1, "마감 당일이 미납으로 끝났는데 파산이 1회 발행되지 않았습니다: " + bankruptCount);
+                AssertCondition(bankruptCount == 0, "마감 당일 EndRun 직후에 이미 파산했습니다: " + bankruptCount);
+                checkCount++;
+
+                // 다음 날 진입 시 마감을 확정하면 파산이다 (#211).
+                var isBankrupt = manager.TryCloseDay();
+                AssertCondition(isBankrupt, "마감 당일 미납인데 TryCloseDay 가 true 를 반환하지 않았습니다.");
+                AssertCondition(bankruptCount == 1, "TryCloseDay 호출 시 파산이 1회 발행되지 않았습니다: " + bankruptCount);
                 checkCount++;
 
                 TearDown(ref manager, ref host);
@@ -83,6 +90,8 @@ namespace NCAIClicker.EditorTools
                 AssertCondition(manager.TryPay(manager.ActiveBill), "마감 전 납부가 실패했습니다.");
                 manager.EndRun();
                 AssertCondition(bankruptCount == 0, "납부했는데 파산했습니다.");
+                AssertCondition(!manager.TryCloseDay(), "납부 완료했는데 TryCloseDay 가 true 를 반환했습니다.");
+                checkCount++;
 
                 // 다음 날 새 고지서가 나오고, 그 고지서는 아직 기한이 남아 파산하지 않는다.
                 // 여기서 여러 날을 한꺼번에 밀면 **그 새 고지서**가 연체돼 파산한다 — 그건 정상 동작이다.
@@ -90,6 +99,7 @@ namespace NCAIClicker.EditorTools
                 AssertCondition(manager.ActiveBill != null, "납부 다음 날 고지서가 발행되지 않았습니다.");
                 manager.EndRun();
                 AssertCondition(bankruptCount == 0, "새로 나온 고지서가 기한 안인데 파산했습니다.");
+                AssertCondition(!manager.TryCloseDay(), "기한이 남은 새 고지서인데 TryCloseDay 가 true 를 반환했습니다.");
                 checkCount++;
 
                 TearDown(ref manager, ref host);
@@ -99,6 +109,7 @@ namespace NCAIClicker.EditorTools
                 manager = CreateManager(balance, out host);
                 manager.EndRun();
                 AssertCondition(bankruptCount == 0, "고지서가 없는데 파산했습니다.");
+                AssertCondition(!manager.TryCloseDay(), "고지서가 없는데 TryCloseDay 가 true 를 반환했습니다.");
                 checkCount++;
             }
             finally
@@ -133,6 +144,7 @@ namespace NCAIClicker.EditorTools
                 AdvanceToDueDay(manager, stage1);
                 AssertCondition(manager.CurrentDay > 1, "날짜가 진행되지 않아 초기화를 확인할 수 없습니다.");
                 manager.EndRun();
+                AssertCondition(manager.TryCloseDay(), "마감일 미납 후 TryCloseDay 가 false 를 반환했습니다.");
 
                 AssertCondition(manager.CurrentDay == 1, "파산 후 날짜가 1 이 아닙니다: " + manager.CurrentDay);
                 AssertCondition(manager.ActiveBill == null, "파산 후에도 고지서가 남아 있습니다.");
