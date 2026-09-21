@@ -1,6 +1,6 @@
 # 공용 계약 (인터페이스·이벤트·DTO)
 
-> 관련 이슈: #3, #71, #116, #24, #139, #142, #150, #171, #175, #183, #202 · 최종 수정: 2026-09-21
+> 관련 이슈: #3, #71, #116, #24, #139, #142, #150, #171, #175, #183, #202, #203 · 최종 수정: 2026-09-21
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -79,9 +79,9 @@ flowchart LR
 | `IUpgradePersistence` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 업그레이드 레벨 저장 복원. SaveManager 전용 (이슈 #116, 배선 #203) |
 | `UpgradeState` | `Assets/Scripts/Runtime/Economy/UpgradeState.cs` | 업그레이드 레벨·다음 비용·실효값 실제 계산 (Unity 비의존 순수 클래스). `EconomyManager`가 `IUpgradeStats`/`IUpgradeShop`/`IUpgradePersistence` 구현에서 그대로 위임한다 (이슈 #24, twins6375-art, Edit Mode 22건 PASS) |
 | `ISaveService` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | 저장 및 불러오기 인터페이스. `HasSave`로 저장 파일 존재 여부 조회 (이슈 #139) |
-| `IGamePersistence` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | 매니저 상태 수집·분배(`CollectAndSave`/`LoadAndDistribute`). `SaveManager` 구현, `SaveManager.Persistence` 가 이 타입으로 노출. `ManagerBootstrap`(복원 1회)과 `GameManager`(저장·새 회차 초기화)만 쓴다 (이슈 #203) |
+| `IGamePersistence` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | 매니저 상태 수집·분배(`CollectAndSave`/`LoadAndDistribute`). `SaveManager` 구현, `SaveManager.Persistence` 가 이 타입으로 노출. **런타임 소비처는** `ManagerBootstrap`(복원 1회)과 `GameManager`(저장·새 회차 초기화) 둘뿐이다 (이슈 #203) |
 | `IGameFlowService` | `Assets/Scripts/Runtime/Interfaces/IGameFlowService.cs` | MainMenu 버튼의 씬 전환 요청(`StartNewRun`/`ContinueRun`/`QuitGame`). `GameManager` 구현, `GameManager.Instance`가 이 타입으로 노출 (이슈 #142) |
-| `IStageService` | `Assets/Scripts/Runtime/Interfaces/IStageService.cs` | 단계 진행 상태 공용 조회(`CurrentStageIndex`/`CurrentStageNumber`/`IsGoalReached`/`IsMaxStage`/`AdvanceStage`/`RestoreStage`). `StageGoalManager` 구현, `ManagerBootstrap`이 `CreatureManager`·`BillManager`·`SaveManager`에 주입 (이슈 #150, #203) |
+| `IStageService` | `Assets/Scripts/Runtime/Interfaces/IStageService.cs` | 단계 진행 상태 공용 조회(`CurrentStageIndex`/`CurrentStageNumber`/`IsStageCleared`/`IsMaxStage`/`AdvanceStage`/`RestoreStage`). `StageGoalManager` 구현, `ManagerBootstrap`이 `CreatureManager`·`BillManager`·`SaveManager`에 주입 (이슈 #150, #203) |
 | `IAudioService` | `Assets/Scripts/Runtime/Interfaces/IAudioService.cs` | 볼륨(`BgmVolume`/`SfxVolume`)·화면 흔들림(`IsScreenShakeEnabled`) 조회 및 `Set*` 적용. `AudioManager` 구현, `Instance`를 이 타입으로 노출. `HammerCameraRig`(코어 플레이)가 조회 전용으로 소비 (이슈 #196, #202) |
 | `GameEvents` | `Assets/Scripts/Runtime/Events/GameEvents.cs` | 19종 정적 이벤트 및 Publish 메서드, ResetAll 제공 |
 | `ContractsValidationChecks` | `Assets/Scripts/Editor/ContractsValidationChecks.cs` | 계약 정합성 배치 검증(이벤트 Publish·ResetAll, DTO 구조, IRunScoped 구현 및 GameManager 런 라이프사이클 배선). 에디터 전용, `MenuItem` 없이 `RunBatch()` 를 외부에서 호출한다 |
@@ -159,4 +159,5 @@ flowchart LR
 | 2026-09-18 | #171 | yahoo-afk | `EconomyManager` 에 정적 조회 통로 2개 추가 — `Instance`(`IEconomyService`)·`Shop`(`IUpgradeShop`). 인터페이스 시그니처는 그대로고 **접근 통로만** 열었다. `BillManager.Instance`·`SaveManager.Instance`·`GameManager.Instance`(#142) 와 같은 패턴이며 `Awake` 첫 부분에서 대입한다. 첫 소비처는 `CoinHud`(잔액 초기값), 다음은 업그레이드 구매 UI(6.8, #91) |
 | 2026-09-21 | #175 · #183 | twins6375-art | 레거시 포인트·반지 계약 3종(`ILegacyService`·`IRingShop`·`ILegacyPersistence`)과 `IBillService.DeclareBankruptcy()` 추가, `SaveData` v3(`LegacyPoints`·`RingLevels`), `EconomyManager.RingShop`·`Legacy` 통로 개방. `ILegacyPersistence` 미배선을 알려진 한계에 기록 |
 | 2026-09-21 | #196, #202 | hunil58 | 신규 `IAudioService`(`BgmVolume`·`SfxVolume`·`IsScreenShakeEnabled` 조회 + `Set*` 3종) 추가, `AudioManager`가 구현하고 `Instance`를 이 타입으로 노출(#171과 동일 패턴). `SaveData`에 설정 필드 4개 추가. `Develop`에 먼저 병합된 #175·#183이 `Version`을 3으로 이미 올려놔 리베이스 중 충돌 — 두 변경을 합쳐 `Version` 4로 정리(`SaveManager`에 `case 3` 마이그레이션 분기 추가). 설정 패널(#196)의 화면 흔들림 스위치를 `HammerCameraRig`(코어 플레이)가 조회 전용으로 소비 — 새 `GameEvents` 이벤트는 추가하지 않음. 상세는 [settings-panel.md](settings-panel.md) |
+| 2026-09-21 | #34 (뒤늦게 기록) | twins6375-art | `IStageService.IsGoalReached` 가 #34 에서 `IsStageCleared` 로 개명됐는데 ARCHITECTURE 2절과 위 표가 옛 이름 그대로였다. #203 작업 중 `convention-checker` 가 잡아 문서를 코드에 맞췄다 — **시그니처를 바꿀 때 ARCHITECTURE 2절을 같이 고친다** |
 | 2026-09-21 | #203 | twins6375-art | `IGamePersistence`(`CollectAndSave`/`LoadAndDistribute`) 추가 — `SaveManager` 구현, `SaveManager.Persistence` 통로 개방. 소비처는 `ManagerBootstrap`(복원 1회)과 `GameManager`(저장·새 회차 초기화) 둘뿐이다. `IUpgradePersistence`·`ILegacyPersistence` 미배선 한계를 닫고, `IStageService` 소비자에 `SaveManager` 를 추가 |

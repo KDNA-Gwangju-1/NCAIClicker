@@ -81,7 +81,7 @@ flowchart LR
 
 | 클래스 | 경로 | 하는 일 |
 |---|---|---|
-| `SaveManager` | `Assets/Scripts/Runtime/SaveManager.cs` | `ISaveService` 구현. `JsonUtility` 직렬화, 버전 마이그레이션, 손상 파일 백업, null↔`Has*` 플래그 변환. `Managers` 프리팹에 붙는다 |
+| `SaveManager` | `Assets/Scripts/Runtime/SaveManager.cs` | `ISaveService`·`IGamePersistence` 구현. `JsonUtility` 직렬화, 버전 마이그레이션, 손상 파일 백업, null↔`Has*` 플래그 변환, 매니저 상태 수집·분배. `Managers` 프리팹에 붙는다 |
 | `SaveData` | `Assets/Scripts/Runtime/Data/SaveData.cs` | 저장 DTO. 이번 작업에서 `HasActiveBill`·`HasActiveLoan` 필드 추가 |
 | `ISaveService` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | `Load()`/`Save(SaveData)`/`HasSave` 계약 |
 | `IGamePersistence` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | 수집·분배 계약(#203). `SaveManager.Persistence`가 이 타입으로 노출. `ManagerBootstrap`과 `GameManager`만 쓴다 |
