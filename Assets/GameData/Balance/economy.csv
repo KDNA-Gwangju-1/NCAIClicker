@@ -6,7 +6,8 @@ auto_hammer_power,0.6,hp/hit,자동 망치 타격 1회에 깎는 내구도
 auto_hammer_hits_per_sec,1.0,hit/sec,자동 망치 1기당 초당 타격 횟수
 hit_radius_bonus,25,percent,타격 대상 콜라이더를 외형보다 넓히는 비율. 조준 반경과는 다른 축이다 (GDD 4절)
 reticle_radius,0.45,world_unit,호버 망치 조준 판정 반경. 커서 주변 이 거리 안의 대상이 맞는다
-spawn_interval_sec,7.0,sec,부서진 자리에 새 저금통이 등장하기까지 걸리는 시간
+spawn_interval_sec,0,sec,미사용 호환 필드. #156 B안 채택으로 시간 기반 개별 리스폰을 제거했다. 되돌릴 경우를 대비해 필드는 남긴다 (REFERENCE_ANALYSIS.md 9절)
+extra_spawn_chance_on_destroy,0,percent,저금통 파괴 시 즉시 1개를 추가로 스폰할 확률. 기본은 0 — 저금통 수집벽 업그레이드가 올린다 (원작 재관찰 REFERENCE_ANALYSIS.md 9절)
 coin_bonus_multiplier,1.0,ratio,보너스 배율 기준값. 업그레이드는 여기에 더해지고 기간제 퍼크는 곱해진다 (연산은 각 효과를 정의한 표를 따른다)
 legacy_point_per_amount,50,amount/point,고지서 납부액 이만큼당 레거시 포인트 1점 (원작 안내문 기준 #183). 우리 고지서 금액 축척은 원작과 달라 잠정값이다 — 3.8(#176) 재계산 뒤 확정
 upgrade_cost_growth,1.15,ratio,업그레이드 비용 = 초기비용 * 1.15^레벨

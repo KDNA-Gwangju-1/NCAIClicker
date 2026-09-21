@@ -89,8 +89,19 @@ namespace NCAIClicker.Data
         public float ReticleRadius;
         public float CoinBonusMultiplier;
 
-        /// <summary>부서진 자리에 새 저금통이 등장하기까지의 대기 시간.</summary>
+        /// <summary>
+        /// 미사용 호환 필드 (#156 B안 채택으로 시간 기반 개별 리스폰을 제거했다).
+        /// 되돌릴 경우를 대비해 값은 0으로 두고 필드는 남긴다 — MoveDrainPerUnit 과 같은 취급이다.
+        /// 근거는 REFERENCE_ANALYSIS.md 9절.
+        /// </summary>
         public float SpawnIntervalSec;
+
+        /// <summary>
+        /// 저금통 파괴 시 즉시 1개를 추가로 스폰할 확률(%). 기본값은 0 — 업그레이드(저금통 수집벽)가
+        /// 이 값을 올린다. 원작 재관찰(REFERENCE_ANALYSIS.md 9절)에서 확인한 확률 기반 추가 생성 축이다.
+        /// </summary>
+        public float ExtraSpawnChanceOnDestroy;
+
         /// <summary>고지서 납부액 이만큼당 레거시 포인트 1점 (이슈 #175). 0 이하면 적립하지 않는다.</summary>
         public float LegacyPointPerAmount;
 
@@ -192,6 +203,7 @@ namespace NCAIClicker.Data
         CoinBonusMultiplier,
         SpawnCount,
         SpawnIntervalSec,
+        ExtraSpawnChance,
     }
 
     public enum EffectType

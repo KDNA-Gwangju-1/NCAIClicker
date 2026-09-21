@@ -115,14 +115,14 @@ namespace NCAIClicker.EditorTools
                 var stage1 = balance.GetStage(1);
                 Assert(stage1 != null, "stages.csv 에 1단계가 없습니다.");
                 var baseSpawnCount = stage1.SpawnCount;
-                var baseInterval = balance.Economy.SpawnIntervalSec;
+                var baseChance = balance.Economy.ExtraSpawnChanceOnDestroy;
 
                 // 주입 전에는 기준값 그대로다.
                 var spawnCount = mgr.GetRequiredSpawnCount();
                 Assert(spawnCount == baseSpawnCount,
                        "1단계 기본 spawn_count 가 stages.csv 와 다릅니다. 현재: " + spawnCount);
-                Assert(Mathf.Abs(mgr.GetSpawnIntervalSec() - baseInterval) < 0.01f,
-                       "기본 재등장 대기시간이 economy.csv 와 다릅니다.");
+                Assert(Mathf.Abs(mgr.GetExtraSpawnChancePercent() - baseChance) < 0.01f,
+                       "기본 추가 생성 확률이 economy.csv 와 다릅니다.");
                 passedCount++;
 
                 // 업그레이드를 주입하면 실효값으로 바뀐다 (#131). 어느 업그레이드가 어느 stat 을
@@ -137,16 +137,12 @@ namespace NCAIClicker.EditorTools
                        "업그레이드를 넣었는데 동시 출현 수가 늘지 않았습니다: " + raisedCount);
                 passedCount++;
 
-                // 같은 업그레이드가 재등장 대기를 줄인다 (percent 효과, 음수).
-                var shortened = mgr.GetSpawnIntervalSec();
-                Assert(Mathf.Abs(shortened - upgrades.GetStat(StatId.SpawnIntervalSec, baseInterval)) < 0.01f,
-                       "재등장 대기시간이 실효값과 다릅니다: " + shortened);
-                Assert(shortened < baseInterval,
-                       "업그레이드를 넣었는데 재등장 대기가 줄지 않았습니다: " + shortened);
-                passedCount++;
-
-                // 리스폰 타이머 처리 검증
-                mgr.UpdateRespawnTimers(1.0f);
+                // 같은 업그레이드(저금통 수집벽)가 추가 생성 확률도 올린다 (add 효과).
+                var raisedChance = mgr.GetExtraSpawnChancePercent();
+                Assert(Mathf.Abs(raisedChance - upgrades.GetStat(StatId.ExtraSpawnChance, baseChance)) < 0.01f,
+                       "추가 생성 확률이 실효값과 다릅니다: " + raisedChance);
+                Assert(raisedChance > baseChance,
+                       "업그레이드를 넣었는데 추가 생성 확률이 늘지 않았습니다: " + raisedChance);
                 passedCount++;
 
                 // 9. stageDef 가 없는 경로에서 비율 폴백 하드코딩 없이 안전하게 null 반환 검증 (#148)
@@ -163,11 +159,11 @@ namespace NCAIClicker.EditorTools
                 UnityEngine.Object.DestroyImmediate(mgrGo);
             }
 
-            // 12. 리스폰 회계 검증 (#141)
+            // 12. 스폰 회계 검증 (#141, #156 B안)
             //
-            // 치운 개수와 예약 개수가 어긋나면 필드 개체 수가 목표치에서 벗어난다.
-            // 특히 목록에 없는 대상의 파괴 이벤트가 들어오면 치운 것이 없는데도 예약만 쌓여
-            // 목표치를 넘겨 스폰됐다. 밸런스 시뮬레이터는 슬롯 수가 고정이라고 가정한다.
+            // 부서진 자리는 자동으로 채워지지 않는다. 기본 확률(0%)에서는 일부만 부숴도
+            // 그 자리가 빈 채로 남아야 하고, 목록에 없는 대상의 파괴 이벤트(유령)는 여전히
+            // 아무 것도 하면 안 된다 (#141). 전부 부쉈을 때만(0마리) 1개가 즉시 채워진다.
             //
             // 실물 프리팹 대신 스텁을 쓴다. Instantiate 는 클론을 **지금 열려 있는 씬에** 만들어
             // 남의 씬을 더럽히므로, HideAndDontSave 스텁을 복제해 흔적을 남기지 않는다.
@@ -197,50 +193,48 @@ namespace NCAIClicker.EditorTools
 
                 // 이벤트 구독은 OnEnable 쌍으로 걸린다. 에디터에서 만든 컴포넌트는 직접 부른다.
                 InvokeLifecycle(mgr, "OnEnable");
-                var timers = (System.Collections.Generic.List<float>)GetPrivateField(mgr, "_respawnTimers");
 
                 var required = mgr.GetRequiredSpawnCount();
                 Assert(required >= 2, "검증하려면 목표 동시 출현 수가 2 이상이어야 합니다: " + required);
+                Assert(Mathf.Approximately(mgr.GetExtraSpawnChancePercent(), 0f),
+                       "이 검증은 추가 생성 확률 0% 를 전제합니다 — economy.csv 기본값을 확인하세요.");
 
                 mgr.InitializeStage(1);
                 Assert(mgr.ActiveCreatures.Count == required,
                        "초기 배치 수가 목표치와 다릅니다: " + mgr.ActiveCreatures.Count + " / " + required);
                 passedCount++;
 
-                // 정상 파괴: 치운 수만큼 예약된다. 필드 + 예약의 합이 항상 목표치여야 한다.
-                for (var i = 0; i < 2; i++)
+                // 확률 0% 에서는 하나를 부숴도 그 자리가 빈 채로 남는다 — 자동으로 채워지지 않는다.
+                var victimGo = mgr.ActiveCreatures[0];
+                var victim = victimGo.GetComponent<Target>();
+                Assert(victim.IsAlive, "스폰된 대상이 살아 있지 않습니다. 스텁 초기화를 확인하세요.");
+                victim.OnHit(new HitInfo(HitSource.Hover, victim.MaxHp, Vector3.zero));
+                Assert(victimGo == null, "파괴된 크리처 GameObject가 즉시 파괴되지 않고 씬에 남아 있습니다 (#161).");
+                Assert(mgr.ActiveCreatures.Count == required - 1,
+                       "확률 0% 인데 부순 자리가 자동으로 채워졌습니다: " + mgr.ActiveCreatures.Count);
+                passedCount++;
+
+                // 목록에 없는 대상의 파괴 이벤트(유령)는 아무 것도 하지 않는다.
+                var beforeGhost = mgr.ActiveCreatures.Count;
+                GameEvents.PublishTargetBroken(new BreakInfo("ghost", 1m, Array.Empty<CoinDrop>(), 0f, Vector3.zero));
+                GameEvents.PublishTargetBroken(new BreakInfo("ghost", 1m, Array.Empty<CoinDrop>(), 0f, Vector3.zero));
+                Assert(mgr.ActiveCreatures.Count == beforeGhost,
+                       "치운 것이 없는데 필드 개체 수가 바뀌었습니다: " + mgr.ActiveCreatures.Count + " (#141)");
+                passedCount++;
+
+                // 남은 것을 전부 부수면(0마리) 그때만 1개가 즉시 채워진다.
+                // 마지막 한 마리를 부수는 순간 필드가 다시 1로 차오르므로, 반복 횟수는
+                // "지금 남은 수"로 미리 고정한다 — count > 0 로 돌리면 방금 채워진 1마리를
+                // 또 부수는 무한 루프가 된다.
+                var remaining = mgr.ActiveCreatures.Count;
+                for (var i = 0; i < remaining; i++)
                 {
-                    var victimGo = mgr.ActiveCreatures[0];
-                    var victim = victimGo.GetComponent<Target>();
-                    Assert(victim.IsAlive, "스폰된 대상이 살아 있지 않습니다. 스텁 초기화를 확인하세요.");
-                    victim.OnHit(new HitInfo(HitSource.Hover, victim.MaxHp, Vector3.zero));
-                    Assert(victimGo == null, "파괴된 크리처 GameObject가 즉시 파괴되지 않고 씬에 남아 있습니다 (#161).");
+                    var lastGo = mgr.ActiveCreatures[0];
+                    var last = lastGo.GetComponent<Target>();
+                    last.OnHit(new HitInfo(HitSource.Hover, last.MaxHp, Vector3.zero));
                 }
-                Assert(mgr.ActiveCreatures.Count + timers.Count == required,
-                       "파괴 후 필드+예약 합이 목표치와 다릅니다: " + mgr.ActiveCreatures.Count
-                       + " + " + timers.Count + " / " + required);
-                passedCount++;
-
-                // 대기 시간이 지나면 목표치로 돌아온다. 기대값은 CSV 에서 읽은 대기 시간이다.
-                mgr.UpdateRespawnTimers(mgr.GetSpawnIntervalSec() + 0.01f);
-                Assert(mgr.ActiveCreatures.Count == required,
-                       "대기 후 개체 수가 목표치로 돌아오지 않았습니다: "
-                       + mgr.ActiveCreatures.Count + " / " + required);
-                passedCount++;
-
-                // 목록에 없는 대상의 파괴 이벤트(유령)는 예약을 만들지 않는다.
-                GameEvents.PublishTargetBroken(new BreakInfo("ghost", 1m, Array.Empty<CoinDrop>(), 0f, Vector3.zero));
-                GameEvents.PublishTargetBroken(new BreakInfo("ghost", 1m, Array.Empty<CoinDrop>(), 0f, Vector3.zero));
-                Assert(timers.Count == 0,
-                       "치운 것이 없는데 재등장이 예약됐습니다: " + timers.Count + " (#141)");
-                passedCount++;
-
-                // 설령 예약이 남아 있어도 목표치를 넘겨 스폰하지 않는다.
-                timers.Add(0f);
-                timers.Add(0f);
-                mgr.UpdateRespawnTimers(0.01f);
-                Assert(mgr.ActiveCreatures.Count == required,
-                       "목표치를 넘겨 스폰했습니다: " + mgr.ActiveCreatures.Count + " / " + required + " (#141)");
+                Assert(mgr.ActiveCreatures.Count == 1,
+                       "전멸 후에는 정확히 1마리만 즉시 채워져야 합니다: " + mgr.ActiveCreatures.Count);
                 passedCount++;
 
                 InvokeLifecycle(mgr, "OnDisable");
@@ -298,15 +292,6 @@ namespace NCAIClicker.EditorTools
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             Assert(method != null, component.GetType().Name + " 의 " + methodName + " 을 찾지 못했습니다.");
             method.Invoke(component, null);
-        }
-
-        /// <summary>검증에서만 내부 상태를 들여다본다. 이 때문에 필드를 public 으로 열지 않는다.</summary>
-        private static object GetPrivateField(Component component, string fieldName)
-        {
-            var field = component.GetType().GetField(fieldName,
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            Assert(field != null, component.GetType().Name + " 의 " + fieldName + " 필드를 찾지 못했습니다.");
-            return field.GetValue(component);
         }
 
         /// <summary>

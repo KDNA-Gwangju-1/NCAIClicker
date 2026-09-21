@@ -2,4 +2,4 @@ id,display_name,description,init_cost,cost_growth,max_level,sort_order
 strong_hammer,완력 단련,쥐는 힘이 붙어 한 방이 무거워진다. 조준 판정도 조금 넓어진다,2,0,20,1
 auto_hammer,카페인 중독,손이 저절로 떨린다. 안 때리려고 해도 때려진다,3,0,10,2
 fever_boost,헬스장 회원권,등록만 해도 힘이 나는 기분이다. 한번 붙은 불이 오래 간다,4,0,15,3
-desk_expand,저금통 수집벽,책상 위에 저금통이 더 많아지고 더 빨리 다시 채워진다,5,0,12,4
+desk_expand,저금통 수집벽,책상 위에 저금통이 더 많아지고 부술 때 하나 더 나올 확률이 붙는다,5,0,12,4

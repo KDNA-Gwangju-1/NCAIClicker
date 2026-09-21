@@ -108,11 +108,24 @@ python -B .github/scripts/simulate_balance.py --runs 2000 --seed 46 --uptime 0.6
 ### 가정과 재현 범위
 
 - 첫 단계, 업그레이드 없음, 대출 없음. 초기 자동 망치가 0이 아니면 도구는 지원하지 않는 조건으로 중단한다.
-- CSV 출현 비율로 대상을 뽑고 슬롯별 파괴 후 재등장 대기를 적용한다. 선택한 대상은 파괴까지 유지한다.
+- CSV 출현 비율로 대상을 뽑는다. 선택한 대상은 파괴까지 유지한다.
 - 스윙마다 독립적인 조준 성공 확률을 적용한다. 실제 이동속도·화면 배치·커서 이동 거리는 모델링하지 않는다.
 - `random`은 다음 목표를 무작위로, `value`는 보상/내구도가 높은 목표부터 선택한다.
 - 적중 시 피버를 채우고 파괴 시점의 피버 배율을 적용한다. 회복은 최대 스태미나까지 제한한다.
 - 이 계산은 **몬테카를로 추정이며 Play Mode 실측이 아니다.** 이동 구현과 피버 발동 처리 순서가 정해지면 실제 로그와 비교한다.
+
+### 스폰 모델 (2026-09-21, #156 B안) — 슬롯 타이머를 폐기했다
+
+원작 재관찰(`docs/REFERENCE_ANALYSIS.md` 9절) 결과, "부서진 자리가 고정 시간 뒤 자동으로
+채워진다"는 이전 모델은 원작과 다르다는 것이 확인되어 **전면 폐기**했다. 새 모델:
+
+- 부서진 자리는 **자동으로 채워지지 않는다.** `economy.csv`의 `spawn_interval_sec`은
+  미사용 호환 필드로 0에 고정했다 (되돌릴 경우를 대비해 필드만 남긴다).
+- 파괴할 때마다 `extra_spawn_chance_on_destroy`(기본 0%) 확률로 **즉시 1개가 추가 스폰**된다.
+  이 확률은 "저금통 수집벽" 업그레이드가 레벨당 +2%p 올린다(6절 표).
+- 책상 위 저금통이 **전부 파괴되면(0마리) 즉시 1개만** 다시 채워진다. 원작 인용:
+  *"I do like how when you break all pigs on the table, one will immediately spawn."*
+  (`sYyTekFrgvc` 1:18:39)
 
 ### 스태미나 7.0 세팅 조정 결과 (2026-09-21, #176)
 
@@ -127,6 +140,22 @@ python -B .github/scripts/simulate_balance.py --runs 2000 --seed 46 --uptime 0.6
 각 모델은 같은 시드로 2,000회 실행했다. 이 표는 계산 결과 스냅샷이고 **설정값의 정본은 CSV**다.
 첫 단계 고지서(10 코인, 기한 5일)는 첫날 무작위 타격 시 37% 확률로 달성하며, 가치 타격 시 71% 확률로 당일 달성한다.
 5일 기한 동안 저축하면 무난히 완납할 수 있고, 매일 업그레이드에 전액 탕진하면 마감에 파산하는 긴장감을 유지한다.
+
+### 스폰 모델 교체 후 재검증 (2026-09-21, #156 B안)
+
+슬롯 타이머 모델을 폐기하고 위 "전멸 시 1개 + 확률 기반 추가 생성" 모델로 바꾼 뒤 같은 조건(시드 46, 2,000회)으로 다시 돌렸다.
+
+| 모델 | 평균 런(초) | 평균 순수입 | 중앙값 | 목표 도달 비율 |
+|---|---:|---:|---:|---:|
+| random | 17.85 | 9.77 | 8.00 | 38.1% |
+| value | 17.85 | 16.06 | 16.00 | 70.2% |
+
+**바로 위 표와 사실상 같다.** 업그레이드 없는 1단계 기준에서는 두 모델의 차이가 거의 드러나지
+않는데, 기본 런이 17.85초로 짧고 평균 파괴 수가 2회 안팎이라 6마리 동시 출현 중 **책상이
+완전히 비는 상황 자체가 드물기 때문**이다 — "전멸 시 1개" 규칙이 발동할 기회가 별로 없다.
+그래서 **`stages.csv`의 `bill_amount`는 이번엔 바꾸지 않는다.** 확률 기반 추가 생성이 실제로
+체감되는 지점은 저금통 수집벽 업그레이드를 여러 레벨 산 이후이므로, 그 차이는 작업 7.2(3단계
+밸런싱 실측)에서 업그레이드 누적 상태로 다시 재본다.
 
 ### 경제 기준값 확정 (2026-09-21, #176)
 
@@ -256,7 +285,8 @@ strong_hammer,hit_radius,percent,2,레벨당 피격 판정 반경 +2%
 | `auto_hammer_hits_per_sec` | `economy.csv` → `auto_hammer_hits_per_sec` | 자동 망치 초당 타격 |
 | `coin_bonus_multiplier` | `economy.csv` → `coin_bonus_multiplier` | 보너스 배율 |
 | `spawn_count` | `stages.csv` → `spawn_count` | 동시 출현 저금통 수 |
-| `spawn_interval_sec` | `economy.csv` → `spawn_interval_sec` | 재등장 대기 시간 |
+| `spawn_interval_sec` | `economy.csv` → `spawn_interval_sec` | **미사용 호환 필드** (#156 B안 채택 이후 시간 기반 리스폰 자체가 없다. 되돌릴 경우를 대비해 남긴다) |
+| `extra_spawn_chance` | `economy.csv` → `extra_spawn_chance_on_destroy` | 파괴 시 즉시 추가 스폰될 확률(%) |
 | `fever_duration` | `fever.csv` → `duration_sec` | 피버 지속 시간 |
 | `fever_multiplier` | `fever.csv` → `coin_multiplier` | 피버 코인 배율 |
 | `fever_gauge_per_hit` | `fever.csv` → `gauge_per_hit` | 피버 게이지 누적량 |

@@ -64,6 +64,7 @@ namespace NCAIClicker.EditorTools
                     ReticleRadius = Req(economy, "reticle_radius"),
                     CoinBonusMultiplier = Req(economy, "coin_bonus_multiplier"),
                     SpawnIntervalSec = Req(economy, "spawn_interval_sec"),
+                    ExtraSpawnChanceOnDestroy = Req(economy, "extra_spawn_chance_on_destroy"),
                     LegacyPointPerAmount = Req(economy, "legacy_point_per_amount"),
                     UpgradeCostGrowth = Req(economy, "upgrade_cost_growth"),
                     StageGoalGrowth = Req(economy, "stage_goal_growth"),
@@ -451,6 +452,7 @@ namespace NCAIClicker.EditorTools
             if (d.Economy.BaseHitPower <= 0 || d.Economy.HoverSwingIntervalSec <= 0 ||
                 d.Economy.AutoHammerCountInit < 0 || d.Economy.AutoHammerPower <= 0 ||
                 d.Economy.AutoHammerHitsPerSec <= 0 || d.Economy.SpawnIntervalSec < 0 ||
+                d.Economy.ExtraSpawnChanceOnDestroy < 0 || d.Economy.ExtraSpawnChanceOnDestroy > 100 ||
                 d.Economy.HitRadiusBonusPercent < 0 || d.Economy.CoinBonusMultiplier <= 0 ||
                 d.Economy.UpgradeCostGrowth < 1 || d.Economy.StageGoalGrowth < 1)
                 _errors.Add("economy.csv: 타격·스폰·배율 수치 범위를 확인하세요.");

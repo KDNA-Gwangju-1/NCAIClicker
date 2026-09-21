@@ -27,7 +27,8 @@ MonoBehaviour:
     HitRadiusBonusPercent: 25
     ReticleRadius: 0.45
     CoinBonusMultiplier: 1
-    SpawnIntervalSec: 7
+    SpawnIntervalSec: 0
+    ExtraSpawnChanceOnDestroy: 0
     LegacyPointPerAmount: 50
     UpgradeCostGrowth: 1.15
     StageGoalGrowth: 2.5
@@ -133,7 +134,7 @@ MonoBehaviour:
   - Id: desk_expand
     DisplayName: "\uC800\uAE08\uD1B5 \uC218\uC9D1\uBCBD"
     Description: "\uCC45\uC0C1 \uC704\uC5D0 \uC800\uAE08\uD1B5\uC774 \uB354 \uB9CE\uC544\uC9C0\uACE0
-      \uB354 \uBE68\uB9AC \uB2E4\uC2DC \uCC44\uC6CC\uC9C4\uB2E4"
+      \uBD80\uC220 \uB54C \uD558\uB098 \uB354 \uB098\uC62C \uD655\uB960\uC774 \uBD99\uB294\uB2E4"
     InitCost: 5
     CostGrowth: 0
     MaxLevel: 12
@@ -142,9 +143,9 @@ MonoBehaviour:
     - Stat: 13
       Type: 0
       ValuePerLevel: 1
-    - Stat: 14
-      Type: 1
-      ValuePerLevel: -6
+    - Stat: 15
+      Type: 0
+      ValuePerLevel: 2
   Stages:
   - Stage: 1
     BillAmount: 10
@@ -241,7 +242,8 @@ MonoBehaviour:
   - Id: power_ring
     DisplayName: "\uD798\uC758 \uBC18\uC9C0"
     Description: "\uC950\uB294 \uD798\uC774 \uC601\uAD6C\uD788 \uB0A8\uB294\uB2E4.
-      \uD30C\uC0B0\uD574\uB3C4 \uC190\uAC00\uB77D\uC5D0\uC11C \uBE60\uC9C0\uC9C0 \uC54A\uB294\uB2E4"
+      \uD30C\uC0B0\uD574\uB3C4 \uC190\uAC00\uB77D\uC5D0\uC11C \uBE60\uC9C0\uC9C0
+      \uC54A\uB294\uB2E4"
     InitCost: 3
     CostGrowth: 1.5
     MaxLevel: 5
@@ -253,7 +255,8 @@ MonoBehaviour:
   - Id: vigor_ring
     DisplayName: "\uD65C\uB825\uC758 \uBC18\uC9C0"
     Description: "\uD558\uB8E8\uB97C \uC870\uAE08 \uB354 \uC624\uB798 \uBC84\uD2F4\uB2E4.
-      \uD30C\uC0B0\uD574\uB3C4 \uC190\uAC00\uB77D\uC5D0\uC11C \uBE60\uC9C0\uC9C0 \uC54A\uB294\uB2E4"
+      \uD30C\uC0B0\uD574\uB3C4 \uC190\uAC00\uB77D\uC5D0\uC11C \uBE60\uC9C0\uC9C0
+      \uC54A\uB294\uB2E4"
     InitCost: 3
     CostGrowth: 1.5
     MaxLevel: 5
