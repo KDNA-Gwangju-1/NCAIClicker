@@ -1,6 +1,6 @@
-using System.Reflection;
-using NCAIClicker.Economy;
+using System.Linq;
 using NCAIClicker.Events;
+using NCAIClicker.Interfaces;
 using UnityEditor;
 using UnityEngine;
 
@@ -22,7 +22,7 @@ namespace NCAIClicker.EditorTools
                 return;
             }
 
-            var manager = BillManager.Instance as BillManager ?? Object.FindFirstObjectByType<BillManager>();
+            var manager = FindBillPersistence();
             if (manager == null)
             {
                 Debug.LogWarning("[디버그] BillManager 를 찾을 수 없습니다.");
@@ -36,16 +36,11 @@ namespace NCAIClicker.EditorTools
                 return;
             }
 
-            var field = typeof(BillManager).GetField("_currentDay", BindingFlags.NonPublic | BindingFlags.Instance);
-            if (field == null)
-            {
-                Debug.LogError("[디버그] BillManager._currentDay 필드를 찾지 못했습니다.");
-                return;
-            }
-
-            field.SetValue(manager, activeBill.DueDay);
-            GameEvents.PublishBillDueSoon(manager.DaysLeft);
-            Debug.Log($"[디버그] 현재 날짜를 마감 당일({activeBill.DueDay}일차, 남은 일수 {manager.DaysLeft}일)로 이동했습니다.");
+            manager.RestoreBillState(activeBill.DueDay, manager.CurrentBillIndex, activeBill,
+                manager.CurrentLoan, manager.LastLoanRepaidDay, manager.OfferedPerkIds);
+            var daysLeft = ((IBillService)manager).DaysLeft;
+            GameEvents.PublishBillDueSoon(daysLeft);
+            Debug.Log($"[디버그] 현재 날짜를 마감 당일({activeBill.DueDay}일차, 남은 일수 {daysLeft}일)로 이동했습니다.");
         }
 
         [MenuItem("NCAI/디버그/마감 당일로 날짜 이동", true)]
@@ -76,27 +71,29 @@ namespace NCAIClicker.EditorTools
                 return;
             }
 
-            var manager = BillManager.Instance as BillManager ?? Object.FindFirstObjectByType<BillManager>();
+            var manager = FindBillPersistence();
             if (manager == null)
             {
                 Debug.LogWarning("[디버그] BillManager 를 찾을 수 없습니다.");
                 return;
             }
 
-            var field = typeof(BillManager).GetField("_currentDay", BindingFlags.NonPublic | BindingFlags.Instance);
-            if (field == null)
-            {
-                Debug.LogError("[디버그] BillManager._currentDay 필드를 찾지 못했습니다.");
-                return;
-            }
-
-            var current = (int)field.GetValue(manager);
-            field.SetValue(manager, current + 1);
-            GameEvents.PublishBillDueSoon(manager.DaysLeft);
-            Debug.Log($"[디버그] 날짜를 1일 진행했습니다: {current}일차 -> {current + 1}일차 (남은 일수: {manager.DaysLeft}일)");
+            var current = manager.CurrentDay;
+            manager.RestoreBillState(current + 1, manager.CurrentBillIndex, manager.ActiveBill,
+                manager.CurrentLoan, manager.LastLoanRepaidDay, manager.OfferedPerkIds);
+            var daysLeft = ((IBillService)manager).DaysLeft;
+            GameEvents.PublishBillDueSoon(daysLeft);
+            Debug.Log($"[디버그] 날짜를 1일 진행했습니다: {current}일차 -> {current + 1}일차 (남은 일수: {daysLeft}일)");
         }
 
         [MenuItem("NCAI/디버그/날짜 1일 진행", true)]
         private static bool ValidateAdvanceOneDay() => Application.isPlaying;
+
+        private static IBillPersistence FindBillPersistence()
+        {
+            return Object.FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None)
+                .OfType<IBillPersistence>()
+                .FirstOrDefault();
+        }
     }
 }

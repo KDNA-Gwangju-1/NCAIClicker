@@ -109,10 +109,8 @@ namespace NCAIClicker.EditorTools
         }
 
         /// <summary>
-        /// 기한 당일이면 "지금 납부!" 로 바뀐다 (원작). [아직] 버튼은 기한 당일에도 계속 보인다
-        /// (#212) — 미루는 선택지를 막는 규칙은 이 버튼의 숨김이 아니라
-        /// <c>BillManager.IsBillOverdue()</c> 의 날짜 비교가 맡는다. 숨기면 납부 실패 시 모달에서
-        /// 빠져나갈 길이 없어진다. 잔액 부족으로 납부가 실패하면 부족액을 캡션으로 보여준다.
+        /// 기한 당일이면 "지금 납부!" 로 바뀌고 [아직] 버튼은 사라진다 (원작).
+        /// 잔액 부족으로 납부가 실패하면 부족액을 표시하고 대출 버튼으로 고지서 전액을 빌릴 수 있다.
         /// </summary>
         private static int RunDueDayChecks()
         {
@@ -140,11 +138,11 @@ namespace NCAIClicker.EditorTools
                        (parts.PayCaption != null ? parts.PayCaption.text : "null"));
                 checkCount++;
 
-                // 기한 당일에는 [아직] 버튼이 숨겨진다.
+                // 기한 당일에는 [아직] 버튼이 사라지고 납부·대출 선택만 남는다 (원작 규칙).
                 service.DaysLeft = 1;
                 controller.ShowAsModal();
                 Assert(!parts.LaterButton.activeSelf,
-                       "기한 당일에는 [아직] 버튼이 숨겨져야 합니다 — 미루지 못하고 납부해야 합니다.");
+                       "기한 당일에는 [아직] 버튼이 숨겨져야 합니다 — 납부·대출만 선택할 수 있어야 합니다.");
                 Assert(parts.DueValue.text == "지금 납부!", "기한 당일 표기가 다릅니다: " + parts.DueValue.text);
                 checkCount++;
 
@@ -158,6 +156,22 @@ namespace NCAIClicker.EditorTools
                        (parts.PayCaption != null ? parts.PayCaption.text : "null"));
                 checkCount++;
 
+                // 이번 회귀 원인은 리스너 누락이었으므로 실제 Button.onClick 경로를 검증한다.
+                // Edit Mode에서는 수명주기가 자동 실행되지 않으므로 한 번 정리한 뒤 명시적으로 배선한다.
+                service.ShouldSucceedLoan = true;
+                InvokeLifecycle(controller, "OnDisable");
+                InvokeLifecycle(controller, "OnEnable");
+                var loanButton = parts.LoanButton.GetComponent<Button>();
+                Assert(loanButton.interactable, "마감 당일 미납이고 활성 대출이 없으면 대출 버튼이 활성화돼야 합니다.");
+                loanButton.onClick.Invoke();
+                Assert(service.LoanAttemptCount == 1,
+                       "대출 버튼 클릭 1회당 TryTakeLoan 이 정확히 한 번 호출돼야 합니다: " + service.LoanAttemptCount);
+                Assert(service.LastLoanTakenAmount == service.ActiveBill.Amount,
+                       "대출 시 고지서 전액을 빌려야 합니다: " + service.LastLoanTakenAmount);
+                Assert(parts.LoanCaption != null && parts.LoanCaption.text == "대출 완료",
+                       "대출 성공 시 대출 완료 캡션이 표시되어야 합니다.");
+                checkCount++;
+
                 service.ShouldFailPay = false;
                 service.ActiveBill.IsPaid = true;
                 controller.ShowAsModal();
@@ -167,6 +181,7 @@ namespace NCAIClicker.EditorTools
             }
             finally
             {
+                InvokeLifecycle(controller, "OnDisable");
                 UnityEngine.Object.DestroyImmediate(host);
             }
 
@@ -217,8 +232,10 @@ namespace NCAIClicker.EditorTools
             public GameObject ContinueRow;
             public GameObject LaterButton;
             public GameObject PayButton;
+            public GameObject LoanButton { get; set; }
             public TMPro.TextMeshProUGUI DueValue;
             public TMPro.TextMeshProUGUI PayCaption;
+            public TMPro.TextMeshProUGUI LoanCaption { get; set; }
         }
 
         private static GameObject BuildHost(out BillPanelController controller, out Parts parts)
@@ -235,8 +252,10 @@ namespace NCAIClicker.EditorTools
                 ContinueRow = (GameObject)typeof(BillPanelController).GetField("_continueRow", flags).GetValue(controller),
                 LaterButton = ((Button)typeof(BillPanelController).GetField("_laterButton", flags).GetValue(controller)).gameObject,
                 PayButton = ((Button)typeof(BillPanelController).GetField("_payButton", flags).GetValue(controller)).gameObject,
+                LoanButton = ((Button)typeof(BillPanelController).GetField("_loanButton", flags).GetValue(controller)).gameObject,
                 DueValue = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_dueValueText", flags).GetValue(controller),
                 PayCaption = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_payCaptionText", flags).GetValue(controller),
+                LoanCaption = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_loanCaptionText", flags).GetValue(controller),
             };
             return host;
         }
@@ -251,6 +270,13 @@ namespace NCAIClicker.EditorTools
                 }
             }
             return null;
+        }
+
+        private static void InvokeLifecycle(BillPanelController controller, string methodName)
+        {
+            var method = typeof(BillPanelController).GetMethod(
+                methodName, BindingFlags.NonPublic | BindingFlags.Instance);
+            method.Invoke(controller, null);
         }
 
         private static void Assert(bool condition, string message)
@@ -274,8 +300,22 @@ namespace NCAIClicker.EditorTools
             /// <summary>true면 TryPay 가 실패한다 — 잔액 부족 캡션 표시를 검증하려고 둔 스위치.</summary>
             public bool ShouldFailPay { get; set; }
 
+            public bool ShouldSucceedLoan { get; set; }
+            public int LoanAttemptCount { get; private set; }
+            public long LastLoanTakenAmount { get; private set; }
+
             public bool TryPay(Bill bill) => !ShouldFailPay;
-            public bool TryTakeLoan(long amount) => false;
+            public bool TryTakeLoan(long amount)
+            {
+                LoanAttemptCount++;
+                if (!ShouldSucceedLoan)
+                {
+                    return false;
+                }
+                LastLoanTakenAmount = amount;
+                LoanDailyCut = float.Epsilon;
+                return true;
+            }
             public bool TryRepayLoan() => false;
             public bool TryChoosePerk(string perkId) => false;
             public bool TryCloseDay() => false;

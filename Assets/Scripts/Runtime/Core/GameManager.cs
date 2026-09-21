@@ -1,6 +1,5 @@
 using System;
 using NCAIClicker.Data;
-using NCAIClicker.Economy;
 using NCAIClicker.Events;
 using NCAIClicker.Interfaces;
 using UnityEngine;
@@ -32,6 +31,7 @@ namespace NCAIClicker.Core
         public RunState CurrentState { get; private set; }
 
         private IRunScoped[] _runScopedServices;
+        private IBillService _billService;
 
         /// <summary>
         /// 씬에 사는 런 경계 구현체 (#126). 프리팹 안의 것과 달리 캐시하지 않는다 —
@@ -45,6 +45,7 @@ namespace NCAIClicker.Core
         {
             Instance = this;
             CurrentState = ResolveState(SceneManager.GetActiveScene().name) ?? RunState.MainMenu;
+            _billService = GetComponentInChildren<IBillService>(true);
         }
 
         private void Start()
@@ -85,7 +86,7 @@ namespace NCAIClicker.Core
         /// </summary>
         public void ContinueRun()
         {
-            if (CurrentState == RunState.Result && BillManager.Instance?.TryCloseDay() == true)
+            if (CurrentState == RunState.Result && _billService?.TryCloseDay() == true)
             {
                 return;
             }

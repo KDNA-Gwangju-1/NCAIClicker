@@ -117,6 +117,10 @@ namespace NCAIClicker.UI
                 // 시작돼 업그레이드를 살 기회가 사라진다. 탭 화면으로 나가 선택지를 남긴다.
                 _laterButton.onClick.AddListener(ShowBillTab);
             }
+            if (_loanButton != null)
+            {
+                _loanButton.onClick.AddListener(HandleLoanClicked);
+            }
             if (_continueButton != null)
             {
                 _continueButton.onClick.AddListener(HandleContinueClicked);
@@ -157,6 +161,10 @@ namespace NCAIClicker.UI
             if (_laterButton != null)
             {
                 _laterButton.onClick.RemoveListener(ShowBillTab);
+            }
+            if (_loanButton != null)
+            {
+                _loanButton.onClick.RemoveListener(HandleLoanClicked);
             }
             if (_continueButton != null)
             {
@@ -502,7 +510,7 @@ namespace NCAIClicker.UI
             }
 
             // "아직" 은 탭 화면으로 빠지는 버튼이다. 이미 탭 화면이면 할 일이 없으므로 감춘다.
-            // 마감 당일(isDueToday)에는 미루기 선택지를 차단하기 위해 감춘다 — 무조건 납부를 시도해야 한다.
+            // 마감 당일에는 납부·대출 선택만 남기는 원작 규칙에 따라 숨긴다.
             if (_laterButton != null)
             {
                 _laterButton.gameObject.SetActive(_mode == Mode.Modal && hasUnpaidBill && !isDueToday);
@@ -510,11 +518,19 @@ namespace NCAIClicker.UI
 
             if (_loanButton != null)
             {
-                var canLoan = hasUnpaidBill && _billService != null && _billService.LoanDailyCut <= 0f;
+                var hasActiveLoan = _billService != null && _billService.LoanDailyCut > 0f;
+                var canLoan = hasUnpaidBill && !hasActiveLoan;
                 _loanButton.interactable = canLoan;
                 if (_loanCaptionText != null)
                 {
-                    _loanCaptionText.text = canLoan ? string.Empty : "대출 불가";
+                    if (hasActiveLoan)
+                    {
+                        _loanCaptionText.text = "대출 완료";
+                    }
+                    else
+                    {
+                        _loanCaptionText.text = canLoan ? string.Empty : "대출 불가";
+                    }
                 }
             }
 
@@ -558,6 +574,31 @@ namespace NCAIClicker.UI
             {
                 var coin = _economyService != null ? _economyService.CurrentCoin : 0L;
                 _payCaptionText.text = $"${bill.Amount - coin:N0} 부족";
+            }
+        }
+
+        private void HandleLoanClicked()
+        {
+            var bill = _billService?.ActiveBill;
+            if (bill == null || _billService == null)
+            {
+                return;
+            }
+
+            if (_billService.TryTakeLoan(bill.Amount))
+            {
+                if (_loanCaptionText != null)
+                {
+                    _loanCaptionText.text = "대출 완료";
+                }
+                Render();
+            }
+            else
+            {
+                if (_loanCaptionText != null)
+                {
+                    _loanCaptionText.text = "대출 실패";
+                }
             }
         }
 

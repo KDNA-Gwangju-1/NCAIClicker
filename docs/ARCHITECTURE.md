@@ -141,6 +141,7 @@ public readonly struct BreakInfo
 public interface IBillService
 {
     int CurrentDay { get; }
+    int CurrentCycle { get; }
     int DaysLeft { get; }              // max(0, DueDay - CurrentDay + 1)
     float LoanDailyCut { get; }        // 대출이 없으면 0
     Bill ActiveBill { get; }           // 마감 전 고지서. 없으면 null
@@ -150,6 +151,8 @@ public interface IBillService
     bool TryTakeLoan(long amount);     // 두 번째 고지서부터, 동시 1건
     bool TryRepayLoan();               // 전액 상환. 재대출 쿨다운 시작
     bool TryChoosePerk(string perkId); // OfferedPerkIds 중 하나를 고른다. 목록에 없으면 false
+    bool TryCloseDay();                // 다음 날 진입 직전 미납 마감을 확정. 파산 처리 시 true
+    void RestoreCycle(int cycle);      // 저장 복원 시 회차 번호를 되돌린다
 }
 
 public interface IEconomyService

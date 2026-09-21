@@ -36,9 +36,15 @@ namespace NCAIClicker.UI
             {
                 _tooltip = GetComponentInChildren<RingTooltip>(true);
             }
+            _tooltip?.Hide();
             EnsureBalanceData();
             BindEntries();
             RefreshAll();
+        }
+
+        private void OnDisable()
+        {
+            _tooltip?.Hide();
         }
 
         private void EnsureBalanceData()
