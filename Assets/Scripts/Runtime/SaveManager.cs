@@ -10,11 +10,30 @@ namespace NCAIClicker
     /// ISaveService 구현체. JsonUtility로 SaveData를 persistentDataPath/save.json에 저장·로드한다.
     /// 직렬화 방식·버전 정책은 ARCHITECTURE.md 2절(이슈 1.2.2)이 정본이다.
     /// </summary>
-    public class SaveManager : MonoBehaviour, ISaveService
+    public class SaveManager : MonoBehaviour, ISaveService, IGamePersistence
     {
         private const string SaveFileName = "save.json";
 
         public static ISaveService Instance { get; private set; }
+
+        /// <summary>
+        /// 수집·분배 통로 (이슈 #203). Instance 와 나눠 둔 이유는 소비처가 다르기 때문이다 —
+        /// 메인 메뉴는 HasSave 만, GameManager 는 이쪽만 쓴다.
+        /// </summary>
+        public static IGamePersistence Persistence { get; private set; }
+
+        // 저장에 담고 되돌릴 대상들. ManagerBootstrap 이 넣어 준다 (이슈 #203).
+        //
+        // **직접 조회하지 않고 주입받는 이유**: SaveManager 가 EconomyManager 를 찾아 나서면
+        // 매니저가 매니저를 뒤지는 경로가 생긴다. ARCHITECTURE 는 "조립하는 지점 한 곳만
+        // 구현 클래스를 안다"로 정했고, 그 한 곳이 ManagerBootstrap 이다.
+        // 없으면 그 항목만 조용히 건너뛴다 — 저장 자체가 멈추면 안 된다.
+        private IWalletPersistence _wallet;
+        private IUpgradePersistence _upgrades;
+        private ILegacyPersistence _legacy;
+        private IEconomyService _economy;
+        private ILegacyService _legacyPoints;
+        private IStageService _stage;
 
         public bool HasSave => File.Exists(SavePath);
 
@@ -23,6 +42,91 @@ namespace NCAIClicker
         private void Awake()
         {
             Instance = this;
+            Persistence = this;
+        }
+
+        /// <summary>
+        /// 저장 대상 통로를 넣는다 (이슈 #203). ManagerBootstrap 이 생성 직후 한 번 부른다.
+        /// 넘기지 않은 항목은 수집·복원에서 건너뛴다.
+        /// </summary>
+        public void SetPersistenceTargets(IEconomyService economy, IWalletPersistence wallet,
+                                          IUpgradePersistence upgrades, ILegacyService legacyPoints,
+                                          ILegacyPersistence legacy, IStageService stage)
+        {
+            _economy = economy;
+            _wallet = wallet;
+            _upgrades = upgrades;
+            _legacyPoints = legacyPoints;
+            _legacy = legacy;
+            _stage = stage;
+        }
+
+        /// <summary>
+        /// 지금 매니저들이 들고 있는 값을 모아 저장한다 (이슈 #203).
+        ///
+        /// **고지서·대출·퍼크 후보는 담지 않는다.** IBillService 에 복원 통로가 없어 담아 봐야
+        /// 되돌릴 수 없다 — 쓰기만 하고 읽지 못하는 필드는 "저장된다"는 착각만 만든다
+        /// (docs/TECH_NOTES/billing.md 알려진 한계, 별도 계약 이슈가 먼저다).
+        /// </summary>
+        public void CollectAndSave()
+        {
+            var data = Load();
+
+            if (_economy != null)
+            {
+                data.TotalCoin = _economy.CurrentCoin;
+            }
+            if (_wallet != null)
+            {
+                data.CoinRemainder = _wallet.CurrentRemainderText;
+            }
+            if (_upgrades != null)
+            {
+                data.UpgradeLevels = _upgrades.CurrentUpgradeLevels;
+            }
+            if (_legacyPoints != null)
+            {
+                data.LegacyPoints = _legacyPoints.CurrentLegacyPoints;
+            }
+            if (_legacy != null)
+            {
+                data.RingLevels = _legacy.CurrentRingLevels;
+            }
+            if (_stage != null)
+            {
+                data.StageIndex = _stage.CurrentStageIndex;
+            }
+
+            Save(data);
+        }
+
+        /// <summary>
+        /// 저장을 읽어 매니저들에 되돌린다 (이슈 #203).
+        ///
+        /// **순서가 ARCHITECTURE 1절 초기화 순서를 따른다** — 저장 로드가 먼저고, 그 결과로
+        /// 코인·업그레이드를 복원한 뒤 단계를 되돌린다. 단계가 먼저 오면 단계에 딸린 값을
+        /// 읽는 쪽이 아직 복원되지 않은 지갑을 본다.
+        /// </summary>
+        public void LoadAndDistribute()
+        {
+            var data = Load();
+
+            if (_wallet != null)
+            {
+                _wallet.RestoreWallet(data.TotalCoin, data.CoinRemainder);
+            }
+            if (_upgrades != null)
+            {
+                _upgrades.RestoreUpgradeLevels(data.UpgradeLevels);
+            }
+            if (_legacy != null)
+            {
+                _legacy.RestoreLegacy(data.LegacyPoints, data.RingLevels);
+            }
+            if (_stage != null)
+            {
+                _stage.RestoreStage(data.StageIndex);
+            }
         }
 
         public SaveData Load()

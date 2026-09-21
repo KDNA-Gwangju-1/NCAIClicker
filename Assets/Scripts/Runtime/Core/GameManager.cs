@@ -99,10 +99,23 @@ namespace NCAIClicker.Core
         private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
         {
             var next = ResolveState(scene.name);
-            if (next.HasValue)
+            if (!next.HasValue)
             {
-                SetState(next.Value);
+                return;
             }
+
+            // **상태를 바꾸기 전에 되돌린다** (이슈 #203). SetState 가 Running 으로 가면 곧바로
+            // BeginRun 이 돌고, 매니저들이 거기서 실효값을 캐시한다 — 복원이 그 뒤에 오면
+            // 이번 판은 복원 전 값으로 돈다.
+            //
+            // 새 회차든 이어하기든 같은 경로다. StartNewRun 이 이미 빈 저장으로 덮어쓰므로
+            // "씬에 들어갈 때 현재 저장을 읽어 뿌린다" 하나로 통일된다.
+            if (next.Value == RunState.Running)
+            {
+                SaveManager.Persistence?.LoadAndDistribute();
+            }
+
+            SetState(next.Value);
         }
 
         /// <summary>Running 중에만 Result 로 전이한다. 스태미나 소진과 파산 둘 다 같은 전이를 부른다.</summary>
@@ -235,6 +248,11 @@ namespace NCAIClicker.Core
                 _runScopedServices[i].EndRun();
             }
             NotifyScene(false);
+
+            // 하루가 끝나는 이 지점이 저장 체크포인트다 (이슈 #203). **EndRun 을 전부 돌린 뒤**에
+            // 저장한다 — 단계 진행과 파산 초기화가 여기서 일어나므로, 먼저 저장하면 한 판 뒤처진
+            // 값이 남는다.
+            SaveManager.Persistence?.CollectAndSave();
         }
 
         /// <summary>
