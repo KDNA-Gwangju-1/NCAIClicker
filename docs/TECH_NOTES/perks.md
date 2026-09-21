@@ -184,8 +184,10 @@ Edit Mode 에서 `PerkEffectChecks.RunBatch()` 로 확인했다 (**21건 PASS**)
   ([퍼크 3장 선택 화면](perk-choice-ui.md))
 - **빌드에서는 판정 반경 퍼크가 먹지 않는다.** `CreatureManager` 자체가 빌드에 없기 때문이다
   ([#140](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/140))
-- **퍼크 수치를 실측하지 않았다.** `perks.csv` 의 `value`·`duration_sec` 가 적당한지는
-  7.2 밸런싱에서 본다
+- **퍼크 수치를 Play Mode 로 실측하지 않았다.** `perks.csv` 의 `value`·`duration_sec` 는
+  4.11(#188, 2026-09-21)에서 스태미나 7.0 기준으로 다시 잡았지만, 근거는 모델 계산(드레인률·
+  스윙 간격·`fever.csv` 대비 규모)이고 `simulate_balance.py` 는 퍼크를 모델링하지 않는다.
+  실제 체감이 맞는지는 7.2 밸런싱에서 본다
 
 ## 갱신 이력
 
@@ -193,3 +195,4 @@ Edit Mode 에서 `PerkEffectChecks.RunBatch()` 로 확인했다 (**21건 PASS**)
 |---|---|---|---|
 | 2026-09-17 | #126 | twins6375-art | 최초 작성 (퍼크 4종 적용, 즉시/예약 분기, 런 경계를 씬까지 확장) |
 | 2026-09-18 | #92 | twins6375-art | 선택 화면이 붙어 시간 정지 한계를 닫았다 ([퍼크 3장 선택 화면](perk-choice-ui.md)). 알려진 한계의 CSV 수치 복제를 열 이름으로 바꿨다 |
+| 2026-09-21 | #188 | yahoo-afk | `idle_drain_per_sec` 7.0(#187) 미반영분 재계산 — `stamina_restore` 20→40, `coin_gain_boost.duration_sec` 15→5.0(`hit_power_boost`·`hit_radius_boost` 는 percent 값이라 유지). 근거는 `BALANCE.md` "퍼크 값 재계산" 절 |
