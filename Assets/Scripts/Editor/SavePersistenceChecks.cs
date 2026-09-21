@@ -31,6 +31,7 @@ namespace NCAIClicker.EditorTools
             var checkCount = RunContractChecks();
             checkCount += RunRoundTripChecks(balance);
             checkCount += RunLengthMismatchChecks(balance);
+            checkCount += RunResetChecks(balance);
             Debug.Log("[SavePersistenceChecks] PASS " + checkCount + " checks.");
         }
 
@@ -83,10 +84,11 @@ namespace NCAIClicker.EditorTools
             checkCount++;
 
             // 새 회차는 파일만 비워선 안 된다 — 매니저가 값을 들고 있어 직전 회차의 성장이 남는다.
+            // 설정 초기화(#196)와 **같은 메서드**를 써야 한다.
             AssertCondition(ExtractMethodBody(source, "public void StartNewRun")
-                                .Contains("LoadAndDistribute"),
-                            "StartNewRun 이 빈 저장을 분배하지 않습니다. " +
-                            "파일만 비우면 업그레이드·반지가 메모리에 남아 새 회차로 넘어갑니다.");
+                                .Contains("ResetAndDistribute"),
+                            "StartNewRun 이 ResetAndDistribute 를 부르지 않습니다. " +
+                            "파일만 비우면 업그레이드·반지가 메모리에 남고 설정까지 지워집니다.");
             checkCount++;
 
             // 업그레이드·반지 상점이 이 버튼 바로 앞 화면에 있다. 여기서 저장하지 않으면
@@ -95,6 +97,19 @@ namespace NCAIClicker.EditorTools
                                 .Contains("CollectAndSave"),
                             "ContinueRun 이 저장하지 않습니다. " +
                             "고지서 화면에서 산 업그레이드·반지가 종료 시 사라집니다.");
+            checkCount++;
+
+            // **성장을 지우는 경로는 둘뿐이고 둘이 같은 메서드를 써야 한다.** "무엇을 지우는가"
+            // 를 두 곳에 적으면 서로 다른 답을 낸다 — 실제로 설정 초기화는 파일만 비우고
+            // 새 회차는 설정까지 지우는 상태였다.
+            var settings = File.ReadAllText("Assets/Scripts/Runtime/UI/SettingsPanelController.cs");
+            var resetBody = ExtractMethodBody(settings, "private void HandleResetConfirmed");
+            AssertCondition(resetBody.Contains("ResetAndDistribute"),
+                            "설정 패널의 저장 초기화가 ResetAndDistribute 를 부르지 않습니다. " +
+                            "파일만 비우면 매니저가 값을 들고 있어 다음 저장이 되돌려 놓습니다.");
+            AssertCondition(resetBody.Contains("PersistCurrentSettings"),
+                            "저장 초기화 전에 설정을 파일에 반영하지 않습니다. " +
+                            "ResetAndDistribute 는 파일에서 설정을 옮겨 담으므로 옛 값이 살아남습니다.");
             checkCount++;
 
             return checkCount;
@@ -206,6 +221,76 @@ namespace NCAIClicker.EditorTools
                 // "저장된다"는 착각만 만든다. 담지 않는 것이 의도임을 못 박는다.
                 AssertCondition(written.HasActiveBill == false && written.ActiveBill == null,
                                 "고지서가 저장에 담겼습니다. 되돌릴 통로가 없어 담지 않기로 했습니다 (#203).");
+                checkCount++;
+            }
+            finally
+            {
+                DestroyHost(host);
+                RestoreSaveFile(savedFile);
+            }
+
+            return checkCount;
+        }
+
+        // ---------------------------------------------------------------- 초기화
+
+        /// <summary>
+        /// **성장을 지우면 메모리까지 지워지는지**, 그러면서 **설정은 남는지** 본다.
+        ///
+        /// 파일만 비우는 구현은 왕복 검증을 멀쩡히 통과한다 — 파일은 실제로 비니까. 그런데
+        /// 매니저는 DontDestroyOnLoad 라 값을 들고 있고, 다음 자동 저장이 그 값을 도로 써서
+        /// 초기화가 없던 일이 된다. 그래서 "지운 뒤 한 번 더 저장" 까지 재현한다.
+        /// </summary>
+        private static int RunResetChecks(BalanceData balance)
+        {
+            var checkCount = 0;
+            GameObject host = null;
+            var savedFile = BackupSaveFile();
+
+            try
+            {
+                var save = CreateRig(balance, out host, out var economy, out var stage);
+                var persistence = (IGamePersistence)save;
+                var service = (ISaveService)save;
+                var legacy = (ILegacyService)economy;
+                var upgrades = (IUpgradePersistence)economy;
+
+                economy.AddCoin(100000L);
+                ((IUpgradeShop)economy).TryPurchase(balance.Upgrades[0].Id);
+                legacy.AddLegacyPoints(77L);
+                persistence.CollectAndSave();
+
+                // 설정이 파일에 반영된 상태를 만든다 (패널이 초기화 직전에 하는 일).
+                var withSettings = service.Load();
+                withSettings.BgmVolume = 0.3f;
+                withSettings.SfxVolume = 0.4f;
+                withSettings.IsScreenShakeEnabled = false;
+                service.Save(withSettings);
+
+                AssertCondition(upgrades.CurrentUpgradeLevels[0] > 0 && legacy.CurrentLegacyPoints > 0L,
+                                "준비: 성장이 만들어지지 않았습니다.");
+                checkCount++;
+
+                persistence.ResetAndDistribute();
+
+                AssertCondition(legacy.CurrentLegacyPoints == 0L,
+                                "초기화 후에도 레거시 포인트가 메모리에 남아 있습니다: " + legacy.CurrentLegacyPoints);
+                AssertCondition(upgrades.CurrentUpgradeLevels[0] == 0,
+                                "초기화 후에도 업그레이드 레벨이 메모리에 남아 있습니다.");
+                AssertCondition(economy.CurrentCoin == 0L, "초기화 후에도 코인이 남아 있습니다.");
+                checkCount++;
+
+                // **여기가 핵심이다.** 메모리를 비우지 않으면 이 저장이 옛 값을 도로 쓴다.
+                persistence.CollectAndSave();
+                var afterSave = service.Load();
+                AssertCondition(afterSave.UpgradeLevels[0] == 0 && afterSave.LegacyPoints == 0L,
+                                "초기화가 다음 저장에 되돌려졌습니다. 파일만 비우고 메모리를 두면 이렇게 됩니다.");
+                checkCount++;
+
+                AssertCondition(Mathf.Approximately(afterSave.BgmVolume, 0.3f)
+                                && Mathf.Approximately(afterSave.SfxVolume, 0.4f)
+                                && afterSave.IsScreenShakeEnabled == false,
+                                "초기화가 설정까지 지웠습니다. 설정은 성장이 아니므로 남겨야 합니다 (#202).");
                 checkCount++;
             }
             finally
