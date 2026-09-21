@@ -302,8 +302,6 @@ strong_hammer,hit_radius,percent,2,레벨당 피격 판정 반경 +2%
 |---|---|---|
 | `stamina.csv` | 코어 플레이 | 런 길이 = 하루 길이. 변경하면 고지서 수입 계산에 연쇄 영향 |
 | `upgrade_effects.csv` | 성장·저장 | stat 이름은 6절 표에 있는 것만 사용 |
-| `rings.csv` | 반지 정의 (레거시 포인트로 산다) | 경제 |
-| `ring_effects.csv` | 반지 효과. `upgrade_effects.csv` 와 열 구성이 같다 | 경제 |
 | `economy.csv`, `upgrades.csv` | 성장·저장 | |
 | `bills.csv` | 성장·저장 | 마감일·대출 계수. 유효 범위만 임포터가 검사, 납부 가능성은 실측 |
 | `fever.csv` | 피버·보너스 | |
