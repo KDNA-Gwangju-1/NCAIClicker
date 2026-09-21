@@ -1,11 +1,11 @@
 # 하루 진행과 고지서
 
-> 관련 이슈: #27, #28, #29, #150, #30, #164, #92, #175, #203, #212 · 최종 수정: 2026-09-21
+> 관련 이슈: #27, #28, #29, #150, #30, #164, #92, #175, #203, #212, #211 · 최종 수정: 2026-09-21
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
 ## 무엇을 하는가
 
-런 종료를 하루 종료로 집계하고, 하루가 시작될 때마다 `stages.csv` 단계값으로 고지서(금액·마감일)를 발행한다. HUD는 남은 일수와 금액을 항상 보여준다. 마감 전이면 `TryPay`로 언제든 조기 납부할 수 있고, 납부에 성공하면 `perks.csv`에서 3종을 무작위로 뽑아 `OnPerkOffered`로 알린 뒤 `TryChoosePerk`로 하나를 고른다(#28). 퍼크 효과의 실제 게임플레이 반영은 이 클래스 범위 밖 — 아래 "알려진 한계" 참고. 대출(#29)은 두 번째 고지서부터 활성 고지서 금액을 한도로 빌리고(`TryTakeLoan`), 이자를 더한 전액을 한 번에 갚는다(`TryRepayLoan`). 미상환 기간에는 `LoanDailyCut`이 0이 아니게 되어 `EconomyManager`가 수입에서 그만큼 떼며, 그 징수분은 부채를 줄이지 않는다. **파산 판정(#30)도 여기서 한다** — 아래 "마감 미납과 파산" 절. 게임 규칙은 [GDD](../GDD.md)에 있으니 여기서 반복하지 않는다.
+런 종료를 하루 종료로 집계하고, 하루가 시작될 때마다 `stages.csv` 단계값으로 고지서(금액·마감일)를 발행한다. HUD는 남은 일수와 금액을 항상 보여준다. 마감 전이면 `TryPay`로 언제든 조기 납부할 수 있고, 납부에 성공하면 `perks.csv`에서 3종을 무작위로 뽑아 `OnPerkOffered`로 알린 뒤 `TryChoosePerk`로 하나를 고른다(#28). 퍼크 효과의 실제 게임플레이 반영은 이 클래스 범위 밖 — 아래 "알려진 한계" 참고. 대출(#29)은 두 번째 고지서부터 활성 고지서 금액을 한도로 빌리고(`TryTakeLoan`), 이자를 더한 전액을 한 번에 갚는다(`TryRepayLoan`). 미상환 기간에는 `LoanDailyCut`이 0이 아니게 되어 `EconomyManager`가 수입에서 그만큼 떼며, 그 징수분은 부채를 줄이지 않는다. **파산 판정(#30, #211)도 여기서 한다** — 아래 "마감 미납과 파산" 절. 게임 규칙은 [GDD](../GDD.md)에 있으니 여기서 반복하지 않는다.
 
 ## 왜 이 방법인가
 
@@ -36,9 +36,13 @@
 | (#158) 전용 `IRoundResettable` 계약 신설 (B안) | ❌ | 구현자가 `EconomyManager` 하나뿐이라 계약만 만들고 소비처가 없던 #116 의 전철을 밟을 위험이 컸다. 3.7(#150)이 되돌릴 대상을 더 만들면 그때 승격한다 |
 | (#158) `EconomyManager` 가 `OnBankrupt` 를 직접 구독 (C안) | ❌ | `OnBankrupt` 는 GameManager 만 구독한다는 제한(ARCHITECTURE 3절)이 흐려지고, "종료 순서는 GameManager 가 조정한다"는 원칙과도 어긋난다 |
 | (#212) 납부 실패 시 부족액을 `PayCaption` 라벨로 표시 | ✅ | `_economyService.CurrentCoin` 과 `bill.Amount` 차이만 화면에 적을 뿐 코인을 건드리지 않는다 — 표시와 차감을 분리해 `EconomyManager` 경계를 지킨다 |
-| (#212) 기한 당일에도 `[아직]` 버튼을 계속 보이게 둠 | ✅ | 종전에는 기한 당일에 숨겨져, 잔액 부족으로 `TryPay` 가 실패하면 모달에서 빠져나갈 방법이 없었다. 미루는 선택지를 막는 규칙은 `BillManager.IsBillOverdue()` 의 날짜 비교가 지키므로 이 버튼을 숨길 이유가 없다 |
+| (#212) 기한 당일에도 `[아직]` 버튼을 계속 보이게 둠 | ❌ → **뒤집힘** | #212 에서 임시 탈출용으로 살렸으나, 마감 당일에는 미루지 못하고 납부를 시도해야 하며 잔액 부족 시 즉시 파산으로 이어지는 정식 규칙이 확정되어 마감 당일에는 `[아직]` 을 숨긴다 |
 | (#212) `BillPanelChecks` 에서 납부 실패 검증 시 `onClick.Invoke()` 로 클릭 시뮬레이션 | ❌ | `_payButton.onClick` 리스너는 `OnEnable` 에서 등록되는데, `[ExecuteAlways]` 가 없는 `BillPanelController` 는 Edit Mode(플레이 모드 밖)에서 `OnEnable` 이 돌지 않는다. `NCAI/전체 검증 실행` 은 Edit Mode 에서 프리팹을 인스턴스화하므로 `Invoke()` 가 리스너 0개를 부르고 조용히 통과해 버린다 |
 | (#212) `HandlePayClicked` 를 리플렉션으로 직접 호출 | ✅ | 실제 클릭 경로(`OnEnable` 배선)는 Play Mode 에서 별도로 확인했다. 검증이 묻는 질문은 "버튼을 누르면 이 메서드가 불리는가"가 아니라 "이 메서드가 부족액을 맞게 그리는가"이므로, Edit Mode 검증에서는 메서드를 직접 불러도 계약을 어기지 않는다 |
+| (#211) `EndRun` 에서 즉시 파산 판정 | ❌ | 런 종료 직후 파산 화면으로 덮여 정산창 확인 및 마감 당일 납부 기회가 박탈된다. `EndRun` 에서는 `OnDayEnded` 만 발행하고 파산 판정은 다음 날 진입 시점으로 옮긴다 |
+| (#211) UI 두 곳(`ResultUIController`·`BillPanelController`)에서 `TryCloseDay()` 호출 | ❌ | 확인을 두 곳에 두면 새 경로(일시정지 등)가 생길 때 마감이 누락된다. `GameManager.ContinueRun()` 단일 지점으로 모으고 UI 코드는 수정하지 않는다 |
+| (#211) `IBillService.TryCloseDay()` 계약 추가 및 `GameManager.ContinueRun()` 에서 호출 | ✅ | 공용 계약에 `bool TryCloseDay()` 를 열고, `GameManager.ContinueRun()` 에서 Result 상태일 때 마감을 확정하여 미납 파산 시 씬 전환을 차단하고 파산 화면을 유지한다 |
+| (#211) 마감 당일 납부 실패 시 즉시 파산 직행 | ❌ → **뒤집힘** | 플레이어에게 대출 기회가 있어도 납부 버튼을 먼저 누르면 즉시 파산하고 TryCloseDay() 중앙 판정을 우회한다. 마감 당일에는 [아직]만 숨기고 납부 실패 시 부족액을 보여주어 대출 기회를 남기며, 최종 파산은 GameManager.ContinueRun 의 TryCloseDay() 단일 지점에서 확정한다 |
 
 ## 구조
 
@@ -83,8 +87,8 @@ flowchart LR
 | `BillHud` | `Assets/Scripts/Runtime/UI/BillHud.cs` | `OnBillIssued`/`OnBillDueSoon` 구독, `TextMeshProUGUI`에 "D-N  N원" 형식으로 표시 |
 | (프리팹) | 삭제됨 (#173) | 본래 Assets/Prefabs/UI/BillHud.prefab 이었으나 GameHud.prefab 으로 단일화되어 삭제됨 |
 | `BillManagerChecks` | `Assets/Scripts/Editor/BillManagerChecks.cs` | EditMode 배치 검증. `MenuItem` 없이 `RunBatch()`를 외부에서 호출한다 |
-| `BillPanelController` | `Assets/Scripts/Runtime/UI/BillPanelController.cs` | 고지서 화면(모달/탭 겸용). `TryPay` 실패 시 부족액을 `PayCaption` 에 표시하고, 기한 당일에도 `[아직]` 으로 모달을 빠져나갈 수 있게 둔다(#212). 파산 선고 확인창·반지 탭은 [레거시 포인트와 반지](legacy-points.md) |
-| `BillPanelChecks` | `Assets/Scripts/Editor/BillPanelChecks.cs` | 고지서 화면 Edit Mode 검증. 모달/탭 상태별 노출, 기한 당일 표기, 납부 실패 캡션(#212), 이름 생성 결정성을 본다 |
+| `BillPanelController` | `Assets/Scripts/Runtime/UI/BillPanelController.cs` | 고지서 화면(모달/탭 겸용). `TryPay` 실패 시 부족액을 `PayCaption` 에 표시하고, 기한 당일에는 `[아직]` 을 숨겨 납부를 강제하며 잔액 부족 시 즉시 파산 선고 후 반지 상점 탭(`Tab.Ring`)으로 전환한다(#211, #212). 파산 선고 확인창·반지 탭은 [레거시 포인트와 반지](legacy-points.md) |
+| `BillPanelChecks` | `Assets/Scripts/Editor/BillPanelChecks.cs` | 고지서 화면 Edit Mode 검증. 모달/탭 상태별 노출, 기한 당일 표기 및 `[아직]` 숨김, 기한 당일 납부 실패 시 파산 후 반지 상점 탭 전환, 이름 생성 결정성을 본다 |
 
 ### 이벤트
 
@@ -190,9 +194,11 @@ REFERENCE_ANALYSIS 6절). 대출로 코인을 만드는 것이 유일한 회피 
 `TryPay` 로 실제 납부까지 끝내야 한다.
 
 ```
-EndRun()  → OnDayEnded 발행
-          → 고지서가 있고 · 미납이고 · 오늘이 마감일 당일이거나 그 뒤면
-          → OnBankrupt 발행 → 회차 초기화
+EndRun()       → OnDayEnded 발행 (하루 집계만 수행, 파산 판정 안 함)
+[정산창]       → 정산 내용 확인 및 납부·대출 기회 제공
+ContinueRun()  → TryCloseDay() 호출 (#211)
+                 → 고지서가 있고 · 미납이고 · 오늘이 마감일 당일이거나 그 뒤면
+                 → OnBankrupt 발행 → 회차 초기화 → ContinueRun 씬 로드 중단 (파산 화면 유지)
 ```
 
 ### 스스로 선언하는 파산 (#175)
@@ -208,14 +214,13 @@ EndRun()  → OnDayEnded 발행
 
 자세한 것은 [레거시 포인트와 반지](legacy-points.md).
 
-### 마감일은 낼 수 있는 마지막 날이다
+### 마감일 판정 시점의 이동 (#211)
 
-`DueDay` 당일에 런이 끝나면서 미납이면 **그 시점에 파산**이다. 하루를 더 넘겨야 파산하는
-것이 아니다. 하루의 끝에서만 판정하므로 "마감 판정 전에 납부 기회를 제공한다"(ARCHITECTURE)는
-자연히 지켜진다 — 런 내내 `TryPay` 가 열려 있다.
-
-검증을 쓰면서 이 경계를 반대로 잡았다가 틀렸다. `DaysLeft == 1`(마감 당일)에서 이미 마지막
-기회를 쓴 것이다.
+종전에는 `DueDay` 당일에 런이 끝나면서 `EndRun()` 이 즉시 파산을 확정했다. 이로 인해
+마감일에 스태미나가 소진되면 정산창이 뜨자마자 파산 화면으로 덮여 마감 당일의 납부 기회가 박탈되었다.
+이를 해결하기 위해 파산 판정을 **정산창에서 다음 날로 넘어가는 시점(`TryCloseDay()`)** 으로 옮겼다.
+정산창을 통해 최종 수입을 확인하고 납부/대출을 선택한 뒤, "계속하기"를 눌렀을 때 비로소 마감이 확정된다.
+`DaysLeft == 1`(마감 당일) 런을 마치고 정산창에서 내지 못한 채 계속하기를 누르면 파산이 확정된다.
 
 ### 런 경계에 붙기까지 (#164)
 
@@ -330,3 +335,4 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 | 2026-09-21 | #203 | twins6375-art | 매니저↔저장 배선이 붙었으나 고지서·대출·파산 결과는 `IBillService` 에 복원 통로가 없어 범위 밖으로 남은 사실을 한계에 명시 |
 | 2026-09-21 | #212 | Claude | 납부 실패 무표시·기한 당일 탈출 불가 버그 수정. `PayCaption` 부족액 표시, `[아직]` 상시 노출, `BillPanelChecks` 실패 캡션 검증 추가 |
 | 2026-09-21 | #221 | Yang | `IBillPersistence` 로 날짜·고지서·대출·퍼크 후보 저장 복원 배선. "대출 상태가 저장·복원되지 않는다"·"날짜·고지서·퍼크 후보 상태는 저장/복원되지 않는다" 한계를 닫음 |
+| 2026-09-21 | #211 | saltlake00 | 파산 판정을 런 종료 시점에서 다음 날 진입 시점으로 이동. `IBillService.TryCloseDay` 추가, `GameManager.ContinueRun` 에서 Result 시 호출, `BankruptcyChecks` 및 `BillManagerChecks` 갱신 |
