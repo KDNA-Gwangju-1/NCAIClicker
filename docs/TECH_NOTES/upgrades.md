@@ -277,10 +277,7 @@ stat 은 일부뿐이라(`max_stamina`·`fever_gauge_per_hit`·`coin_bonus_multi
   `auto_hammer_*` 세 개(작업 3.2)와 조준 원 반경(#132)뿐이다
 - ~~**Play Mode 로 "사면 다음 런에 세진다"를 본 사람이 아직 없다.**~~ — #91 에서 구매 화면이
   생겨 확인했다 (위 "구매 화면 Play Mode 검증")
-- **저장·복원이 연결되지 않았다.** `RestoreUpgradeLevels`·`CurrentUpgradeLevels` 는 있지만
-  `IUpgradePersistence` (#116) 를 `SaveManager` 가 아직 부르지 않는다.
-  **#91 의 구매 화면이 이 구멍을 눈에 보이게 만들었다** — 사서 레벨을 올려도 게임을 껐다 켜면
-  0 으로 돌아간다. 화면이 없을 때는 드러나지 않던 문제다
+- ~~**저장·복원이 연결되지 않았다.**~~ — #203 에서 배선했다. `ManagerBootstrap` 이 `SaveManager` 에 `IUpgradePersistence` 를 주입하고, 복원은 앱 시작 1회·저장은 고지서 화면을 떠날 때와 하루 종료 시다. 업그레이드 레벨이 앱을 껐다 켜도 남는다 ([저장·불러오기](save-load.md)).
 - **구매 시점을 강제하지 않는다.** "메뉴·결과 화면에서만, 다음 런부터 반영"(BALANCE 6절)은
   호출측 책임으로 두었다. 런 상태를 매니저가 알면 GameManager 를 직접 참조하게 된다
 - **`auto_hammer_count` 를 쓰는 곳이 아직 없다.** 자동 망치는 작업 3.2 이며,

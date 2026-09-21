@@ -269,7 +269,7 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 - 대출을 부르는 UI가 없다. `TryTakeLoan`의 금액은 호출측이 정하고 이 클래스는 활성 고지서 금액을 넘지 못하게만 막는다 — 얼마를 빌릴지 고르는 화면은 아직 없다.
 - 대출 상태(`ActiveLoan`·`LastLoanRepaidDay`)가 저장·복원되지 않는다. `SaveData`에 필드는 이미 있지만 `IBillService`에 복원 통로가 없어 재실행하면 빚이 사라진다 — 공용 계약 변경이라 별도 이슈로 발의한다.
 - 징수는 수입이 들어올 때만 일어난다. 하루 종일 한 푼도 벌지 못하면 뜯기는 것도 없다 — 원작이 그러한지는 7.2 실측에서 확인한다.
-- `BillManager`의 날짜·고지서·퍼크 후보(`OfferedPerkIds`) 상태는 저장/복원되지 않는다(`SaveManager` 미연동). ARCHITECTURE.md는 `SaveData.OfferedPerkIds`/`PendingPerkIds` 필드를 이미 계약해 뒀으므로, 저장 연동은 그 필드에 채워 넣는 방식으로 붙이면 된다.
+- `BillManager`의 날짜·고지서·퍼크 후보(`OfferedPerkIds`) 상태는 저장/복원되지 않는다. #203 이 매니저↔저장 배선을 붙였지만 수집 대상은 코인·업그레이드·레거시·반지·단계까지이고, 이쪽은 **`IBillService` 에 복원 통로가 없어** 범위 밖으로 남았다 — 담아도 되돌릴 수 없다. 필드(`SaveData.CurrentDay`·`BillIndex`·`OfferedPerkIds`·`PendingPerkIds`)는 이미 있으므로, 복원 통로를 여는 계약 이슈만 서면 채워 넣는 방식으로 붙는다.
 * ~~`BillHud.prefab`은 **쓰지 않는다.**~~ #173 (1.25)에서 중복 정리를 위해 `BillHud.prefab` 에셋을 삭제하고 `GameHud.prefab` 으로 단일화했다.
 - ~~퍼크 선택(`OnPerkChosen`)의 실제 게임플레이 효과 적용이 없다.~~ — #126 에서 네 소유자(`StaminaManager`·`EconomyManager`·`HammerSwingController`·`CreatureManager`)가 `OnPerkChosen` 을 구독해 스스로 적용한다. 적용 시점 규칙과 한계는 [퍼크 효과](perks.md).
 - ~~퍼크 선택 UI가 없다.~~ — #92 에서 붙였다. "선택 중 게임 시계 정지"도 함께 들어갔다

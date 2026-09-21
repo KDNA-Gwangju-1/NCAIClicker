@@ -16,9 +16,11 @@ namespace NCAIClicker.Interfaces
 
     /// <summary>
     /// 매니저 상태를 저장에 모으고 되돌리는 계약 (이슈 #203).
-    /// 런타임 소비처는 **ManagerBootstrap 과 GameManager 둘뿐이다** — 복원은 앱 시작 1회라
-    /// 조립 지점(ManagerBootstrap)이 맡고, 저장 시점과 새 회차 초기화는 초기화·종료 순서를
-    /// 조정하는 GameManager 가 맡는다 (ARCHITECTURE 1절). 에디터 검증 하네스는 예외다.
+    /// 런타임 소비처는 **ManagerBootstrap·GameManager·SettingsPanelController 셋이다** —
+    /// 복원은 앱 시작 1회라 조립 지점(ManagerBootstrap)이 맡고, 저장 시점과 새 회차 초기화는
+    /// 초기화·종료 순서를 조정하는 GameManager 가 맡으며(ARCHITECTURE 1절), 저장 초기화는
+    /// 설정 패널(#196)이 부른다 — 성장을 지우는 두 경로가 같은 메서드를 써야 하기 때문이다.
+    /// 에디터 검증 하네스는 예외다.
     ///
     /// ISaveService 와 나눠 둔 이유는 소비처가 다르기 때문이다. 메인 메뉴는 `HasSave` 만 쓰는데
     /// 한 계약으로 묶으면 그쪽에서도 수집·분배가 보인다.

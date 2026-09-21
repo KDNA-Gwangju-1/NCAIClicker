@@ -234,8 +234,9 @@ public interface ISaveService
 }
 
 // 매니저 상태를 저장에 모으고 되돌리는 계약 (이슈 #203). SaveManager 가 구현하고
-// **런타임 소비처는 ManagerBootstrap 과 GameManager 둘뿐이다** — 복원은 앱 시작 1회라
-// 조립 지점이 맡고, 저장 시점과 새 회차 초기화는 GameManager 가 맡는다.
+// **런타임 소비처는 ManagerBootstrap·GameManager·SettingsPanelController 셋이다** —
+// 복원 1회는 조립 지점(ManagerBootstrap), 저장 시점과 새 회차 초기화는 GameManager,
+// 저장 초기화는 설정 패널(#196)이다.
 // ISaveService 와 나눈 이유는 소비처가 다르기 때문이다. 메인 메뉴는 HasSave 만 쓴다.
 // IRunScoped 로 대신할 수 없다: 복원은 모든 BeginRun 보다 앞, 저장은 모든 EndRun 보다 뒤여야
 // 하는데 GameManager 는 두 경계에 같은 순서 배열을 쓴다.
@@ -243,6 +244,7 @@ public interface IGamePersistence
 {
     void CollectAndSave();
     void LoadAndDistribute();
+    void ResetAndDistribute();   // 성장만 지운다. 설정은 남긴다 (저장 경계 참고)
 }
 
 // MainMenu 버튼이 씬 전환을 요청하는 계약. GameManager만 구현한다 (이슈 #142)
@@ -323,6 +325,8 @@ public class SaveData
 ### 저장 경계
 
 - 날짜·고지서·대출·쿨다운·퍼크 후보·선택 대기·소수 잔여를 **하나의 스냅샷**으로 저장한다.
+  **이 줄은 아직 목표다** — #203 이 실제로 수집하는 것은 코인·소수 잔여·업그레이드 레벨·
+  레거시 포인트·반지 레벨·단계까지다. 나머지는 아래 면제 목록을 본다.
 - 메뉴/결과 화면에서 구매·납부·대출·상환·퍼크 선택을 완료한 직후와 런 시작 직전에 저장한다.
   현재 배선은 **런 시작 직전**(`GameManager.ContinueRun`)과 **하루 종료 직후**(`NotifyEndRun`)
   두 지점이다 (#203). 고지서 화면의 구매는 화면을 떠날 때 함께 저장되므로, 구매 직후에 앱이
@@ -335,7 +339,7 @@ public class SaveData
   그 빈 값을 곧바로 분배한다 — 안 그러면 직전 회차의 성장이 메모리에 남고, 다음 저장이 그
   값을 파일에 도로 쓴다. **설정(볼륨·창모드·화면 흔들림)은 성장이 아니므로 남긴다.**
 - 런 도중 종료하면 **그 런의 시작 스냅샷**으로 복귀한다. 그날의 수입·지출·납부·대출·퍼크 변경을 전부 함께 되돌린다. 씬의 대상 위치·남은 내구도는 저장하지 않는다. 중간 상태 일부만 저장해 재실행으로 빚만 지워지는 일을 막는다.
-- 하루 종료 처리가 끝나면 결과와 다음 행동 상태를 함께 저장한다. 로드 시 `LastCompletedDay`를 다시 정산하지 않는다. **이 줄은 아직 목표다** — `LastCompletedDay`·`ResumePoint`·`LastRunCoin`·`BestRunCoin`·`WasBankrupt` 는 `IBillService` 에 복원 통로가 없어 #203 범위 밖으로 남았다 (docs/TECH_NOTES/save-load.md 알려진 한계).
+- 하루 종료 처리가 끝나면 결과와 다음 행동 상태를 함께 저장한다. 로드 시 `LastCompletedDay`를 다시 정산하지 않는다. **이 줄도 아직 목표다.** #203 이 수집하지 않는 필드는 `CurrentDay`·`BillIndex`·`LastLoanRepaidDay`·`PendingPerkIds`·`OfferedPerkIds`·`ActiveBill`·`ActiveLoan`·`LastCompletedDay`·`ResumePoint`·`LastRunCoin`·`BestRunCoin`·`WasBankrupt`·`IsCompleted` 다. 전부 `IBillService` 에 복원 통로가 없어서인데, **담아 두고 되돌리지 못하면 "저장된다"는 착각만 만든다.** 계약 이슈가 먼저다 (docs/TECH_NOTES/save-load.md 알려진 한계).
 - 저장은 임시 파일 작성 후 교체한다. JSON 오류·지원하지 않는 버전은 원본을 백업하고 경고 후 초기화한다. 버전 1은 회차 정보가 없으므로 성장·코인은 유지하고 하루/고지서/대출을 기본값으로 보완한다.
 - 파산 시 보유 코인·소수 잔여·단계·날짜·고지서·대출·퍼크를 새 회차 값으로 초기화한다. 영구 업그레이드와 최고 기록은 유지한다. 파산 결과는 `WasBankrupt`와 `LastCompletedDay`로 별도 표시한다.
 

@@ -35,7 +35,7 @@
 | 수집·분배를 `IRunScoped`(`BeginRun`/`EndRun`)로 대신 | ❌ | 복원은 **모든** `BeginRun`보다 앞, 저장은 **모든** `EndRun`보다 뒤여야 하는데 `GameManager`는 두 경계에 같은 순서 배열을 쓴다. 한 순번으로 양쪽 끝을 잡을 수 없다 |
 | 씬이 로드될 때마다 복원 | ❌ | **처음엔 이렇게 했다가 되돌렸다.** 매니저는 `DontDestroyOnLoad`라 씬을 다시 로드해도 값을 들고 있다 — 저장을 덮어씌우면 마지막 저장 이후의 변경이 사라진다. 실제로 고지서 화면에서 반지를 사고 "다음 날"을 누르면 구매가 통째로 되돌아갔다 (500점 → 구매 후 497점·1레벨 → 복원 후 500점·0레벨) |
 | 복원은 앱이 켜질 때 `ManagerBootstrap`에서 한 번만 | ✅ | 저장은 기록이지 살아 있는 값의 출처가 아니다. `Instantiate`가 `Awake`를 이미 돌린 뒤이고 첫 씬은 아직 로드되지 않아, 어느 `BeginRun`보다도 앞선다 |
-| 새 회차는 빈 저장을 쓰는 것으로 충분 | ❌ | 파일만 비우면 업그레이드·반지가 메모리에 남아 직전 회차의 성장을 달고 시작한다. `StartNewRun`이 빈 저장을 곧바로 **분배**해 명시적으로 지운다 — 이 게임에서 성장을 지우는 유일한 지점이다 (파산은 지우지 않는다, #183) |
+| 새 회차는 빈 저장을 쓰는 것으로 충분 | ❌ | 파일만 비우면 업그레이드·반지가 메모리에 남아 직전 회차의 성장을 달고 시작한다. 빈 저장을 곧바로 **분배**해 명시적으로 지운다. 성장을 지우는 지점은 새 회차 시작과 설정 초기화 **둘**이고 같은 메서드를 쓴다 (파산은 지우지 않는다, #183) |
 | 성장을 지우는 곳마다 각자 빈 저장을 쓴다 | ❌ | **실제로 그 상태였고 답이 갈렸다.** 새 회차는 설정까지 지웠고, 설정 초기화(#196)는 파일만 비워 메모리를 남겼다. "무엇을 지우는가" 를 두 곳에 적으면 서로 다른 답을 낸다 |
 | `ResetAndDistribute()` 하나를 두고 두 경로가 같이 쓴다 | ✅ | 성장만 지우고 설정은 남긴다는 규칙이 한 곳에만 있다. 설정을 인자로 받지 않고 현재 저장에서 옮겨 담아 `SaveManager` 가 `AudioManager` 를 알지 않아도 된다 — 대신 부르는 쪽이 먼저 파일에 반영한다 |
 | 구매할 때마다 저장 | ❌ | `EconomyManager`가 저장을 부르게 되어 매니저 간 결합이 늘고, 구매 UI 세 곳을 모두 고쳐야 한다. 대신 고지서 화면을 떠나는 `ContinueRun`에서 저장한다 — ARCHITECTURE 저장 경계의 "런 시작 직전"이 그 지점이다 |
@@ -87,7 +87,7 @@ flowchart LR
 | `SaveManager` | `Assets/Scripts/Runtime/SaveManager.cs` | `ISaveService`·`IGamePersistence` 구현. `JsonUtility` 직렬화, 버전 마이그레이션, 손상 파일 백업, null↔`Has*` 플래그 변환, 매니저 상태 수집·분배. `Managers` 프리팹에 붙는다 |
 | `SaveData` | `Assets/Scripts/Runtime/Data/SaveData.cs` | 저장 DTO. 이번 작업에서 `HasActiveBill`·`HasActiveLoan` 필드 추가 |
 | `ISaveService` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | `Load()`/`Save(SaveData)`/`HasSave` 계약 |
-| `IGamePersistence` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | 수집·분배 계약(#203). `SaveManager.Persistence`가 이 타입으로 노출. `ManagerBootstrap`과 `GameManager`만 쓴다 |
+| `IGamePersistence` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | 수집·분배·초기화 계약(#203). `SaveManager.Persistence`가 이 타입으로 노출. `ManagerBootstrap`·`GameManager`·`SettingsPanelController` 셋이 쓴다 |
 | `ManagerBootstrap` | `Assets/Scripts/Runtime/ManagerBootstrap.cs` | `WirePersistence()`로 저장 대상 6개를 주입하고, 이어서 복원을 **한 번** 실행 (#203) |
 | `GameManager` | `Assets/Scripts/Runtime/Core/GameManager.cs` | 저장 시점 둘(`ContinueRun`·`NotifyEndRun`)과 새 회차 초기화(`StartNewRun`) (#203) |
 | `SettingsPanelController` | `Assets/Scripts/Runtime/UI/SettingsPanelController.cs` | 저장 초기화(#196). `ResetAndDistribute()` 로 `StartNewRun` 과 같은 경로를 쓴다 (#203) |
@@ -139,9 +139,8 @@ Unity 6000.3.21f1 에디터, `UnityMCP execute_code`로 Edit Mode에서 직접 �
 | `ManagerBootstrap`에서 `save.LoadAndDistribute()` 삭제 | 실패 — "켤 때 아무것도 되돌아오지 않습니다" |
 | `GameManager`에서 `CollectAndSave()` 호출 삭제 | 실패 — "저장 시점이 없습니다" |
 | `HandleSceneLoaded`에 `LoadAndDistribute()` 다시 추가 | 실패 — "씬 로드마다 복원하면 마지막 저장 이후의 구매가 사라집니다" |
-| `StartNewRun`에서 `LoadAndDistribute()` 삭제 | 실패 — "업그레이드·반지가 메모리에 남아 새 회차로 넘어갑니다" |
+| `StartNewRun`에서 `ResetAndDistribute()` 삭제 | 실패 — "파일만 비우면 메모리에 남고 설정까지 지워집니다" |
 | `ContinueRun`에서 `CollectAndSave()` 삭제 | 실패 — "고지서 화면에서 산 업그레이드·반지가 종료 시 사라집니다" |
-| `StartNewRun`을 `Save(new SaveData())`로 되돌림 | 실패 — "파일만 비우면 메모리에 남고 설정까지 지워집니다" |
 | 설정 초기화를 `Save(new SaveData())`로 되돌림 | 실패 — "파일만 비우면 다음 저장이 되돌려 놓습니다" |
 | 설정 초기화에서 `PersistCurrentSettings()` 삭제 | 실패 — "옛 값이 살아남습니다" |
 | `ResetAndDistribute`에서 `LoadAndDistribute()` 삭제 | 실패 — "초기화 후에도 레거시 포인트가 메모리에 남아 있습니다: 77" |
@@ -190,7 +189,7 @@ Unity 6000.3.21f1 에디터, `UnityMCP execute_code`로 Edit Mode에서 직접 �
 ## 알려진 한계
 
 - ~~**자동 로드/저장 호출부가 없다.**~~ — #203 에서 풀었다. `IEconomyService`에 없는 concrete API 문제는 계약을 늘리는 대신 `ManagerBootstrap` 주입으로 우회했다.
-- **고지서·대출·퍼크 후보를 저장하지 않는다.** `IBillService`에 복원 통로가 없어 담아 봐야 되돌릴 수 없다 — 쓰기만 하고 읽지 못하는 필드는 "저장된다"는 착각만 만든다 ([billing.md](billing.md) 알려진 한계). 별도 계약 이슈가 먼저다. 같은 이유로 `LastRunCoin`·`WasBankrupt`·`ResumePoint`·`BestRunCoin`도 아직 수집하지 않는다.
+- **고지서·대출·퍼크 후보를 저장하지 않는다.** `IBillService`에 복원 통로가 없어 담아 봐야 되돌릴 수 없다 — 쓰기만 하고 읽지 못하는 필드는 "저장된다"는 착각만 만든다 ([billing.md](billing.md) 알려진 한계). 별도 계약 이슈가 먼저다. 같은 이유로 `CurrentDay`·`BillIndex`·`LastLoanRepaidDay`·`OfferedPerkIds`·`PendingPerkIds`·`LastRunCoin`·`WasBankrupt`·`ResumePoint`·`BestRunCoin`·`LastCompletedDay`·`IsCompleted` 도 수집하지 않는다 — 수집하는 것은 코인·소수 잔여·업그레이드 레벨·레거시 포인트·반지 레벨·단계 여섯뿐이다.
 - **저장 시점이 ARCHITECTURE 저장 경계보다 성기다.** 경계는 "구매·납부를 완료한 직후"도 요구하지만, 현재 배선은 고지서 화면을 떠날 때(`ContinueRun`)와 하루 종료 직후 둘뿐이다. 구매 직후 앱이 강제 종료되면 그 구매를 잃는다.
 - **런 도중 저장 초기화는 일관성 없는 상태를 남긴다.** #192 가 일시정지 패널에서 설정 패널을
   열 수 있게 하면서, 런 한가운데서 초기화 버튼에 닿을 수 있게 됐다. 그때 `ResetAndDistribute()`
