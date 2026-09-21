@@ -78,6 +78,12 @@ namespace NCAIClicker
                 managers.GetComponentInChildren<ILegacyService>(true),
                 managers.GetComponentInChildren<ILegacyPersistence>(true),
                 managers.GetComponentInChildren<IStageService>(true));
+
+            // **복원은 여기서 한 번만 한다.** 매니저는 DontDestroyOnLoad 라 씬을 다시 로드해도
+            // 값을 들고 있으므로, 씬마다 복원하면 마지막 저장 이후의 변경(고지서 화면에서 산
+            // 업그레이드·반지)이 덮어써진다. Instantiate 가 Awake 를 이미 돌린 뒤이고 첫 씬은
+            // 아직 로드되지 않았으므로, 어느 BeginRun 보다도 앞선다 (ARCHITECTURE 초기화 순서 1).
+            save.LoadAndDistribute();
         }
 
         /// <summary>

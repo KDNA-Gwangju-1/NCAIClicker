@@ -58,16 +58,29 @@ namespace NCAIClicker.Core
         /// <summary>
         /// 새 회차 시작. 저장을 기본값으로 덮어쓴 뒤 Game 씬으로 전환한다.
         /// 덮어쓴다는 확인은 호출측(MainMenuController)이 먼저 받는다 — 이슈 #90 완료 기준.
+        ///
+        /// **덮어쓴 저장을 곧바로 분배한다** (이슈 #203). 매니저는 DontDestroyOnLoad 라 파일만
+        /// 비우면 업그레이드 레벨·레거시 포인트·반지가 메모리에 그대로 남는다 — 새 회차인데
+        /// 직전 회차의 성장을 달고 시작하게 된다. 여기가 이 게임에서 성장을 지우는 **유일한**
+        /// 지점이다 (파산은 지우지 않는다 — 이슈 #183).
         /// </summary>
         public void StartNewRun()
         {
             SaveManager.Instance?.Save(new SaveData());
+            SaveManager.Persistence?.LoadAndDistribute();
             SceneManager.LoadScene(GameSceneName);
         }
 
-        /// <summary>이어하기. Game 씬으로 전환한다. 저장값 실제 복원 배선은 알려진 한계 — docs/TECH_NOTES/main-menu.md 참고.</summary>
+        /// <summary>
+        /// 이어하기. Game 씬으로 전환한다.
+        ///
+        /// **떠나기 전에 저장한다** (이슈 #203). 업그레이드·반지 상점이 이 버튼 바로 앞의
+        /// 고지서 화면에 있어서, 여기서 저장하지 않으면 사 놓고 게임을 끈 플레이어가 산 것을
+        /// 잃는다. ARCHITECTURE 저장 경계의 "런 시작 직전" 이 이 지점이다.
+        /// </summary>
         public void ContinueRun()
         {
+            SaveManager.Persistence?.CollectAndSave();
             SceneManager.LoadScene(GameSceneName);
         }
 
@@ -104,17 +117,13 @@ namespace NCAIClicker.Core
                 return;
             }
 
-            // **상태를 바꾸기 전에 되돌린다** (이슈 #203). SetState 가 Running 으로 가면 곧바로
-            // BeginRun 이 돌고, 매니저들이 거기서 실효값을 캐시한다 — 복원이 그 뒤에 오면
-            // 이번 판은 복원 전 값으로 돈다.
+            // **여기서 복원하지 않는다** (이슈 #203). 매니저는 DontDestroyOnLoad 라 씬을 다시
+            // 로드해도 값을 그대로 들고 있다 — 씬 로드마다 저장을 덮어씌우면 마지막 저장 이후에
+            // 생긴 변경이 사라진다. 실제로 고지서 화면에서 반지를 사고 "다음 날"을 누르면
+            // 구매가 통째로 되돌아갔다.
             //
-            // 새 회차든 이어하기든 같은 경로다. StartNewRun 이 이미 빈 저장으로 덮어쓰므로
-            // "씬에 들어갈 때 현재 저장을 읽어 뿌린다" 하나로 통일된다.
-            if (next.Value == RunState.Running)
-            {
-                SaveManager.Persistence?.LoadAndDistribute();
-            }
-
+            // 복원은 앱이 켜질 때 ManagerBootstrap 이 한 번만 한다. 그 뒤로 저장은 기록일 뿐,
+            // 살아 있는 값의 출처가 아니다.
             SetState(next.Value);
         }
 

@@ -60,15 +60,78 @@ namespace NCAIClicker.EditorTools
                             "주입이 빠지면 저장 대상이 전부 null 이라 저장이 비어 나갑니다.");
             checkCount++;
 
-            // GameManager 가 두 지점에서 부르는지 — 여기가 빠지면 계약이 또 죽은 코드가 된다.
+            // **복원은 부트스트랩이 한 번만 한다.** 주입만 해 놓고 복원을 안 부르면 저장은
+            // 쌓이는데 아무것도 되돌아오지 않는다 — 저장이 되는 것처럼 보여 가장 늦게 들킨다.
+            AssertCondition(bootstrap.Contains("save.LoadAndDistribute()"),
+                            "ManagerBootstrap 이 LoadAndDistribute 를 부르지 않습니다. " +
+                            "저장은 쌓이지만 켤 때 아무것도 되돌아오지 않습니다.");
+            checkCount++;
+
+            // GameManager 의 세 지점. 여기가 빠지면 계약이 또 죽은 코드가 된다.
             var source = File.ReadAllText("Assets/Scripts/Runtime/Core/GameManager.cs");
             AssertCondition(source.Contains("CollectAndSave"),
                             "GameManager 가 CollectAndSave 를 부르지 않습니다. 저장 시점이 없습니다.");
-            AssertCondition(source.Contains("LoadAndDistribute"),
-                            "GameManager 가 LoadAndDistribute 를 부르지 않습니다. 복원 시점이 없습니다.");
+            checkCount++;
+
+            // **회귀 방지.** 씬 로드마다 복원하면 매니저가 DontDestroyOnLoad 라서 마지막 저장
+            // 이후의 변경이 덮어써진다 — 고지서 화면에서 산 반지가 "다음 날" 을 누르는 순간
+            // 사라졌다. 왕복 검증은 이것을 못 잡는다. 복원이 여전히 성공하기 때문이다.
+            AssertCondition(!ExtractMethodBody(source, "private void HandleSceneLoaded")
+                                 .Contains("LoadAndDistribute"),
+                            "HandleSceneLoaded 가 LoadAndDistribute 를 부릅니다. " +
+                            "씬 로드마다 복원하면 마지막 저장 이후의 구매가 사라집니다.");
+            checkCount++;
+
+            // 새 회차는 파일만 비워선 안 된다 — 매니저가 값을 들고 있어 직전 회차의 성장이 남는다.
+            AssertCondition(ExtractMethodBody(source, "public void StartNewRun")
+                                .Contains("LoadAndDistribute"),
+                            "StartNewRun 이 빈 저장을 분배하지 않습니다. " +
+                            "파일만 비우면 업그레이드·반지가 메모리에 남아 새 회차로 넘어갑니다.");
+            checkCount++;
+
+            // 업그레이드·반지 상점이 이 버튼 바로 앞 화면에 있다. 여기서 저장하지 않으면
+            // 사 놓고 끈 플레이어가 산 것을 잃는다.
+            AssertCondition(ExtractMethodBody(source, "public void ContinueRun")
+                                .Contains("CollectAndSave"),
+                            "ContinueRun 이 저장하지 않습니다. " +
+                            "고지서 화면에서 산 업그레이드·반지가 종료 시 사라집니다.");
             checkCount++;
 
             return checkCount;
+        }
+
+        /// <summary>
+        /// 메서드 하나의 본문만 잘라낸다. 파일 전체에 Contains 를 걸면 **다른 메서드의 호출이
+        /// 대신 걸려** 검사가 통째로 무의미해진다 — 복원 호출을 어느 메서드에 두었는지가
+        /// 이 카드의 핵심이라 위치를 봐야 한다.
+        /// </summary>
+        private static string ExtractMethodBody(string source, string signature)
+        {
+            var start = source.IndexOf(signature, StringComparison.Ordinal);
+            AssertCondition(start >= 0, signature + " 를 찾지 못했습니다. 이름이 바뀌었습니까?");
+
+            var open = source.IndexOf('{', start);
+            AssertCondition(open >= 0, signature + " 의 본문 시작을 찾지 못했습니다.");
+
+            var depth = 0;
+            for (var i = open; i < source.Length; i++)
+            {
+                if (source[i] == '{')
+                {
+                    depth++;
+                }
+                else if (source[i] == '}')
+                {
+                    depth--;
+                    if (depth == 0)
+                    {
+                        return source.Substring(open, i - open + 1);
+                    }
+                }
+            }
+
+            AssertCondition(false, signature + " 의 본문이 닫히지 않았습니다.");
+            return string.Empty;
         }
 
         // ---------------------------------------------------------------- 왕복
