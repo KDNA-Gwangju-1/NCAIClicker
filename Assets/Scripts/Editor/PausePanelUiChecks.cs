@@ -272,19 +272,35 @@ namespace NCAIClicker.EditorTools
                 checkCount++;
 
                 // 되돌릴 수 없는 동작이므로 무슨 일이 일어나는지 먼저 말해야 한다.
-                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/SettingsPanel.prefab");
-                AssertCondition(prefab != null, "SettingsPanel 프리팹을 찾지 못했습니다.");
-                var warned = false;
-                foreach (var label in prefab.GetComponentsInChildren<TextMeshProUGUI>(true))
+                //
+                // **한 프리팹만 보지 않는다.** 이 확인창은 SettingsPanel.prefab 과
+                // PausePanel.prefab 에 각각 복제돼 있고, 인게임에서 쓰는 것은 후자다.
+                // 처음엔 전자만 고치고 검사도 전자만 봐서 **검증이 통과하는데 게임에는
+                // 옛 문구가 그대로 뜨는** 상태였다. 사본이 하나 더 생겨도 걸리도록 전부 훑는다.
+                var found = 0;
+                foreach (var guid in AssetDatabase.FindAssets("t:Prefab"))
                 {
-                    if (label.text != null && label.text.Contains("초기화할까요") && label.text.Contains("메인 메뉴"))
+                    var prefabPath = AssetDatabase.GUIDToAssetPath(guid);
+                    var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                    if (prefab == null)
                     {
-                        warned = true;
+                        continue;
+                    }
+
+                    foreach (var label in prefab.GetComponentsInChildren<TextMeshProUGUI>(true))
+                    {
+                        if (label.text == null || !label.text.Contains("초기화할까요"))
+                        {
+                            continue;
+                        }
+
+                        found++;
+                        AssertCondition(label.text.Contains("메인 메뉴"),
+                                        prefabPath + " 의 초기화 확인창이 런이 끝난다는 사실을 알리지 않습니다. " +
+                                        "되돌릴 수 없는 동작이라 무엇이 일어나는지 먼저 말해야 합니다.");
                     }
                 }
-                AssertCondition(warned,
-                                "초기화 확인창이 런이 끝난다는 사실을 알리지 않습니다. " +
-                                "되돌릴 수 없는 동작이라 무엇이 일어나는지 먼저 말해야 합니다.");
+                AssertCondition(found > 0, "초기화 확인창 문구를 어느 프리팹에서도 찾지 못했습니다.");
                 checkCount++;
             }
             finally
