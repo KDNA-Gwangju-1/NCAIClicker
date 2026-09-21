@@ -1,3 +1,9 @@
 ring_id,stat,effect_type,value_per_level,note
-power_ring,base_hit_power,add,0.2,레벨당 타격 피해 +0.2. 잠정값 — 3.8(#176) 재계산 뒤 확정
-vigor_ring,max_stamina,add,5,레벨당 최대 스태미나 +5. 잠정값 — 3.8(#176) 재계산 뒤 확정
+power_ring,base_hit_power,add,0.2,레벨당 타격 피해 +0.2
+vigor_ring,max_stamina,add,5,레벨당 최대 스태미나 +5
+wealth_ring,coin_bonus_multiplier,add,0.05,레벨당 기본 코인 배율 +0.05
+zeal_ring,fever_duration,add,0.5,레벨당 피버 지속시간 +0.5초
+fever_gold_ring,fever_multiplier,add,0.2,레벨당 피버 코인 배율 +0.2
+focus_ring,hit_radius,percent,2,레벨당 타격 콜라이더 확대 비율 +2%
+spark_ring,fever_gauge_per_hit,add,1,레벨당 타격당 피버 게이지 충전량 +1
+fortune_ring,extra_spawn_chance,add,1,레벨당 파괴 시 즉시 추가 출현 확률 +1%p
