@@ -191,6 +191,11 @@ namespace NCAIClicker.UI
         /// <summary>고지서를 닫으면 정산으로 돌아온다. 하루가 아직 안 끝났기 때문이다.</summary>
         private void HandleBillPanelClosed()
         {
+            if (_isBankrupt)
+            {
+                // 이미 파산한 상태에서는 정산창을 다시 열지 않는다.
+                return;
+            }
             ShowSettlement();
         }
 
@@ -245,6 +250,11 @@ namespace NCAIClicker.UI
         private void HandleBankrupt()
         {
             _isBankrupt = true;
+            if (_billPanel != null && _billPanel.IsOpen)
+            {
+                // 고지서 패널이 이미 열려 있는 상태에서는 반지 탭이 열리므로 결과창으로 덮지 않는다.
+                return;
+            }
             ShowBankruptcy();
         }
 
@@ -680,7 +690,7 @@ namespace NCAIClicker.UI
 
             if (_bankruptcyCoinLossText != null)
             {
-                _bankruptcyCoinLossText.text = "보유 코인이 모두 몰수되며, 1일차부터 다시 시작합니다. (영구 업그레이드는 유지됩니다)";
+                _bankruptcyCoinLossText.text = "보유 코인이 모두 몰수되며, 프레스티지(반지 상점)로 이동합니다. (영구 업그레이드와 레거시 포인트는 유지됩니다)";
             }
         }
 
@@ -693,7 +703,14 @@ namespace NCAIClicker.UI
         private void HandleRestartClicked()
         {
             HideAll();
-            GameManager.Instance?.StartNewRun();
+            if (_billPanel != null)
+            {
+                _billPanel.ShowAsPrestige();
+            }
+            else
+            {
+                GameManager.Instance?.ContinueRun();
+            }
         }
 
         /// <summary>

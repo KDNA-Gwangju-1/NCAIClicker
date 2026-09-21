@@ -78,6 +78,7 @@ namespace NCAIClicker.UI
         {
             Modal,
             Tab,
+            PrestigeOnly,
         }
 
         /// <summary>탭 화면에서 무엇을 보고 있는가.</summary>
@@ -210,6 +211,45 @@ namespace NCAIClicker.UI
             Show(Mode.Tab);
         }
 
+        /// <summary>
+        /// 파산 후 프레스티지(보석함) 전용 단일 화면으로 연다.
+        /// 상단 탭바를 숨기고 배경을 100% 완전 불투명하게 처리하여 뒤의 게임 씬과 HUD를 완전히 가린다.
+        /// </summary>
+        public void ShowAsPrestige(int cycleNumber = -1)
+        {
+            _tab = Tab.Ring;
+            EnsureServices();
+            var cycle = cycleNumber > 0 ? cycleNumber : (_billService != null ? _billService.CurrentCycle : 1);
+            UpdateContinueButtonLabel(cycle);
+            Show(Mode.PrestigeOnly);
+        }
+
+        private void UpdateContinueButtonLabel(int cycleNumber)
+        {
+            if (_continueButton == null)
+            {
+                return;
+            }
+            var label = _continueButton.GetComponentInChildren<TextMeshProUGUI>(true);
+            if (label != null)
+            {
+                label.text = $"사이클 {cycleNumber} 시작";
+            }
+        }
+
+        private void ResetContinueButtonLabel()
+        {
+            if (_continueButton == null)
+            {
+                return;
+            }
+            var label = _continueButton.GetComponentInChildren<TextMeshProUGUI>(true);
+            if (label != null)
+            {
+                label.text = "계속하기";
+            }
+        }
+
         private void ShowBillTab() => ShowAsTab(Tab.Bill);
 
         private void ShowUpgradeTab() => ShowAsTab(Tab.Upgrade);
@@ -222,6 +262,15 @@ namespace NCAIClicker.UI
             if (_panelRoot != null)
             {
                 _panelRoot.SetActive(true);
+
+                // 파산 단일 화면일 때는 뒤가 전혀 비치지 않게 100% 불투명 처리한다.
+                var bg = _panelRoot.GetComponent<Image>();
+                if (bg != null)
+                {
+                    bg.color = mode == Mode.PrestigeOnly
+                        ? new Color(0.06f, 0.05f, 0.04f, 1f)
+                        : new Color(0f, 0f, 0f, 0.8f);
+                }
             }
 
             // 같은 캔버스의 형제끼리는 계층 순서대로 그려진다. 먼저 생성된 쪽이 뒤로 가므로
@@ -234,7 +283,12 @@ namespace NCAIClicker.UI
             }
             if (_continueRow != null)
             {
-                _continueRow.SetActive(mode == Mode.Tab);
+                _continueRow.SetActive(mode == Mode.Tab || mode == Mode.PrestigeOnly);
+            }
+
+            if (mode != Mode.PrestigeOnly)
+            {
+                ResetContinueButtonLabel();
             }
 
             RenderTabs();
@@ -250,7 +304,7 @@ namespace NCAIClicker.UI
         {
             // 모달일 때는 탭이 없다. 고지서만 보인다.
             var showUpgrade = _mode == Mode.Tab && _tab == Tab.Upgrade;
-            var showRing = _mode == Mode.Tab && _tab == Tab.Ring;
+            var showRing = (_mode == Mode.Tab || _mode == Mode.PrestigeOnly) && _tab == Tab.Ring;
 
             if (_billTabRoot != null)
             {
@@ -362,9 +416,16 @@ namespace NCAIClicker.UI
 
             if (_balanceText != null)
             {
-                // 낼 수 있는지 판단하려면 지금 얼마를 들고 있는지가 같이 보여야 한다.
-                var economy = _economyService;
-                _balanceText.text = economy != null ? $"보유 ${economy.CurrentCoin:N0}" : string.Empty;
+                if (_mode == Mode.PrestigeOnly)
+                {
+                    _balanceText.text = string.Empty;
+                }
+                else
+                {
+                    // 낼 수 있는지 판단하려면 지금 얼마를 들고 있는지가 같이 보여야 한다.
+                    var economy = _economyService;
+                    _balanceText.text = economy != null ? $"보유 ${economy.CurrentCoin:N0}" : string.Empty;
+                }
             }
 
             if (_issuerText != null || _titleText != null)
@@ -428,6 +489,8 @@ namespace NCAIClicker.UI
         private void RenderButtons(Bill bill)
         {
             var hasUnpaidBill = bill != null && !bill.IsPaid;
+            var daysLeft = _billService != null ? _billService.DaysLeft : 0;
+            var isDueToday = hasUnpaidBill && daysLeft <= 1;
 
             if (_payButton != null)
             {
@@ -438,14 +501,11 @@ namespace NCAIClicker.UI
                 _payCaptionText.text = string.Empty;
             }
 
-            // "아직" 은 탭 화면으로 빠지는 버튼이다. 이미 탭 화면이면 할 일이 없으므로 감춘다 —
-            // 상단 탭으로 어디든 갈 수 있는 상태에서 또 하나의 출구는 군더더기다.
-            // 마감 당일에도 보인다 (#212) — 미루는 선택지를 없애는 원작 규칙은 이 버튼이 아니라
-            // BillManager.IsBillOverdue() 의 날짜 비교가 지킨다. 이 버튼은 탭 화면으로 나갈 뿐 납부
-            // 기한을 조작하지 않으므로, 마감 당일에 감추면 납부 실패 시 빠져나갈 길이 없어진다.
+            // "아직" 은 탭 화면으로 빠지는 버튼이다. 이미 탭 화면이면 할 일이 없으므로 감춘다.
+            // 마감 당일(isDueToday)에는 미루기 선택지를 차단하기 위해 감춘다 — 무조건 납부를 시도해야 한다.
             if (_laterButton != null)
             {
-                _laterButton.gameObject.SetActive(_mode == Mode.Modal && hasUnpaidBill);
+                _laterButton.gameObject.SetActive(_mode == Mode.Modal && hasUnpaidBill && !isDueToday);
             }
 
             if (_loanButton != null)
@@ -491,8 +551,9 @@ namespace NCAIClicker.UI
                 return;
             }
 
-            // 잔액 부족으로 실패했을 때 아무 표시가 없으면 버튼이 고장난 것처럼 보인다 (#212).
-            // 정산창(ResultUIController._payCaptionText)과 같은 문구 규칙을 쓴다.
+            // 잔액 부족으로 납부에 실패했을 때는 부족액 캡션을 표시한다 (이슈 #212).
+            // 마감 당일이라도 즉시 파산시키지 않고 부족액을 보여주어 대출로 충당할 기회를 제공한다.
+            // 최종 미납 파산은 GameManager.ContinueRun 에서 TryCloseDay 가 단일 확정한다 (이슈 #211).
             if (_payCaptionText != null)
             {
                 var coin = _economyService != null ? _economyService.CurrentCoin : 0L;
@@ -522,16 +583,16 @@ namespace NCAIClicker.UI
         /// <summary>
         /// 확인을 받고 실제로 선언한다. 마감 미납 파산과 같은 처리를 탄다 (IBillService, #175).
         /// 코인·단계는 사라지고 레거시 포인트와 반지는 남는다 (#183).
+        /// 파산 확정 후에는 곧바로 런으로 직행하지 않고 프레스티지(보석함) 단일 화면으로 이동한다.
         /// </summary>
         private void HandleBankruptcyConfirmed()
         {
             HideBankruptcyConfirm();
             _billService?.DeclareBankruptcy();
 
-            // 파산은 회차를 1일차로 되돌린다. 고지서 화면에 머물면 방금 사라진 고지서를
-            // 계속 보여 주게 되므로 닫고 다음 런으로 보낸다.
-            Close();
-            GameManager.Instance?.ContinueRun();
+            // 파산 후 정비를 위해 보석함 단일 화면을 띄운다.
+            // 우측 하단 [사이클 N 시작]을 누르면 1일차 새 런으로 진입한다.
+            ShowAsPrestige();
         }
 
         private void HandleContinueClicked()
