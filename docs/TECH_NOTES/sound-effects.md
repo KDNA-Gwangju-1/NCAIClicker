@@ -1,6 +1,6 @@
 # 효과음
 
-> 관련 이슈: #36 · 최종 수정: 2026-09-17
+> 관련 이슈: #36, #196 · 최종 수정: 2026-09-21
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -77,7 +77,7 @@ Unity 6000.3.21f1 에디터 Play Mode, 2026-09-17.
 
 ## 알려진 한계
 
-- 음량 조절·믹서 채널 분리가 없다. 옵션 메뉴에 효과음 볼륨 슬라이더가 생기면 `AudioMixerGroup` 배선이 필요하다.
+- ~~음량 조절·믹서 채널 분리가 없다.~~ — 이슈 #196에서 `IAudioService.SetSfxVolume`으로 `_sfxSource.volume`을 직접 조절하는 방식으로 해소했다(`AudioMixerGroup` 없이 `AudioSource.volume`만 사용). 상세는 [settings-panel.md](settings-panel.md).
 - `OnBankrupt`, `OnStageGoalReached` 등 다른 이벤트에는 효과음이 없다 — 이슈 #36 완료 기준(타격·코인·피버·고지서)에 없는 범위라 포함하지 않았다.
 
 ## 갱신 이력
@@ -86,3 +86,4 @@ Unity 6000.3.21f1 에디터 Play Mode, 2026-09-17.
 |---|---|---|---|
 | 2026-09-17 | #36 | Claude | 최초 작성 |
 | 2026-09-17 | #36 | Claude | `Managers.prefab` 의 `AudioManager` 슬롯 5종에 CC0 효과음 에셋 연결(THIRD_PARTY.md 출처 등록은 별도 커밋), 알려진 한계에서 빈 슬롯 항목 제거 |
+| 2026-09-21 | #196, #202 | hunil58 | `AudioManager`가 `IAudioService` 구현(계약 #202)을 겸하게 되면서 `_sfxSource.volume`을 설정 패널에서 조절할 수 있게 됨. 상세는 [settings-panel.md](settings-panel.md) |
