@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using NCAIClicker.Data;
 using NCAIClicker.Events;
 using NCAIClicker.Interfaces;
@@ -46,8 +46,9 @@ namespace NCAIClicker.Core
         private IStageService _stageService;
 
         /// <summary>
-        /// 피격 판정 확대 퍼크가 더하는 비율(percent). 이번 런에서만 산다 (#126).
-        /// Target 인스턴스가 여럿이라 여기서 한 번 받아 스폰 때 넘긴다.
+        /// 피격 판정 확대 퍼크가 더하는 비율(percent). 파산 전까지 유지한다 — 업그레이드와 같은
+        /// 취급 (팀장 지시, #188 문서 수정 중 반영). Target 인스턴스가 여럿이라 여기서 한 번
+        /// 받아 스폰 때 넘긴다.
         /// </summary>
         private float _perkHitRadiusPercent;
         private float _pendingPerkHitRadiusPercent;
@@ -74,12 +75,14 @@ namespace NCAIClicker.Core
         {
             GameEvents.OnTargetBroken += HandleTargetBroken;
             GameEvents.OnPerkChosen += HandlePerkChosen;
+            GameEvents.OnBankrupt += HandleBankrupt;
         }
 
         private void OnDisable()
         {
             GameEvents.OnTargetBroken -= HandleTargetBroken;
             GameEvents.OnPerkChosen -= HandlePerkChosen;
+            GameEvents.OnBankrupt -= HandleBankrupt;
         }
 
         /// <summary>
@@ -96,7 +99,9 @@ namespace NCAIClicker.Core
         public void BeginRun()
         {
             _isRunning = true;
-            ApplyPerkRadius(_pendingPerkHitRadiusPercent);
+            // 파산 전까지 유지되므로(팀장 지시, #188) 지난 런에서 이어진 값 위에 예약분을
+            // 더한다 — 여기서 덮어쓰면 EndRun 에서 지우지 않은 값이 다음 런 시작에 사라진다.
+            ApplyPerkRadius(_perkHitRadiusPercent + _pendingPerkHitRadiusPercent);
             _pendingPerkHitRadiusPercent = 0f;
             if (_stageService != null)
             {
@@ -105,12 +110,26 @@ namespace NCAIClicker.Core
             InitializeStage(_currentStageNumber);
         }
 
-        /// <summary>런을 끝낸다. "이번 런" 퍼크와 필드에 남은 크리처는 여기서 사라진다.</summary>
+        /// <summary>
+        /// 런을 끝낸다. 필드에 남은 크리처는 여기서 치우지만, 피격 판정 확대 퍼크는 더 이상
+        /// 사라지지 않는다 — 업그레이드처럼 파산 전까지 유지한다 (팀장 지시, #188). 파산 시
+        /// 정리는 HandleBankrupt 를 본다.
+        /// </summary>
         public void EndRun()
         {
             _isRunning = false;
-            ApplyPerkRadius(0f);
             ClearAllCreatures();
+        }
+
+        /// <summary>
+        /// 파산하면 이번 런에서 쌓이거나 예약된 피격 판정 확대 퍼크를 모두 지운다. 업그레이드는
+        /// 파산으로 지워지지 않지만(GameManager.StartNewRun 주석 "파산은 성장을 지우지 않는다"),
+        /// 퍼크는 성장이 아니라 파산 전까지만 유지되는 별도 효과라 여기서 함께 정리한다 (#188).
+        /// </summary>
+        private void HandleBankrupt()
+        {
+            ApplyPerkRadius(0f);
+            _pendingPerkHitRadiusPercent = 0f;
         }
 
         /// <summary>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Reflection;
 using NCAIClicker.Core;
 using NCAIClicker.Data;
@@ -241,16 +241,29 @@ namespace NCAIClicker.EditorTools
                 AssertNear(GetHitPower(hammer), expected, "타격력 퍼크가 반영되지 않았습니다.");
                 checkCount++;
 
-                // "이번 런" 퍼크라 런이 끝나면 사라진다.
+                // 파산 전까지 유지된다 — 런이 끝나도 사라지지 않는다 (팀장 지시, #188).
                 hammer.EndRun();
-                AssertNear(GetHitPower(hammer), basePower, "런이 끝났는데 타격력 퍼크가 남았습니다.");
+                AssertNear(GetHitPower(hammer), expected, "런이 끝났는데 타격력 퍼크가 사라졌습니다.");
                 checkCount++;
 
-                // 런 밖에서 고르면 다음 런부터 걸린다.
+                // 다음 런에도 그대로 이어진다.
+                hammer.BeginRun();
+                AssertNear(GetHitPower(hammer), expected, "다음 런에서 타격력 퍼크가 사라졌습니다.");
+                checkCount++;
+
+                // 파산하면 그제서야 지워진다.
+                GameEvents.PublishBankrupt();
+                AssertNear(GetHitPower(hammer), basePower, "파산했는데 타격력 퍼크가 남았습니다.");
+                checkCount++;
+
+                hammer.EndRun();
+
+                // 런 밖에서 고른 예약분도 파산하면 함께 지워진다.
                 GameEvents.PublishPerkChosen(perk.Id);
                 AssertNear(GetHitPower(hammer), basePower, "런 밖인데 타격력 퍼크가 즉시 걸렸습니다.");
+                GameEvents.PublishBankrupt();
                 hammer.BeginRun();
-                AssertNear(GetHitPower(hammer), expected, "예약한 타격력 퍼크가 다음 런에 걸리지 않았습니다.");
+                AssertNear(GetHitPower(hammer), basePower, "파산으로 지워졌어야 할 예약 퍼크가 다음 런에 걸렸습니다.");
                 checkCount++;
             }
             finally
@@ -346,15 +359,29 @@ namespace NCAIClicker.EditorTools
                 AssertNear(GetPerkRadius(manager), perk.Value, "퍼크 비율을 받지 못했습니다.");
                 checkCount++;
 
+                // 파산 전까지 유지된다 — 런이 끝나도 사라지지 않는다 (팀장 지시, #188).
                 manager.EndRun();
-                AssertNear(GetPerkRadius(manager), 0f, "런이 끝났는데 퍼크 비율이 남았습니다.");
+                AssertNear(GetPerkRadius(manager), perk.Value, "런이 끝났는데 퍼크 비율이 사라졌습니다.");
                 checkCount++;
 
-                // 런 밖에서 고르면 다음 런부터다.
+                // 다음 런에도 그대로 이어진다.
+                manager.BeginRun();
+                AssertNear(GetPerkRadius(manager), perk.Value, "다음 런에서 퍼크 비율이 사라졌습니다.");
+                checkCount++;
+
+                // 파산하면 그제서야 지워진다.
+                GameEvents.PublishBankrupt();
+                AssertNear(GetPerkRadius(manager), 0f, "파산했는데 퍼크 비율이 남았습니다.");
+                checkCount++;
+
+                manager.EndRun();
+
+                // 런 밖에서 고른 예약분도 파산하면 함께 지워진다.
                 GameEvents.PublishPerkChosen(perk.Id);
                 AssertNear(GetPerkRadius(manager), 0f, "런 밖인데 퍼크 비율이 즉시 걸렸습니다.");
+                GameEvents.PublishBankrupt();
                 manager.BeginRun();
-                AssertNear(GetPerkRadius(manager), perk.Value, "예약한 퍼크가 다음 런에 걸리지 않았습니다.");
+                AssertNear(GetPerkRadius(manager), 0f, "파산으로 지워졌어야 할 예약 퍼크가 다음 런에 걸렸습니다.");
                 checkCount++;
             }
             finally

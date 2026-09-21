@@ -1,6 +1,6 @@
-# 퍼크 효과
+﻿# 퍼크 효과
 
-> 관련 이슈: #126, #92 · 최종 수정: 2026-09-18
+> 관련 이슈: #126, #92, #188 · 최종 수정: 2026-09-21
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -52,16 +52,22 @@
 |---|---|---|---|
 | 회복 | 빈자리가 있으면 즉시, 없으면 예약 | 예약 | **예약은 유지** (다음 런에서 쓴다) |
 | 코인 강화 | 즉시 시작 | 다음 런 시작부터 | 남은 시간 **버림** |
-| 타격력 | 즉시 | 다음 런부터 | **사라짐** |
-| 판정 확대 | 즉시 (살아 있는 크리처도 갱신) | 다음 런부터 | **사라짐** |
+| 타격력 | 즉시 | 다음 런부터 | **파산 전까지 유지** (팀장 지시, #188) |
+| 판정 확대 | 즉시 (살아 있는 크리처도 갱신) | 다음 런부터 | **파산 전까지 유지** (팀장 지시, #188) |
 
 **회복 퍼크가 가장 까다롭다.** 만충일 때 그냥 쓰면 `Restore()` 가 0 을 돌려주고 퍼크는
 사라진다 — 검증에서 빈자리 확인을 빼 보니 정확히 그렇게 조용히 증발했다. 그래서 예약해 두고
 **회복량이 통째로 들어갈 자리가 생기는 순간** 한 번에 쓴다.
 
-기간제 퍼크를 런 종료 시 버리는 것은 GDD 에 없는 판단이다. 런 밖에서는 코인이 들어오지 않아
+기간제 퍼크(코인 강화)를 런 종료 시 버리는 것은 GDD 에 없는 판단이다. 런 밖에서는 코인이 들어오지 않아
 시간만 흘려 보내면 다음 런에 껍데기만 남기 때문이다. 결과 화면에서 **받은** 것은 예약이므로
 영향이 없다.
+
+타격력·판정 확대는 반대로 **파산 전까지 유지**한다 — 원래는 코인 강화와 같이 매 런 종료마다
+지웠는데, 팀장 지시로 4.11(#188) 문서 정리 중 고쳤다. 업그레이드·고지서·대출과 같은
+"회차" 층(GDD "파산" 절)에 놓인다고 보면 된다 — 하루가 끝나도 안 사라지고, 회차 자체가
+끝나는 파산에서만 초기화된다. percent 값이라 만료 시각을 셀 필요가 없어, 코인 강화처럼
+버릴 "남은 시간"이 애초에 없다는 점도 다르게 취급하는 이유다.
 
 ## 구조
 
@@ -107,7 +113,7 @@ flowchart LR
 | `HammerSwingController` | `Assets/Scripts/Runtime/Core/HammerSwingController.cs` | 타격력 비율 |
 | `CreatureManager` | `Assets/Scripts/Runtime/Core/CreatureManager.cs` | 판정 반경 비율 보유·전달 |
 | `Target` | `Assets/Scripts/Runtime/Targets/Target.cs` | 콜라이더 반경에 합산 |
-| `PerkEffectChecks` | `Assets/Scripts/Editor/PerkEffectChecks.cs` | Edit Mode 검증 21건 |
+| `PerkEffectChecks` | `Assets/Scripts/Editor/PerkEffectChecks.cs` | Edit Mode 검증 25건 |
 
 ### 런 경계를 씬까지 넓혔다
 
@@ -155,7 +161,7 @@ Result 화면(런 밖)에서 고른 퍼크는 씬 구현체의 `_pendingXxx` 필
 
 ## 검증
 
-Edit Mode 에서 `PerkEffectChecks.RunBatch()` 로 확인했다 (**21건 PASS**). 3회 연속 실행 후
+Edit Mode 에서 `PerkEffectChecks.RunBatch()` 로 확인했다 (**25건 PASS**). 3회 연속 실행 후
 `GameEvents` 구독자 수가 전부 0인 것도 확인했다 — 구독이 새면 퍼크가 두 번 적용된다.
 기대값은 코드에 적지 않고 생성된 `BalanceData.asset` 에서 읽는다.
 
@@ -166,7 +172,8 @@ Edit Mode 에서 `PerkEffectChecks.RunBatch()` 로 확인했다 (**21건 PASS**)
 - [x] 코인 강화가 즉시 걸리고, 지속 시간이 지나면 풀린다
 - [x] 런이 끊기면 남은 코인 강화가 사라진다
 - [x] 런 밖에서 고른 코인 강화는 **다음 런 시작부터** 시간을 센다
-- [x] 타격력 퍼크가 걸리고, 런이 끝나면 사라지고, 런 밖에서 고르면 다음 런부터 걸린다
+- [x] 타격력 퍼크가 걸리고, 런이 끝나도 사라지지 않으며(파산 전까지 유지, #188), 런 밖에서 고르면 다음 런부터 걸린다
+- [x] 타격력·판정 확대 퍼크는 파산해야 지워진다 — 활성분과 (런 밖에서 고른) 예약분 둘 다 (#188)
 - [x] 판정 반경 퍼크가 기준 비율에 **더해진다** (업그레이드 비율과 합산)
 - [x] 재초기화(풀 재사용)에서 퍼크 반경이 유지된다
 - [x] `CreatureManager` 가 런 경계에 맞춰 비율을 켜고 끈다
@@ -186,6 +193,9 @@ Edit Mode 에서 `PerkEffectChecks.RunBatch()` 로 확인했다 (**21건 PASS**)
 `hit_radius_boost`)는 여전히 Play Mode 로 직접 검증하지 못했다 — `EconomyManager`·
 `StaminaManager`·`CreatureManager` 가 전부 `Managers` 프리팹(`DontDestroyOnLoad`) 소속이라
 씬 재로드 문제는 소스 분석으로는 없다고 보이지만, 적용 값 자체를 플레이로 확인한 것은 아니다.
+타격력·판정 확대의 "파산 전까지 유지" 규칙(#188)도 `PerkEffectChecks` 로만 확인했다 —
+`GameEvents.PublishBankrupt()` 를 직접 발행해 활성·예약 값이 지워지는지 Edit Mode 에서 봤을
+뿐, 실제 고지서 미납으로 파산까지 이어지는 Play Mode 경로는 아직 재현하지 않았다.
 
 ## 알려진 한계
 
@@ -214,3 +224,4 @@ Edit Mode 에서 `PerkEffectChecks.RunBatch()` 로 확인했다 (**21건 PASS**)
 | 2026-09-18 | #92 | twins6375-art | 선택 화면이 붙어 시간 정지 한계를 닫았다 ([퍼크 3장 선택 화면](perk-choice-ui.md)). 알려진 한계의 CSV 수치 복제를 열 이름으로 바꿨다 |
 | 2026-09-21 | #188 | yahoo-afk | `idle_drain_per_sec` 7.0(#187) 미반영분 재계산 — `stamina_restore` 20→40, `coin_gain_boost.duration_sec` 15→5.0(`hit_power_boost`·`hit_radius_boost` 는 percent 값이라 유지). 근거는 `BALANCE.md` "퍼크 값 재계산" 절 |
 | 2026-09-21 | #188 | yahoo-afk | `ContinueRun` 의 씬 재로드로 `HammerSwingController` 의 예약 퍼크(`hit_power_boost`)가 다음 런에서 사라지던 버그를 발견·수정 — `GameManager` 가 씬 재로드 전후로 값을 옮겨 준다. Play Mode 리플렉션으로 즉시 적용·예약 승격 모두 확인 |
+| 2026-09-21 | #188 | yahoo-afk | 팀장 지시로 타격력 강화·피격 판정 확대 퍼크의 적용 시점 규칙을 바꿨다 — 매 런 종료(`EndRun`)마다 지우던 것을 그만두고, `GameEvents.OnBankrupt` 구독으로 파산할 때만 지운다(활성분·예약분 모두). `BeginRun` 도 예약분으로 덮어쓰던 것을 기존 값에 더하는 것으로 고쳐야 했다 — 안 그러면 다음 런 시작에 이어온 값이 지워진다(`PerkEffectChecks` 가 먼저 잡았다). 코인 획득 강화는 1회성 기간제라 그대로 뒀다. `PerkEffectChecks` 에 파산 케이스를 추가(21→25건), `GDD.md` "파산" 절의 층 표에 이 두 퍼크를 회차 층으로 추가 |

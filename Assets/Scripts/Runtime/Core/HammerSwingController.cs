@@ -1,4 +1,4 @@
-using NCAIClicker.Data;
+﻿using NCAIClicker.Data;
 using NCAIClicker.Events;
 using NCAIClicker.Interfaces;
 using UnityEngine;
@@ -47,8 +47,9 @@ namespace NCAIClicker.Core
         private float _runHitPower;
 
         /// <summary>
-        /// 타격력 강화 퍼크가 더하는 비율(percent). 이번 런에서만 산다 (#126).
-        /// 런 밖에서 고른 퍼크는 여기 바로 넣지 않고 _pendingPerkPercent 에 예약한다 — GDD 6절.
+        /// 타격력 강화 퍼크가 더하는 비율(percent). 파산 전까지 유지한다 — 업그레이드와 같은 취급
+        /// (팀장 지시, #188 문서 수정 중 반영). 런 밖에서 고른 퍼크는 여기 바로 넣지 않고
+        /// _pendingPerkPercent 에 예약한다 — GDD 6절.
         /// </summary>
         private float _perkPowerPercent;
         private float _pendingPerkPowerPercent;
@@ -120,11 +121,13 @@ namespace NCAIClicker.Core
         private void OnEnable()
         {
             GameEvents.OnPerkChosen += HandlePerkChosen;
+            GameEvents.OnBankrupt += HandleBankrupt;
         }
 
         private void OnDisable()
         {
             GameEvents.OnPerkChosen -= HandlePerkChosen;
+            GameEvents.OnBankrupt -= HandleBankrupt;
         }
 
         /// <summary>
@@ -134,19 +137,35 @@ namespace NCAIClicker.Core
         public void BeginRun()
         {
             _isRunning = true;
-            _perkPowerPercent = _pendingPerkPowerPercent;
+            // 파산 전까지 유지되므로(팀장 지시, #188) 지난 런에서 이어진 값 위에 예약분을
+            // 더한다 — 여기서 덮어쓰면 EndRun 에서 지우지 않은 값이 다음 런 시작에 사라진다.
+            _perkPowerPercent += _pendingPerkPowerPercent;
             _pendingPerkPowerPercent = 0f;
             CacheUpgradedStats();
             SetVisualActive(true);
         }
 
-        /// <summary>런을 끝낸다. "이번 런" 퍼크는 여기서 사라진다 (perks.csv 의 duration_sec 0).</summary>
+        /// <summary>
+        /// 런을 끝낸다. 타격력 강화 퍼크는 더 이상 여기서 사라지지 않는다 — 업그레이드처럼
+        /// 파산 전까지 유지한다 (팀장 지시, #188). 파산 시 정리는 HandleBankrupt 를 본다.
+        /// </summary>
         public void EndRun()
         {
             _isRunning = false;
-            _perkPowerPercent = 0f;
             CacheUpgradedStats();
             SetVisualActive(false);
+        }
+
+        /// <summary>
+        /// 파산하면 이번 런에서 쌓이거나 예약된 타격력 강화 퍼크를 모두 지운다. 업그레이드는
+        /// 파산으로 지워지지 않지만(GameManager.StartNewRun 주석 "파산은 성장을 지우지 않는다"),
+        /// 퍼크는 성장이 아니라 파산 전까지만 유지되는 별도 효과라 여기서 함께 정리한다 (#188).
+        /// </summary>
+        private void HandleBankrupt()
+        {
+            _perkPowerPercent = 0f;
+            _pendingPerkPowerPercent = 0f;
+            CacheUpgradedStats();
         }
 
 
