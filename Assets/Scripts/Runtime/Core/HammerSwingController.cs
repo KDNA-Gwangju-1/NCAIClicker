@@ -149,6 +149,24 @@ namespace NCAIClicker.Core
             SetVisualActive(false);
         }
 
+
+        /// <summary>
+        /// 지금 예약되어 있는 타격력 강화 퍼크 비율(percent). 런 밖에서 고른 만큼만 쌓여 있다.
+        /// GameManager 가 씬 재로드(ContinueRun) 직전에 읽어 간다 — 이 컴포넌트는
+        /// Managers 프리팹 밖이라 씬이 다시 로드되면 인스턴스째로 사라지기 때문이다 (#188 작업 중 발견).
+        /// </summary>
+        public float PendingPerkPowerPercent => _pendingPerkPowerPercent;
+
+        /// <summary>
+        /// 씬 재로드로 사라지기 전 인스턴스에서 넘어온 예약 퍼크를 더한다. GameManager 가
+        /// WireSceneConsumers 에서, 새로 찾은 인스턴스에 한 번만 불러 준다 (#188 작업 중 발견).
+        /// </summary>
+        public void AddPendingPerkPowerPercent(float percent)
+        {
+            _pendingPerkPowerPercent += percent;
+        }
+
+
         /// <summary>
         /// 타격력 강화 퍼크만 받는다. 런 도중이면 즉시, 밖이면 다음 런 시작에 켠다 (GDD 6절).
         /// 값의 출처는 perks.csv 하나이며 여기서 수치를 만들지 않는다.
