@@ -18,6 +18,10 @@ namespace NCAIClicker.UI
         [SerializeField] private Button _overwriteConfirmYesButton;
         [SerializeField] private Button _overwriteConfirmNoButton;
 
+        [Header("설정 (이슈 #196)")]
+        [SerializeField] private Button _settingsButton;
+        [SerializeField] private SettingsPanelController _settingsPanel;
+
         private void Awake()
         {
             if (_overwriteConfirmPanel != null)
@@ -35,6 +39,7 @@ namespace NCAIClicker.UI
             _quitButton.onClick.AddListener(HandleQuitClicked);
             _overwriteConfirmYesButton.onClick.AddListener(HandleOverwriteConfirmed);
             _overwriteConfirmNoButton.onClick.AddListener(HandleOverwriteCanceled);
+            _settingsButton.onClick.AddListener(HandleSettingsClicked);
         }
 
         private void OnDisable()
@@ -44,6 +49,7 @@ namespace NCAIClicker.UI
             _quitButton.onClick.RemoveListener(HandleQuitClicked);
             _overwriteConfirmYesButton.onClick.RemoveListener(HandleOverwriteConfirmed);
             _overwriteConfirmNoButton.onClick.RemoveListener(HandleOverwriteCanceled);
+            _settingsButton.onClick.RemoveListener(HandleSettingsClicked);
         }
 
         private void RefreshContinueButton()
@@ -83,6 +89,11 @@ namespace NCAIClicker.UI
         private void HandleOverwriteCanceled()
         {
             _overwriteConfirmPanel.SetActive(false);
+        }
+
+        private void HandleSettingsClicked()
+        {
+            _settingsPanel.Open();
         }
     }
 }

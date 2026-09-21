@@ -1,6 +1,6 @@
 # 공용 계약 (인터페이스·이벤트·DTO)
 
-> 관련 이슈: #3, #71, #116, #24, #139, #142, #150, #171, #175, #183 · 최종 수정: 2026-09-21
+> 관련 이슈: #3, #71, #116, #24, #139, #142, #150, #171, #175, #183, #202 · 최종 수정: 2026-09-21
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -25,6 +25,9 @@ ARCHITECTURE.md 2절과 3절에 명시된 시그니처를 정본으로 코드로
 | `OnUpgradePurchased` 등 구매 이벤트 신규 추가 (#116) | ❌ | 이슈 #116 요청 범위 밖(소비처 마이그레이션은 후속 이슈) — 실제로 구독자가 필요해지면 그때 계약에 추가 |
 | `ISaveService`에 `bool HasSave` 프로퍼티 추가 (#139) | ✅ | 6.7 메인 메뉴(#90)의 "저장 없으면 이어하기 비활성" 요건 때문. `Load()`는 파일이 없어도 항상 기본값 `SaveData`를 반환해 "저장 없음"과 "저장은 있는데 전부 기본값"을 구분 못 한다. `SaveManager`가 유일한 구현체라 additive 변경으로 깨지는 곳이 없다 |
 | `SaveData` 필드값(전부 기본값인지)으로 저장 존재 여부 유추 (#139) | ❌ | "저장은 했지만 우연히 전부 기본값인 상태"와 "저장이 아예 없는 상태"를 구분할 수 없어 신뢰할 수 없다 |
+| 신규 `IAudioService`(`BgmVolume`·`SfxVolume`·`IsScreenShakeEnabled` 조회 + `Set*` 3종) 추가, `AudioManager.Instance`를 이 타입으로 노출 (#202) | ✅ | 설정 패널(#196)이 볼륨을 바꾸려면 `AudioManager`에 공용 API가 필요하고, 화면 흔들림은 코어 플레이 모듈(`HammerCameraRig`)이 읽어야 실제로 멈춘다. `EconomyManager.Instance`(#171)와 같은 "Instance를 인터페이스 타입으로 노출" 패턴을 그대로 따랐다 |
+| 화면 흔들림 on/off를 새 `GameEvents` 이벤트로 통지 (#202) | ❌ | "설정 시점에만 바뀌는 현재 상태"를 매번 방송하는 이벤트로 만들 이유가 없다. `HammerCameraRig`는 타격이 적중한 그 순간에만 값이 필요하므로 조회(`IAudioService.IsScreenShakeEnabled`) 한 번으로 충분하다 |
+| `SaveData`에 `BgmVolume`·`SfxVolume`·`IsFullscreen`·`IsScreenShakeEnabled` 필드 추가, `Version` 2→3 (#202) | ✅ | 설정값이 "게임을 껐다 켜도 유지"돼야 하는데(#196 DoD) 이 값을 담을 자리가 없었다. 필드 이니셜라이저 기본값(전부 켬/최대 볼륨)이 v2 저장분의 마이그레이션도 겸한다(HasActiveBill 추가 때와 같은 방식) |
 
 ## 구조
 
@@ -32,6 +35,7 @@ ARCHITECTURE.md 2절과 3절에 명시된 시그니처를 정본으로 코드로
 flowchart LR
   subgraph Core["코어 플레이"]
     Hittable["IHittable 구현체<br/>타격 대상 FSM"]
+    CameraRig["HammerCameraRig<br/>적중 시 카메라 흔들림 (#35)"]
   end
 
   subgraph Economy["경제 및 고지서"]
@@ -43,12 +47,17 @@ flowchart LR
     SaveService["ISaveService 구현체<br/>SaveData 직렬화"]
   end
 
+  subgraph UI["UI·연출"]
+    AudioService["IAudioService 구현체<br/>볼륨·화면 흔들림 조회/적용 (#202)"]
+  end
+
   events{{"GameEvents<br/>(정적 이벤트 버스)"}}
 
   Hittable == "OnTargetBroken 발행" ==> events
   events == "구독" ==> EconService
   events == "OnDayEnded 구독" ==> BillService
   events == "구독" ==> SaveService
+  CameraRig -. "IsScreenShakeEnabled 조회 (이벤트 아님)" .-> AudioService
 ```
 
 | 클래스 | 경로 | 하는 일 |
@@ -59,7 +68,7 @@ flowchart LR
 | `Bill` | `Assets/Scripts/Runtime/Data/Bill.cs` | 고지서 데이터(Amount, IssuedDay, DueDay, IsPaid) 직렬화 클래스 |
 | `Loan` | `Assets/Scripts/Runtime/Data/Loan.cs` | 대출 데이터(Principal, Owed, DailyCut) 직렬화 클래스 |
 | `ResumePoint` | `Assets/Scripts/Runtime/Data/ResumePoint.cs` | 재개 지점(MainMenu, Result, PerkSelection) 열거형 |
-| `SaveData` | `Assets/Scripts/Runtime/Data/SaveData.cs` | 저장 DTO(Version 3 기준 전체 영속 필드) |
+| `SaveData` | `Assets/Scripts/Runtime/Data/SaveData.cs` | 저장 DTO(Version 4 기준 전체 영속 필드). v3에서 `LegacyPoints`·`RingLevels` 추가(#175·#183), v4에서 `BgmVolume`·`SfxVolume`·`IsFullscreen`·`IsScreenShakeEnabled` 추가(#202) |
 | `IHittable` | `Assets/Scripts/Runtime/Interfaces/IHittable.cs` | 타격 대상 피격(OnHit) 및 생존 여부(IsAlive) 인터페이스 |
 | `IBillService` | `Assets/Scripts/Runtime/Interfaces/IBillService.cs` | 고지서 납부 및 대출 서비스 인터페이스 |
 | `IEconomyService` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 코인 적립, 지출, 대출 원금 입금 인터페이스. `EconomyManager.Instance` 가 이 타입으로 노출 — UI 가 초기 잔액을 한 번 읽는 통로 (이슈 #171) |
@@ -72,6 +81,7 @@ flowchart LR
 | `ISaveService` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | 저장 및 불러오기 인터페이스. `HasSave`로 저장 파일 존재 여부 조회 (이슈 #139) |
 | `IGameFlowService` | `Assets/Scripts/Runtime/Interfaces/IGameFlowService.cs` | MainMenu 버튼의 씬 전환 요청(`StartNewRun`/`ContinueRun`/`QuitGame`). `GameManager` 구현, `GameManager.Instance`가 이 타입으로 노출 (이슈 #142) |
 | `IStageService` | `Assets/Scripts/Runtime/Interfaces/IStageService.cs` | 단계 진행 상태 공용 조회(`CurrentStageIndex`/`CurrentStageNumber`/`IsGoalReached`/`IsMaxStage`/`AdvanceStage`/`RestoreStage`). `StageGoalManager` 구현, `ManagerBootstrap`이 `CreatureManager`·`BillManager`에 주입 (이슈 #150) |
+| `IAudioService` | `Assets/Scripts/Runtime/Interfaces/IAudioService.cs` | 볼륨(`BgmVolume`/`SfxVolume`)·화면 흔들림(`IsScreenShakeEnabled`) 조회 및 `Set*` 적용. `AudioManager` 구현, `Instance`를 이 타입으로 노출. `HammerCameraRig`(코어 플레이)가 조회 전용으로 소비 (이슈 #196, #202) |
 | `GameEvents` | `Assets/Scripts/Runtime/Events/GameEvents.cs` | 19종 정적 이벤트 및 Publish 메서드, ResetAll 제공 |
 | `ContractsValidationChecks` | `Assets/Scripts/Editor/ContractsValidationChecks.cs` | 계약 정합성 배치 검증(이벤트 Publish·ResetAll, DTO 구조, IRunScoped 구현 및 GameManager 런 라이프사이클 배선). 에디터 전용, `MenuItem` 없이 `RunBatch()` 를 외부에서 호출한다 |
 
@@ -146,3 +156,4 @@ flowchart LR
 | 2026-09-18 | #158 | hunil58 | `IWalletPersistence` 소비자 제한을 "SaveManager 전용"에서 "SaveManager·BillManager"로 넓힘 (A안). `BillManager`가 파산 시 회차 초기화에서 `RestoreWallet(0, "0")`을 호출해 코인·소수 잔여를 비운다 |
 | 2026-09-18 | #171 | yahoo-afk | `EconomyManager` 에 정적 조회 통로 2개 추가 — `Instance`(`IEconomyService`)·`Shop`(`IUpgradeShop`). 인터페이스 시그니처는 그대로고 **접근 통로만** 열었다. `BillManager.Instance`·`SaveManager.Instance`·`GameManager.Instance`(#142) 와 같은 패턴이며 `Awake` 첫 부분에서 대입한다. 첫 소비처는 `CoinHud`(잔액 초기값), 다음은 업그레이드 구매 UI(6.8, #91) |
 | 2026-09-21 | #175 · #183 | twins6375-art | 레거시 포인트·반지 계약 3종(`ILegacyService`·`IRingShop`·`ILegacyPersistence`)과 `IBillService.DeclareBankruptcy()` 추가, `SaveData` v3(`LegacyPoints`·`RingLevels`), `EconomyManager.RingShop`·`Legacy` 통로 개방. `ILegacyPersistence` 미배선을 알려진 한계에 기록 |
+| 2026-09-21 | #196, #202 | hunil58 | 신규 `IAudioService`(`BgmVolume`·`SfxVolume`·`IsScreenShakeEnabled` 조회 + `Set*` 3종) 추가, `AudioManager`가 구현하고 `Instance`를 이 타입으로 노출(#171과 동일 패턴). `SaveData`에 설정 필드 4개 추가. `Develop`에 먼저 병합된 #175·#183이 `Version`을 3으로 이미 올려놔 리베이스 중 충돌 — 두 변경을 합쳐 `Version` 4로 정리(`SaveManager`에 `case 3` 마이그레이션 분기 추가). 설정 패널(#196)의 화면 흔들림 스위치를 `HammerCameraRig`(코어 플레이)가 조회 전용으로 소비 — 새 `GameEvents` 이벤트는 추가하지 않음. 상세는 [settings-panel.md](settings-panel.md) |

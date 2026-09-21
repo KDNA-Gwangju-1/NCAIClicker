@@ -109,6 +109,10 @@ namespace NCAIClicker
                     // 아니라 null로 되살린다(OfferedPerkIds와 같다). 복원하는 쪽이 null을
                     // 감당해야 하므로 여기서 억지로 채우지 않는다 (이슈 #175).
                     break;
+                case 3:
+                    // v3에는 설정 값(볼륨·창모드·화면 흔들림)이 없었다. v1과 같은 이유로
+                    // 필드 이니셜라이저 기본값(모두 켬/최대 볼륨)이 이미 채워진다 (이슈 #196).
+                    break;
                 case SaveData.CurrentVersion:
                     break;
                 default:
