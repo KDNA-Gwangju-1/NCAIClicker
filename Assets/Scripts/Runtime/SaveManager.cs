@@ -34,6 +34,7 @@ namespace NCAIClicker
         private IEconomyService _economy;
         private ILegacyService _legacyPoints;
         private IStageService _stage;
+        private IBillPersistence _bill;
 
         public bool HasSave => File.Exists(SavePath);
 
@@ -51,7 +52,8 @@ namespace NCAIClicker
         /// </summary>
         public void SetPersistenceTargets(IEconomyService economy, IWalletPersistence wallet,
                                           IUpgradePersistence upgrades, ILegacyService legacyPoints,
-                                          ILegacyPersistence legacy, IStageService stage)
+                                          ILegacyPersistence legacy, IStageService stage,
+                                          IBillPersistence bill)
         {
             _economy = economy;
             _wallet = wallet;
@@ -59,14 +61,13 @@ namespace NCAIClicker
             _legacyPoints = legacyPoints;
             _legacy = legacy;
             _stage = stage;
+            _bill = bill;
         }
 
         /// <summary>
         /// 지금 매니저들이 들고 있는 값을 모아 저장한다 (이슈 #203).
         ///
-        /// **고지서·대출·퍼크 후보는 담지 않는다.** IBillService 에 복원 통로가 없어 담아 봐야
-        /// 되돌릴 수 없다 — 쓰기만 하고 읽지 못하는 필드는 "저장된다"는 착각만 만든다
-        /// (docs/TECH_NOTES/billing.md 알려진 한계, 별도 계약 이슈가 먼저다).
+        /// 날짜·고지서·대출·퍼크 후보는 IBillPersistence 로 담는다 (이슈 #221).
         /// </summary>
         public void CollectAndSave()
         {
@@ -96,6 +97,15 @@ namespace NCAIClicker
             {
                 data.StageIndex = _stage.CurrentStageIndex;
             }
+            if (_bill != null)
+            {
+                data.CurrentDay = _bill.CurrentDay;
+                data.BillIndex = _bill.CurrentBillIndex;
+                data.ActiveBill = _bill.ActiveBill;
+                data.ActiveLoan = _bill.CurrentLoan;
+                data.LastLoanRepaidDay = _bill.LastLoanRepaidDay;
+                data.OfferedPerkIds = _bill.OfferedPerkIds;
+            }
 
             Save(data);
         }
@@ -106,6 +116,9 @@ namespace NCAIClicker
         /// **순서가 ARCHITECTURE 1절 초기화 순서를 따른다** — 저장 로드가 먼저고, 그 결과로
         /// 코인·업그레이드를 복원한 뒤 단계를 되돌린다. 단계가 먼저 오면 단계에 딸린 값을
         /// 읽는 쪽이 아직 복원되지 않은 지갑을 본다.
+        ///
+        /// 고지서 복원은 **단계 복원 다음**에 둔다 — BillManager.IssueBill 이 단계 번호를 읽어
+        /// 고지서를 새로 낼 수 있으니(이슈 #221), 단계가 아직 복원되지 않은 채로 부르면 안 된다.
         /// </summary>
         public void LoadAndDistribute()
         {
@@ -126,6 +139,11 @@ namespace NCAIClicker
             if (_stage != null)
             {
                 _stage.RestoreStage(data.StageIndex);
+            }
+            if (_bill != null)
+            {
+                _bill.RestoreBillState(data.CurrentDay, data.BillIndex, data.ActiveBill,
+                                       data.ActiveLoan, data.LastLoanRepaidDay, data.OfferedPerkIds);
             }
         }
 

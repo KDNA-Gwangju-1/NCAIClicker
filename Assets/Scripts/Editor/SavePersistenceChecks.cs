@@ -159,7 +159,7 @@ namespace NCAIClicker.EditorTools
 
             try
             {
-                var save = CreateRig(balance, out host, out var economy, out var stage);
+                var save = CreateRig(balance, out host, out var economy, out var stage, out var bill);
                 var legacy = (ILegacyService)economy;
                 var shop = (IRingShop)economy;
                 var upgradeShop = (IUpgradeShop)economy;
@@ -172,6 +172,10 @@ namespace NCAIClicker.EditorTools
                 AssertCondition(shop.TryPurchaseRing(balance.Rings[0].Id), "준비: 반지를 사지 못했습니다.");
                 upgradeShop.TryPurchase(balance.Upgrades[0].Id);
                 stage.RestoreStage(2);
+                bill.RestoreBillState(3, 2,
+                    new Bill { Amount = 500L, IssuedDay = 1, DueDay = 3, IsPaid = false },
+                    new Loan { Principal = 1000L, Owed = 800L, DailyCut = 0.1f },
+                    1, new[] { "perkA", "perkB" });
 
                 var coin = economy.CurrentCoin;
                 var points = legacy.CurrentLegacyPoints;
@@ -197,11 +201,24 @@ namespace NCAIClicker.EditorTools
                                 "저장 파일의 업그레이드 배열 길이가 업그레이드 수와 다릅니다.");
                 checkCount++;
 
+                // 고지서·대출·날짜도 저장에 담긴다 (이슈 #221).
+                AssertCondition(written.CurrentDay == 3, "저장 파일의 날짜가 다릅니다: " + written.CurrentDay);
+                AssertCondition(written.BillIndex == 2, "저장 파일의 고지서 번호가 다릅니다: " + written.BillIndex);
+                AssertCondition(written.HasActiveBill && written.ActiveBill != null && written.ActiveBill.Amount == 500L,
+                                "저장 파일에 고지서가 담기지 않았습니다.");
+                AssertCondition(written.HasActiveLoan && written.ActiveLoan != null && written.ActiveLoan.Principal == 1000L,
+                                "저장 파일에 대출이 담기지 않았습니다.");
+                AssertCondition(written.LastLoanRepaidDay == 1, "저장 파일의 완제일이 다릅니다: " + written.LastLoanRepaidDay);
+                AssertCondition(written.OfferedPerkIds != null && written.OfferedPerkIds.Length == 2,
+                                "저장 파일에 퍼크 후보가 담기지 않았습니다.");
+                checkCount++;
+
                 // 전부 지운 뒤 되돌린다.
                 wallet.RestoreWallet(0L, "0");
                 ((ILegacyPersistence)economy).RestoreLegacy(0L, Array.Empty<int>());
                 ((IUpgradePersistence)economy).RestoreUpgradeLevels(Array.Empty<int>());
                 stage.RestoreStage(0);
+                bill.RestoreBillState(1, 1, null, null, -1, Array.Empty<string>());
                 AssertCondition(economy.CurrentCoin == 0L && legacy.CurrentLegacyPoints == 0L,
                                 "준비: 지우기가 되지 않았습니다.");
 
@@ -217,10 +234,15 @@ namespace NCAIClicker.EditorTools
                 AssertCondition(stage.CurrentStageIndex == stageIndex, "복원 후 단계가 다릅니다.");
                 checkCount++;
 
-                // 고지서 상태는 담지 않는다 — IBillService 에 복원 통로가 없어 쓰기만 하면
-                // "저장된다"는 착각만 만든다. 담지 않는 것이 의도임을 못 박는다.
-                AssertCondition(written.HasActiveBill == false && written.ActiveBill == null,
-                                "고지서가 저장에 담겼습니다. 되돌릴 통로가 없어 담지 않기로 했습니다 (#203).");
+                AssertCondition(bill.CurrentDay == 3, "복원 후 날짜가 다릅니다: " + bill.CurrentDay);
+                AssertCondition(bill.CurrentBillIndex == 2, "복원 후 고지서 번호가 다릅니다: " + bill.CurrentBillIndex);
+                AssertCondition(bill.ActiveBill != null && bill.ActiveBill.Amount == 500L,
+                                "복원 후 고지서가 되돌아오지 않았습니다.");
+                AssertCondition(bill.CurrentLoan != null && bill.CurrentLoan.Principal == 1000L,
+                                "복원 후 대출이 되돌아오지 않았습니다.");
+                AssertCondition(bill.LastLoanRepaidDay == 1, "복원 후 완제일이 다릅니다: " + bill.LastLoanRepaidDay);
+                AssertCondition(bill.OfferedPerkIds != null && bill.OfferedPerkIds.Length == 2,
+                                "복원 후 퍼크 후보가 되돌아오지 않았습니다.");
                 checkCount++;
             }
             finally
@@ -249,7 +271,7 @@ namespace NCAIClicker.EditorTools
 
             try
             {
-                var save = CreateRig(balance, out host, out var economy, out var stage);
+                var save = CreateRig(balance, out host, out var economy, out var stage, out _);
                 var persistence = (IGamePersistence)save;
                 var service = (ISaveService)save;
                 var legacy = (ILegacyService)economy;
@@ -317,7 +339,7 @@ namespace NCAIClicker.EditorTools
 
             try
             {
-                var save = CreateRig(balance, out host, out var economy, out var stage);
+                var save = CreateRig(balance, out host, out var economy, out var stage, out _);
                 var persistence = (IGamePersistence)save;
                 var service = (ISaveService)save;
 
@@ -371,7 +393,8 @@ namespace NCAIClicker.EditorTools
         // ---------------------------------------------------------------- 도구
 
         private static SaveManager CreateRig(BalanceData balance, out GameObject host,
-                                             out IEconomyService economy, out IStageService stage)
+                                             out IEconomyService economy, out IStageService stage,
+                                             out IBillPersistence bill)
         {
             host = new GameObject("SavePersistenceCheckHost") { hideFlags = HideFlags.HideAndDontSave };
             host.SetActive(false);
@@ -380,16 +403,20 @@ namespace NCAIClicker.EditorTools
             SetPrivate(econ, "_balanceData", balance);
             var stageGoal = host.AddComponent<StageGoalManager>();
             SetPrivate(stageGoal, "_balanceData", balance);
+            var billManager = host.AddComponent<BillManager>();
+            SetPrivate(billManager, "_balanceData", balance);
             var save = host.AddComponent<SaveManager>();
             host.SetActive(true);
 
             InvokeLifecycle(econ, "Awake");
             InvokeLifecycle(stageGoal, "Awake");
+            InvokeLifecycle(billManager, "Awake");
             InvokeLifecycle(save, "Awake");
 
             economy = econ;
             stage = stageGoal;
-            save.SetPersistenceTargets(econ, econ, econ, econ, econ, stageGoal);
+            bill = billManager;
+            save.SetPersistenceTargets(econ, econ, econ, econ, econ, stageGoal, billManager);
             return save;
         }
 
