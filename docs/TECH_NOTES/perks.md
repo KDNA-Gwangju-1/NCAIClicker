@@ -139,6 +139,20 @@ Result 화면(런 밖)에서 고른 퍼크는 씬 구현체의 `_pendingXxx` 필
 `GameManager` 가 `ContinueRun` 직전에 옛 인스턴스의 예약값을 자신(`DontDestroyOnLoad`)이
 옮겨 들고 있다가, `WireSceneConsumers` 에서 새 인스턴스를 찾은 직후 되돌려 준다.
 
+### 위 수정이 놓친 절반 — 활성값도 옮겨야 했다 (#188, 파산 전까지 유지 작업 중 재발견)
+
+타격력 강화를 파산 전까지 유지하도록 고친 뒤(위 "갱신 이력" 참고), 사용자가 실제 플레이에서
+"15% 강화가 파산도 안 했는데 없어진다"를 다시 보고했다. 원인은 바로 위 수정이 옮기던 것이
+`_pendingPerkPowerPercent`(아직 안 켠 예약분) 뿐이었기 때문이다. 이번 작업 전에는 `EndRun`
+이 매일 `_perkPowerPercent`(이미 켠 활성분)를 0으로 지웠으니 옮길 활성값이 애초에 없어서 이
+경로로는 안 드러났다. `EndRun` 의 초기화를 없앤 뒤로는 활성값이 며칠씩 쌓이는데,
+`HammerSwingController` 는 씬 소속이라 `ContinueRun` 마다(파산 여부와 무관하게, 매일) 인스턴스가
+통째로 바뀐다 — 예약분만 옮기면 그 활성값이 매번 새 인스턴스의 기본값(0)에 덮인다.
+
+`HammerSwingController` 에 `ActivePerkPowerPercent` 조회 통로를 추가하고, `GameManager.CarryOverScenePerks`
+가 `PendingPerkPowerPercent + ActivePerkPowerPercent` 를 합쳐서 옮기도록 고쳤다 — 새 인스턴스는
+합계를 예약값으로 받아 `BeginRun` 이 그대로 활성화한다.
+
 ### 이벤트
 
 | 이벤트 | 발행/구독 | 언제 |
@@ -193,9 +207,21 @@ Edit Mode 에서 `PerkEffectChecks.RunBatch()` 로 확인했다 (**25건 PASS**)
 `hit_radius_boost`)는 여전히 Play Mode 로 직접 검증하지 못했다 — `EconomyManager`·
 `StaminaManager`·`CreatureManager` 가 전부 `Managers` 프리팹(`DontDestroyOnLoad`) 소속이라
 씬 재로드 문제는 소스 분석으로는 없다고 보이지만, 적용 값 자체를 플레이로 확인한 것은 아니다.
-타격력·판정 확대의 "파산 전까지 유지" 규칙(#188)도 `PerkEffectChecks` 로만 확인했다 —
-`GameEvents.PublishBankrupt()` 를 직접 발행해 활성·예약 값이 지워지는지 Edit Mode 에서 봤을
-뿐, 실제 고지서 미납으로 파산까지 이어지는 Play Mode 경로는 아직 재현하지 않았다.
+타격력·판정 확대의 "파산 전까지 유지" 규칙(#188)은 처음엔 `PerkEffectChecks` 로만
+확인했었다 — `GameEvents.PublishBankrupt()` 를 직접 발행해 활성·예약 값이 지워지는지 Edit
+Mode 에서 봤을 뿐이었다. 그런데 Edit Mode 검증은 씬 재로드를 흉내 내지 않아 "며칠째 유지되던
+활성값이 매일 씬 재로드로 사라지는" 위 회귀를 못 잡았고, 사용자가 실제 플레이에서 먼저
+발견했다. 그래서 Play Mode 로 다시 검증했다 — MainMenu → StartNewRun → 1일차 Result 화면에서
+`hit_power_boost` 선택(예약 15) → `ContinueRun`(2일차, 새 인스턴스에서 활성 15·`_runHitPower`
+1.15 승격 확인) → 정상 종료 → `ContinueRun`(3일차, **또 새 인스턴스인데** 활성 15 유지 확인 —
+이게 회귀가 있었다면 0 으로 돌아갔을 지점이다) → `GameEvents.PublishBankrupt()` 발행 →
+활성·예약 모두 0, `_runHitPower` 1.0 복귀 확인. 나머지 세 퍼크(`stamina_restore`·
+`coin_gain_boost`·`hit_radius_boost`)는 여전히 Play Mode 로 직접 검증하지 못했다 —
+`EconomyManager`·`StaminaManager`·`CreatureManager` 가 전부 `Managers` 프리팹
+(`DontDestroyOnLoad`) 소속이라 씬 재로드 문제는 소스 분석으로는 없다고 보이지만(그래서 이번
+회귀도 `HammerSwingController` 하나에서만 났다), 적용 값 자체를 플레이로 확인한 것은 아니다.
+실제 고지서 미납으로 파산까지 이어지는 Play Mode 경로(`PublishBankrupt` 를 직접 발행하는 것이
+아니라 `BillManager.TryCloseDay` 가 발행하게 하는 경로)도 아직 재현하지 않았다.
 
 ## 알려진 한계
 
@@ -225,3 +251,4 @@ Edit Mode 에서 `PerkEffectChecks.RunBatch()` 로 확인했다 (**25건 PASS**)
 | 2026-09-21 | #188 | yahoo-afk | `idle_drain_per_sec` 7.0(#187) 미반영분 재계산 — `stamina_restore` 20→40, `coin_gain_boost.duration_sec` 15→5.0(`hit_power_boost`·`hit_radius_boost` 는 percent 값이라 유지). 근거는 `BALANCE.md` "퍼크 값 재계산" 절 |
 | 2026-09-21 | #188 | yahoo-afk | `ContinueRun` 의 씬 재로드로 `HammerSwingController` 의 예약 퍼크(`hit_power_boost`)가 다음 런에서 사라지던 버그를 발견·수정 — `GameManager` 가 씬 재로드 전후로 값을 옮겨 준다. Play Mode 리플렉션으로 즉시 적용·예약 승격 모두 확인 |
 | 2026-09-21 | #188 | yahoo-afk | 팀장 지시로 타격력 강화·피격 판정 확대 퍼크의 적용 시점 규칙을 바꿨다 — 매 런 종료(`EndRun`)마다 지우던 것을 그만두고, `GameEvents.OnBankrupt` 구독으로 파산할 때만 지운다(활성분·예약분 모두). `BeginRun` 도 예약분으로 덮어쓰던 것을 기존 값에 더하는 것으로 고쳐야 했다 — 안 그러면 다음 런 시작에 이어온 값이 지워진다(`PerkEffectChecks` 가 먼저 잡았다). 코인 획득 강화는 1회성 기간제라 그대로 뒀다. `PerkEffectChecks` 에 파산 케이스를 추가(21→25건), `GDD.md` "파산" 절의 층 표에 이 두 퍼크를 회차 층으로 추가 |
+| 2026-09-21 | #188 | yahoo-afk | 위 수정이 놓친 절반을 사용자가 실제 플레이에서 잡아냈다 — "파산 전까지 유지"로 고친 뒤에도 타격력 강화가 다음 날 조용히 사라졌다. 원인은 `GameManager.CarryOverScenePerks` 가 씬 재로드 때 예약분(`PendingPerkPowerPercent`)만 옮기고, 매일 쌓이는 활성분(`_perkPowerPercent`, 이제는 `EndRun` 이 안 지운다)은 옮기지 않아서였다. `HammerSwingController` 에 `ActivePerkPowerPercent` 를 추가하고 `CarryOverScenePerks` 가 둘을 합쳐 옮기도록 고쳤다. Play Mode 로 1→2→3일차 연속 전환에서 활성값이 유지되고, 파산에서만 지워지는 것을 재확인 |

@@ -170,15 +170,25 @@ namespace NCAIClicker.Core
 
 
         /// <summary>
-        /// 지금 예약되어 있는 타격력 강화 퍼크 비율(percent). 런 밖에서 고른 만큼만 쌓여 있다.
-        /// GameManager 가 씬 재로드(ContinueRun) 직전에 읽어 간다 — 이 컴포넌트는
-        /// Managers 프리팹 밖이라 씬이 다시 로드되면 인스턴스째로 사라지기 때문이다 (#188 작업 중 발견).
+        /// 지금 예약되어 있는(아직 BeginRun 으로 승격되지 않은) 타격력 강화 퍼크 비율(percent).
+        /// GameManager 가 씬 재로드(ContinueRun) 직전에 ActivePerkPowerPercent 와 함께 읽어 간다 —
+        /// 이 컴포넌트는 Managers 프리팹 밖이라 씬이 다시 로드되면 인스턴스째로 사라지기 때문이다
+        /// (#188 작업 중 발견).
         /// </summary>
         public float PendingPerkPowerPercent => _pendingPerkPowerPercent;
 
         /// <summary>
-        /// 씬 재로드로 사라지기 전 인스턴스에서 넘어온 예약 퍼크를 더한다. GameManager 가
-        /// WireSceneConsumers 에서, 새로 찾은 인스턴스에 한 번만 불러 준다 (#188 작업 중 발견).
+        /// 지금 활성 상태로 이미 적용돼 있는 타격력 강화 퍼크 비율(percent). 파산 전까지 유지되므로
+        /// (팀장 지시, #188) 씬 재로드로 인스턴스가 바뀐다고 사라지면 안 된다 — PendingPerkPowerPercent
+        /// 만 옮기면 "이미 지난 며칠간 쌓인 값"이 새 인스턴스에서 빠진다. GameManager 가 씬 재로드
+        /// 직전에 PendingPerkPowerPercent 와 합쳐서 읽어 간다.
+        /// </summary>
+        public float ActivePerkPowerPercent => _perkPowerPercent;
+
+        /// <summary>
+        /// 씬 재로드로 사라지기 전 인스턴스에서 넘어온 퍼크(예약분 + 활성분 합계)를 더한다.
+        /// GameManager 가 WireSceneConsumers 에서, 새로 찾은 인스턴스에 한 번만 불러 준다.
+        /// 예약 필드에 더해 두면 BeginRun 이 그대로 활성값에 합산한다 (#188 작업 중 발견).
         /// </summary>
         public void AddPendingPerkPowerPercent(float percent)
         {

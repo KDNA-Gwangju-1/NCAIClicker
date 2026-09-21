@@ -111,9 +111,15 @@ namespace NCAIClicker.Core
         }
 
         /// <summary>
-        /// 씬 재로드로 사라질 씬 소비처(HammerSwingController)의 예약 퍼크를 다음 런으로 넘긴다
+        /// 씬 재로드로 사라질 씬 소비처(HammerSwingController)의 퍼크를 다음 런으로 넘긴다
         /// (#188 작업 중 발견). CreatureManager 등 Managers 프리팹 소속 매니저는 DontDestroyOnLoad 라
         /// 이 작업이 필요 없다 — 씬 밖에 사는 소비처만 옮기면 된다.
+        ///
+        /// **예약분만으로는 부족하다.** 타격력 강화는 파산 전까지 유지되는데(팀장 지시, #188)
+        /// HammerSwingController 는 하루(런)마다 ContinueRun 의 씬 재로드로 인스턴스째 새로 생긴다.
+        /// PendingPerkPowerPercent(아직 안 켠 예약분)만 옮기면 이미 켜져 있던 ActivePerkPowerPercent
+        /// (지난 며칠간 쌓인 값)가 새 인스턴스에서 누락돼, 파산도 안 했는데 다음 날 15% 강화가
+        /// 조용히 사라진다 — 실제로 사용자가 플레이 중에 겪은 증상이다. 그래서 둘을 합쳐서 옮긴다.
         /// </summary>
         private void CarryOverScenePerks()
         {
@@ -126,7 +132,7 @@ namespace NCAIClicker.Core
             {
                 if (_sceneRunScopedServices[i] is HammerSwingController hammer && hammer != null)
                 {
-                    _pendingHammerPerkPowerPercent += hammer.PendingPerkPowerPercent;
+                    _pendingHammerPerkPowerPercent += hammer.PendingPerkPowerPercent + hammer.ActivePerkPowerPercent;
                 }
             }
         }
