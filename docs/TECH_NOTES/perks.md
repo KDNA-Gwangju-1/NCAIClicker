@@ -120,6 +120,19 @@ flowchart LR
 캐시하지 않고 런 시작마다 다시 찾는다 — 씬이 다시 로드되면 인스턴스가 새로 생긴다.
 인터페이스 참조로는 Unity 의 "파괴됨" 판정이 걸리지 않아 `UnityEngine.Object` 로 되돌려 확인한다.
 
+### 씬 재로드가 예약 퍼크를 지운 버그 (#188 에서 발견·수정)
+
+Result 화면(런 밖)에서 고른 퍼크는 씬 구현체의 `_pendingXxx` 필드에 예약된다. `ContinueRun()`
+도 `SceneManager.LoadScene` 으로 씬을 통째로 다시 로드한다는 점이 문제였다 — Result 전이
+자체는 씬을 새로 로드하지 않지만, 그 다음 "이어하기"가 로드한다. 그 사이 예약값을 들고 있던
+옛 인스턴스가 파괴되고 새 인스턴스가 기본값(0)으로 시작해, 결과 화면에서 고른 퍼크가 다음
+런에서 조용히 사라졌다. `CreatureManager` 는 `Managers` 프리팹(`DontDestroyOnLoad`) 소속이라
+영향이 없었고, 씬에 사는 유일한 `IRunScoped` 구현체인 `HammerSwingController`(타격력 강화)만
+겪었다. 사용자가 데미지 표시 소수점으로 직접 잡아냈다.
+
+`GameManager` 가 `ContinueRun` 직전에 옛 인스턴스의 예약값을 자신(`DontDestroyOnLoad`)이
+옮겨 들고 있다가, `WireSceneConsumers` 에서 새 인스턴스를 찾은 직후 되돌려 준다.
+
 ### 이벤트
 
 | 이벤트 | 발행/구독 | 언제 |
@@ -164,11 +177,15 @@ Edit Mode 에서 `PerkEffectChecks.RunBatch()` 로 확인했다 (**21건 PASS**)
 "빈자리가 생겼는데 회복이 한 번 나가지 않았습니다"로 실패했다 — 만충에서 퍼크가 조용히
 증발하는 것이 그대로 드러났다.
 
-**미검증**: Play Mode. 이슈의 완료 기준이 "퍼크별로 적용 전후 값을 Play 검증으로 기록"인데
-정상 플레이로 퍼크를 고를 수가 없다 — 선택 화면은 #92 에서 붙었지만 고지서를 낼 방법이
-없어(6.10 [#181](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/181)) 후보가 나오는 지점까지 갈 수 없다.
-검증에서는 `OnPerkChosen` 을 직접 발행한다. Unity 가 실제로 그 시점에 생명주기를 불러
-주는지도 확인하지 못했다.
+**부분 검증**: Play Mode. 2026-09-21(#188)에 `hit_power_boost` 한정으로 직접 검증했다 —
+정상 플레이(고지서 납부 → 퍼크 선택 화면)로 골라 리플렉션으로 필드를 읽었다. 런 도중
+선택은 `_perkPowerPercent` 에 즉시 반영(`_runHitPower` 1.0→1.15)됐고, 결과 화면에서 선택한
+뒤 다음 런으로 넘어가는 경로는 바로 위 "씬 재로드가 예약 퍼크를 지운 버그"를 드러냈다 —
+그 버그를 고친 뒤 같은 경로로 다시 재현해 새 인스턴스의 `_perkPowerPercent=15`,
+`_runHitPower=1.15` 승격을 확인했다. 나머지 세 퍼크(`stamina_restore`·`coin_gain_boost`·
+`hit_radius_boost`)는 여전히 Play Mode 로 직접 검증하지 못했다 — `EconomyManager`·
+`StaminaManager`·`CreatureManager` 가 전부 `Managers` 프리팹(`DontDestroyOnLoad`) 소속이라
+씬 재로드 문제는 소스 분석으로는 없다고 보이지만, 적용 값 자체를 플레이로 확인한 것은 아니다.
 
 ## 알려진 한계
 
@@ -196,3 +213,4 @@ Edit Mode 에서 `PerkEffectChecks.RunBatch()` 로 확인했다 (**21건 PASS**)
 | 2026-09-17 | #126 | twins6375-art | 최초 작성 (퍼크 4종 적용, 즉시/예약 분기, 런 경계를 씬까지 확장) |
 | 2026-09-18 | #92 | twins6375-art | 선택 화면이 붙어 시간 정지 한계를 닫았다 ([퍼크 3장 선택 화면](perk-choice-ui.md)). 알려진 한계의 CSV 수치 복제를 열 이름으로 바꿨다 |
 | 2026-09-21 | #188 | yahoo-afk | `idle_drain_per_sec` 7.0(#187) 미반영분 재계산 — `stamina_restore` 20→40, `coin_gain_boost.duration_sec` 15→5.0(`hit_power_boost`·`hit_radius_boost` 는 percent 값이라 유지). 근거는 `BALANCE.md` "퍼크 값 재계산" 절 |
+| 2026-09-21 | #188 | yahoo-afk | `ContinueRun` 의 씬 재로드로 `HammerSwingController` 의 예약 퍼크(`hit_power_boost`)가 다음 런에서 사라지던 버그를 발견·수정 — `GameManager` 가 씬 재로드 전후로 값을 옮겨 준다. Play Mode 리플렉션으로 즉시 적용·예약 승격 모두 확인 |
