@@ -4,6 +4,14 @@
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
+> **2026-09-21 정정.** 아래 1절이 설명하는 **"저금통 일반형" 방향은 #37에서 철회됐다.**
+> `PiggyNormalVisual.prefab`은 더 이상 어느 `TargetXxx.prefab`에도 연결돼 있지 않다 — 타격
+> 대상 4종은 광물 크리처 테마로 전면 교체됐다. 자세한 경위와 대체 에셋은
+> [광물 크리처 3D 에셋](mineral-creature-assets.md) 참고. **파편 8종·코인 그레이박스(2·3절)는
+> 저금통 테마와 무관하게 그대로 유효하다** — 파괴 연출용 자원이라 폐기 대상이 아니다. 이 문서는
+> 삭제하지 않는다: `PiggyNormal.glb`·`PiggyNormalVisual.prefab` 파일 자체는 저장소에 남아 있고,
+> 이 문서가 그 제작 경위를 정확히 설명하기 때문이다.
+
 ## 무엇을 하는가
 
 이슈 #9(6.5 VARCO 3D 에셋 제작)의 완료 기준 "저금통·파편·코인 확보" 3종을 다룬다.
@@ -99,3 +107,4 @@ flowchart LR
 | 2026-09-21 | #9 | Claude | 문서 범위를 저금통 3종 에셋 전체로 확장 — 파편 8종(VARCO 생성 01·02 + Blender 절차적 분할 03~08), 코인 그레이박스 프리팹 추가 반영. PR #199에서 코드만 병합되고 누락됐던 기술 문서를 사후 보강 |
 | 2026-09-21 | #37 | Claude | `PiggyNormalVisual.prefab`을 `TargetNormal.prefab`의 `Visual` 자식으로 연결 완료 (6.6). "Piggy_Normal 루트 미제작" 한계 해소, 자세한 내용은 [타격 대상](hit-targets.md) 참고 |
 | 2026.09.21 | #37, #192 | saltlake00 | TargetNormal 프리팹의 Mesh 자식명 정규화, localPosition.y = 0.20 오프셋 및 스케일(0.477) 교정으로 책상 파묻힘 문제 해결 및 TargetChecks 통과 |
+| 2026-09-21 | #37 | Claude | 저금통 방향 철회 — 타격 대상 4종을 광물 크리처로 전면 교체하며 `PiggyNormalVisual` 연결 해제. 문서 상단에 정정 표기 추가, 파편·코인은 유효 유지. 자세한 내용은 [광물 크리처 3D 에셋](mineral-creature-assets.md) 참고 |

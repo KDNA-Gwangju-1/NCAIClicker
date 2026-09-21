@@ -12,6 +12,7 @@
 | Interface Sounds (Kenney) | 효과음 | https://kenney.nl/assets/interface-sounds | CC0 1.0 | 고지 의무 없음 (CC0) | 피버 시작음·고지서 발행음·고지서 납부음 (`Assets/Audio/FeverStart.ogg`, `BillIssued.ogg`, `BillPaid.ogg`) |
 | 저금통 일반형 3D 모델 | 3D 모델 | VARCO 3D (https://3d.varco.ai, NC AI 생성형 AI 도구) | 개인/비상업 라이선스 (일반 약관 기준). NC AI 교육 프로그램으로 제공된 팀 계정으로, 본 수업 팀 프로젝트 용도의 생성·사용은 허용됨. 공개 배포·상업적 이용 가능 여부는 별도 확인 필요 | https://terms.varco.ai (전문 미인용, 요약만 기록) | 저금통 일반형 시각 에셋 (`Assets/Models/PiggyNormal.glb`) |
 | 저금통 파편 01·02 3D 모델 | 3D 모델 | VARCO 3D (https://3d.varco.ai, NC AI 생성형 AI 도구) | 위와 동일 (개인/비상업 라이선스, 팀 계정 교육 용도 허용) | https://terms.varco.ai (전문 미인용, 요약만 기록) | 저금통 파괴 파편 시각 에셋 (`Assets/Models/PiggyFragment01.glb`, `PiggyFragment02.glb`). 파편 03~08은 `PiggyNormal.glb` 메시를 Blender로 절차적으로 분할한 것으로 신규 생성물이 아니라 별도 항목 없음 |
+| 광물 크리처 4종 3D 모델 (구리·은·금·다이아몬드) | 3D 모델 | VARCO 3D (https://3d.varco.ai, NC AI 생성형 AI 도구) | 위와 동일 (개인/비상업 라이선스, 팀 계정 교육 용도 허용) | https://terms.varco.ai (전문 미인용, 요약만 기록) | 타격 대상 4종 시각 에셋, 저금통 테마를 대체 (`Assets/Models/MineralCreatureCopper.glb`, `MineralCreatureSilver.glb`, `MineralCreatureGold.glb`, `MineralCreatureDiamond.glb`) |
 
 ## 기록 규칙
 

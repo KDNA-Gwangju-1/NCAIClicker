@@ -75,13 +75,14 @@ TargetNormal (루트)          ← 로직: Target, CreatureMovement, SphereColli
    └─ Mesh 또는 실물 에셋      ← 교체는 이것만 갈아끼운다
 ```
 
-**작업 6.6(#37)에서 `TargetNormal` 만 먼저 교체됐다.** `Visual` 자식의 그레이박스 `Mesh`(Cube)를
-지우고 [저금통 일반형 3D 에셋](piggy-normal-asset.md)의 `PiggyNormalVisual.prefab` 을 nested prefab
-instance 로 끼웠다. `PiggyNormalVisual` 자신이 이미 0.4762 배율을 내장하고 있어 여기서는
-`localScale=1`·`localPosition=0` 그대로 둔다 — 이중 스케일 금지. `Target._visual` 필드는 여전히
-`Visual` GameObject 를 가리키므로 로직 참조는 바뀌지 않는다.
-`TargetAnchor`/`TargetRunner`/`TargetTourist` 는 해당 종류의 3D 에셋이 아직 없어(#9 는 일반형만
-다룸) 그레이박스 그대로 남아 있다 — 각자의 VARCO 3D 에셋 이슈가 열리면 같은 방식으로 교체한다.
+**작업 6.6(#37)에서 저금통(피기) 테마를 포기하고 4종 전부를 광물 크리처로 교체했다.** 최초에는
+`TargetNormal` 만 [저금통 일반형 3D 에셋](piggy-normal-asset.md)으로 교체했으나, 팀 논의 결과 피기
+방향을 접고 광물(구리·은·금·다이아몬드) 크리처 4종으로 통일하기로 했다 — 자세한 경위와 수치는
+[광물 크리처 에셋](mineral-creature-assets.md) 참고. `Visual` 자식의 그레이박스/피기 메시를 지우고
+`MineralCreature{Copper,Silver,Gold,Diamond}Visual.prefab` 을 nested prefab instance 로 끼웠다.
+매핑은 내구도(`hp`) 기준 약함→강함 순: `runner`(1)→Copper, `normal`(3)→Silver, `tourist`(10)→Gold,
+`anchor`(12)→Diamond. `Target._visual` 필드는 여전히 `Visual` GameObject 를 가리키므로 로직 참조는
+바뀌지 않는다.
 
 | 클래스 | 경로 | 하는 일 |
 |---|---|---|
@@ -96,14 +97,15 @@ instance 로 끼웠다. `PiggyNormalVisual` 자신이 이미 0.4762 배율을 �
 
 프리팹 4종은 `Assets/Prefabs/Targets/`, 머티리얼 4종은 `Assets/Materials/` 다.
 
-| 프리팹 | `_targetId` | Visual 자식 | 색 |
+| 프리팹 | `_targetId` | Visual 자식 | HP |
 |---|---|---|---|
-| `TargetNormal` | `normal` | `PiggyNormalVisual.prefab` (실물, #37) | — |
-| `TargetAnchor` | `anchor` | Cylinder (그레이박스) | 갈색 |
-| `TargetRunner` | `runner` | Sphere (그레이박스) | 노랑 |
-| `TargetTourist` | `tourist` | Capsule (그레이박스) | 초록 |
+| `TargetRunner` | `runner` | `MineralCreatureCopperVisual.prefab` (실물, #37) | 1 |
+| `TargetNormal` | `normal` | `MineralCreatureSilverVisual.prefab` (실물, #37) | 3 |
+| `TargetTourist` | `tourist` | `MineralCreatureGoldVisual.prefab` (실물, #37) | 10 |
+| `TargetAnchor` | `anchor` | `MineralCreatureDiamondVisual.prefab` (실물, #37) | 12 |
 
-높이는 4종 모두 **0.4 유닛**이고 바닥이 `y=0` 에 닿는다. 기준은 [ASSET_PIPELINE](../ASSET_PIPELINE.md) 2절.
+높이는 4종 모두 **0.8 유닛**이고 바닥이 `y=0` 에 닿는다. 기준은 [ASSET_PIPELINE](../ASSET_PIPELINE.md) 2절
+(조준 원 지름 0.9유닛 대비 70~85% 를 채우도록 6.6 후반부에 0.4 → 0.8로 재조정).
 
 ### 이벤트
 
@@ -201,6 +203,42 @@ instance 로 끼웠다. `TargetAnchor`/`Runner`/`Tourist` 는 대응하는 3D �
   (MCP 포트 재연결 로그만 존재) 확인 후 Play 종료, 씬 저장 안 함
 * [x] `Target._visual` 필드가 `Visual` GameObject 를 그대로 가리켜 로직 참조 안 깨짐 확인
 
+### #37 피기 방향 철회 → 광물 크리처 4종 전면 교체 (2026-09-21)
+
+위 항목 직후, 팀이 저금통(피기) 테마를 접고 광물 크리처(구리·은·금·다이아몬드) 4종으로 통일하기로
+했다. 같은 브랜치에서 4종 전부를 다시 교체했다 — PR을 머지하지 않고 수정.
+
+`TargetNormal` 의 `PiggyNormalVisual` 인스턴스를 제거하고 `MineralCreatureSilverVisual` 로,
+`TargetAnchor`/`Runner`/`Tourist` 의 그레이박스 프리미티브를 각각 Diamond/Copper/Gold 로 교체했다.
+모델별 스케일·바닥 오프셋은 `Renderer.bounds` 를 직접 측정해 산출했다 — 전 기종 공통 0.4762 배율을
+가정한 피기 때와 달리, 모델마다 원본 크기·피벗이 달라 개별 계산이 필요했다. 상세 수치와 발견한
+버그(피기 스케일 오버라이드)는 [광물 크리처 에셋](mineral-creature-assets.md) 참고.
+
+* [x] `manage_prefabs get_hierarchy` 로 4개 프리팹 전부 Visual 자식이 해당 `MineralCreature*Visual`
+  하나뿐임을 확인
+* [x] Play Mode 에서 일시정지해 스폰된 크리처 스크린샷 확인 — Silver/Gold/Diamond 3종은 직접 육안
+  확인(올바른 스케일, 바닥 밀착, 정상 머티리얼), Copper 는 해당 짧은 런에서 스폰되지 않아 구조
+  검증만 완료(다른 3종과 동일한 방식으로 생성·배선했으므로 동일하게 동작할 것으로 판단)
+* [x] 콘솔 오류·경고 0건(MCP 포트 재연결 로그만 존재), `Running -> Result` 까지 정상 진행 확인
+* [x] `Target._visual` 필드가 `Visual` GameObject 를 그대로 가리켜 로직 참조 안 깨짐 확인
+
+### #37 스케일 0.4 → 0.8 재조정 — 조준 원 대비 너무 작다는 피드백 (2026-09-21)
+
+위 스크린샷을 본 사용자가 "망치 조준 원 안에 대상이 들어와야 하는데 지금은 너무 작다"고 지적했다.
+계산해 보니 근거가 있었다 — 조준 원 지름은 `economy.csv` 의 `reticle_radius`(0.45) × 2 = 0.9유닛인데
+0.4유닛 높이 기준 대상의 밑변 폭은 약 0.3~0.37유닛으로 원의 40% 밖에 못 채웠다.
+
+높이 기준을 0.4 → **0.8유닛**으로 올리고 4종 전부 `Renderer.bounds` 재실측으로 스케일·오프셋을
+다시 산출했다(스케일은 정확히 2배, 오프셋도 선형이라 2배 — `Transform.localScale` 이 원점 기준
+선형 변환이므로 이론과 실측이 정확히 일치했다). Play Mode 에서 다시 측정한 밑변 폭은
+0.746×0.600유닛으로 원 지름의 약 83% — 원 안에 들어오는 크기가 됐다.
+
+* [x] `Renderer.bounds` 재측정으로 4종 스케일 재산출 (Copper 0.8809, Silver 0.8001, Gold 0.8212,
+  Diamond 0.7868 — 전부 기존 값의 정확히 2배)
+* [x] Play Mode 스크린샷으로 크기 확대 육안 확인, 콘솔 오류 0건
+* [x] `execute_code` 로 실제 스폰된 `TargetNormal(Clone)` 의 `Renderer.bounds` 를 직접 측정해
+  밑변 0.746×0.600, 높이 0.800 확인 — 조준 원 지름(0.9) 대비 약 83%
+
 ## 알려진 한계
 
 * **파괴 연출이 없다.** 부서져도 오브젝트가 그대로 남거나 숨겨지는 연출은 작업 6.3 이다.
@@ -212,8 +250,11 @@ instance 로 끼웠다. `TargetAnchor`/`Runner`/`Tourist` 는 대응하는 3D �
   보다 먼저** `SetUpgradeStats` 를 불러야 반영된다. 반경이 스폰 시점에 정해지는 것은 그대로다 —
   런 도중 레벨이 오르지 않으므로 문제가 되지 않는다 ([업그레이드](upgrades.md) "다음 런부터").
 * Play Mode 에서 타격 시 시각적 경직 모션 및 이펙트는 작업 6.3 에서 파티클 및 애니메이션과 함께 연출된다.
-* **`TargetAnchor`/`TargetRunner`/`TargetTourist` 는 아직 그레이박스다.** 각자의 3D 에셋(VARCO 3D
-  생성)이 나와야 #37 과 같은 방식으로 `Visual` 자식만 교체하면 된다.
+* ~~**`TargetAnchor`/`TargetRunner`/`TargetTourist` 는 아직 그레이박스다.**~~ — #37 에서 4종 전부
+  광물 크리처로 교체 완료.
+* **TargetRunner/Copper 는 이번 Play Mode 검증에서 실제 스폰 장면을 직접 보지 못했다.** 구조
+  검증(`get_hierarchy`)은 통과했고 나머지 3종과 동일한 방식으로 생성했으나, 더 긴 Play 세션으로
+  실제 스폰까지 육안 확인하는 것이 안전하다.
 
 ## 갱신 이력
 
@@ -226,3 +267,5 @@ instance 로 끼웠다. `TargetAnchor`/`Runner`/`Tourist` 는 대응하는 3D �
 | 2026-09-18 | #148 | saltlake00 | 크리처 스폰 비율 폴백 하드코딩 제거 및 Target.HitReceived 명명 규칙 정정, 검증 보강 |
 | 2026.09.18 | #197 | saltlake00 | 씬 재로드 후 이펙트 풀 파괴 객체 접근 방어 및 Target 예외 격리 (2.12) |
 | 2026-09-21 | #37 | Claude | `TargetNormal` 의 그레이박스 `Visual` 자식을 `PiggyNormalVisual.prefab` 로 교체 (6.6). `Anchor`/`Runner`/`Tourist` 는 3D 에셋 미확보로 그레이박스 유지 |
+| 2026-09-21 | #37 | Claude | 피기 방향 철회, 광물 크리처 4종(Copper/Silver/Gold/Diamond)으로 전면 교체. HP 기준 매핑, 모델별 스케일 실측 산출. 자세한 내용은 [광물 크리처 에셋](mineral-creature-assets.md) |
+| 2026-09-21 | #37 | Claude | 조준 원(지름 0.9유닛) 대비 너무 작다는 사용자 피드백으로 높이 기준 0.4 → 0.8유닛 재조정, 4종 재실측 |
