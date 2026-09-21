@@ -175,13 +175,13 @@ MonoBehaviour:
   - Id: stamina_restore
     DisplayName: "\uC2A4\uD0DC\uBBF8\uB098 \uD68C\uBCF5"
     Type: 0
-    Value: 20
+    Value: 40
     DurationSec: 0
   - Id: coin_gain_boost
     DisplayName: "\uCF54\uC778 \uD68D\uB4DD \uAC15\uD654"
     Type: 1
     Value: 1.5
-    DurationSec: 15
+    DurationSec: 5
   - Id: hit_power_boost
     DisplayName: "\uD0C0\uACA9\uB825 \uAC15\uD654"
     Type: 2
