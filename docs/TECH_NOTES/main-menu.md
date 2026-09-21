@@ -102,9 +102,7 @@ Unity 6000.3.21f1 에디터, UnityMCP `execute_code`/`manage_camera(screenshot)`
   코인·소수 잔여·업그레이드 레벨·레거시 포인트·반지 레벨·단계가 앱을 켤 때 복원되고,
   **새 회차 시작과 이어하기가 이제 실제로 다르게 동작한다** — `StartNewRun` 은 빈 저장을
   분배해 성장을 지우고, `ContinueRun` 은 지우지 않는다.
-- **날짜·고지서·대출은 여전히 복원되지 않는다.** `IBillService` 에 복원 통로가 없어 #203 의
-  범위 밖이었다 ([save-load.md](save-load.md) 알려진 한계). 이어하기로 들어가면 고지서와 날짜는
-  1일차부터 다시 시작한다 — **#221(4.14)** 이 그 통로를 다룬다.
+- ~~**날짜·고지서·대출은 여전히 복원되지 않는다.**~~ — #221 이 `IBillPersistence` 로 그 통로를 열었다. 이어하기로 들어가면 날짜·고지서·대출·퍼크 후보도 앱을 켤 때 함께 복원된다 ([save-load.md](save-load.md)).
 - 확인 다이얼로그·버튼은 그레이박스 수준 UI(흰 배경 버튼, 기본 폰트 크기)다. 실제 비주얼은
   범위 밖(설정·크레딧·타이틀 연출과 같은 급)이다 — **#184(6.12)** 에 추가 범위로 묶였다.
 - 최고 기록·통계 표시는 추가 목표로 이번 이슈 범위 밖이라 구현하지 않았다.
@@ -122,4 +120,5 @@ Unity 6000.3.21f1 에디터, UnityMCP `execute_code`/`manage_camera(screenshot)`
 | 2026.09.21 | #91, #192 | saltlake00 | UpgradeButton 신설 및 MainMenuController 배선, UpgradeShopPanel 기본 비활성화 적용으로 시작화면 스킬트리 상시 노출 문제 해결, 5개 버튼 105px 등간격 수직 정렬 |
 | 2026.09.21 | #192 | saltlake00 | 본래 기획(인게임 고지서 화면의 업그레이드 탭)에 맞춰 시작 화면에서 UpgradeShopPanel 및 UpgradeButton 완전 제거. 메인 4개 버튼(새 회차, 이어하기, 설정, 종료) 110px 등간격 재정렬. OverwriteConfirmPanel 및 SettingsPanel 최상단(SetAsLastSibling) 정렬 처리로 팝업 창 위로 메인 버튼이 뚫고 나오는 z순서 결함 완전 해결 |
 | 2026-09-21 | #203 | twins6375-art | 저장 복원 배선이 붙어 "이어하기를 눌러도 복원되지 않는다" 한계를 닫았다. 새 회차 시작과 이어하기가 실제로 달라졌고, 날짜·고지서·대출은 여전히 복원되지 않음을 별도 한계로 남김 |
+| 2026-09-21 | #221 | Yang | `IBillPersistence` 로 날짜·고지서·대출·퍼크 후보 복원 통로가 붙어 "날짜·고지서·대출은 여전히 복원되지 않는다" 한계를 닫음 |
 | 2026-09-21 | #203 | twins6375-art | `StartNewRun` 의 `Save(new SaveData())` 를 `ResetAndDistribute()` 로 교체. 설정을 지우지 않고 메모리까지 비운다 |
