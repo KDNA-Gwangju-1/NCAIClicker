@@ -1,6 +1,6 @@
 # 저금통 3D 에셋 (일반형·파편·코인)
 
-> 관련 이슈: #9 · 최종 수정: 2026-09-21
+> 관련 이슈: #9, #37 · 최종 수정: 2026-09-21
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -18,16 +18,19 @@
 
 프리팹 구조 규칙과 스케일 기준은 [ASSET_PIPELINE.md](../ASSET_PIPELINE.md) 참고.
 
-**세 항목 모두 시각 에셋 확보까지만 다룬다.** `Piggy_Normal` 프리팹 루트(Collider/PiggyController/IHittable),
-파편의 Rigidbody·3초 소멸·오브젝트 풀 배선(PATTERNS.md 7절), 코인의 3D 모델 교체는 포함하지
-않는다 — 아래 "왜 이 방법인가" 참고.
+**세 항목 모두 시각 에셋 확보까지만 다룬다.** 파편의 Rigidbody·3초 소멸·오브젝트 풀 배선
+(PATTERNS.md 7절), 코인의 3D 모델 교체는 포함하지 않는다 — 아래 "왜 이 방법인가" 참고.
+`PiggyNormalVisual.prefab` 을 실제 루트에 끼우는 작업은 작업 6.6(#37)에서 완료했다 —
+[타격 대상](hit-targets.md) 참고. "저금통" ≡ "타격 대상(Target)"이라 별도의 `Piggy_Normal`
+루트를 새로 만들지 않고, 기존 그레이박스 루트 `Assets/Prefabs/Targets/TargetNormal.prefab` 의
+`Visual` 자식을 갈아끼웠다.
 
 ## 왜 이 방법인가
 
 | 검토한 방법 | 채택 | 이유 |
 |---|---|---|
 | `PiggyNormalVisual.prefab`만 별도 제작 (Visual 서브트리 단독) | ✅ | `PiggyController`가 코드베이스 어디에도 없어 (`IHittable`은 있음) 로직 컴포넌트를 채운 완전한 `Piggy_Normal`을 만들려면 코어 플레이 담당 소유 영역에 코드를 새로 써야 한다 — 이슈 #9(3D 에셋 제작) 범위 밖. 코어 담당이 나중에 자기 `Piggy_Normal` 프리팹의 `Visual` 자식으로 이 프리팹을 끼워 넣으면 된다 |
-| 그레이박스 `Piggy_Normal`을 찾아 그 안의 `Visual` 자식 메시만 교체 | ❌ | 그런 그레이박스 프리팹이 존재하지 않음 (`Assets/Prefabs/`에 저금통 관련 프리팹 전무, `PiggyController`는 문서의 다이어그램 라벨로만 존재) |
+| 그레이박스 `Piggy_Normal`을 찾아 그 안의 `Visual` 자식 메시만 교체 | 보류 → #37에서 채택 | #9 시점엔 그런 그레이박스 프리팹이 안 보였다(`Assets/Prefabs/`에 저금통 관련 프리팹 전무). 실제로는 "저금통"이 GDD 상 "타격 대상(Target)"과 같은 개념이라 `Assets/Prefabs/Targets/TargetNormal.prefab` 이 그 루트였다 — #37에서 이걸 찾아 `Visual` 자식만 교체했다 |
 | 임포트 설정(Scale Factor)에서 모델 크기를 0.4 유닛에 맞춤 | ❌ | glTFast(`com.unity.cloud.gltfast`)에는 전역 Scale Factor 필드가 없다 (리플렉션으로 `ImportSettings`/`InstantiationSettings`/`EditorImportSettings` 전체 확인). 대신 `Visual` 프리팹 자체를 스케일 |
 | 텍스처를 512×512로 다운스케일 | ❌ | glTFast는 `TextureImporter`의 Max Size를 타지 않는 자체 임포터를 쓴다. 512로 낮추려면 별도 `AssetPostprocessor`가 필요해 배보다 배꼽이 커짐. 저금통 1개당 VRAM 약 26MB(BaseColor 1024²+Normal 2048², 밉맵 포함)로 예산에 문제없어 1024/2048 그대로 채택 |
 | 파편 03~08을 VARCO 3D로 추가 생성 | ❌ | 이 작업을 수행한 세션의 Unity MCP `generate_model`은 Tripo·Meshy만 연동돼 있고 둘 다 API 키 미설정(`list_providers` 확인 결과 `configured:false`) — VARCO는 애초에 연동되지 않음. 생성형 AI 호출 자체가 불가능했다 |
@@ -47,10 +50,10 @@ flowchart LR
     glb --> visual
     glb -. "메시 파생" .-> frag38
   end
-  subgraph Core["Piggy_Normal (코어 플레이 담당, 미제작)"]
-    root["프리팹 루트<br/>Collider / PiggyController / IHittable"]
+  subgraph Core["TargetNormal (타격 대상 루트, #37에서 연결)"]
+    root["프리팹 루트<br/>Target / CreatureMovement / SphereCollider"]
   end
-  visual -. "코어 담당이 Visual 자식으로 끼워 넣음<br/>(이 PR 범위 밖)" .-> root
+  visual == "Visual 자식으로 끼움 (#37)" ==> root
 ```
 
 | 애셋 | 경로 | 하는 일 |
@@ -75,13 +78,13 @@ flowchart LR
 - [x] `read_console`(`types=["error","warning"]`)로 프리팹 생성 직후 콘솔에 실제 오류·경고 없음 확인 (MCP 포트 재연결 로그 3줄만 존재)
 - [x] 파편 03~08 각각을 씬에 임시 인스턴스화해 스크린샷으로 형태 확인 — 큰 조각과 작은 파편이 섞인 절단 패턴이 "원본을 쪼갠 형태" 요구와 부합함을 눈으로 확인. 확인 후 씬 저장 없이 전부 `DestroyImmediate`로 제거
 - [x] 코인 그레이박스 `MeshRenderer.shadowCastingMode`가 `Off`로 저장됐는지 `execute_code`로 재조회해 확인
-- [ ] Play Mode에서 `Visual` 프리팹을 실제 `Piggy_Normal`에 끼워 화면 비율·조준 판정 확인 — **미검증**. `Piggy_Normal` 루트 프리팹이 아직 없어 코어 담당 작업 완료 후 가능
+- [x] Play Mode에서 `Visual` 프리팹을 실제 `TargetNormal`에 끼워 화면 비율·조준 판정 확인 — #37에서 완료, [타격 대상](hit-targets.md) "#37" 절 참고
 - [ ] 파편의 Rigidbody·물리 낙하·오브젝트 풀 배선(PATTERNS.md 7절), 파괴 연출 시퀀스에서의 실제 동작 — **미검증**. 이 PR은 시각 에셋 확보까지만 다룬다
 - [ ] 코인 프리팹이 실제 코인 드롭 로직에 연결된 상태에서의 동작 — **미검증**. 그레이박스 확보만 이 PR 범위
 
 ## 알려진 한계
 
-- **`Piggy_Normal` 프리팹 루트가 아직 없다.** 코어 플레이 담당이 `Collider`/`PiggyController`/`IHittable`을 붙인 루트를 만들고 이 `PiggyNormalVisual.prefab`을 `Visual` 자식으로 끼워야 그레이박스 교체가 완성된다.
+- ~~**`Piggy_Normal` 프리팹 루트가 아직 없다.**~~ — #37에서 해결. 실제 루트는 `Assets/Prefabs/Targets/TargetNormal.prefab` 이었고, 그 `Visual` 자식을 이 프리팹으로 교체했다.
 - glTFast는 임포트 시점 스케일 조정 수단이 전혀 없다 — 앞으로 추가하는 모델도 전부 별도 `Visual` 프리팹에서 스케일을 맞춰야 한다 (임포트 설정에서 되는 것으로 착각하지 말 것).
 - **파편 03~08은 신규 텍스처가 없다.** `PiggyNormal.glb`의 기존 UV·텍스처를 그대로 물려받은 절단면이라, 단면(절단 단면)에는 별도 재질이 없다 — 클로즈업 연출에서는 어색할 수 있다.
 - **코인은 원기둥 그레이박스일 뿐 3D 모델이 아니다.** VARCO 3D 연동이 이 PR 시점엔 준비되지 않아(Tripo·Meshy만 연동, API 키 미설정) 3D 교체는 후속 이슈에서 진행한다.
@@ -94,3 +97,4 @@ flowchart LR
 |---|---|---|---|
 | 2026-09-18 | #9 | Claude | 최초 작성 — `PiggyNormalVisual.prefab` 제작, 텍스처 해상도·스케일 방식 결정 기록 |
 | 2026-09-21 | #9 | Claude | 문서 범위를 저금통 3종 에셋 전체로 확장 — 파편 8종(VARCO 생성 01·02 + Blender 절차적 분할 03~08), 코인 그레이박스 프리팹 추가 반영. PR #199에서 코드만 병합되고 누락됐던 기술 문서를 사후 보강 |
+| 2026-09-21 | #37 | Claude | `PiggyNormalVisual.prefab`을 `TargetNormal.prefab`의 `Visual` 자식으로 연결 완료 (6.6). "Piggy_Normal 루트 미제작" 한계 해소, 자세한 내용은 [타격 대상](hit-targets.md) 참고 |

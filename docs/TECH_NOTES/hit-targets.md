@@ -1,6 +1,6 @@
 # 타격 대상 (크리처)
 
-> 관련 이슈: #16, #17, #141, #148, #161 · 최종 수정: 2026-09-18
+> 관련 이슈: #16, #17, #141, #148, #161, #37 · 최종 수정: 2026-09-21
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -72,8 +72,16 @@ flowchart LR
 ```
 TargetNormal (루트)          ← 로직: Target, CreatureMovement, SphereCollider
 └─ Visual (빈 GameObject)    ← 연출이 스쿼시·스트레치로 여기를 스케일한다
-   └─ Mesh                   ← 그레이박스 프리미티브. 교체는 이것만 갈아끼운다
+   └─ Mesh 또는 실물 에셋      ← 교체는 이것만 갈아끼운다
 ```
+
+**작업 6.6(#37)에서 `TargetNormal` 만 먼저 교체됐다.** `Visual` 자식의 그레이박스 `Mesh`(Cube)를
+지우고 [저금통 일반형 3D 에셋](piggy-normal-asset.md)의 `PiggyNormalVisual.prefab` 을 nested prefab
+instance 로 끼웠다. `PiggyNormalVisual` 자신이 이미 0.4762 배율을 내장하고 있어 여기서는
+`localScale=1`·`localPosition=0` 그대로 둔다 — 이중 스케일 금지. `Target._visual` 필드는 여전히
+`Visual` GameObject 를 가리키므로 로직 참조는 바뀌지 않는다.
+`TargetAnchor`/`TargetRunner`/`TargetTourist` 는 해당 종류의 3D 에셋이 아직 없어(#9 는 일반형만
+다룸) 그레이박스 그대로 남아 있다 — 각자의 VARCO 3D 에셋 이슈가 열리면 같은 방식으로 교체한다.
 
 | 클래스 | 경로 | 하는 일 |
 |---|---|---|
@@ -88,12 +96,12 @@ TargetNormal (루트)          ← 로직: Target, CreatureMovement, SphereColli
 
 프리팹 4종은 `Assets/Prefabs/Targets/`, 머티리얼 4종은 `Assets/Materials/` 다.
 
-| 프리팹 | `_targetId` | 그레이박스 | 색 |
+| 프리팹 | `_targetId` | Visual 자식 | 색 |
 |---|---|---|---|
-| `TargetNormal` | `normal` | Cube | 청회색 |
-| `TargetAnchor` | `anchor` | Cylinder | 갈색 |
-| `TargetRunner` | `runner` | Sphere | 노랑 |
-| `TargetTourist` | `tourist` | Capsule | 초록 |
+| `TargetNormal` | `normal` | `PiggyNormalVisual.prefab` (실물, #37) | — |
+| `TargetAnchor` | `anchor` | Cylinder (그레이박스) | 갈색 |
+| `TargetRunner` | `runner` | Sphere (그레이박스) | 노랑 |
+| `TargetTourist` | `tourist` | Capsule (그레이박스) | 초록 |
 
 높이는 4종 모두 **0.4 유닛**이고 바닥이 `y=0` 에 닿는다. 기준은 [ASSET_PIPELINE](../ASSET_PIPELINE.md) 2절.
 
@@ -181,6 +189,18 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-17.
 * [x] 전체 검증 하네스 15종 전수 통과
 * [x] `convention-checker` 9대 규칙 전수 점검 통과 (위반 0건)
 
+### #37 TargetNormal 그레이박스 → 실물 에셋 교체 (2026-09-21)
+
+`Visual` 자식의 그레이박스 `Mesh`(Cube)를 지우고 `PiggyNormalVisual.prefab` 을 nested prefab
+instance 로 끼웠다. `TargetAnchor`/`Runner`/`Tourist` 는 대응하는 3D 에셋이 없어 이번 범위에서
+제외했다 — 위 "구조" 절 참고.
+
+* [x] `manage_prefabs get_hierarchy` 로 `TargetNormal.prefab` 구조 확인 — `Visual` 자식이
+  `PiggyNormalVisual` 하나뿐이고 그레이박스 `Mesh` 는 제거됨
+* [x] Play Mode(Game 씬)에서 `TargetNormal(Clone)` 6개가 새 프리팹으로 스폰, 콘솔 오류·경고 0건
+  (MCP 포트 재연결 로그만 존재) 확인 후 Play 종료, 씬 저장 안 함
+* [x] `Target._visual` 필드가 `Visual` GameObject 를 그대로 가리켜 로직 참조 안 깨짐 확인
+
 ## 알려진 한계
 
 * **파괴 연출이 없다.** 부서져도 오브젝트가 그대로 남거나 숨겨지는 연출은 작업 6.3 이다.
@@ -192,6 +212,8 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-17.
   보다 먼저** `SetUpgradeStats` 를 불러야 반영된다. 반경이 스폰 시점에 정해지는 것은 그대로다 —
   런 도중 레벨이 오르지 않으므로 문제가 되지 않는다 ([업그레이드](upgrades.md) "다음 런부터").
 * Play Mode 에서 타격 시 시각적 경직 모션 및 이펙트는 작업 6.3 에서 파티클 및 애니메이션과 함께 연출된다.
+* **`TargetAnchor`/`TargetRunner`/`TargetTourist` 는 아직 그레이박스다.** 각자의 3D 에셋(VARCO 3D
+  생성)이 나와야 #37 과 같은 방식으로 `Visual` 자식만 교체하면 된다.
 
 ## 갱신 이력
 
@@ -203,3 +225,4 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-17.
 | 2026-09-18 | #161 | saltlake00 | SafeDestroy 도입으로 에디트 모드 검증 시 Destroy 오류 제거 및 씬 잔류 방지 (#161) |
 | 2026-09-18 | #148 | saltlake00 | 크리처 스폰 비율 폴백 하드코딩 제거 및 Target.HitReceived 명명 규칙 정정, 검증 보강 |
 | 2026.09.18 | #197 | saltlake00 | 씬 재로드 후 이펙트 풀 파괴 객체 접근 방어 및 Target 예외 격리 (2.12) |
+| 2026-09-21 | #37 | Claude | `TargetNormal` 의 그레이박스 `Visual` 자식을 `PiggyNormalVisual.prefab` 로 교체 (6.6). `Anchor`/`Runner`/`Tourist` 는 3D 에셋 미확보로 그레이박스 유지 |
