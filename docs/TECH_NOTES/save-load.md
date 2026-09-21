@@ -88,10 +88,11 @@ flowchart LR
 | `SaveData` | `Assets/Scripts/Runtime/Data/SaveData.cs` | 저장 DTO. 이번 작업에서 `HasActiveBill`·`HasActiveLoan` 필드 추가 |
 | `ISaveService` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | `Load()`/`Save(SaveData)`/`HasSave` 계약 |
 | `IGamePersistence` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | 수집·분배·초기화 계약(#203). `SaveManager.Persistence`가 이 타입으로 노출. `ManagerBootstrap`·`GameManager`·`SettingsPanelController` 셋이 쓴다 |
-| `ManagerBootstrap` | `Assets/Scripts/Runtime/ManagerBootstrap.cs` | `WirePersistence()`로 저장 대상 6개를 주입하고, 이어서 복원을 **한 번** 실행 (#203) |
+| `ManagerBootstrap` | `Assets/Scripts/Runtime/ManagerBootstrap.cs` | `WirePersistence()`로 저장 대상 7개(#221 이 `IBillPersistence` 추가)를 주입하고, 이어서 복원을 **한 번** 실행 (#203) |
+| `IBillPersistence` | `Assets/Scripts/Runtime/Interfaces/IBillService.cs` | 날짜·고지서·대출·퍼크 후보 저장 복원 계약(#221). `BillManager` 가 구현하고 `SaveManager` 만 쓴다 |
 | `GameManager` | `Assets/Scripts/Runtime/Core/GameManager.cs` | 저장 시점 둘(`ContinueRun`·`NotifyEndRun`)과 새 회차 초기화(`StartNewRun`) (#203) |
 | `SettingsPanelController` | `Assets/Scripts/Runtime/UI/SettingsPanelController.cs` | 저장 초기화(#196). `ResetAndDistribute()` 로 `StartNewRun` 과 같은 경로를 쓴다 (#203) |
-| `SavePersistenceChecks` | `Assets/Scripts/Editor/SavePersistenceChecks.cs` | 저장 왕복·길이 불일치·초기화·호출부 위치 검증 20건 (#203) |
+| `SavePersistenceChecks` | `Assets/Scripts/Editor/SavePersistenceChecks.cs` | 저장 왕복·길이 불일치·초기화·호출부 위치 검증 21건 (#203, 고지서/대출 왕복은 #221) |
 
 ### 이벤트
 
@@ -151,6 +152,43 @@ Unity 6000.3.21f1 에디터, `UnityMCP execute_code`로 Edit Mode에서 직접 �
 검사는 파일 전체가 아니라 **메서드 본문만 잘라내어** 본다 — 다른 메서드의 호출이 대신 걸리면
 "어느 메서드에 두었는가"라는 이 카드의 핵심이 검사에서 빠진다.
 
+### 배선 (2026-09-21, #221)
+
+날짜·고지서·대출·퍼크 후보에 복원 통로가 없던 것을 `IBillPersistence`(`Restore*` + `Current*`,
+`IUpgradePersistence`·`ILegacyPersistence`와 같은 모양)로 잇는다. `BillManager`가 구현하고
+`SaveManager.SetPersistenceTargets` 7번째 인자로 받는다.
+
+- `CollectAndSave()` — `CurrentDay`·`CurrentBillIndex`·`ActiveBill`·`CurrentLoan`·
+  `LastLoanRepaidDay`·`OfferedPerkIds` 를 `SaveData` 에 담는다.
+- `LoadAndDistribute()` — **단계 복원(`_stage.RestoreStage`) 다음**에 `RestoreBillState` 를
+  부른다. `BillManager.IssueBill` 이 단계 번호를 읽어 고지서를 새로 낼 수 있어서, 단계가 아직
+  복원되지 않은 채로 부르면 잘못된 단계의 고지서가 나올 수 있다.
+- `RestoreBillState` 는 `_hasBegun = true` 도 함께 세운다. 세우지 않으면 복원 직후의
+  `BeginRun()` 이 이미 되돌린 `_currentDay` 를 다시 1일차부터 증가시킨다.
+
+`SavePersistenceChecks.RunBatch()` — `[SavePersistenceChecks] PASS 21 checks.`
+
+- [x] 날짜·고지서 진행 칸·활성 고지서 금액·활성 대출 원금·마지막 대출 상환일·퍼크 후보 2개를
+  심고 저장 → `SaveData` 에 그대로 담기는지 확인
+- [x] 위 값을 전부 다른 값으로 덮어쓴 뒤 `LoadAndDistribute()` → 심었던 값 그대로 복원
+
+#### Play Mode 왕복 (2026-09-21, #221)
+
+에디터 Play Mode. 실제 `save.json` 은 시작 전에 백업하고 끝나고 되돌렸다(복원 후 길이가
+원본과 바이트 단위로 일치함을 확인).
+
+`BillManager` 에 날짜 5 · 고지서 금액 12345 · 대출 원금 6789 · 마지막 상환일 2 · 퍼크 2개를
+심고 `CollectAndSave()` → `save.json` 에 그 값 그대로 기록됨을 확인 → Play 정지 후 재시작(C#
+도메인 리로드로 실제 앱 재실행과 동일하게 `ManagerBootstrap` 이 다시 조립·복원)
+→ `BillManager` 상태가 파일에서 그대로 복원됨을 확인 (`day=5 billIndex=3 billAmount=12345
+loanPrincipal=6789 lastRepaid=2 perks=verify_perk_A,verify_perk_B`).
+
+- [x] 리플렉션으로 조립한 EditMode 하네스가 아니라 `ManagerBootstrap` 이 실제로 조립하는
+  컴포넌트 그래프로 확인했다 — "배선이 빠졌는데 검사만 통과" 하는 함정이 없다
+- [x] 전체 검증 회귀: `ValidationRunner.RunAll()` 25종 중 24종 통과. 나머지 1건(`TargetChecks:
+  TargetNormal`)은 이번 변경 파일과 무관하고 PR #218 본문에도 이미 기존 결함으로 기록돼 있다
+- [ ] **빌드된 실행 파일에서는 확인하지 않았다** — 에디터 Play Mode 까지다
+
 #### Play Mode (2026-09-21)
 
 에디터 Play Mode, `Game` 씬. `Application.runInBackground = true` 로 두어 에디터가 포커스를
@@ -189,7 +227,7 @@ Unity 6000.3.21f1 에디터, `UnityMCP execute_code`로 Edit Mode에서 직접 �
 ## 알려진 한계
 
 - ~~**자동 로드/저장 호출부가 없다.**~~ — #203 에서 풀었다. `IEconomyService`에 없는 concrete API 문제는 계약을 늘리는 대신 `ManagerBootstrap` 주입으로 우회했다.
-- **고지서·대출·퍼크 후보를 저장하지 않는다.** `IBillService`에 복원 통로가 없어 담아 봐야 되돌릴 수 없다 — 쓰기만 하고 읽지 못하는 필드는 "저장된다"는 착각만 만든다 ([billing.md](billing.md) 알려진 한계). 별도 계약 이슈가 먼저다 — **#221(4.14)** 이 그 이슈다. 같은 이유로 `CurrentDay`·`BillIndex`·`LastLoanRepaidDay`·`OfferedPerkIds`·`PendingPerkIds`·`LastRunCoin`·`WasBankrupt`·`ResumePoint`·`BestRunCoin`·`LastCompletedDay`·`IsCompleted` 도 수집하지 않는다 — 수집하는 것은 코인·소수 잔여·업그레이드 레벨·레거시 포인트·반지 레벨·단계 여섯뿐이다.
+- ~~**고지서·대출·퍼크 후보를 저장하지 않는다.**~~ — #221 에서 `IBillPersistence` 로 풀었다. `CurrentDay`·`BillIndex`·`ActiveBill`·`ActiveLoan`·`LastLoanRepaidDay`·`OfferedPerkIds` 는 이제 수집·복원된다. 같은 이유로 여전히 수집하지 않는 필드는 `PendingPerkIds`·`LastRunCoin`·`WasBankrupt`·`ResumePoint`·`BestRunCoin`·`LastCompletedDay`·`IsCompleted` 다 — 복원 통로를 가질 계약이 아직 없어서다.
 - **저장 시점이 ARCHITECTURE 저장 경계보다 성기다.** 경계는 "구매·납부를 완료한 직후"도 요구하지만, 현재 배선은 고지서 화면을 떠날 때(`ContinueRun`)와 하루 종료 직후 둘뿐이다. 구매 직후 앱이 강제 종료되면 그 구매를 잃는다.
 - **런 도중 저장 초기화는 일관성 없는 상태를 남긴다.** #192 가 일시정지 패널에서 설정 패널을
   열 수 있게 하면서, 런 한가운데서 초기화 버튼에 닿을 수 있게 됐다. 그때 `ResetAndDistribute()`
@@ -213,3 +251,4 @@ Unity 6000.3.21f1 에디터, `UnityMCP execute_code`로 Edit Mode에서 직접 �
 | 2026-09-21 | #203 | twins6375-art | 매니저↔저장 배선. `IGamePersistence` 계약 추가, `ManagerBootstrap` 주입 + 앱 시작 1회 복원, `GameManager` 저장 시점 둘과 새 회차 초기화. `SavePersistenceChecks` 15건. "자동 로드/저장 호출부가 없다" 한계 해소 |
 | 2026-09-21 | #203 | twins6375-art | Play Mode 로 앱 시작 복원·구매 존속·새 회차 초기화를 확인하고 검증 절에 반영 |
 | 2026-09-21 | #203 | twins6375-art | `ResetAndDistribute()` 추가. 성장을 지우는 두 경로(새 회차 시작·설정 초기화)가 각자 빈 저장을 쓰다 답이 갈리던 것을 한 메서드로 모았다. 초기화 회귀 검사 5건 (15 → 20) |
+| 2026-09-21 | #221 | Yang | `IBillPersistence` 계약 추가로 날짜·고지서·대출·마지막 상환일·퍼크 후보 저장 복원 배선. `SavePersistenceChecks` 21건, Play Mode 왕복(정지·재시작 도메인 리로드 포함)으로 직접 확인. "고지서·대출·퍼크 후보를 저장하지 않는다" 한계 해소 |

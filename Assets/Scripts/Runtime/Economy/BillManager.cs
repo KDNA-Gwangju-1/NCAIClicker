@@ -18,7 +18,7 @@ namespace NCAIClicker.Economy
     ///
     /// Managers 프리팹(Resources/Managers)에 붙인다. 생성은 ManagerBootstrap 이 한다.
     /// </summary>
-    public class BillManager : MonoBehaviour, IBillService, IRunScoped
+    public class BillManager : MonoBehaviour, IBillService, IRunScoped, IBillPersistence
     {
         // SaveManager.Instance 와 같은 패턴 — 공용 인터페이스 타입으로 조회 통로만 연다 (AGENTS.md).
         // OnEnable 시점의 초기 상태를 한 번 읽는 용도(ARCHITECTURE 3절) — 이후 갱신은 OnBillIssued/OnBillDueSoon 구독으로 받는다.
@@ -69,6 +69,25 @@ namespace NCAIClicker.Economy
         public Bill ActiveBill => _activeBill;
 
         public string[] OfferedPerkIds => _offeredPerkIds;
+
+        public int CurrentBillIndex => _billIndex;
+
+        public Loan CurrentLoan => _activeLoan;
+
+        public int LastLoanRepaidDay => _lastLoanRepaidDay;
+
+        /// <summary>SaveManager 가 로드 직후 한 번 호출한다 (IBillPersistence, 이슈 #221). 저장된 날짜·고지서·대출을 그대로 되돌린다.</summary>
+        public void RestoreBillState(int currentDay, int billIndex, Bill activeBill,
+                                      Loan activeLoan, int lastLoanRepaidDay, string[] offeredPerkIds)
+        {
+            _currentDay = currentDay;
+            _billIndex = billIndex;
+            _activeBill = activeBill;
+            _activeLoan = activeLoan;
+            _lastLoanRepaidDay = lastLoanRepaidDay;
+            _offeredPerkIds = offeredPerkIds ?? Array.Empty<string>();
+            _hasBegun = true;
+        }
 
         private void Awake()
         {

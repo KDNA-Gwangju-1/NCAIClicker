@@ -33,4 +33,24 @@ namespace NCAIClicker.Interfaces
         /// </summary>
         void DeclareBankruptcy();
     }
+
+    /// <summary>
+    /// 날짜·고지서·대출 저장 복원 계약. SaveManager 만 쓴다 (이슈 #221, #143 제안 계승).
+    ///
+    /// CurrentDay·ActiveBill·OfferedPerkIds 는 IBillService 에 이미 있는 프로퍼티와 이름이
+    /// 같다 — BillManager 는 그 프로퍼티를 새로 만들지 않고 그대로 이 계약도 만족한다.
+    /// IUpgradePersistence·ILegacyPersistence 와 같은 모양(Restore* 메서드 + Current* 조회)을 쓴다.
+    /// </summary>
+    public interface IBillPersistence
+    {
+        void RestoreBillState(int currentDay, int billIndex, Bill activeBill,
+                              Loan activeLoan, int lastLoanRepaidDay, string[] offeredPerkIds);
+
+        int CurrentDay { get; }
+        Bill ActiveBill { get; }
+        string[] OfferedPerkIds { get; }
+        int CurrentBillIndex { get; }
+        Loan CurrentLoan { get; }
+        int LastLoanRepaidDay { get; }
+    }
 }
