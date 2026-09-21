@@ -66,7 +66,7 @@ namespace NCAIClicker.Economy
             // (BALANCE 3절 "비용 성장률은 4종 공통").
             var growth = def.CostGrowth > 0f ? def.CostGrowth : _balance.Economy.UpgradeCostGrowth;
 
-            cost = GrowthFormula.NextCost(def.InitCost, growth, _levels[index]);
+            cost = GrowthFormula.GetNextCost(def.InitCost, growth, _levels[index]);
             return true;
         }
 

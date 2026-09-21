@@ -67,7 +67,7 @@ namespace NCAIClicker.Economy
             // 곡선이라 포인트 곡선에 끌어다 쓰면 두 화폐가 조용히 엮인다.
             var growth = def.CostGrowth > 0f ? def.CostGrowth : 1f;
 
-            cost = GrowthFormula.NextCost(def.InitCost, growth, _levels[index]);
+            cost = GrowthFormula.GetNextCost(def.InitCost, growth, _levels[index]);
             return true;
         }
 

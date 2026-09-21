@@ -283,7 +283,9 @@ namespace NCAIClicker.EditorTools
             try
             {
                 fake = ScriptableObject.CreateInstance<BalanceData>();
-                fake.Economy = new EconomyConfig { LegacyPointPerAmount = 50f, UpgradeCostGrowth = 1f };
+                // 계수는 CSV 실제값과 **일부러 다르게** 둔다. 같은 숫자를 두 곳에 적으면 CSV 를 고칠 때
+                // 이 검증이 왜 깨지는지 알기 어려워진다 (AGENTS.md).
+                fake.Economy = new EconomyConfig { LegacyPointPerAmount = 10f, UpgradeCostGrowth = 1f };
                 fake.Upgrades.Add(new UpgradeDef
                 {
                     Id = "u", DisplayName = "u", InitCost = 1L, CostGrowth = 1f, MaxLevel = 1, SortOrder = 1,
@@ -350,10 +352,10 @@ namespace NCAIClicker.EditorTools
         /// </summary>
         private readonly struct Accessors
         {
-            public readonly IEconomyService Instance;
-            public readonly IUpgradeShop Shop;
-            public readonly IRingShop RingShop;
-            public readonly ILegacyService Legacy;
+            public IEconomyService Instance { get; }
+            public IUpgradeShop Shop { get; }
+            public IRingShop RingShop { get; }
+            public ILegacyService Legacy { get; }
 
             public Accessors(IEconomyService instance, IUpgradeShop shop, IRingShop ringShop, ILegacyService legacy)
             {

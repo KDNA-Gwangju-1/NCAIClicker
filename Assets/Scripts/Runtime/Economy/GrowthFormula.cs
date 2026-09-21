@@ -28,7 +28,7 @@ namespace NCAIClicker.Economy
         /// <summary>
         /// 다음 레벨 비용. 화폐 단위는 부르는 쪽이 정한다 — 업그레이드는 코인, 반지는 레거시 포인트다.
         /// </summary>
-        public static long NextCost(long initCost, float growth, int currentLevel)
+        public static long GetNextCost(long initCost, float growth, int currentLevel)
         {
             var raw = initCost * Math.Pow(growth, currentLevel);
             return (long)Math.Ceiling(raw);
