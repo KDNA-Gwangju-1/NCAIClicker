@@ -137,6 +137,7 @@ AI에게 시켜도 제대로 못 고친다.
 - [저장·불러오기](save-load.md) — SaveManager, JsonUtility 직렬화, 버전 마이그레이션, null 직렬화 우회
 - [런 상태 머신](run-state.md) — GameManager, 씬 로드 기반 MainMenu/Running 전이, 이벤트 기반 Result 전이
 - [퍼크 효과](perks.md) — 고른 퍼크를 각 소유자가 스스로 적용, 즉시/예약 분기, 런 경계를 씬까지 확장
+- [레거시 포인트와 반지](legacy-points.md) — 고지서 납부로 쌓이는 영구 화폐, 파산을 넘어 남는 반지, 업그레이드와 공식 공유, 자발적 파산
 - [퍼크 3장 선택 화면](perk-choice-ui.md) — 납부 직후 후보 3장 제시, timeScale 정지와 삼중 복원, 취소 없는 선택, Managers 프리팹 자기 배선
 - [단계 목표 판정](stage-goal.md) — StageGoalManager, 런 순수입과 GoalCoin 비교, 런당 1회 발행
 - [효과음](sound-effects.md) — AudioManager, GameEvents 구독 후 PlayOneShot, 타격·코인·피버·고지서 효과음

@@ -1,6 +1,6 @@
 # 하루 진행과 고지서
 
-> 관련 이슈: #27, #28, #29, #150, #30, #164, #92 · 최종 수정: 2026-09-18
+> 관련 이슈: #27, #28, #29, #150, #30, #164, #92, #175 · 최종 수정: 2026-09-21
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -190,6 +190,19 @@ EndRun()  → OnDayEnded 발행
           → OnBankrupt 발행 → 회차 초기화
 ```
 
+### 스스로 선언하는 파산 (#175)
+
+플레이어가 고지서 화면의 **파산 선고** 탭으로 직접 파산할 수 있다 — 원작과 같은 자리다.
+`IBillService.DeclareBankruptcy()` 가 진입점이고 **미납 파산과 같은 처리(`HandleBankruptcy`)를
+부른다.** 두 갈래로 나누면 한쪽만 고쳐졌을 때 결과가 달라진다.
+
+되돌릴 수 없으므로 **확인창을 한 번 거친다.** 확인은 화면 쪽에만 둔다 — `BillManager` 가 다시
+묻지 않는다. 두 곳에 두면 한쪽을 건너뛰는 경로가 생긴다.
+
+고지서가 없으면 버튼이 잠긴다. 낼 것이 없는데 파산을 선언하면 잃기만 하고 얻는 것이 없다.
+
+자세한 것은 [레거시 포인트와 반지](legacy-points.md).
+
 ### 마감일은 낼 수 있는 마지막 날이다
 
 `DueDay` 당일에 런이 끝나면서 미납이면 **그 시점에 파산**이다. 하루를 더 넘겨야 파산하는
@@ -239,7 +252,8 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 | 대출·재대출 쿨다운 | 없음으로 | |
 | 퍼크 후보 | 비움 | |
 | 코인·소수 잔여 | **0 으로 초기화** | `IWalletPersistence` 소비자에 `BillManager` 를 추가해 열었다 (#158) |
-| **영구 업그레이드** | **유지** | 회차를 넘겨 남는 유일한 성장이다 |
+| **영구 업그레이드** | **유지** | 회차를 넘겨 남는다 |
+| **레거시 포인트·반지** | **유지** | 파산을 넘어 남는 영구 층 ([#183](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/183)). 회차 초기화가 `IWalletPersistence` 로 코인만 비우므로 이쪽은 닿지 않는다 — [레거시 포인트와 반지](legacy-points.md) |
 | **단계** | 1단계로 | `IStageService.RestoreStage(0)`. #150 이 단일 출처를 열어 주었고 그 주석이 "저장 복원 및 **파산 처리용**"으로 이 자리를 가리킨다 |
 
 ## 알려진 한계
@@ -277,3 +291,4 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 | 2026-09-18 | #33 | yahoo-afk | `BillHud`에 마감 임박 강조(`_emphasisDaysLeft`, 기본 2)와 `OnBillPaid` 구독 추가, `OnEnable`에서 `IBillService.ActiveBill`로 금액까지 조회. `GameHud.prefab`이 `BillHud.prefab`을 대체 — [ingame-hud.md](ingame-hud.md) |
 | 2026-09-18 | #92 | twins6375-art | 퍼크 선택 화면이 붙어 관련 한계를 닫았다. 납부 통로가 없다는 사실(`TryPay` 호출처 0)을 한계에 명시 |
 | 2026.09.18 | #173 | saltlake00 | HUD 프리팹 중복 정리. BillHud.prefab 에셋 삭제 및 GameHud 단일화 (1.25) |
+| 2026-09-21 | #175 | twins6375-art | 자발적 파산 진입점(`DeclareBankruptcy`) 추가와 고지서 화면 파산 선고 잠금 해제. 회차 초기화 표에 레거시 포인트·반지를 '유지' 로 명시 |

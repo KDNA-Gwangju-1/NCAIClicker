@@ -1,0 +1,167 @@
+# 레거시 포인트와 반지
+
+> 관련 이슈: #175, #183 · 최종 수정: 2026-09-21
+
+**이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
+
+## 무엇을 하는가
+
+고지서를 납부하면 **레거시 포인트**가 쌓이고, 그 포인트로 **반지**를 산다. 반지 효과는 **파산해도 남는다.**
+
+이것이 파산의 의미를 바꾼다. 파산은 "다 잃는 것"이 아니라 **영구 성장을 정산하는 행위**가 되고, 고지서는 벌금이 아니라 투자가 된다. 플레이어가 고지서 화면에서 **스스로 파산을 선언**할 수도 있다.
+
+게임 규칙은 [GDD](../GDD.md) 4·9절, 원작 대조는 [REFERENCE_ANALYSIS](../REFERENCE_ANALYSIS.md) 7절에 있다.
+
+## 왜 이 방법인가
+
+| 검토한 방법 | 채택 | 이유 |
+|---|---|---|
+| `OnBillPaid` 를 구독해 적립 | ✅ | 이벤트가 `Bill` 을 통째로 실어 주므로 금액을 읽을 수 있다. **`BillManager` 를 한 줄도 건드리지 않는다** — 같은 시기에 고지서 쪽을 손대는 작업과 파일이 겹치지 않는다 |
+| `BillManager.TryPay` 안에서 직접 적립 | ❌ | 코인 차감과 포인트 적립이 한 메서드에 섞이고, 고지서 모듈이 화폐를 하나 더 알게 된다 |
+| 반지를 `upgrades.csv` 에 한 축으로 합치기 | ❌ | 회차 성장과 영구 성장이 **같은 축에 얹히는 것이 원래 문제**였다 (#183). 합치면 그대로다 |
+| 반지 데이터를 업그레이드와 같은 모양으로 복제 | ✅ | `rings.csv` + `ring_effects.csv` 가 `upgrades.csv` + `upgrade_effects.csv` 와 열 구성이 같다. 소비처는 이미 `IUpgradeStats.GetStat` 으로 읽고 있어 **코드가 한 줄도 바뀌지 않았다** |
+| `RingState` 를 `UpgradeState` 복사로 작성 | ❌ | 실효값·비용 공식이 두 벌이 된다. 한쪽만 고쳐졌을 때 서로 다른 답을 내놓고 어느 쪽이 맞는지 알 수 없다 |
+| 공식만 `GrowthFormula` 로 뽑아 공유 | ✅ | 규칙은 한 벌, 레벨 보관은 각자. `UpgradeState` 도 이 공식을 쓰도록 바꿨고 기존 검증이 그대로 통과한다 |
+| `IRingShop` 을 `IUpgradeShop` 과 합치기 | ❌ | 쓰는 화폐가 다르다. 합치려면 화폐를 인자로 받아야 하고, 이미 머지된 업그레이드 구매 화면(6.8)의 계약을 깨야 한다 |
+| 자발적 파산을 결과 화면에 두기 | ❌ | 원작은 **고지서 화면**이다. 게다가 그 자리에 잠긴 버튼이 이미 있었다 (#34 가 "#175 범위라 잠근 채 자리만 둔다"고 남겨 뒀다) |
+| 반지 상점을 `MainMenu` 씬에 두기 | ❌ | `MainMenu` 는 다른 담당의 씬이라 고칠 수 없다. 고지서 패널의 탭이 자기 배선이면서 맥락도 맞다 — 포인트를 얻는 화면에서 쓴다 |
+
+## 구조
+
+```mermaid
+flowchart LR
+  subgraph Economy["경제"]
+    bill[BillManager<br/>TryPay 로 납부<br/>DeclareBankruptcy 로 자발적 파산]
+    econ[EconomyManager<br/>포인트 적립·소비<br/>GetStat 합성]
+    rings[RingState<br/>반지 레벨·비용]
+    ups[UpgradeState<br/>업그레이드 레벨·비용]
+    formula[[GrowthFormula<br/>실효값·비용 공식 한 벌]]
+  end
+
+  subgraph UI["UI"]
+    panel[BillPanelController<br/>파산 선고 + 확인창<br/>반지 탭]
+    shop[RingShopPanel / RingShopEntry<br/>반지 구매]
+  end
+
+  subgraph Save["저장 — 아직 배선되지 않았다"]
+    save[SaveManager<br/>SaveData v3 필드는 있으나<br/>읽거나 쓰는 곳이 없다]
+  end
+
+  events{{"GameEvents"}}
+
+  bill -- "OnBillPaid 발행" --> events
+  events -- "OnBillPaid 구독" --> econ
+  econ --> rings
+  econ --> ups
+  rings --> formula
+  ups --> formula
+  panel -- "DeclareBankruptcy (IBillService)" --> bill
+  shop -- "TryPurchaseRing (IRingShop)" --> econ
+  shop -- "잔액 조회 (ILegacyService)" --> econ
+  save -. "RestoreLegacy (ILegacyPersistence)<br/>**미배선**" .-> econ
+```
+
+| 클래스 | 경로 | 하는 일 |
+|---|---|---|
+| `ILegacyService` | `Runtime/Interfaces/IEconomyService.cs` | 포인트 적립·조회·소비 |
+| `IRingShop` | 〃 | 반지 레벨·비용·구매 |
+| `ILegacyPersistence` | 〃 | 포인트·반지 레벨 저장 복원. `SaveManager` 만 쓸 계약이지만 **아직 아무도 부르지 않는다** (아래 한계) |
+| `EconomyManager` | `Runtime/Economy/EconomyManager.cs` | 위 세 계약의 구현. `OnBillPaid` 를 구독해 적립하고 `GetStat` 에서 반지를 얹는다 |
+| `BillManager` | `Runtime/Economy/BillManager.cs` | `DeclareBankruptcy()` 를 열어 자발적 파산 진입점을 만든다 |
+| `BillPanelController` | `Runtime/UI/BillPanelController.cs` | 파산 선고 버튼·확인창과 반지 탭 |
+| `SaveManager` | `Runtime/SaveManager.cs` | `SaveData` v3 마이그레이션. 포인트·반지 배선은 아직 없다 |
+| `IBillService.DeclareBankruptcy` | `Runtime/Interfaces/IBillService.cs` | 자발적 파산 진입점 |
+| `GrowthFormula` | `Runtime/Economy/GrowthFormula.cs` | 실효값·비용 공식. **업그레이드와 반지가 공유한다** |
+| `RingState` | `Runtime/Economy/RingState.cs` | 반지 레벨 보관과 계산 |
+| `RingShopPanel` / `RingShopEntry` | `Runtime/UI/` | 반지 상점 화면 |
+
+### 이벤트
+
+| 이벤트 | 발행/구독 | 언제 |
+|---|---|---|
+| `GameEvents.OnBillPaid` | 구독 (`EconomyManager`) | 납부 직후. 금액에 비례해 포인트를 적립한다 |
+| `GameEvents.OnBankrupt` | — | 자발적 파산도 미납 파산과 **같은 경로**라 `BillManager` 가 발행한다 |
+
+**포인트 변동 이벤트를 새로 만들지 않았다.** 포인트는 고지서를 낼 때와 반지를 살 때만 바뀌는데, 상점 화면은 살아날 때 한 번 읽고 구매는 콜백으로 받는다. 이벤트를 늘릴 이유가 없었다.
+
+### 읽는 밸런스 값
+
+| CSV | 열 | 쓰는 곳 |
+|---|---|---|
+| `economy.csv` | `legacy_point_per_amount` | 납부액 이만큼당 1점 |
+| `rings.csv` | `display_name`·`description`·`init_cost`·`cost_growth`·`max_level`·`sort_order` | 반지 정의와 비용 |
+| `ring_effects.csv` | `stat`·`effect_type`·`value_per_level` | 반지 효과 |
+
+**수치는 문서에 적지 않는다.** 전부 잠정값이고 3.8(#176) 재계산 뒤 확정한다 — 각 CSV 행의 `note` 에 그렇게 적혀 있다.
+
+### 합성 순서 — 업그레이드 먼저, 반지 나중
+
+`GetStat` 은 업그레이드를 얹은 값 위에 반지를 얹는다. 영구 층이 회차 층 위에 온다는 3층 구조를 순서로 못 박은 것이다.
+
+지금은 반지 효과가 전부 `add` 라 **순서를 바꿔도 값이 같다.** `percent` 효과가 생기는 순간 갈리므로 규칙을 미리 정하고 검증으로 고정했다.
+
+### 저장 — 계약과 필드만 있고 아직 배선되지 않았다
+
+**지금 포인트와 반지는 저장되지 않는다.** `SaveManager` 가 `RestoreLegacy`/`CurrentRingLevels` 를
+부르지 않고, `SaveData.LegacyPoints`·`RingLevels` 도 읽거나 쓰는 곳이 없다.
+
+이것은 이 작업이 만든 구멍이 아니라 **기존 상태를 그대로 따른 것**이다 — `IUpgradePersistence` 도
+같은 상태이고 [공용 계약](contracts.md)이 그렇게 기록해 두었다. `SaveManager` 가 영속 계약을
+매니저에 연결하는 일 자체가 아직 없다. 여기서 혼자 연결하면 업그레이드와 다른 방식이 두 벌 생긴다.
+
+`SaveData` 를 v2 → **v3** 으로 올리고 `LegacyPoints`·`RingLevels` 를 더했다. 마이그레이션 분기는 지우지 않고 누적한다.
+
+**v2 저장에서 `RingLevels` 는 `null` 로 온다.** JsonUtility 는 없는 배열 필드를 빈 배열이 아니라 `null` 로 되살린다 (`OfferedPerkIds` 와 같다). 실제로 확인했고, 복원하는 쪽이 `null` 과 길이 부족을 모두 감당한다.
+
+## 검증
+
+### Edit Mode (2026-09-21)
+
+`LegacyPointChecks.RunBatch()` — **22건 PASS**. `ValidationRunner.RunAll()` 전체 **21/21, 실패 0**.
+
+- [x] 계수 3배를 내면 3점. **계수보다 작은 납부는 0점이고 나머지를 이월하지 않는다** (반쪽 납부 두 번에도 0점)
+- [x] 소비 성공/실패/0, 실패한 소비가 잔액을 건드리지 않는다
+- [x] `OnDisable` 뒤에는 적립되지 않는다 (구독 쌍)
+- [x] 반지: 포인트 없이 실패, 없는 id, 첫 비용 = `init_cost`, 차감액 일치, **코인 불변**, 최대 레벨 정지
+- [x] **파산해도 포인트와 반지 레벨이 남는다** — 파산이 실제로 부르는 `RestoreWallet(0)` 경로와 런 경계 양쪽
+- [x] 저장 왕복, `null` 복원, 음수 포인트 차단
+- [x] 합성 순서 (업그레이드 → 반지)
+- [x] `rings.csv` 가 `sort_order` 로 정렬 (어긋나면 저장이 다른 반지에 실린다)
+
+`ContractsValidationChecks` 에 저장 마이그레이션 검증을 더했다 — **1부터 현재 버전까지 모든 저장이 통과하는지** 본다.
+
+**변이 테스트로 실제로 잡는지 확인했다.**
+
+| 심은 결함 | 잡은 메시지 |
+|---|---|
+| 파산이 포인트를 지우게 함 | "파산 경로가 레거시 포인트를 지웠습니다. 영구 성장이 사라집니다." |
+| 합성 순서 반전 | "22 인데 12 입니다. 12 라면 순서가 반대입니다." |
+| 버전만 올리고 마이그레이션 분기 누락 | "저장 버전 3 의 마이그레이션 분기가 없다." |
+
+합성 순서는 **실제 CSV 로는 관측되지 않아** `percent` 를 섞은 임시 `BalanceData` 를 만들어 본다.
+
+### 화면 (2026-09-21)
+
+- [x] 고지서 패널에 반지 탭이 붙고 참조가 모두 물렸다 — `BillPanelChecks` 가 `_ringTabRoot` 미배선을 잡아 주었다
+- [x] 파산 선고 버튼이 **바로 파산시키지 않고 확인창을 띄운다.** "돌아간다"로 취소된다
+- [x] 반지 카드가 이름·효과·레벨·비용·보유 포인트를 채운다 (전부 CSV 와 조회에서 온다)
+
+**미검증**: Play Mode. 납부 → 적립 → 반지 구매 → 자발적 파산 → 다음 회차에 반지 효과 유지까지 이어지는 흐름을 아직 실제로 돌려 보지 않았다.
+
+## 알려진 한계
+
+- **포인트와 반지가 저장되지 않는다.** 계약과 `SaveData` 필드는 있지만 `SaveManager` 가 부르지
+  않는다 — 앱을 끄면 사라진다. `IUpgradePersistence` 와 같은 상태이고, 영속 계약을 매니저에
+  연결하는 일은 별도 작업이다. **파산을 넘어 남는다는 이 기능의 핵심이 세션 안에서만 성립한다**
+- **수치가 전부 잠정값이다.** 적립 계수·반지 효과·비용 모두 3.8([#176](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/176)) 재계산 뒤 확정한다. #176 은 피버를 콤보로 바꿀지도 검토 중이라 **반지 효과를 피버·코인 계열 스탯에 걸지 않았다**
+- **저장 v3 은 되돌리기 어렵다.** 마이그레이션 분기는 누적 규칙이라 되돌리려면 v4 가 된다
+- **반지가 2종뿐이다.** 구조를 증명할 최소 구성이고, 원작처럼 여러 종을 고르는 재미는 아직 없다
+- **포인트를 얻는 경로가 고지서 납부 하나뿐이다.** 원작도 그렇지만, 우리는 파산 후 첫 고지서를 내기 전까지 포인트가 전혀 늘지 않는다
+- **자발적 파산의 득실이 화면에 안 보인다.** 확인창이 "코인과 진행이 사라지고 반지는 남는다"고 글로만 적는다. 지금 몇 점을 들고 있는지, 이번 회차에 몇 점을 벌었는지는 안 보여 준다
+- **반지 상점이 게임 안(고지서 화면)에만 있다.** 메인 메뉴의 업그레이드 상점(6.8) 옆에는 없다
+
+## 갱신 이력
+
+| 날짜 | 이슈 | 누가 | 무엇이 바뀌었나 |
+|---|---|---|---|
+| 2026-09-21 | #175 · #183 | twins6375-art | 최초 작성. 계약 3종과 저장 v3, 납부 적립, 반지 데이터·구매·상점 화면, 자발적 파산. `GrowthFormula` 로 업그레이드와 공식 공유. `LegacyPointChecks` 22건 |
