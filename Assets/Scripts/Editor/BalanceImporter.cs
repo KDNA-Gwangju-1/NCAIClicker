@@ -208,6 +208,7 @@ namespace NCAIClicker.EditorTools
 
             EditorUtility.SetDirty(existing);
             AssetDatabase.SaveAssetIfDirty(existing);
+            AssetDatabase.SaveAssets();
             Debug.Log(string.Format(
                 "[밸런스 임포트] 완료 — 대상 {0}종, 업그레이드 {1}종, 단계 {2}개. " +
                 "회복 제외 기본 런 {3:0.0}초 (실제 수입·납부 가능성은 플레이 검증 필요)",
