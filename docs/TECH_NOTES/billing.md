@@ -1,6 +1,6 @@
 # 하루 진행과 고지서
 
-> 관련 이슈: #27, #28, #29, #150, #30, #164, #92, #175, #203 · 최종 수정: 2026-09-21
+> 관련 이슈: #27, #28, #29, #150, #30, #164, #92, #175, #203, #212 · 최종 수정: 2026-09-21
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
 ## 무엇을 하는가
@@ -35,6 +35,10 @@
 | (#158) `IWalletPersistence` 소비자에 `BillManager` 추가 (A안) | ✅ | #30 에서 이슈로 발의해 합의를 거쳤다. 지금 필요한 곳이 `SaveManager` 외에 하나(`BillManager`)뿐이라 소비자 목록만 넓히는 것이 새 계약(`IRoundResettable` 등)을 파는 것보다 작다 — 소비처가 둘 이상 될 때 승격한다는 #116 의 교훈을 따랐다 |
 | (#158) 전용 `IRoundResettable` 계약 신설 (B안) | ❌ | 구현자가 `EconomyManager` 하나뿐이라 계약만 만들고 소비처가 없던 #116 의 전철을 밟을 위험이 컸다. 3.7(#150)이 되돌릴 대상을 더 만들면 그때 승격한다 |
 | (#158) `EconomyManager` 가 `OnBankrupt` 를 직접 구독 (C안) | ❌ | `OnBankrupt` 는 GameManager 만 구독한다는 제한(ARCHITECTURE 3절)이 흐려지고, "종료 순서는 GameManager 가 조정한다"는 원칙과도 어긋난다 |
+| (#212) 납부 실패 시 부족액을 `PayCaption` 라벨로 표시 | ✅ | `_economyService.CurrentCoin` 과 `bill.Amount` 차이만 화면에 적을 뿐 코인을 건드리지 않는다 — 표시와 차감을 분리해 `EconomyManager` 경계를 지킨다 |
+| (#212) 기한 당일에도 `[아직]` 버튼을 계속 보이게 둠 | ✅ | 종전에는 기한 당일에 숨겨져, 잔액 부족으로 `TryPay` 가 실패하면 모달에서 빠져나갈 방법이 없었다. 미루는 선택지를 막는 규칙은 `BillManager.IsBillOverdue()` 의 날짜 비교가 지키므로 이 버튼을 숨길 이유가 없다 |
+| (#212) `BillPanelChecks` 에서 납부 실패 검증 시 `onClick.Invoke()` 로 클릭 시뮬레이션 | ❌ | `_payButton.onClick` 리스너는 `OnEnable` 에서 등록되는데, `[ExecuteAlways]` 가 없는 `BillPanelController` 는 Edit Mode(플레이 모드 밖)에서 `OnEnable` 이 돌지 않는다. `NCAI/전체 검증 실행` 은 Edit Mode 에서 프리팹을 인스턴스화하므로 `Invoke()` 가 리스너 0개를 부르고 조용히 통과해 버린다 |
+| (#212) `HandlePayClicked` 를 리플렉션으로 직접 호출 | ✅ | 실제 클릭 경로(`OnEnable` 배선)는 Play Mode 에서 별도로 확인했다. 검증이 묻는 질문은 "버튼을 누르면 이 메서드가 불리는가"가 아니라 "이 메서드가 부족액을 맞게 그리는가"이므로, Edit Mode 검증에서는 메서드를 직접 불러도 계약을 어기지 않는다 |
 
 ## 구조
 
@@ -79,6 +83,8 @@ flowchart LR
 | `BillHud` | `Assets/Scripts/Runtime/UI/BillHud.cs` | `OnBillIssued`/`OnBillDueSoon` 구독, `TextMeshProUGUI`에 "D-N  N원" 형식으로 표시 |
 | (프리팹) | 삭제됨 (#173) | 본래 Assets/Prefabs/UI/BillHud.prefab 이었으나 GameHud.prefab 으로 단일화되어 삭제됨 |
 | `BillManagerChecks` | `Assets/Scripts/Editor/BillManagerChecks.cs` | EditMode 배치 검증. `MenuItem` 없이 `RunBatch()`를 외부에서 호출한다 |
+| `BillPanelController` | `Assets/Scripts/Runtime/UI/BillPanelController.cs` | 고지서 화면(모달/탭 겸용). `TryPay` 실패 시 부족액을 `PayCaption` 에 표시하고, 기한 당일에도 `[아직]` 으로 모달을 빠져나갈 수 있게 둔다(#212). 파산 선고 확인창·반지 탭은 [레거시 포인트와 반지](legacy-points.md) |
+| `BillPanelChecks` | `Assets/Scripts/Editor/BillPanelChecks.cs` | 고지서 화면 Edit Mode 검증. 모달/탭 상태별 노출, 기한 당일 표기, 납부 실패 캡션(#212), 이름 생성 결정성을 본다 |
 
 ### 이벤트
 
@@ -255,6 +261,36 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 | **레거시 포인트·반지** | **유지** | 파산을 넘어 남는 영구 층 ([#183](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/183)). 회차 초기화가 `IWalletPersistence` 로 코인만 비우므로 이쪽은 닿지 않는다 — [레거시 포인트와 반지](legacy-points.md) |
 | **단계** | 1단계로 | `IStageService.RestoreStage(0)`. #150 이 단일 출처를 열어 주었고 그 주석이 "저장 복원 및 **파산 처리용**"으로 이 자리를 가리킨다 |
 
+### 납부 실패가 아무 표시 없이 무시된다 (2026-09-21, #212)
+
+**버그**: 고지서 모달에서 잔액 부족으로 `TryPay` 가 실패해도 화면에 아무 표시가 없었다. 게다가
+기한 당일에는 `[아직]` 버튼이 숨겨져 있어, 납부에 실패하면 모달에서 빠져나갈 방법이 없었다 —
+납부하거나 갇히거나 둘 중 하나였다.
+
+**고침**: `HandlePayClicked` 가 `TryPay` 실패 시 `_payCaptionText` 에 `"${부족액:N0} 부족"` 을
+채운다(`ResultUIController` 의 기존 금액 표기 형식과 맞춤). `RenderButtons` 에서 `[아직]` 을
+숨기던 기한 당일 조건을 없앴다 — 미루는 선택지를 막는 원작 규칙은 이 버튼이 아니라
+`BillManager.IsBillOverdue()` 의 날짜 비교가 맡으므로, 버튼을 숨길 근거가 없었다.
+`BillPanelPrefabCreator` 에 `PayCaption` 라벨을 추가하고 `ActionColumn` 크기를 `(760, 180)` →
+`(760, 210)` 으로 늘려 겹침 없이 배치했다.
+
+**Edit Mode**: `BillPanelChecks.RunBatch()` — 기존 due-day 검증에 `ShouldFailPay` 스위치와 실패
+캡션 어서션을 더했다. `NCAI/전체 검증 실행`: **23/24 PASS** (유일한 실패는 `TargetChecks` 의
+`TargetNormal: Visual 아래 Mesh 자식이 없습니다` — 이 브랜치가 건드리지 않은 기존 실패다).
+
+검증이 `onClick.Invoke()` 로 클릭을 흉내 내면 리스너 0개를 불러 조용히 실패한다(위 "왜 이
+방법인가" 참고) — `HandlePayClicked` 를 리플렉션으로 직접 호출하도록 고쳤다.
+
+**Play Mode**: 실제 버튼 클릭(등록된 리스너 경유)으로 두 경로를 확인했다.
+- 잔액 10원 부족 상태에서 납부 클릭 → `PayCaption` 이 `"$10 부족"` 으로 표시, `LoanColumn` 과
+  겹치지 않고 `ActionColumn` 안에 온전히 들어간다(`RectTransform.GetWorldCorners()` 로 확인)
+- `DaysLeft=1`(기한 당일, `"지금 납부!"`) 에서도 `[아직]` 이 보이고 클릭하면 `CurrentMode` 가
+  `Tab` 으로 전환된다 — 모달에 갇히지 않는다
+
+`UiGuidelineChecks` 가 새 `PayCaption` 에 대해 글자크기(18px < 캡션 최소 20px)·대비(2.88:1 <
+4.5:1) 권고 2건을 추가로 냈다 — 같은 화면의 기존 `LoanCaption` 과 동일한 스타일이라 일관성을
+위해 그대로 두었다. 하드 실패는 아니다(`UiGuidelineChecks` 는 여전히 `PASS`).
+
 ## 알려진 한계
 
 - ~~`GameManager`가 `BillManager.BeginRun()`/`EndRun()`을 호출하지 않는다.~~ — #164 에서 `IRunScoped` 를 구현해 붙였다. Play Mode 로 하루 진행·고지서 발행·파산 발동을 확인했다 (위 검증).
@@ -292,3 +328,4 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 | 2026.09.18 | #173 | saltlake00 | HUD 프리팹 중복 정리. BillHud.prefab 에셋 삭제 및 GameHud 단일화 (1.25) |
 | 2026-09-21 | #175 | twins6375-art | 자발적 파산 진입점(`DeclareBankruptcy`) 추가와 고지서 화면 파산 선고 잠금 해제. 회차 초기화 표에 레거시 포인트·반지를 '유지' 로 명시 |
 | 2026-09-21 | #203 | twins6375-art | 매니저↔저장 배선이 붙었으나 고지서·대출·파산 결과는 `IBillService` 에 복원 통로가 없어 범위 밖으로 남은 사실을 한계에 명시 |
+| 2026-09-21 | #212 | Claude | 납부 실패 무표시·기한 당일 탈출 불가 버그 수정. `PayCaption` 부족액 표시, `[아직]` 상시 노출, `BillPanelChecks` 실패 캡션 검증 추가 |

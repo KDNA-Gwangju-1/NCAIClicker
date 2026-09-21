@@ -102,8 +102,10 @@ namespace NCAIClicker.EditorTools
         }
 
         /// <summary>
-        /// 기한 당일이면 "지금 납부!" 로 바뀌고 [아직] 이 사라진다 (원작).
-        /// 미루는 선택지를 잠그는 게 아니라 없앤다 — 잠긴 버튼은 "왜 안 눌리지" 를 만든다.
+        /// 기한 당일이면 "지금 납부!" 로 바뀐다 (원작). [아직] 버튼은 기한 당일에도 계속 보인다
+        /// (#212) — 미루는 선택지를 막는 규칙은 이 버튼의 숨김이 아니라
+        /// <c>BillManager.IsBillOverdue()</c> 의 날짜 비교가 맡는다. 숨기면 납부 실패 시 모달에서
+        /// 빠져나갈 길이 없어진다. 잔액 부족으로 납부가 실패하면 부족액을 캡션으로 보여준다.
         /// </summary>
         private static int RunDueDayChecks()
         {
@@ -123,10 +125,24 @@ namespace NCAIClicker.EditorTools
 
                 service.DaysLeft = 1;
                 controller.ShowAsModal();
-                Assert(!parts.LaterButton.activeSelf, "기한 당일에는 [아직] 이 사라져야 합니다.");
+                Assert(parts.LaterButton.activeSelf,
+                       "기한 당일에도 [아직] 은 보여야 합니다 (#212) — 납부 실패 시 빠져나갈 길이 없어지면 안 됩니다.");
                 Assert(parts.DueValue.text == "지금 납부!", "기한 당일 표기가 다릅니다: " + parts.DueValue.text);
                 checkCount++;
 
+                service.ShouldFailPay = true;
+                // onClick.Invoke() 로 클릭을 흉내내지 않는다 — 리스너는 OnEnable 에서 잡히는데,
+                // OnEnable 은 ExecuteAlways 가 없는 한 에디터 모드(플레이 모드 밖)에서는 돌지
+                // 않는다. 이 검증은 플레이 모드 없이 돈다. 실제 클릭이 부르는 메서드를 직접 호출한다.
+                var handlePayClicked = typeof(BillPanelController).GetMethod(
+                    "HandlePayClicked", BindingFlags.NonPublic | BindingFlags.Instance);
+                handlePayClicked.Invoke(controller, null);
+                Assert(parts.PayCaption != null && parts.PayCaption.text.Contains("부족"),
+                       "납부 실패 시 부족액 안내가 떠야 합니다 (#212): " +
+                       (parts.PayCaption != null ? parts.PayCaption.text : "null"));
+                checkCount++;
+
+                service.ShouldFailPay = false;
                 service.ActiveBill.IsPaid = true;
                 controller.ShowAsModal();
                 Assert(!parts.PayButton.activeSelf, "납부 완료면 납부 버튼이 사라져야 합니다.");
@@ -186,6 +202,7 @@ namespace NCAIClicker.EditorTools
             public GameObject LaterButton;
             public GameObject PayButton;
             public TMPro.TextMeshProUGUI DueValue;
+            public TMPro.TextMeshProUGUI PayCaption;
         }
 
         private static GameObject BuildHost(out BillPanelController controller, out Parts parts)
@@ -203,6 +220,7 @@ namespace NCAIClicker.EditorTools
                 LaterButton = ((Button)typeof(BillPanelController).GetField("_laterButton", flags).GetValue(controller)).gameObject,
                 PayButton = ((Button)typeof(BillPanelController).GetField("_payButton", flags).GetValue(controller)).gameObject,
                 DueValue = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_dueValueText", flags).GetValue(controller),
+                PayCaption = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_payCaptionText", flags).GetValue(controller),
             };
             return host;
         }
@@ -236,7 +254,10 @@ namespace NCAIClicker.EditorTools
             public Bill ActiveBill { get; set; }
             public string[] OfferedPerkIds => Array.Empty<string>();
 
-            public bool TryPay(Bill bill) => true;
+            /// <summary>true면 TryPay 가 실패한다 — 잔액 부족 캡션 표시를 검증하려고 둔 스위치.</summary>
+            public bool ShouldFailPay { get; set; }
+
+            public bool TryPay(Bill bill) => !ShouldFailPay;
             public bool TryTakeLoan(long amount) => false;
             public bool TryRepayLoan() => false;
             public bool TryChoosePerk(string perkId) => false;
