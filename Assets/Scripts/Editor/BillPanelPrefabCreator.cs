@@ -208,7 +208,11 @@ namespace NCAIClicker.EditorTools
             confirmRoot.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.88f);
             bound["_bankruptcyConfirmPanel"] = confirmRoot;
             
-            var confirmText = CreateLabel("BankruptcyConfirmText", confirmRoot, font, 34, Warn,
+            // 색은 Warn(진한 붉은색)을 쓰지 않는다. 0.88 알파 검은 막 위에서 대비가 2.88:1 로
+            // 떨어져 UI_GUIDE 기준(4.5:1)을 크게 밑돈다 — 되돌릴 수 없는 선택을 알리는
+            // 문구가 화면에서 가장 안 읽히면 안 된다 (UiGuidelineChecks).
+            var confirmText = CreateLabel("BankruptcyConfirmText", confirmRoot, font, 34,
+                new Color(1f, 0.843f, 0.812f),
                 "파산을 선고하면 코인과 진행이 사라지고 1일차로 돌아갑니다.\n반지와 레거시 포인트는 남습니다. 되돌릴 수 없습니다.");
             var confirmTextRect = confirmText.GetComponent<RectTransform>();
             confirmTextRect.anchorMin = new Vector2(0.5f, 0.5f);
