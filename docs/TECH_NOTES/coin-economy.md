@@ -1,14 +1,18 @@
 # 코인 정산
 
-> 관련 이슈: #22, #71, #116, #32, #126, #30 · 최종 수정: 2026-09-18
+> 관련 이슈: #22, #71, #116, #32, #126, #30, #178 · 최종 수정: 2026-09-21
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
 ## 무엇을 하는가
 
-타격 대상이 부서질 때 나온 **원시 보상**에 피버 배율·보너스 배율·대출 징수를 적용해 지갑에 넣는다.
-배율을 적용하는 곳은 여기 하나뿐이고, 호출측은 가공 전 값만 넘긴다.
-규칙의 정본은 [ARCHITECTURE](../ARCHITECTURE.md) "코인 계산·정산 계약" 3~8번이다.
+타격 대상이 부서지는 순간 `CoinLottery`가 `coins.csv` 가중치 테이블에서 코인 액면을 추첨해
+**원시 보상**(액면들의 합)과 그 구성(`CoinDrop[]`)을 함께 만든다. `EconomyManager`는 이 원시
+보상에 피버 배율·보너스 배율·대출 징수를 적용해 지갑에 넣고, 구성은 런 단위로 누적해
+`RunCoinBreakdown`으로 노출한다. 배율을 적용하는 곳은 여기 하나뿐이고, 호출측은 가공 전 값만 넘긴다.
+규칙의 정본은 [ARCHITECTURE](../ARCHITECTURE.md) "코인 계산·정산 계약" 2~9번이다.
+코인 개수와 지급 금액이 서로 다른 값이라는 점, 액면 추첨 자체는 [BALANCE](../BALANCE.md) 3절
+"코인 액면 추첨"이 다룬다 — 이 문서는 정산 파이프라인만 본다.
 
 ## 왜 이 방법인가
 
@@ -27,11 +31,12 @@
 ```mermaid
 flowchart LR
   subgraph Core["코어 플레이"]
-    target["IHittable 구현체<br/>파괴 시 원시 보상 산출"]
+    target["IHittable 구현체<br/>파괴 시 CoinLottery 로 액면 추첨"]
+    lottery["CoinLottery<br/>가중치 추첨 · 순수 정적 로직"]
   end
 
   subgraph Growth["성장·저장"]
-    mgr["EconomyManager<br/>계수 수집 · 이벤트 발행"]
+    mgr["EconomyManager<br/>계수 수집 · 액면별 누적 · 이벤트 발행"]
     wallet["CoinWallet<br/>배율 곱 · 소수 잔여 · 런 순수입"]
     bill["IBillService 구현체<br/>대출 징수율"]
   end
@@ -45,25 +50,29 @@ flowchart LR
   end
 
   events{{"GameEvents"}}
-  balance[("BalanceData<br/>fever.csv · economy.csv")]
+  balance[("BalanceData<br/>fever.csv · economy.csv · coins.csv")]
 
-  target == "OnTargetBroken 발행" ==> events
+  target -- "Draw" --> lottery
+  target == "OnTargetBroken(BreakInfo.Coins) 발행" ==> events
   fever == "OnFeverStart/End 발행" ==> events
   events == "구독" ==> mgr
   mgr -- "계수와 원시값 위임" --> wallet
   bill -. "SetBillService 로 주입" .-> mgr
   balance -. "SerializeField" .-> mgr
+  balance -. "SerializeField" .-> lottery
   mgr == "OnCoinEarned · OnBalanceChanged · OnRunCoinChanged 발행" ==> events
   events == "구독" ==> hud
 ```
 
 | 클래스 | 경로 | 하는 일 |
 |---|---|---|
-| `EconomyManager` | `Assets/Scripts/Runtime/Economy/EconomyManager.cs` | `IEconomyService` 외 런 경계·저장·업그레이드 계약(#71·#111·#116)을 함께 구현. 이벤트 구독·발행, 배율 계수 수집. `Managers` 프리팹에 붙는다 |
+| `EconomyManager` | `Assets/Scripts/Runtime/Economy/EconomyManager.cs` | `IEconomyService` 외 런 경계·저장·업그레이드 계약(#71·#111·#116)을 함께 구현. 이벤트 구독·발행, 배율 계수 수집, `BreakInfo.Coins` 를 액면별로 누적해 `RunCoinBreakdown` 노출(#178) |
 | `CoinWallet` | `Assets/Scripts/Runtime/Economy/CoinWallet.cs` | 배율 곱, 소수 잔여 이월, 런 순수입 집계. 이벤트를 모른다 |
+| `CoinLottery` | `Assets/Scripts/Runtime/Economy/CoinLottery.cs` | `coins.csv` 가중치 테이블에서 `coin_count`개 추첨(`min_denom_id` 필터), 액면 합계 계산. 순수 정적 로직 — 매니저·씬에 의존하지 않는다 (#178) |
 | `UpgradeState` | `Assets/Scripts/Runtime/Economy/UpgradeState.cs` | 업그레이드 레벨·비용·실효값. `EconomyManager` 가 함께 들고 있다 — 자세한 것은 [업그레이드](upgrades.md) |
 | `CoinWalletChecks` | `Assets/Scripts/Editor/CoinWalletChecks.cs` | 계산식 검증 11건 |
 | `EconomyManagerChecks` | `Assets/Scripts/Editor/EconomyManagerChecks.cs` | 이벤트 배선 검증 8건 |
+| `CoinLotteryChecks` | `Assets/Scripts/Editor/CoinLotteryChecks.cs` | 추첨 로직 검증 — 경계값, 액면 필터, 분포 수렴, 집계 (#178) |
 
 계산식 자체는 [ARCHITECTURE](../ARCHITECTURE.md) "코인 계산·정산 계약" 4·5번이 정본이라 옮겨 적지 않는다.
 구현에서 갈리는 지점만 적는다 — `CoinWallet` 은 **누적기를 두 개** 들고 있다.
@@ -75,7 +84,7 @@ flowchart LR
 
 | 이벤트 | 발행/구독 | 언제 |
 |---|---|---|
-| `GameEvents.OnTargetBroken` | 구독 | 대상 파괴. **코인 지급의 유일한 입구다** |
+| `GameEvents.OnTargetBroken` | 구독 | 대상 파괴. **코인 지급의 유일한 입구다.** `BreakInfo.Coins` 가 함께 온다 (#178) |
 | `GameEvents.OnFeverStart` / `OnFeverEnd` | 구독 | 피버 배율을 켜고 끈다 |
 | `GameEvents.OnCoinEarned` | 발행 | 지갑에 실제로 들어간 정수 증분. 0 이면 발행하지 않는다 |
 | `GameEvents.OnBalanceChanged` | 발행 | 입금·지출·대출 원금·복원 뒤 잔액 |
@@ -90,6 +99,8 @@ flowchart LR
 | `Assets/GameData/Balance/fever.csv` | `coin_multiplier` | 피버 중 배율의 **기준값** |
 | `Assets/GameData/Balance/upgrade_effects.csv` | `stat`, `value_per_level` | 위 기준값에 얹는 업그레이드 증분. `stat` 이 `fever_multiplier` 인 행 (#32) |
 | `Assets/GameData/Balance/economy.csv` | `coin_bonus_multiplier` | 보너스 배율 기준값 |
+| `Assets/GameData/Balance/coins.csv` | `id`, `value`, `weight` | 코인 액면과 추첨 가중치. `CoinLottery` 만 읽는다 (#178) |
+| `Assets/GameData/Balance/targets.csv` | `coin_count`, `min_denom_id` | 파괴 시 뽑을 코인 개수와 최소 액면. 현재 전 대상 `1`/`c1` — 자리표시자, [BALANCE.md](../BALANCE.md) 3절 참고 |
 
 피버 배율은 CSV 값을 그대로 쓰지 않는다. `GetStat(StatId.FeverMultiplier, ...)` 를 거쳐
 업그레이드가 얹힌 실효값을 쓴다 — 자세한 것은 [업그레이드](upgrades.md)·[피버 게이지](fever-gauge.md).
@@ -104,6 +115,7 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
 
 - [x] `CoinWalletChecks.RunBatch()` 11건 통과 — 배율 곱, 소수 이월, 런 경계 분리, 대출 원금 제외, 저장 왕복, 계약 위반 인자 예외
 - [x] `EconomyManagerChecks.RunBatch()` 8건 통과 — 파괴 1회당 지급 1회, 해제 후 미지급, 재구독 시 중복 없음, 피버 on/off, 대출 징수, `BeginRun`, 복원
+- [x] `CoinLotteryChecks.RunBatch()` 통과 — 경계값(null 밸런스, count≤0, 없는 min_denom_id 는 필터 없이 전체 풀 사용), 액면 필터(값 기준, weight 0 배제), 분포(경계 굴림값, 시드 고정 20000회 평균 수렴), 집계(같은 액면 병합, coins.csv 순서 보존, `SumValue` null 안전) (#178)
 - [x] **연속 3회 실행 통과** — 정적 이벤트 구독이 새면 2회차부터 깨진다. 이걸로 누수 없음을 확인했다
 - [x] 컴파일 에러·경고 0건
 - [x] `Managers.prefab` 에 컴포넌트 부착, `_balanceData` 가 `BalanceData.asset`(guid `148d52a3…`)을 가리키는 것을 프리팹 diff 로 확인
@@ -138,6 +150,10 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
   `RestoreWallet(0, "0")` 으로 코인과 소수 잔여를 비운다 ([고지서·파산](billing.md) "마감 미납과 파산").
 - `SaveManager`(작업 3.4)가 없어 지금은 매번 잔액 0 에서 시작한다. 초기화 순서상
   저장 로드가 먼저여야 한다 (ARCHITECTURE 1절).
+- **`coins.csv` 가중치 테이블과 `targets.csv`의 `coin_count`/`min_denom_id`는 잠정값이다.**
+  1회 추첨 기댓값(≈18.35)이 대상별 원시 보상 기준선과 아직 맞지 않는다. 공용 계약이라 팀
+  합의 없이 구조를 바꾸지 않았고, 최종 수치는 파괴 모델을 재계산하는 이슈 #176 이후 확정한다
+  ([BALANCE.md](../BALANCE.md) 3절 "코인 액면 추첨").
 
 ## 갱신 이력
 
@@ -152,3 +168,4 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
 | 2026-09-17 | #126 | twins6375-art | 기간제 코인 강화 퍼크를 보너스 배율에 합류. `Update`/`Tick` 으로 잔여 시간 관리 |
 | 2026-09-18 | #30 | twins6375-art | 파산 시 지갑 비우기가 공용 계약에 막혀 있음을 확인하고 한계를 다시 씀 |
 | 2026-09-18 | #158 | hunil58 | `IWalletPersistence` 소비자에 `BillManager` 추가로 파산 시 지갑 비우기 해결. 한계 항목 취소선 처리 |
+| 2026-09-21 | #178 | yahoo-afk | 코인 액면 도입 — 개수와 금액을 분리했다. `coins.csv` 신설, `CoinLottery` 추가, `BreakInfo`에 `Coins` 필드, `IEconomyService.RunCoinBreakdown` 추가. `EconomyManager`가 파괴마다 액면별 개수를 런 단위로 누적한다. `coin_count`/`min_denom_id`/가중치 테이블은 #176 재계산 전까지 잠정값 — 한계 항목에 반영 |

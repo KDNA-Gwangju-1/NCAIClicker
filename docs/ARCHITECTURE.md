@@ -109,16 +109,30 @@ public interface IHittable
     bool IsAlive { get; }
 }
 
+// 파괴 1회에서 뽑힌 코인 액면 하나의 개수. coins.csv 의 한 행에 대응한다 (이슈 #178).
+public readonly struct CoinDrop
+{
+    public string DenomId { get; }
+    public int Count { get; }
+    public CoinDrop(string denomId, int count)
+    {
+        DenomId = denomId;
+        Count = count;
+    }
+}
+
 public readonly struct BreakInfo
 {
     public string TargetId { get; }
-    public decimal RawCoin { get; }    // 최대 hp × coin_mult + break_bonus
+    public decimal RawCoin { get; }    // Coins 에 담긴 액면들의 합. coin_count × 평균 액면이 아니라 실제 추첨 결과다
+    public IReadOnlyList<CoinDrop> Coins { get; } // 액면별 개수. 빈 배열일 수 있으며 null 이 되지 않는다
     public float StaminaRestore { get; }
     public Vector3 WorldPos { get; }
-    public BreakInfo(string targetId, decimal rawCoin, float staminaRestore, Vector3 worldPos)
+    public BreakInfo(string targetId, decimal rawCoin, IReadOnlyList<CoinDrop> coins, float staminaRestore, Vector3 worldPos)
     {
         TargetId = targetId;
         RawCoin = rawCoin;
+        Coins = coins ?? Array.Empty<CoinDrop>();
         StaminaRestore = staminaRestore;
         WorldPos = worldPos;
     }
@@ -145,6 +159,7 @@ public interface IEconomyService
     bool TrySpendCoin(long amount);
     long CurrentCoin { get; }
     long RunCoin { get; }              // 이번 런 순수입의 정수 부분. 지출·대출 제외
+    IReadOnlyList<CoinDrop> RunCoinBreakdown { get; } // 이번 런 누적 액면별 개수. BeginRun 에서 초기화 (이슈 #178)
 }
 
 // 런 경계. 부르는 쪽은 GameManager 뿐이다 (이슈 #71, #111).
@@ -345,13 +360,14 @@ public class SaveData
 ### 코인 계산·정산 계약
 
 1. 호버/자동 망치는 `HitInfo.Damage`만 전달한다. 대상의 현재 내구도는 `float`로 계산하여 작은 자동 망치 피해도 누적한다.
-2. 대상이 살아 있음 → 파괴됨으로 바뀔 때 `OnTargetBroken`을 **한 번만** 발행한다. 원시 보상은 초기 최대 내구도로 계산하며 마지막 남은 내구도를 쓰지 않는다.
+2. 대상이 살아 있음 → 파괴됨으로 바뀔 때 `OnTargetBroken`을 **한 번만** 발행한다. 원시 보상은 초기 최대 내구도로 계산하며 마지막 남은 내구도를 쓰지 않는다. **파괴 시점에 `CoinLottery.Draw`가 `targets.csv`의 `coin_count`·`min_denom_id`에 따라 `coins.csv` 가중치 테이블에서 액면을 추첨하고, 결과를 `BreakInfo.Coins`에 담아 `RawCoin`(추첨된 액면의 합)과 함께 전달한다. "코인 개수"와 "획득 금액"은 서로 다른 값이며, 이전에는 이 둘이 항상 같았다 (이슈 #178, 버그 수정).**
 3. EconomyManager가 파괴 이벤트를 받아 `AddCoin`을 호출한다. 호출측은 피버·보너스·대출 계수를 곱하지 않는다. 같은 파괴에서 이벤트와 직접 입금을 동시에 호출하지 않는다.
 4. decimal로 `rawAmount × 피버 × 보너스 × (1 - 대출 징수율)`을 계산한다. CSV의 float 배율은 곱하기 **전에** decimal로 변환한다.
 5. 지갑은 `기존 소수 잔여 + 순수입`의 정수 부분만 입금하고 소수는 보관한다. `RunCoin`은 **이번 런 순수입만 별도로 합산한 뒤** 정수 부분을 표시한다. 전날 잔여, 대출 원금, 업그레이드·고지서 지출은 단계 목표에 영향을 주지 않는다.
 6. `OnCoinEarned`는 이번에 지갑에 들어간 정수 증분, `OnBalanceChanged`는 지갑 현재값, `OnRunCoinChanged`는 런 순수입 정수값이다. UI는 목적에 맞는 이벤트를 쓰며 배율을 재적용하지 않는다.
 7. 바닥 코인은 연출만 담당한다. 런 종료 시 연출을 회수해도 재지급하지 않는다. 소수 잔여는 회차 안에서 이월·저장하고 파산 시 버린다.
 8. 대출 원금은 `AddLoanPrincipal`로 입금한다. 이자 포함 상환액은 소수 부분을 올림해 정수로 확정한다. 수입 징수는 부채를 줄이지 않는다.
+9. `EconomyManager`는 파괴마다 받은 `BreakInfo.Coins`를 런 단위로 액면별 개수에 누적하고 `RunCoinBreakdown`으로 노출한다. `BeginRun`에서 누적을 초기화한다. 결과 화면의 액면별 개수 표시는 `RunCoin`(금액)이 아니라 이 값을 읽는다 (이슈 #178).
 
 ### 하루 종료 순서
 
