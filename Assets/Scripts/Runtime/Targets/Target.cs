@@ -137,7 +137,7 @@ namespace NCAIClicker.Targets
 
         /// <summary>
         /// 피격 반경을 기준 반경보다 넓힌다. 확대 비율은 economy.csv 의 hit_radius_bonus 이고,
-        /// 업그레이드(악력 단련)가 그 비율을 더 올린다 (BALANCE 6절 hit_radius, #131).
+        /// 업그레이드(완력 단련)가 그 비율을 더 올린다 (BALANCE 6절 hit_radius, #131).
         /// 메시를 참조하지 않으므로 작업 6.6 에서 모델을 갈아끼워도 판정 크기가 변하지 않는다.
         /// </summary>
         private void ApplyHitRadius()

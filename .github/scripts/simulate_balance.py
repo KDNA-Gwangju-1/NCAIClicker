@@ -94,7 +94,7 @@ def simulate(root, runs, seed, uptime, policy):
         "mean_fevers": round(statistics.mean(row[5] for row in results), 2),
         "min_fevers": min(row[5] for row in results),
         "max_fevers": max(row[5] for row in results),
-        "goal_reached_percent": round(100 * sum(c >= int(stage["goal_coin"]) for c in coins) / runs, 1),
+        "goal_reached_percent": round(100 * sum(c >= int(stage["bill_amount"]) for c in coins) / runs, 1),
         "capped_runs": sum(row[4] for row in results),
     }
 
