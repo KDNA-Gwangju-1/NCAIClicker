@@ -10,7 +10,7 @@ namespace NCAIClicker.Targets
     [RequireComponent(typeof(Target))]
     public class CreatureHpDisplay : MonoBehaviour
     {
-        [SerializeField] private Vector3 _offset = new Vector3(0f, 0.55f, 0f);
+        [SerializeField] private Vector3 _offset = new Vector3(0f, 1.0f, 0f);
         [SerializeField] private float _fontSize = 3.6f;
 
         private Target _target;
