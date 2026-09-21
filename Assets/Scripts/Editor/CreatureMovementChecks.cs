@@ -229,8 +229,8 @@ namespace NCAIClicker.EditorTools
                 passedCount++;
 
                 // 목록에 없는 대상의 파괴 이벤트(유령)는 예약을 만들지 않는다.
-                GameEvents.PublishTargetBroken(new BreakInfo("ghost", 1m, 0f, Vector3.zero));
-                GameEvents.PublishTargetBroken(new BreakInfo("ghost", 1m, 0f, Vector3.zero));
+                GameEvents.PublishTargetBroken(new BreakInfo("ghost", 1m, Array.Empty<CoinDrop>(), 0f, Vector3.zero));
+                GameEvents.PublishTargetBroken(new BreakInfo("ghost", 1m, Array.Empty<CoinDrop>(), 0f, Vector3.zero));
                 Assert(timers.Count == 0,
                        "치운 것이 없는데 재등장이 예약됐습니다: " + timers.Count + " (#141)");
                 passedCount++;

@@ -159,7 +159,7 @@ namespace NCAIClicker.EditorTools
 
         private static BreakInfo CreateBreak(decimal rawCoin)
         {
-            return new BreakInfo("normal", rawCoin, 0f, Vector3.zero);
+            return new BreakInfo("normal", rawCoin, Array.Empty<CoinDrop>(), 0f, Vector3.zero);
         }
 
         /// <summary>대출 징수율만 돌려주는 가짜 구현. 나머지는 이 검증에서 쓰지 않는다.</summary>

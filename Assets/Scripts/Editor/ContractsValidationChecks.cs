@@ -34,7 +34,7 @@ namespace NCAIClicker.EditorTools
             }
 
             var targetBrokenInvoked = false;
-            var testBreak = new BreakInfo("target_1", 100m, 5f, new Vector3(1f, 2f, 3f));
+            var testBreak = new BreakInfo("target_1", 100m, Array.Empty<CoinDrop>(), 5f, new Vector3(1f, 2f, 3f));
             GameEvents.OnTargetBroken += info =>
             {
                 if (info.TargetId == "target_1" && info.RawCoin == 100m && info.StaminaRestore == 5f)

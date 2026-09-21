@@ -92,6 +92,14 @@ namespace NCAIClicker.EditorTools
                     LoanMaxConcurrent = ReqInt(bills, "loan_max_concurrent"),
                 };
 
+                data.Coins = ReadRows("coins.csv", r => new CoinDef
+                {
+                    Id = r["id"],
+                    Value = ToInt(r["value"]),
+                    Weight = ToInt(r["weight"]),
+                    DisplayColor = r.ContainsKey("display_color") ? r["display_color"] : "",
+                });
+
                 data.Targets = ReadRows("targets.csv", r => new TargetDef
                 {
                     Id = r["id"],
@@ -102,6 +110,8 @@ namespace NCAIClicker.EditorTools
                     StaminaRestore = ToFloat(r["stamina_restore"]),
                     MoveSpeed = ToFloat(r["move_speed"]),
                     TurnIntervalSec = ToFloat(r["turn_interval_sec"]),
+                    CoinCount = ToInt(r["coin_count"]),
+                    MinDenomId = r["min_denom_id"],
                 });
 
                 data.Upgrades = ReadRows("upgrades.csv", r => new UpgradeDef
@@ -417,6 +427,26 @@ namespace NCAIClicker.EditorTools
             foreach (var requiredId in new[] { "normal", "anchor", "runner", "tourist" })
                 if (!ids.Contains(requiredId))
                     _errors.Add("targets.csv: 단계 출현 비율에 대응하는 대상이 없습니다: " + requiredId);
+
+            // ---- coins.csv / targets.csv 액면 추첨 (이슈 #178) ----
+            var coinIds = new HashSet<string>();
+            foreach (var coin in d.Coins)
+            {
+                if (string.IsNullOrWhiteSpace(coin.Id) || !coinIds.Add(coin.Id))
+                    _errors.Add("coins.csv: id 가 비었거나 중복입니다: " + coin.Id);
+                if (coin.Value <= 0)
+                    _errors.Add("coins.csv: '" + coin.Id + "' 의 value 는 0보다 커야 합니다.");
+                if (coin.Weight <= 0)
+                    _errors.Add("coins.csv: '" + coin.Id + "' 의 weight 는 0보다 커야 합니다. 0이면 절대 뽑히지 않는 죽은 행입니다.");
+            }
+            foreach (var target in d.Targets)
+            {
+                if (target.CoinCount <= 0)
+                    _errors.Add("targets.csv: '" + target.Id + "' 의 coin_count 는 0보다 커야 합니다.");
+                if (string.IsNullOrWhiteSpace(target.MinDenomId) || !coinIds.Contains(target.MinDenomId))
+                    _errors.Add("targets.csv: '" + target.Id + "' 의 min_denom_id '" + target.MinDenomId +
+                               "' 가 coins.csv 에 없습니다.");
+            }
 
             if (d.Economy.BaseHitPower <= 0 || d.Economy.HoverSwingIntervalSec <= 0 ||
                 d.Economy.AutoHammerCountInit < 0 || d.Economy.AutoHammerPower <= 0 ||

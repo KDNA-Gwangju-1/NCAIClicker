@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using NCAIClicker.Data;
 using NCAIClicker.Economy;
@@ -365,6 +366,8 @@ namespace NCAIClicker.EditorTools
             public long CurrentCoin => 0L;
 
             public long RunCoin => 0L;
+
+            public IReadOnlyList<CoinDrop> RunCoinBreakdown => Array.Empty<CoinDrop>();
 
             public void AddCoin(decimal rawAmount)
             {

@@ -26,9 +26,16 @@ namespace NCAIClicker.Data
         /// <summary>고지서에 찍히는 발신처와 제목. 금액·기한과 무관한 표기용 데이터다 (이슈 #34).</summary>
         public List<BillNameDef> BillNames = new();
 
+        /// <summary>
+        /// 코인 액면과 추첨 가중치의 정본 (이슈 #178). coins.csv 파일 순서를 그대로 유지한다 —
+        /// 결과 화면이 이 순서로 액면 칸을 채운다 (ResultUIController).
+        /// </summary>
+        public List<CoinDef> Coins = new();
+
         public TargetDef GetTarget(string id) => Targets.Find(t => t.Id == id);
         public UpgradeDef GetUpgrade(string id) => Upgrades.Find(u => u.Id == id);
         public PerkDef GetPerk(string id) => Perks.Find(p => p.Id == id);
+        public CoinDef GetCoin(string id) => Coins.Find(c => c.Id == id);
 
         public List<RingDef> Rings = new();
 
@@ -139,6 +146,28 @@ namespace NCAIClicker.Data
 
         public float MoveSpeed;
         public float TurnIntervalSec;
+
+        /// <summary>파괴 시 뽑는 코인 개수 (이슈 #178). coins.csv 가중치로 이만큼 추첨한다.</summary>
+        public int CoinCount;
+
+        /// <summary>이 값 이상의 액면만 추첨 후보가 된다 (coins.csv 의 CoinDef.Value 기준, 이슈 #178).</summary>
+        public string MinDenomId;
+    }
+
+    /// <summary>
+    /// 코인 액면 하나. coins.csv 에서 그대로 읽는다 (이슈 #178).
+    /// </summary>
+    [Serializable]
+    public class CoinDef
+    {
+        public string Id;
+        public int Value;
+
+        /// <summary>추첨 시 상대 가중치. 클수록 자주 나온다.</summary>
+        public int Weight;
+
+        /// <summary>결과 화면 액면 칩 색상. 16진 문자열(coins.csv display_color)을 그대로 둔다 — 파싱은 UI가 필요할 때 한다.</summary>
+        public string DisplayColor;
     }
 
     /// <summary>

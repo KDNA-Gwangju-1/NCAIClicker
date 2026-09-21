@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using NCAIClicker.Data;
 using NCAIClicker.Events;
 using NCAIClicker.Interfaces;
@@ -104,8 +105,27 @@ namespace NCAIClicker.Economy
         private bool _isRunning;
         private long _lastPublishedRunCoin;
 
+        /// <summary>
+        /// 이번 런의 액면별 누적 개수 (이슈 #178). coins.csv 순서와 무관하게 파괴 순으로 쌓이므로,
+        /// 조회 쪽(ResultUIController)이 BalanceData.Coins 순서로 다시 정렬해 읽는다.
+        /// </summary>
+        private readonly Dictionary<string, int> _runDenomCounts = new Dictionary<string, int>();
+
         public long CurrentCoin => _wallet.CurrentCoin;
         public long RunCoin => _wallet.RunCoin;
+
+        public IReadOnlyList<CoinDrop> RunCoinBreakdown
+        {
+            get
+            {
+                var list = new List<CoinDrop>(_runDenomCounts.Count);
+                foreach (var pair in _runDenomCounts)
+                {
+                    list.Add(new CoinDrop(pair.Key, pair.Value));
+                }
+                return list;
+            }
+        }
 
         /// <summary>저장할 소수 잔여. SaveData.CoinRemainder 에 그대로 넣는다.</summary>
         public string CurrentRemainderText => _wallet.RemainderText;
@@ -200,6 +220,7 @@ namespace NCAIClicker.Economy
             _isFeverActive = false;
             _isRunning = true;
             _lastPublishedRunCoin = 0L;
+            _runDenomCounts.Clear();
 
             // 결과 화면에서 고른 기간제 퍼크는 여기서부터 시간을 센다 (GDD 6절).
             _perkCoinMultiplier = _pendingPerkMultiplier > 0f ? _pendingPerkMultiplier : 1f;
@@ -290,6 +311,25 @@ namespace NCAIClicker.Economy
         private void HandleTargetBroken(BreakInfo info)
         {
             AddCoin(info.RawCoin);
+            AccumulateDenomCounts(info.Coins);
+        }
+
+        /// <summary>
+        /// 결과 화면의 액면별 개수 조회용 누적. 지갑 계산과는 무관하다 — RawCoin 은 이미
+        /// CoinLottery 가 합산해 넘겨준 값이라 여기서 다시 계산하지 않는다.
+        /// </summary>
+        private void AccumulateDenomCounts(IReadOnlyList<CoinDrop> coins)
+        {
+            if (coins == null)
+            {
+                return;
+            }
+            for (var i = 0; i < coins.Count; i++)
+            {
+                var drop = coins[i];
+                _runDenomCounts.TryGetValue(drop.DenomId, out var existing);
+                _runDenomCounts[drop.DenomId] = existing + drop.Count;
+            }
         }
 
         private void HandleFeverStart()

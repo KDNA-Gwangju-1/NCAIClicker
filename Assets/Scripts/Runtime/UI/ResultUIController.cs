@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using NCAIClicker.Core;
 using NCAIClicker.Data;
@@ -396,8 +397,9 @@ namespace NCAIClicker.UI
 
             if (_runCoinText != null)
             {
-                long runCoin = _economyService != null ? _economyService.RunCoin : 0;
-                _runCoinText.text = $"{runCoin:N0}";
+                // "코인:" 은 개수다. 금액은 _grossText("합계:") 쪽이다 — 액면이 갈리기 전에는
+                // 둘이 같은 숫자였다 (이슈 #178 전 버그). RunCoinBreakdown 의 개수를 모두 더한다.
+                _runCoinText.text = $"{TotalCoinCount():N0}";
             }
 
             if (_accuracyText != null)
@@ -449,7 +451,8 @@ namespace NCAIClicker.UI
         /// </summary>
         private void UpdateUnwiredView()
         {
-            // 합계는 이번 런 수입 그대로다. 액면이 없으니 코인 수와 금액이 같다 (#178 에서 갈라진다).
+            // 합계는 이번 런 수입(금액) 그대로다. 코인 개수는 _runCoinText("코인:") 쪽이 따로
+            // RunCoinBreakdown 으로 센다 — 액면이 갈리면서 둘이 실제로 다른 숫자가 된다 (이슈 #178).
             var gross = _economyService != null ? _economyService.RunCoin : 0L;
             if (_grossText != null)
             {
@@ -475,7 +478,7 @@ namespace NCAIClicker.UI
             UpdateBrokenChips();
 
             SetPlaceholder(_codexProgressText);
-            SetPlaceholders(_denomCountTexts);
+            UpdateDenomCounts();
 
             UpdatePayButton();
             UpdateLoanCutRow();
@@ -580,24 +583,74 @@ namespace NCAIClicker.UI
             }
         }
 
+        /// <summary>이번 런에 실제로 뽑힌 코인 총 개수. RunCoinBreakdown 각 항목의 Count 합이다.</summary>
+        private int TotalCoinCount()
+        {
+            if (_economyService == null)
+            {
+                return 0;
+            }
+
+            var total = 0;
+            var breakdown = _economyService.RunCoinBreakdown;
+            for (var i = 0; i < breakdown.Count; i++)
+            {
+                total += breakdown[i].Count;
+            }
+            return total;
+        }
+
+        /// <summary>
+        /// 액면별 개수 칸. 프리팹이 만드는 칸 수는 coins.csv 앞 네 행(c1·c5·c25·c100)과 맞춰 뒀다
+        /// (ResultUIPrefabCreator.CreateDenomRow) — c1000 은 후반 전용이라 칸이 없다.
+        /// _balanceData.Coins 순서(=coins.csv 파일 순서)대로 칸을 채운다 — WorthText 라벨이
+        /// 이미 그 순서로 "$1"·"$5"·"$25"·"$100" 를 박아 뒀기 때문에 순서가 어긋나면 안 맞는
+        /// 액면 밑에 숫자가 붙는다.
+        /// </summary>
+        private void UpdateDenomCounts()
+        {
+            if (_denomCountTexts == null)
+            {
+                return;
+            }
+
+            IReadOnlyList<CoinDrop> breakdown = _economyService != null
+                ? _economyService.RunCoinBreakdown
+                : Array.Empty<CoinDrop>();
+
+            for (var i = 0; i < _denomCountTexts.Length; i++)
+            {
+                var label = _denomCountTexts[i];
+                if (label == null)
+                {
+                    continue;
+                }
+
+                if (_balanceData == null || i >= _balanceData.Coins.Count)
+                {
+                    label.text = UnwiredPlaceholder;
+                    continue;
+                }
+
+                var denomId = _balanceData.Coins[i].Id;
+                var count = 0;
+                for (var j = 0; j < breakdown.Count; j++)
+                {
+                    if (breakdown[j].DenomId == denomId)
+                    {
+                        count = breakdown[j].Count;
+                        break;
+                    }
+                }
+                label.text = count.ToString();
+            }
+        }
+
         private static void SetPlaceholder(TextMeshProUGUI label)
         {
             if (label != null)
             {
                 label.text = UnwiredPlaceholder;
-            }
-        }
-
-        private static void SetPlaceholders(TextMeshProUGUI[] labels)
-        {
-            if (labels == null)
-            {
-                return;
-            }
-
-            for (var i = 0; i < labels.Length; i++)
-            {
-                SetPlaceholder(labels[i]);
             }
         }
 

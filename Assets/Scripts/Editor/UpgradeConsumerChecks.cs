@@ -266,7 +266,7 @@ namespace NCAIClicker.EditorTools
                 InvokeLifecycle(manager, "OnEnable");
 
                 manager.BeginRun();
-                GameEvents.PublishTargetBroken(new BreakInfo("consumer-check", 100m, 0f, Vector3.zero));
+                GameEvents.PublishTargetBroken(new BreakInfo("consumer-check", 100m, Array.Empty<CoinDrop>(), 0f, Vector3.zero));
                 var bare = manager.CurrentCoin;
 
                 // 레벨 복원은 BeginRun 보다 먼저. 실효 배율을 런 시작에 굳힌다.
@@ -275,7 +275,7 @@ namespace NCAIClicker.EditorTools
                 manager.RestoreUpgradeLevels(levels);
                 manager.BeginRun();
 
-                GameEvents.PublishTargetBroken(new BreakInfo("consumer-check", 100m, 0f, Vector3.zero));
+                GameEvents.PublishTargetBroken(new BreakInfo("consumer-check", 100m, Array.Empty<CoinDrop>(), 0f, Vector3.zero));
                 var raised = manager.CurrentCoin - bare;
                 AssertCondition(raised > bare,
                                 "보너스 배율 업그레이드가 지급액에 반영되지 않았습니다: " + raised);

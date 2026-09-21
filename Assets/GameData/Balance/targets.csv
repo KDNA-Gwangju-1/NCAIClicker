@@ -1,5 +1,5 @@
-id,display_name,hp,coin_mult,break_bonus,stamina_restore,move_speed,turn_interval_sec,note
-normal,일반형,3,1.0,1,0,2.0,1.5,기본 수입원. 코인은 파괴 시 hp*coin_mult+break_bonus 로 한 번에 지급
-anchor,거치형,12,1.6,10,0,0.2,4.0,멀어도 갈 만한 고가치 목표
-runner,고속형,1,0.6,0,0,5.0,0.4,쫓을 가치가 있는지 판단하게 만드는 미끼
-tourist,회복형,10,0.2,0,2,0.8,3.0,부수면 스태미나 회복. 기본 런 연장은 모델 및 플레이로 검증한다
+id,display_name,hp,coin_mult,break_bonus,stamina_restore,move_speed,turn_interval_sec,coin_count,min_denom_id,note
+normal,일반형,3,1.0,1,0,2.0,1.5,1,c1,기본 수입원. 코인은 파괴 시 coins.csv 가중치로 액면을 추첨해 지급 (#178). coin_count·min_denom_id 는 임시값 — TODO #176 재계산 후 확정
+anchor,거치형,12,1.6,10,0,0.2,4.0,1,c1,멀어도 갈 만한 고가치 목표. coin_count·min_denom_id 는 임시값 — TODO #176 재계산 후 확정
+runner,고속형,1,0.6,0,0,5.0,0.4,1,c1,쫓을 가치가 있는지 판단하게 만드는 미끼. coin_count·min_denom_id 는 임시값 — TODO #176 재계산 후 확정
+tourist,회복형,10,0.2,0,2,0.8,3.0,1,c1,부수면 스태미나 회복. 기본 런 연장은 모델 및 플레이로 검증한다. coin_count·min_denom_id 는 임시값 — TODO #176 재계산 후 확정

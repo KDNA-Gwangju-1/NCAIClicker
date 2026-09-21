@@ -142,10 +142,27 @@ namespace NCAIClicker.EditorTools
                     var info = broken[0];
                     AssertCondition(info.TargetId == pair.Value, pair.Key + ": BreakInfo.TargetId 가 다릅니다.");
 
-                    // 원시 보상은 남은 내구도가 아니라 초기 최대 내구도로 계산한다.
-                    var expectedCoin = def.Hp * (decimal)def.CoinMult + def.BreakBonus;
-                    AssertCondition(info.RawCoin == expectedCoin,
-                        pair.Key + ": RawCoin 이 " + info.RawCoin + " 입니다. " + expectedCoin + " 여야 합니다.");
+                    // 코인 액면은 파괴 시 추첨한다 (이슈 #178) — 더 이상 hp*coin_mult+break_bonus 로
+                    // 결정되는 고정값이 아니다. 대신 Coins 내역의 합이 RawCoin과 일치하는지,
+                    // 개수·최소 액면 계약을 지키는지를 본다.
+                    AssertCondition(info.Coins != null, pair.Key + ": BreakInfo.Coins 가 null 입니다. 빈 목록이어야 합니다.");
+                    var minDenom = balance.GetCoin(def.MinDenomId);
+                    var drawnCount = 0;
+                    var sum = 0m;
+                    foreach (var drop in info.Coins)
+                    {
+                        var coinDef = balance.GetCoin(drop.DenomId);
+                        AssertCondition(coinDef != null, pair.Key + ": coins.csv 에 없는 액면 '" + drop.DenomId + "' 이 나왔습니다.");
+                        AssertCondition(minDenom == null || coinDef.Value >= minDenom.Value,
+                            pair.Key + ": min_denom_id(" + def.MinDenomId + ") 미만 액면 '" + drop.DenomId + "' 이 나왔습니다.");
+                        AssertCondition(drop.Count > 0, pair.Key + ": CoinDrop 개수가 0 이하입니다.");
+                        drawnCount += drop.Count;
+                        sum += (decimal)coinDef.Value * drop.Count;
+                    }
+                    AssertCondition(drawnCount == def.CoinCount,
+                        pair.Key + ": 뽑힌 코인 개수가 " + drawnCount + " 입니다. coin_count(" + def.CoinCount + ") 여야 합니다.");
+                    AssertCondition(info.RawCoin == sum,
+                        pair.Key + ": RawCoin(" + info.RawCoin + ") 이 액면 합(" + sum + ") 과 다릅니다.");
                     AssertCondition(Mathf.Abs(info.StaminaRestore - def.StaminaRestore) < 0.001f,
                         pair.Key + ": StaminaRestore 가 다릅니다.");
                     checkCount++;
