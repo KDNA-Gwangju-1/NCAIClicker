@@ -19,6 +19,7 @@ namespace NCAIClicker.UI
         private const string GameSceneName = "Game";
         private const string ResultPrefabResourcePath = "UI/ResultUI";
         private const string BillPrefabResourcePath = "UI/BillPanel";
+        private const string PausePrefabResourcePath = "UI/PausePanel";
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Init()
@@ -96,6 +97,16 @@ namespace NCAIClicker.UI
                             managersGo.GetComponentInChildren<IStageService>(true));
                     }
                     controller.SetBillPanel(billPanel);
+                }
+            }
+
+            if (Object.FindFirstObjectByType<PausePanelController>() == null)
+            {
+                var pausePrefab = Resources.Load<GameObject>(PausePrefabResourcePath);
+                if (pausePrefab != null)
+                {
+                    var pauseInstance = Object.Instantiate(pausePrefab);
+                    pauseInstance.name = "PausePanel (Runtime Fallback)";
                 }
             }
         }
