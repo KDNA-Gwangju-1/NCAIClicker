@@ -25,17 +25,26 @@ def simulate(root, runs, seed, uptime, policy):
         raise ValueError("This baseline model only supports an initial auto-hammer count of zero")
     targets = read_rows(root, "targets.csv")
     weights = [float(stage[target["id"] + "_ratio"]) for target in targets]
+    extra_spawn_chance = economy["extra_spawn_chance_on_destroy"]
     rng = random.Random(seed)
     results = []
     for _ in range(runs):
-        def spawn():
-            target = rng.choices(targets, weights=weights)[0]
-            return {"target": target, "hp": float(target["hp"]), "ready": 0.0}
+        spawn_id = 0
 
-        slots = [spawn() for _ in range(int(stage["spawn_count"]))]
+        def spawn():
+            nonlocal spawn_id
+            spawn_id += 1
+            target = rng.choices(targets, weights=weights)[0]
+            return {"id": spawn_id, "target": target, "hp": float(target["hp"])}
+
+        # 슬롯 타이머 모델은 폐기했다 (#156 B안). 파괴된 자리는 자동으로 채워지지 않고,
+        # ① 파괴할 때마다 extra_spawn_chance_on_destroy 확률로 즉시 1개가 추가되거나,
+        # ② 책상 위가 완전히 비면(0마리) 즉시 1개만 채워진다. 원작 재관찰 근거는
+        # REFERENCE_ANALYSIS.md 9절.
+        active = [spawn() for _ in range(int(stage["spawn_count"]))]
         energy, elapsed, coin, gauge = stamina["max_stamina"], 0.0, 0.0, 0.0
         last_hit, fever_end = -float("inf"), 0.0
-        selected, breaks, restorations, fevers = None, 0, 0, 0
+        selected_id, breaks, restorations, fevers = None, 0, 0, 0
         interval = economy["hover_swing_interval_sec"]
         # 모델의 무한 반복 방지용이다. 게임에 시간 상한을 추가하지 않는다.
         cap = stamina["max_stamina"] / stamina["idle_drain_per_sec"] * 10
@@ -46,19 +55,16 @@ def simulate(root, runs, seed, uptime, policy):
                 break
             if elapsed > last_hit + fever["decay_grace_sec"] and elapsed >= fever_end:
                 gauge = max(0.0, gauge - fever["gauge_decay_per_sec"] * interval)
-            for index, slot in enumerate(slots):
-                if slot["hp"] <= 0 and elapsed >= slot["ready"]:
-                    slots[index] = spawn()
-            if selected is None or slots[selected]["hp"] <= 0:
-                available = [i for i, slot in enumerate(slots) if slot["hp"] > 0]
-                if not available:
-                    selected = None
+            if selected_id is None or not any(s["id"] == selected_id for s in active):
+                if not active:
+                    selected_id = None
                     continue
                 if policy == "random":
-                    selected = rng.choice(available)
+                    chosen = rng.choice(active)
                 else:
-                    selected = max(available, key=lambda i: float(slots[i]["target"]["coin_mult"]) +
-                                   float(slots[i]["target"]["break_bonus"]) / float(slots[i]["target"]["hp"]))
+                    chosen = max(active, key=lambda s: float(s["target"]["coin_mult"]) +
+                                 float(s["target"]["break_bonus"]) / float(s["target"]["hp"]))
+                selected_id = chosen["id"]
             if rng.random() >= uptime:
                 continue
             last_hit = elapsed
@@ -67,19 +73,23 @@ def simulate(root, runs, seed, uptime, policy):
                 if gauge >= fever["gauge_max"]:
                     fever_end, gauge = elapsed + fever["duration_sec"], 0.0
                     fevers += 1
-            slot = slots[selected]
-            slot["hp"] -= economy["base_hit_power"]
-            if slot["hp"] > 0:
+            selected = next(s for s in active if s["id"] == selected_id)
+            selected["hp"] -= economy["base_hit_power"]
+            if selected["hp"] > 0:
                 continue
-            target = slot["target"]
+            target = selected["target"]
             multiplier = fever["coin_multiplier"] if elapsed < fever_end else 1.0
             coin += (float(target["hp"]) * float(target["coin_mult"]) + float(target["break_bonus"])) * multiplier * economy["coin_bonus_multiplier"]
             restore = float(target["stamina_restore"])
             energy = min(stamina["max_stamina"], energy + restore)
             restorations += int(restore > 0)
             breaks += 1
-            slot["ready"] = elapsed + economy["spawn_interval_sec"]
-            selected = None
+            active.remove(selected)
+            if rng.random() * 100 < extra_spawn_chance:
+                active.append(spawn())
+            if not active:
+                active.append(spawn())
+            selected_id = None
         results.append((coin, elapsed, breaks, restorations, elapsed >= cap, fevers))
     coins = sorted(row[0] for row in results)
     return {
