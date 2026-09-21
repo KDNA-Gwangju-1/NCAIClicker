@@ -143,5 +143,5 @@ AI에게 시켜도 제대로 못 고친다.
 - [효과음](sound-effects.md) — AudioManager, GameEvents 구독 후 PlayOneShot, 타격·코인·피버·고지서 효과음
 - [저금통 일반형 3D 에셋](piggy-normal-asset.md) — VARCO 3D 생성 모델, glTFast 스케일 한계로 Visual 프리팹 분리 제작, PiggyController 부재로 Visual 전용 범위
 - [인게임 HUD](ingame-hud.md) — 위젯별 컴포넌트, 이벤트 구독만으로 갱신, 호버 스윙만 세는 정확도, 게이지 스프라이트
-- [결과 화면](results.md) — ResultUIController, 정산과 파산 2종 분기, 조준 정확도 집계, 원작 구조 2컬럼 레이아웃
 - [설정 패널](settings-panel.md) — SettingsPanelController, IAudioService로 볼륨·화면 흔들림 조회/적용, 창모드, 저장 데이터 초기화, 메인 메뉴·일시정지 공용 프리팹
+* [일시정지 패널](pause_panel.md) · ESC 키 입력 시 원래 timeScale 안전 복원, 설정 패널(#196) 조립 연동, 코인 유실 경고 확인창

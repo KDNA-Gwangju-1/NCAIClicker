@@ -98,3 +98,4 @@ flowchart LR
 | 2026-09-18 | #9 | Claude | 최초 작성 — `PiggyNormalVisual.prefab` 제작, 텍스처 해상도·스케일 방식 결정 기록 |
 | 2026-09-21 | #9 | Claude | 문서 범위를 저금통 3종 에셋 전체로 확장 — 파편 8종(VARCO 생성 01·02 + Blender 절차적 분할 03~08), 코인 그레이박스 프리팹 추가 반영. PR #199에서 코드만 병합되고 누락됐던 기술 문서를 사후 보강 |
 | 2026-09-21 | #37 | Claude | `PiggyNormalVisual.prefab`을 `TargetNormal.prefab`의 `Visual` 자식으로 연결 완료 (6.6). "Piggy_Normal 루트 미제작" 한계 해소, 자세한 내용은 [타격 대상](hit-targets.md) 참고 |
+| 2026.09.21 | #37, #192 | saltlake00 | TargetNormal 프리팹의 Mesh 자식명 정규화, localPosition.y = 0.20 오프셋 및 스케일(0.477) 교정으로 책상 파묻힘 문제 해결 및 TargetChecks 통과 |

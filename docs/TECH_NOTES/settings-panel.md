@@ -96,12 +96,12 @@ Unity 6000.3.21f1 에디터, Play Mode에서 UnityMCP `execute_code`로 실제 �
 - [x] 재시작 시나리오: 새 `AudioManager` 컴포넌트를 추가해 `Awake()`를 다시 태워본 결과 직전에 저장한 값(Bgm=0.3/Sfx=0.6/Shake=false)이 그대로 복원됨 — "게임을 껐다 켜도 유지" DoD 충족
 - [ ] **실제 화면 스크린샷 검증은 못했다** — 이 세션의 Play Mode에서 Game 뷰 프레임이 갱신되지 않는 현상(`Time.frameCount`가 2에서 고정)이 있어 스크린샷이 계속 같은 프레임을 반환했다. 위 항목은 전부 스크린샷 대신 실행 중인 오브젝트의 실제 값을 코드로 읽어 확인했다
 - [ ] **배경음이 실제로 들리는지는 미검증** — 프로젝트에 BGM 재생 코드·클립이 아직 없어([sound-effects.md](sound-effects.md)와 같은 사유) 볼륨 수치 적용까지만 확인했다
-- [ ] **`Game` 씬(일시정지 경유) 연결은 검증 대상 자체가 없다** — #192가 아직 구현되지 않았다
+* [x] **Game 씬(일시정지 경유) 연결 검증 완료** · #192 일시정지 패널에 조립되어 ESC 및 설정 버튼 연동 정상 동작 확인
 - [ ] **빌드된 실행 파일에서 `Screen.fullScreen`이 실제로 전체 화면/창을 전환하는지는 미검증** — 에디터 Game 뷰는 이 값을 반영하지 않는다
 
 ## 알려진 한계
 
-- **`Game` 씬(일시정지 경유)에 연결되지 않았다.** #192(ESC 일시정지)가 아직 구현되지 않아 열 대상이 없다. #192를 구현하는 사람이 `Assets/Prefabs/UI/SettingsPanel.prefab`을 그대로 인스턴스화해 `SettingsPanelController.Open()`을 호출하면 된다.
+* **Game 씬(일시정지 경유) 연결 완료.** #192 일시정지 패널의 자식으로 조립되어 정상 연동됨.
 - **배경음(BGM) 실제 재생 코드가 없다.** `AudioManager`에 `_bgmSource`(`Managers` 프리팹의 자식 `BgmSource`)를 추가했지만 재생할 클립이 아직 없다. 볼륨 값 자체는 정상 적용·저장되지만 귀로 듣는 검증은 BGM이 생길 때까지 불가능하다.
 - **에디터에서 `Screen.fullScreen`은 실제로 전체 화면을 전환하지 않는다.** Unity Editor의 Game 뷰는 독립된 OS 창이 아니라서 이 값 자체가 별 의미가 없다 — main-menu.md가 기록한 `Application.Quit()`의 에디터 한계와 같은 종류다. 실제 빌드에서의 동작은 미검증.
 - **테두리·아이콘을 생략했다.** 시안(#192 레이아웃 명세)의 2px 테두리와 버튼 좌측 아이콘은 넣지 않고 배경색·글자·크기만 맞췄다. 대비 4.5:1·클릭 타깃 48px(스케일 후 72px) 이상 기준은 지켰다.
@@ -114,3 +114,4 @@ Unity 6000.3.21f1 에디터, Play Mode에서 UnityMCP `execute_code`로 실제 �
 | 날짜 | 이슈 | 누가 | 무엇이 바뀌었나 |
 |---|---|---|---|
 | 2026-09-21 | #196, #202 | hunil58 | 최초 작성. `IAudioService` 신설(계약 #202), `AudioManager` 구현 편입, `HammerCameraRig` 화면 흔들림 조회 추가, `SaveData` v2→v3, `SettingsPanelController`·`SettingsPanel.prefab` 신규, `MainMenuController`에 설정 버튼 연결 |
+| 2026.09.21 | #192 | saltlake00 | Game 씬 일시정지 패널(#192) 조립 연동 및 Closed 이벤트 발행 추가, RectTransform 안전 캐스팅 보강 |

@@ -45,6 +45,8 @@ namespace NCAIClicker.UI
         [SerializeField] private Button _backButton;
         [SerializeField] private Button _closeButton;
 
+        public event System.Action Closed;
+
         private void Awake()
         {
             if (_resetConfirmPanel != null)
@@ -90,7 +92,10 @@ namespace NCAIClicker.UI
             // 그리기 순서상 패널 위에 겹쳐 보인다 — 열 때마다 형제 목록 맨 뒤로 보내 항상 맨 위에 그린다.
             transform.SetAsLastSibling();
             // ContentSizeFitter는 다음 프레임에야 계산돼 첫 프레임에 패널 높이가 0으로 보일 수 있다.
-            LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)transform);
+            if (transform is RectTransform rectTransform)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(rectTransform);
+            }
         }
 
         public void Close()
@@ -103,6 +108,7 @@ namespace NCAIClicker.UI
             }
 
             gameObject.SetActive(false);
+            Closed?.Invoke();
         }
 
         private void RefreshFromSave()
