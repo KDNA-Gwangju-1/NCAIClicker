@@ -9,18 +9,16 @@ namespace NCAIClicker.Core
 {
     /// <summary>
     /// 크리처들의 스폰과 필드 내 개체 수, 리스폰을 총괄하는 매니저 (ARCHITECTURE 1절).
-    /// 동시 출현 수는 stages.csv 의 spawn_count,
-    /// 재등장 대기는 economy.csv 의 spawn_interval_sec 을 기준으로 하며,
-    /// 업그레이드(저금통 수집벽)에 의해 동적으로 변할 수 있도록 계산한다.
+    /// 동시 출현 수는 stages.csv 의 spawn_count 를 기준으로 하며, 업그레이드(저금통 수집벽)에
+    /// 의해 동적으로 변할 수 있도록 계산한다.
+    ///
+    /// 부서진 자리는 시간이 지나도 자동으로 채워지지 않는다 (#156 B안 — 원작 재관찰 결과 시간
+    /// 기반 개별 리스폰은 원작 기본 규칙이 아니었다. REFERENCE_ANALYSIS.md 9절).
+    /// 대신 파괴할 때마다 economy.csv 의 extra_spawn_chance_on_destroy 확률로 즉시 1개가
+    /// 추가되고, 필드가 완전히 비면(0마리) 그때만 1개가 즉시 채워진다.
     /// </summary>
     public class CreatureManager : MonoBehaviour, IRunScoped
     {
-        /// <summary>
-        /// 재등장 대기의 하한. 밸런스 수치가 아니라 방어값이다 — 단축 업그레이드가 겹쳐
-        /// 0 이하로 내려가면 매 프레임 스폰이 된다. CSV 에 넣을 성질의 값이 아니다.
-        /// </summary>
-        private const float MinSpawnIntervalSec = 0.1f;
-
         public static CreatureManager Instance { get; private set; }
 
         [SerializeField] private BalanceData _balanceData;
@@ -57,7 +55,6 @@ namespace NCAIClicker.Core
         private bool _isRunning;
 
         private readonly List<GameObject> _activeCreatures = new List<GameObject>();
-        private readonly List<float> _respawnTimers = new List<float>();
 
         public IReadOnlyList<GameObject> ActiveCreatures => _activeCreatures;
         public Bounds DeskBounds => _deskBounds;
@@ -159,11 +156,6 @@ namespace NCAIClicker.Core
             }
         }
 
-        private void Update()
-        {
-            UpdateRespawnTimers(Time.deltaTime);
-        }
-
         /// <summary>
         /// 특정 스테이지 기준으로 스폰 매니저를 초기화하고 초기 대상을 배치한다.
         /// </summary>
@@ -228,19 +220,16 @@ namespace NCAIClicker.Core
         }
 
         /// <summary>
-        /// 재등장 대기 시간을 구한다.
+        /// 저금통 파괴 시 즉시 1개를 추가로 스폰할 확률(%, 0~100)을 구한다.
+        /// 기본값은 0 — 저금통 수집벽 업그레이드가 이 값을 올린다.
         /// </summary>
-        public float GetSpawnIntervalSec()
+        public float GetExtraSpawnChancePercent()
         {
-            // 위와 같은 이유로 기본값을 코드에 두지 않는다.
-            var baseInterval = _balanceData == null || _balanceData.Economy == null
+            // 기본값을 코드에 두지 않는다. CSV 를 못 읽으면 확률 0(추가 생성 없음)으로 둔다.
+            var baseChance = _balanceData == null || _balanceData.Economy == null
                 ? 0f
-                : _balanceData.Economy.SpawnIntervalSec;
-            if (baseInterval <= 0f)
-            {
-                return 0f;
-            }
-            return Mathf.Max(MinSpawnIntervalSec, GetStat(StatId.SpawnIntervalSec, baseInterval));
+                : _balanceData.Economy.ExtraSpawnChanceOnDestroy;
+            return Mathf.Clamp(GetStat(StatId.ExtraSpawnChance, baseChance), 0f, 100f);
         }
 
         /// <summary>주입이 없으면 기준값 그대로다. 배선이 빠져도 게임이 돌아가야 한다.</summary>
@@ -250,24 +239,32 @@ namespace NCAIClicker.Core
         }
 
         /// <summary>
-        /// 파괴된 대상을 치우고 **치운 수만큼** 재등장을 예약한다.
+        /// 파괴된 대상을 치우고, 파괴 개수만큼 추가 생성 확률을 굴린 뒤 필드가 완전히
+        /// 비었으면 1개만 즉시 채운다 (#156 B안).
         ///
-        /// 예약을 하나만 걸면 안 된다 (#141). 이 핸들러는 파괴된 개체마다 한 번씩 불리지만,
-        /// 첫 호출의 정리 루프가 같은 프레임에 죽은 나머지까지 먼저 치운다. 뒤따르는 호출은
-        /// 치울 것이 없는 채로 예약만 하나 더 얹으므로, 어느 순서로 와도 합이 맞지 않는다.
-        /// 피버 중이나 자동 망치와 수동 스윙이 겹칠 때 동시 파괴가 실제로 일어나고,
-        /// 그때마다 필드 개체 수가 영구히 줄었다.
-        ///
-        /// 개체마다 자기 타이머를 갖는 구조는 그대로 둔다 — 밸런스 시뮬레이터
-        /// (`.github/scripts/simulate_balance.py`)가 "슬롯별 파괴 후 재등장 대기" 로 모델링하고
-        /// 있어, 공용 타이머 하나로 바꾸면 N 마리 복구에 N 배 시간이 걸려 모델과 어긋난다.
+        /// 목록에 없는 대상의 파괴 이벤트(유령)는 치운 것이 없어 removedCount 가 0 이므로
+        /// 아무 것도 하지 않는다 (#141 과 같은 이유로 유효한 파괴에만 반응해야 한다).
         /// </summary>
         private void HandleTargetBroken(BreakInfo info)
         {
             var removedCount = RemoveDeadCreatures();
+            if (removedCount <= 0)
+            {
+                return;
+            }
+
+            var extraSpawnChance = GetExtraSpawnChancePercent();
             for (var i = 0; i < removedCount; i++)
             {
-                _respawnTimers.Add(GetSpawnIntervalSec());
+                if (Random.Range(0f, 100f) < extraSpawnChance)
+                {
+                    SpawnRandomCreature();
+                }
+            }
+
+            if (_activeCreatures.Count == 0)
+            {
+                SpawnRandomCreature();
             }
         }
 
@@ -295,31 +292,6 @@ namespace NCAIClicker.Core
                 }
             }
             return removedCount;
-        }
-
-        /// <summary>
-        /// 재등장 대기를 진행시키고, 끝난 자리를 채운다.
-        ///
-        /// 목표치를 넘겨서는 스폰하지 않는다 (#141). 예약은 파괴 시점 기준인데 목표 동시 출현
-        /// 수는 단계·업그레이드로 그 사이에 줄어들 수 있어, 예약이 남아 있다는 이유만으로
-        /// 채우면 목표치를 넘긴다. 그런 예약은 채우지 않고 버린다.
-        /// </summary>
-        public void UpdateRespawnTimers(float deltaTime)
-        {
-            for (var i = _respawnTimers.Count - 1; i >= 0; i--)
-            {
-                _respawnTimers[i] -= deltaTime;
-                if (_respawnTimers[i] > 0f)
-                {
-                    continue;
-                }
-
-                _respawnTimers.RemoveAt(i);
-                if (_activeCreatures.Count < GetRequiredSpawnCount())
-                {
-                    SpawnRandomCreature();
-                }
-            }
         }
 
         /// <summary>
@@ -423,7 +395,6 @@ namespace NCAIClicker.Core
                 }
             }
             _activeCreatures.Clear();
-            _respawnTimers.Clear();
         }
 
         /// <summary>
