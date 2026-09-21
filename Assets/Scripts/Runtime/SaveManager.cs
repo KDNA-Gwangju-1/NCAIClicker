@@ -105,6 +105,7 @@ namespace NCAIClicker
                 data.ActiveLoan = _bill.CurrentLoan;
                 data.LastLoanRepaidDay = _bill.LastLoanRepaidDay;
                 data.OfferedPerkIds = _bill.OfferedPerkIds;
+                data.CycleIndex = _bill.CurrentCycle;
             }
 
             Save(data);
@@ -144,6 +145,7 @@ namespace NCAIClicker
             {
                 _bill.RestoreBillState(data.CurrentDay, data.BillIndex, data.ActiveBill,
                                        data.ActiveLoan, data.LastLoanRepaidDay, data.OfferedPerkIds);
+                _bill.RestoreCycle(data.CycleIndex);
             }
         }
 
@@ -156,6 +158,10 @@ namespace NCAIClicker
         /// </summary>
         public void ResetAndDistribute()
         {
+            if (_bill != null)
+            {
+                _bill.RestoreCycle(1);
+            }
             var current = Load();
             var fresh = new SaveData
             {

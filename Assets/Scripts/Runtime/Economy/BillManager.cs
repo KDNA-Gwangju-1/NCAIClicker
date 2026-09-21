@@ -28,6 +28,7 @@ namespace NCAIClicker.Economy
 
         private int _currentDay = 1;
         private int _billIndex = 1;
+        private int _cycleIndex = 1;
         private bool _hasBegun;
         private Bill _activeBill;
         private string[] _offeredPerkIds = Array.Empty<string>();
@@ -54,6 +55,12 @@ namespace NCAIClicker.Economy
         private IStageService _stageService;
 
         public int CurrentDay => _currentDay;
+        public int CurrentCycle => _cycleIndex;
+
+        public void RestoreCycle(int cycle)
+        {
+            _cycleIndex = Mathf.Max(1, cycle);
+        }
 
         public int DaysLeft => _activeBill == null
             ? 0
@@ -154,19 +161,28 @@ namespace NCAIClicker.Economy
         /// 런당 하루이므로 날짜당 한 번만 발행된다는 계약(ARCHITECTURE.md)을 자연히 지킨다.
         /// GameManager 가 런 종료 처리 중 부른다 (IRunScoped, #164).
         ///
-        /// **StageGoalManager 보다 나중에 불려야 한다.** 그쪽은 목표를 채웠으면 단계를 올리고,
-        /// 여기서는 파산이면 단계를 0 으로 되돌린다 — 순서가 뒤집히면 파산인데 단계가 올라간다.
-        /// 순서는 GameManager.GetServiceOrder 가 정한다.
+        /// 파산 판정은 런 종료 직후가 아니라 정산창을 확인하고 다음 날로 넘어가는 시점(TryCloseDay, #211)에
+        /// 수행하여 마감 당일 납부 기회를 보장한다.
         /// </summary>
         public void EndRun()
         {
             GameEvents.PublishDayEnded(_currentDay);
+        }
 
+        /// <summary>
+        /// 다음 날로 넘어가기 직전에 마감을 확정한다 (이슈 #211).
+        /// 미납 고지서가 연체되었으면 파산을 처리하고 true 를 반환한다.
+        /// 연체되지 않았으면 false 를 반환한다.
+        /// </summary>
+        public bool TryCloseDay()
+        {
             if (!IsBillOverdue())
             {
-                return;
+                return false;
             }
+
             HandleBankruptcy();
+            return true;
         }
 
         /// <summary>
@@ -196,6 +212,7 @@ namespace NCAIClicker.Economy
         /// </summary>
         private void HandleBankruptcy()
         {
+            _cycleIndex++;
             GameEvents.PublishBankrupt();
             ResetRound();
         }

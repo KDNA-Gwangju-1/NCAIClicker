@@ -18,6 +18,7 @@ namespace NCAIClicker.Data
         public int[] UpgradeLevels;
         public int CurrentDay = 1;
         public int BillIndex = 1;
+        public int CycleIndex = 1;
 
         // JsonUtility는 참조 필드의 null을 직렬화하지 못해 빈 객체로 되살린다.
         // Has* 플래그로 저장 파일에서만 있음/없음을 구분하고, SaveManager가
