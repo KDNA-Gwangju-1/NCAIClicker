@@ -218,8 +218,7 @@ public interface IRingShop
     bool TryPurchaseRing(string ringId);
 }
 
-// 저장 복원. SaveManager 만 쓸 계약이지만 IUpgradePersistence 와 마찬가지로 **아직 배선되지 않았다**
-// (docs/TECH_NOTES/contracts.md 알려진 한계).
+// 저장 복원. SaveManager 만 쓴다 (#175, 배선 #203).
 // ringLevelsBySortOrder 는 null 로 올 수 있다 — v2 이하 저장에는 그 배열이 없다.
 public interface ILegacyPersistence
 {
@@ -234,6 +233,17 @@ public interface ISaveService
     bool HasSave { get; }              // 저장 파일 존재 여부. Load()는 없어도 항상 기본값을 반환한다 (이슈 #139)
 }
 
+// 매니저 상태를 저장에 모으고 되돌리는 계약 (이슈 #203). SaveManager 가 구현하고
+// **ManagerBootstrap 과 GameManager 만 쓴다** — 저장 시점을 한곳에 모아 두기 위해서다.
+// ISaveService 와 나눈 이유는 소비처가 다르기 때문이다. 메인 메뉴는 HasSave 만 쓴다.
+// IRunScoped 로 대신할 수 없다: 복원은 모든 BeginRun 보다 앞, 저장은 모든 EndRun 보다 뒤여야
+// 하는데 GameManager 는 두 경계에 같은 순서 배열을 쓴다.
+public interface IGamePersistence
+{
+    void CollectAndSave();
+    void LoadAndDistribute();
+}
+
 // MainMenu 버튼이 씬 전환을 요청하는 계약. GameManager만 구현한다 (이슈 #142)
 public interface IGameFlowService
 {
@@ -242,7 +252,7 @@ public interface IGameFlowService
     void QuitGame();
 }
 
-// 단계 진행 상태 조회 계약. StageGoalManager 가 구현하고 CreatureManager 와 BillManager 가 소비한다 (이슈 #150)
+// 단계 진행 상태 조회 계약. StageGoalManager 가 구현하고 CreatureManager·BillManager·SaveManager 가 소비한다 (이슈 #150, #203)
 public interface IStageService
 {
     int CurrentStageIndex { get; }
@@ -309,6 +319,14 @@ public class SaveData
 
 - 날짜·고지서·대출·쿨다운·퍼크 후보·선택 대기·소수 잔여를 **하나의 스냅샷**으로 저장한다.
 - 메뉴/결과 화면에서 구매·납부·대출·상환·퍼크 선택을 완료한 직후와 런 시작 직전에 저장한다.
+  현재 배선은 **런 시작 직전**(`GameManager.ContinueRun`)과 **하루 종료 직후**(`NotifyEndRun`)
+  두 지점이다 (#203). 고지서 화면의 구매는 화면을 떠날 때 함께 저장되므로, 구매 직후에 앱이
+  강제 종료되는 경우에만 유실된다.
+- **복원은 앱이 켜질 때 `ManagerBootstrap` 이 한 번만 한다.** 매니저는 `DontDestroyOnLoad` 라
+  씬을 다시 로드해도 값을 들고 있어서, 씬 로드마다 복원하면 마지막 저장 이후의 변경이
+  덮어써진다. 저장은 기록이지 살아 있는 값의 출처가 아니다 (#203).
+- 성장을 지우는 지점은 `GameManager.StartNewRun` **하나뿐**이다. 빈 저장을 쓰는 것만으로는
+  부족해서 그 빈 값을 곧바로 분배한다 — 안 그러면 직전 회차의 성장이 메모리에 남는다.
 - 런 도중 종료하면 **그 런의 시작 스냅샷**으로 복귀한다. 그날의 수입·지출·납부·대출·퍼크 변경을 전부 함께 되돌린다. 씬의 대상 위치·남은 내구도는 저장하지 않는다. 중간 상태 일부만 저장해 재실행으로 빚만 지워지는 일을 막는다.
 - 하루 종료 처리가 끝나면 결과와 다음 행동 상태를 함께 저장한다. 로드 시 `LastCompletedDay`를 다시 정산하지 않는다.
 - 저장은 임시 파일 작성 후 교체한다. JSON 오류·지원하지 않는 버전은 원본을 백업하고 경고 후 초기화한다. 버전 1은 회차 정보가 없으므로 성장·코인은 유지하고 하루/고지서/대출을 기본값으로 보완한다.

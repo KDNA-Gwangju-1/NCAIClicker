@@ -18,9 +18,9 @@
 | 버튼이 `SceneManager.LoadScene`을 직접 호출 | ❌ | 이슈 요구사항 위반. GameManager가 씬 이름을 알고 있는 유일한 곳이어야 나중에 로딩 화면·페이드 등을 끼워 넣을 때 한 곳만 고치면 된다 |
 | `GameManager.Instance`를 구체 클래스 타입으로 직접 참조 | ❌ | convention-checker가 발견: `SaveManager.Instance`(`ISaveService`)·`BillManager.Instance`(`IBillService`)와 달리 인터페이스 타입이 아니라 AGENTS.md "다른 매니저 구현 클래스를 직접 참조하지 않는다"를 어긴다. `run-state.md`가 "실제 소비자가 생기면 그때 인터페이스를 먼저 발의한다"고 예견해 둔 상황이 실제로 발생했다 — 계약 변경 #142로 정정 |
 | 신규 `IGameFlowService`(`StartNewRun`/`ContinueRun`/`QuitGame`) 발의 후 `GameManager.Instance`를 그 타입으로 노출 | ✅ | `SaveManager`/`BillManager`가 이미 쓰는 "Instance를 인터페이스 타입으로 노출" 컨벤션과 일치시킨다. `CurrentState`는 아직 소비자가 없어 이 인터페이스에 넣지 않는다(run-state.md 알려진 한계 유지) |
-| `StartNewRun()`이 확인 직후 `SaveManager.Instance.Save(new SaveData())`로 즉시 덮어쓰기 | ✅ | "덮어쓴다는 확인"이 실제로 덮어쓰지 않으면 거짓 확인이다. 자동 저장 배선(아래 "알려진 한계")이 아직 없어 "다음 자동 저장 시점에 덮어써진다"에 기댈 수 없다 |
+| `StartNewRun()`이 확인 직후 `SaveManager.Instance.Save(new SaveData())`로 즉시 덮어쓰기 | ✅ | "덮어쓴다는 확인"이 실제로 덮어쓰지 않으면 거짓 확인이다. 자동 저장 배선(당시엔 없었다)에 기대면 "다음 저장 시점에 덮어써진다"가 되어 확인이 거짓이 된다. #203 이 배선을 붙인 뒤에도 이 즉시 덮어쓰기는 그대로 두고, **덮어쓴 값을 곧바로 분배하는 한 줄만 더했다** — 파일만 비우면 매니저가 `DontDestroyOnLoad` 라 성장이 메모리에 남는다 |
 | `ISaveService`에 `bool HasSave` 추가 | ✅ | [contracts.md](contracts.md) #139 항목 참고. `Load()`는 파일이 없어도 기본값 `SaveData`를 반환해 "저장 없음"과 구분이 안 된다 |
-| 이어하기 클릭 시 `SaveManager.Load()` → `EconomyManager.RestoreWallet()` 등 실제 데이터 복원까지 배선 | ❌ | [save-load.md](save-load.md) 알려진 한계에 이미 "자동 로드/저장 호출부가 없고, `IEconomyService`에 없는 concrete API 문제가 먼저 풀려야 한다(공용 계약 변경 필요)"고 기록돼 있다. 이슈 #90 완료 기준은 "Game 씬으로 넘어간다"까지이고 복원 배선은 그 자체로 별도 계약 변경이 필요한 큰 작업이라 범위에 넣지 않았다 |
+| 이어하기 클릭 시 `SaveManager.Load()` → `EconomyManager.RestoreWallet()` 등 실제 데이터 복원까지 배선 | ❌ | 이슈 #90 완료 기준은 "Game 씬으로 넘어간다"까지이고, 복원 배선은 그 자체로 별도 계약 변경이 필요한 큰 작업이라 범위에 넣지 않았다. **#203 에서 별도 이슈로 붙였다** — 다만 복원 시점은 이어하기 클릭이 아니라 앱 시작 1회다 ([save-load.md](save-load.md)) |
 | 덮어쓰기 확인을 별도 씬(팝업 씬)으로 분리 | ❌ | ARCHITECTURE.md 0절이 씬을 MainMenu/Game 둘로 고정했고, 결과 화면도 "같은 씬의 UI 패널"로 처리하는 것과 같은 이유로 비활성 패널(`OverwriteConfirmPanel`) 토글로 처리했다 |
 | EventSystem에 `InputSystemUIInputModule` 부착 | ✅ | `ProjectSettings.asset`의 `activeInputHandler: 1`(새 Input System 전용)이라 레거시 `StandaloneInputModule`(레거시 `Input` 클래스 사용)은 이 설정에서 동작하지 않는다 |
 
@@ -99,11 +99,13 @@ Unity 6000.3.21f1 에디터, UnityMCP `execute_code`/`manage_camera(screenshot)`
 
 ## 알려진 한계
 
-- **이어하기를 눌러도 실제 저장 데이터(코인·업그레이드 레벨·날짜·고지서·대출)가 복원되지 않는다.**
-  `SaveManager.Load()`를 불러 `EconomyManager`/`BillManager` 등에 복원값을 주입하는 배선은 아직
-  아무도 만들지 않았다 — [save-load.md](save-load.md)·[coin-economy.md](coin-economy.md) 알려진
-  한계에 이미 기록된 별개 문제이고, 그 자체로 공용 계약 변경이 먼저 필요하다. 지금은 새 회차
-  시작과 이어하기가 "Game 씬으로 들어간다"는 점에서 사실상 동일하게 동작한다.
+- ~~**이어하기를 눌러도 실제 저장 데이터가 복원되지 않는다.**~~ — #203 이 배선을 붙였다.
+  코인·소수 잔여·업그레이드 레벨·레거시 포인트·반지 레벨·단계가 앱을 켤 때 복원되고,
+  **새 회차 시작과 이어하기가 이제 실제로 다르게 동작한다** — `StartNewRun` 은 빈 저장을
+  분배해 성장을 지우고, `ContinueRun` 은 지우지 않는다.
+- **날짜·고지서·대출은 여전히 복원되지 않는다.** `IBillService` 에 복원 통로가 없어 #203 의
+  범위 밖이었다 ([save-load.md](save-load.md) 알려진 한계). 이어하기로 들어가면 고지서와 날짜는
+  1일차부터 다시 시작한다.
 - 확인 다이얼로그·버튼은 그레이박스 수준 UI(흰 배경 버튼, 기본 폰트 크기)다. 실제 비주얼은
   범위 밖(설정·크레딧·타이틀 연출과 같은 급)이다.
 - 최고 기록·통계 표시는 추가 목표로 이번 이슈 범위 밖이라 구현하지 않았다.
@@ -120,3 +122,4 @@ Unity 6000.3.21f1 에디터, UnityMCP `execute_code`/`manage_camera(screenshot)`
 | 2026-09-17 | #142 | hunil58 | convention-checker가 `GameManager.Instance` 구체 클래스 직접 참조 위반을 발견. `IGameFlowService` 계약 추가, `GameManager.Instance`를 그 타입으로 재노출 |
 | 2026.09.21 | #91, #192 | saltlake00 | UpgradeButton 신설 및 MainMenuController 배선, UpgradeShopPanel 기본 비활성화 적용으로 시작화면 스킬트리 상시 노출 문제 해결, 5개 버튼 105px 등간격 수직 정렬 |
 | 2026.09.21 | #192 | saltlake00 | 본래 기획(인게임 고지서 화면의 업그레이드 탭)에 맞춰 시작 화면에서 UpgradeShopPanel 및 UpgradeButton 완전 제거. 메인 4개 버튼(새 회차, 이어하기, 설정, 종료) 110px 등간격 재정렬. OverwriteConfirmPanel 및 SettingsPanel 최상단(SetAsLastSibling) 정렬 처리로 팝업 창 위로 메인 버튼이 뚫고 나오는 z순서 결함 완전 해결 |
+| 2026-09-21 | #203 | twins6375-art | 저장 복원 배선이 붙어 "이어하기를 눌러도 복원되지 않는다" 한계를 닫았다. 새 회차 시작과 이어하기가 실제로 달라졌고, 날짜·고지서·대출은 여전히 복원되지 않음을 별도 한계로 남김 |

@@ -73,13 +73,14 @@ flowchart LR
   mgr --> state
   mgr --> wallet
   ui -. "IUpgradeShop (#116)" .-> mgr
-  save -. "IUpgradePersistence (#116)" .-> mgr
+  save -- "IUpgradePersistence (#116, 배선 #203)" --> mgr
   mgr == "OnBalanceChanged 발행" ==> events
   events == "구독" ==> ui
 ```
 
-점선은 **계약은 있으나 아직 배선되지 않은 경로**다. 계약은 #116 에서 생겼고, 그 계약을
-부르는 소비처는 아직 저장소에 하나도 없다.
+점선은 **계약은 있으나 아직 배선되지 않은 경로**다. `IUpgradePersistence` 는 #203 에서
+`SaveManager` 에 배선되어 실선이 됐다 — 복원은 앱 시작 1회, 저장은 고지서 화면을 떠날 때와
+하루가 끝날 때다 ([저장·불러오기](save-load.md)).
 
 | 클래스 | 경로 | 하는 일 |
 |---|---|---|
@@ -301,3 +302,4 @@ stat 은 일부뿐이라(`max_stamina`·`fever_gauge_per_hit`·`coin_bonus_multi
 | 2026-09-17 | #131 | twins6375-art | 소비처 6곳을 `IUpgradeStats` 로 연결. 런 시작 캐시로 "다음 런부터" 보장, push 방식 `SetUpgradeOverrides` 제거 |
 | 2026-09-17 | #140 | saltlake00 | `CreatureManager` 가 `Managers` 프리팹으로 옮겨 가 주입 주체가 `GameManager` → `ManagerBootstrap` 으로 바뀐 것을 반영 |
 | 2026-09-18 | #91 | yahoo-afk | 구매 화면(6.8) 추가 — `UpgradeShopPanel`/`UpgradeShopEntry`/`UpgradeStatNames` 와 `MainMenu` 씬 배치. #171 이 연 `EconomyManager.Shop` 통로를 첫 소비. "다음 런부터" 를 Play Mode 로 처음 확인 |
+| 2026-09-21 | #203 | twins6375-art | `IUpgradePersistence` 가 `SaveManager` 에 배선되어 구조 도식의 점선 하나가 실선이 됐다. 업그레이드 레벨이 앱을 껐다 켜도 남는다 |

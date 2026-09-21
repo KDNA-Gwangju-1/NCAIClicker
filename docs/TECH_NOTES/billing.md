@@ -262,7 +262,7 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 - ~~단계 진행(`_billIndex`)을 `BillManager`가 자체 순번으로 관리한다.~~ — #150 에서 `IStageService` 단일 출처 연결로 해결됐다. 고지서 금액과 기한은 현재 단계를 따르고, `_billIndex` 는 대출 해금 등에서 쓸 누적 발행 순번으로만 쓰인다.
 - ~~파산 판정(#30)이 없어 고지서를 기한 내에 내지 않아도 아무 일이 일어나지 않는다.~~ — #30 에서 붙였다. 함께 남았던 셋 중 지갑 초기화는 #158 이 해결했고 아래 둘이 남는다.
 - **결과 화면에 "파산"이 뜨지 않는다.** `OnBankrupt` 를 받아 표시할 화면(6.2/#34)이 아직 없다. #34 가 이 카드를 선행으로 잡고 있어 순환이었고, 발행까지가 #30 의 몫이다.
-- **파산 결과가 저장되지 않는다.** `SaveData.WasBankrupt`·`LastCompletedDay` 필드는 있지만 채우는 곳이 없다. `SaveManager` 를 부르는 곳이 `GameManager.StartNewRun()` 하나뿐이고 거기서 `new SaveData()` 빈 객체를 쓴다 — 매니저 상태가 전혀 담기지 않는다.
+- **파산 결과가 저장되지 않는다.** `SaveData.WasBankrupt`·`LastCompletedDay` 필드는 있지만 채우는 곳이 없다. #203 이 매니저↔저장 배선을 붙였지만 수집 대상은 코인·업그레이드·레거시·반지·단계까지이고, 고지서·대출·파산 결과는 **`IBillService` 에 복원 통로가 없어** 범위 밖으로 남았다 — 담아 봐야 되돌릴 수 없다. 공용 계약 이슈가 먼저다 ([저장·불러오기](save-load.md) 알려진 한계).
 - ~~**파산해도 돈이 그대로 남는다 — 페널티가 약하다.**~~ — #158 에서 해결. `IWalletPersistence`
   소비자에 `BillManager` 를 추가해(A안) 파산 시 `RestoreWallet(0, "0")` 으로 코인·소수 잔여를
   비운다. 영구 업그레이드는 여전히 유지된다.
@@ -292,3 +292,4 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 | 2026-09-18 | #92 | twins6375-art | 퍼크 선택 화면이 붙어 관련 한계를 닫았다. 납부 통로가 없다는 사실(`TryPay` 호출처 0)을 한계에 명시 |
 | 2026.09.18 | #173 | saltlake00 | HUD 프리팹 중복 정리. BillHud.prefab 에셋 삭제 및 GameHud 단일화 (1.25) |
 | 2026-09-21 | #175 | twins6375-art | 자발적 파산 진입점(`DeclareBankruptcy`) 추가와 고지서 화면 파산 선고 잠금 해제. 회차 초기화 표에 레거시 포인트·반지를 '유지' 로 명시 |
+| 2026-09-21 | #203 | twins6375-art | 매니저↔저장 배선이 붙었으나 고지서·대출·파산 결과는 `IBillService` 에 복원 통로가 없어 범위 밖으로 남은 사실을 한계에 명시 |
