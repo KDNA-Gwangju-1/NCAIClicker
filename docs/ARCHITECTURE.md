@@ -286,7 +286,7 @@ public enum ResumePoint { MainMenu, Result, PerkSelection }
 [Serializable]
 public class SaveData
 {
-    public const int CurrentVersion = 3; // SaveManager도 이 상수를 참조한다. 숫자를 두 곳에 적지 않는다
+    public const int CurrentVersion = 4; // SaveManager도 이 상수를 참조한다. 숫자를 두 곳에 적지 않는다
     public int Version = CurrentVersion;
     public long TotalCoin;
     public string CoinRemainder = "0"; // decimal을 InvariantCulture 문자열로 저장
@@ -309,6 +309,10 @@ public class SaveData
     public string[] PendingPerkIds;    // 결과 화면에서 선택한 다음 런 효과
     public long LegacyPoints;          // 파산을 넘어 남는다 (#175). v3 부터
     public int[] RingLevels;           // rings.csv sort_order 순. 파산해도 남는다 (#183). v3 부터
+    public float BgmVolume = 1f;       // 설정. 성장이 아니므로 새 회차에서도 지우지 않는다 (#202). v4 부터
+    public float SfxVolume = 1f;       // 〃
+    public bool IsFullscreen;          // 〃
+    public bool IsScreenShakeEnabled = true; // 〃
 }
 ```
 
@@ -353,7 +357,7 @@ public class SaveData
 
 ```json
 {
-  "Version": 3,
+  "Version": 4,
   "TotalCoin": 15420,
   "CoinRemainder": "0.37",
   "StageIndex": 2,
@@ -374,7 +378,11 @@ public class SaveData
   "WasBankrupt": false,
   "IsCompleted": false,
   "OfferedPerkIds": ["perk_pay_early", "perk_double_hit"],
-  "PendingPerkIds": []
+  "PendingPerkIds": [],
+  "BgmVolume": 0.8,
+  "SfxVolume": 1.0,
+  "IsFullscreen": false,
+  "IsScreenShakeEnabled": true
 }
 ```
 
