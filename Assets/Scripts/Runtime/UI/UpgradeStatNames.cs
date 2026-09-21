@@ -34,6 +34,7 @@ namespace NCAIClicker.UI
                 case StatId.CoinBonusMultiplier: return "코인 보너스";
                 case StatId.SpawnCount: return "동시 출현";
                 case StatId.SpawnIntervalSec: return "재등장 대기";
+                case StatId.ExtraSpawnChance: return "추가 생성 확률";
                 default: return stat.ToString();
             }
         }
