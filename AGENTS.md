@@ -20,6 +20,7 @@ NCAI 과정 팀 프로젝트. 5명이 7일간 Unity로 만드는 **시간 제한
 | 수치를 바꿔야 할 때 | [docs/BALANCE.md](docs/BALANCE.md) |
 | "원작은 어떻게 했나" | [docs/REFERENCE_ANALYSIS.md](docs/REFERENCE_ANALYSIS.md) |
 | 3D 에셋 · 원작 아트 레퍼런스 | [docs/ASSET_PIPELINE.md](docs/ASSET_PIPELINE.md) — 레퍼런스는 `python tools/fetch_reference.py` 로 받는다 |
+| 3D 만들 이미지·프롬프트 | [docs/CONCEPT_ART/README.md](docs/CONCEPT_ART/README.md) — 입력 이미지·VARCO URL·Generate3D 설정. 프롬프트는 [PROMPTS.md](docs/CONCEPT_ART/PROMPTS.md) 번호로 참조 |
 | UI 제작·수정 | [docs/UI_GUIDE.md](docs/UI_GUIDE.md) — 4배수 그리드·대비·세이프존·글자 크기 |
 | 빌드·배포 | [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md) |
 | 이 기능이 **실제로 어떻게 구현됐나** | [docs/TECH_NOTES/](docs/TECH_NOTES/) — 이슈별 기술 문서 + C4 도식 |
