@@ -176,6 +176,7 @@ namespace NCAIClicker.EditorTools
                     new Bill { Amount = 500L, IssuedDay = 1, DueDay = 3, IsPaid = false },
                     new Loan { Principal = 1000L, Owed = 800L, DailyCut = 0.1f },
                     1, new[] { "perkA", "perkB" });
+                bill.RestoreCycle(4);
 
                 var coin = economy.CurrentCoin;
                 var points = legacy.CurrentLegacyPoints;
@@ -211,6 +212,7 @@ namespace NCAIClicker.EditorTools
                 AssertCondition(written.LastLoanRepaidDay == 1, "저장 파일의 완제일이 다릅니다: " + written.LastLoanRepaidDay);
                 AssertCondition(written.OfferedPerkIds != null && written.OfferedPerkIds.Length == 2,
                                 "저장 파일에 퍼크 후보가 담기지 않았습니다.");
+                AssertCondition(written.CycleIndex == 4, "저장 파일의 사이클 번호가 다릅니다: " + written.CycleIndex);
                 checkCount++;
 
                 // 전부 지운 뒤 되돌린다.
@@ -219,6 +221,7 @@ namespace NCAIClicker.EditorTools
                 ((IUpgradePersistence)economy).RestoreUpgradeLevels(Array.Empty<int>());
                 stage.RestoreStage(0);
                 bill.RestoreBillState(1, 1, null, null, -1, Array.Empty<string>());
+                bill.RestoreCycle(1);
                 AssertCondition(economy.CurrentCoin == 0L && legacy.CurrentLegacyPoints == 0L,
                                 "준비: 지우기가 되지 않았습니다.");
 
@@ -243,6 +246,7 @@ namespace NCAIClicker.EditorTools
                 AssertCondition(bill.LastLoanRepaidDay == 1, "복원 후 완제일이 다릅니다: " + bill.LastLoanRepaidDay);
                 AssertCondition(bill.OfferedPerkIds != null && bill.OfferedPerkIds.Length == 2,
                                 "복원 후 퍼크 후보가 되돌아오지 않았습니다.");
+                AssertCondition(bill.CurrentCycle == 4, "복원 후 사이클 번호가 다릅니다: " + bill.CurrentCycle);
                 checkCount++;
             }
             finally

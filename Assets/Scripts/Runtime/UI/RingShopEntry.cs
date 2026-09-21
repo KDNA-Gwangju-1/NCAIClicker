@@ -3,6 +3,7 @@ using NCAIClicker.Data;
 using NCAIClicker.Interfaces;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace NCAIClicker.UI
@@ -10,11 +11,9 @@ namespace NCAIClicker.UI
     /// <summary>
     /// 반지 카드 한 장 (이슈 #183). <see cref="UpgradeShopEntry"/> 와 짝이고
     /// **다른 것은 화폐뿐이다** — 이쪽은 코인이 아니라 레거시 포인트로 산다.
-    ///
-    /// 다시 그리는 일은 카드가 아니라 <see cref="RingShopPanel"/> 이 한다. 한 장을 사면
-    /// 포인트가 줄어 다른 카드의 구매 가능 여부까지 달라지기 때문이다.
+    /// 마우스 오버 시 <see cref="RingTooltip"/> 에 상세 정보를 띄운다.
     /// </summary>
-    public class RingShopEntry : MonoBehaviour
+    public class RingShopEntry : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
     {
         [Tooltip("rings.csv 의 id")]
         [SerializeField] private string _ringId;
@@ -28,6 +27,9 @@ namespace NCAIClicker.UI
 
         [Tooltip("못 사는 이유. 비면 살 수 있다는 뜻이다.")]
         [SerializeField] private TextMeshProUGUI _reasonLabel;
+
+        [Tooltip("마우스 호버 시 정보를 보여줄 툴팁")]
+        [SerializeField] private RingTooltip _tooltip;
 
         private BalanceData _balanceData;
         private IRingShop _shop;
@@ -49,6 +51,42 @@ namespace NCAIClicker.UI
             {
                 _purchaseButton.onClick.RemoveListener(HandlePurchaseClicked);
             }
+        }
+
+        public void SetTooltip(RingTooltip tooltip)
+        {
+            _tooltip = tooltip;
+        }
+
+        public void SetRingId(string ringId)
+        {
+            _ringId = ringId;
+        }
+
+        public void OnPointerEnter(PointerEventData eventData)
+        {
+            UpdateTooltip();
+        }
+
+        public void OnPointerExit(PointerEventData eventData)
+        {
+            if (_tooltip != null)
+            {
+                _tooltip.Hide();
+            }
+        }
+
+        private void UpdateTooltip()
+        {
+            if (_tooltip == null || _definition == null)
+            {
+                return;
+            }
+
+            var level = _shop == null ? 0 : _shop.GetRingLevel(_ringId);
+            var cost = _shop == null ? 0 : _shop.GetNextRingCost(_ringId);
+            var points = _legacy == null ? 0 : _legacy.CurrentLegacyPoints;
+            _tooltip.Show(_definition, level, cost, points);
         }
 
         public void Bind(BalanceData balanceData, IRingShop shop, ILegacyService legacy, Action onPurchased)
@@ -158,10 +196,12 @@ namespace NCAIClicker.UI
             {
                 // 표시가 최신이 아니었다는 뜻이다. 다시 그려 이유를 보여 준다.
                 Refresh();
+                UpdateTooltip();
                 return;
             }
 
             _onPurchased?.Invoke();
+            UpdateTooltip();
         }
 
         private void SetInteractable(bool canBuy, string reason, string costText)

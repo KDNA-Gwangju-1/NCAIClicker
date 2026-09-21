@@ -24,13 +24,35 @@ namespace NCAIClicker.UI
         [Tooltip("보유 레거시 포인트. 비워 두면 표시하지 않는다.")]
         [SerializeField] private TextMeshProUGUI _pointLabel;
 
+        [Tooltip("마우스 호버 시 상세 정보를 띄울 툴팁 패널")]
+        [SerializeField] private RingTooltip _tooltip;
+
         [Tooltip("이름·설명·효과의 출처. Managers 프리팹이 쓰는 것과 같은 에셋을 넣는다.")]
         [SerializeField] private BalanceData _balanceData;
 
         private void OnEnable()
         {
+            if (_tooltip == null)
+            {
+                _tooltip = GetComponentInChildren<RingTooltip>(true);
+            }
+            _tooltip?.Hide();
+            EnsureBalanceData();
             BindEntries();
             RefreshAll();
+        }
+
+        private void OnDisable()
+        {
+            _tooltip?.Hide();
+        }
+
+        private void EnsureBalanceData()
+        {
+            if (_balanceData == null)
+            {
+                _balanceData = Resources.Load<BalanceData>("BalanceData");
+            }
         }
 
         /// <summary>
@@ -48,6 +70,11 @@ namespace NCAIClicker.UI
                                  "카드는 '상점을 열 수 없다'로 표시된다.", this);
             }
 
+            if (_entries == null || _entries.Length == 0)
+            {
+                _entries = GetComponentsInChildren<RingShopEntry>(true);
+            }
+
             if (_entries == null)
             {
                 return;
@@ -58,6 +85,10 @@ namespace NCAIClicker.UI
                 if (_entries[i] == null)
                 {
                     continue;
+                }
+                if (_tooltip != null)
+                {
+                    _entries[i].SetTooltip(_tooltip);
                 }
                 _entries[i].Bind(_balanceData, shop, legacy, RefreshAll);
             }

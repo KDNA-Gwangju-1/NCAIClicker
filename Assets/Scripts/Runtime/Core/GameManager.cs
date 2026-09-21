@@ -31,6 +31,7 @@ namespace NCAIClicker.Core
         public RunState CurrentState { get; private set; }
 
         private IRunScoped[] _runScopedServices;
+        private IBillService _billService;
 
         /// <summary>
         /// 씬에 사는 런 경계 구현체 (#126). 프리팹 안의 것과 달리 캐시하지 않는다 —
@@ -44,6 +45,7 @@ namespace NCAIClicker.Core
         {
             Instance = this;
             CurrentState = ResolveState(SceneManager.GetActiveScene().name) ?? RunState.MainMenu;
+            _billService = GetComponentInChildren<IBillService>(true);
         }
 
         private void Start()
@@ -75,12 +77,20 @@ namespace NCAIClicker.Core
         /// <summary>
         /// 이어하기. Game 씬으로 전환한다.
         ///
+        /// **하루를 넘기기 전에 마감을 확정한다** (이슈 #211). Result 에서 넘어올 때만 판정한다 —
+        /// 메인 메뉴의 "이어하기" 는 하루를 넘기는 것이 아니다. 미납 파산이면 씬을 넘기지 않고 파산 화면을 유지한다.
+        ///
         /// **떠나기 전에 저장한다** (이슈 #203). 업그레이드·반지 상점이 이 버튼 바로 앞의
         /// 고지서 화면에 있어서, 여기서 저장하지 않으면 사 놓고 게임을 끈 플레이어가 산 것을
         /// 잃는다. ARCHITECTURE 저장 경계의 "런 시작 직전" 이 이 지점이다.
         /// </summary>
         public void ContinueRun()
         {
+            if (CurrentState == RunState.Result && _billService?.TryCloseDay() == true)
+            {
+                return;
+            }
+
             SaveManager.Persistence?.CollectAndSave();
             SceneManager.LoadScene(GameSceneName);
         }

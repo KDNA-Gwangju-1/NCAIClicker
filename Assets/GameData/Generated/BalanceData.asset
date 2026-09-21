@@ -265,3 +265,75 @@ MonoBehaviour:
     - Stat: 8
       Type: 0
       ValuePerLevel: 5
+  - Id: wealth_ring
+    DisplayName: "\uBD80\uC758 \uBC18\uC9C0"
+    Description: "\uCF54\uC778 \uD68D\uB4DD\uB7C9\uC774 \uC601\uAD6C\uD788 \uC99D\uAC00\uD55C\uB2E4.
+      \uD30C\uC0B0\uD574\uB3C4 \uAE08\uBE5B\uC740 \uBC14\uB798\uC9C0 \uC54A\uB294\uB2E4"
+    InitCost: 4
+    CostGrowth: 1.5
+    MaxLevel: 5
+    SortOrder: 3
+    Effects:
+    - Stat: 12
+      Type: 0
+      ValuePerLevel: 0.05
+  - Id: zeal_ring
+    DisplayName: "\uC5F4\uC815\uC758 \uBC18\uC9C0"
+    Description: "\uD53C\uBC84 \uD0C0\uC784\uC774 \uB354 \uC624\uB798 \uC9C0\uC18D\uB41C\uB2E4.
+      \uB728\uAC70\uC6B4 \uC5F4\uC815\uC740 \uD68C\uCC28\uB97C \uB118\uB294\uB2E4"
+    InitCost: 4
+    CostGrowth: 1.5
+    MaxLevel: 5
+    SortOrder: 4
+    Effects:
+    - Stat: 5
+      Type: 0
+      ValuePerLevel: 0.5
+  - Id: fever_gold_ring
+    DisplayName: "\uD669\uAE08\uBE5B \uBC18\uC9C0"
+    Description: "\uD53C\uBC84 \uC911 \uCF54\uC778 \uBC30\uC728\uC774 \uD06C\uAC8C
+      \uC99D\uAC00\uD55C\uB2E4. \uD669\uAE08\uC758 \uCD95\uBCF5\uC774 \uAE43\uB4E0\uB2E4"
+    InitCost: 5
+    CostGrowth: 1.5
+    MaxLevel: 5
+    SortOrder: 5
+    Effects:
+    - Stat: 6
+      Type: 0
+      ValuePerLevel: 0.2
+  - Id: focus_ring
+    DisplayName: "\uC9D1\uC911\uC758 \uBC18\uC9C0"
+    Description: "\uD0C0\uACA9 \uC720\uD6A8 \uBC94\uC704\uAC00 \uD655\uB300\uB418\uC5B4
+      \uBE57\uB9DE\uD798\uC744 \uC904\uC5EC\uC900\uB2E4"
+    InitCost: 3
+    CostGrowth: 1.5
+    MaxLevel: 5
+    SortOrder: 6
+    Effects:
+    - Stat: 1
+      Type: 1
+      ValuePerLevel: 2
+  - Id: spark_ring
+    DisplayName: "\uBD88\uAF43\uC758 \uBC18\uC9C0"
+    Description: "\uD0C0\uACA9\uD560 \uB54C\uB9C8\uB2E4 \uD53C\uBC84 \uAC8C\uC774\uC9C0\uAC00
+      \uB354 \uBE60\uB974\uAC8C \uCC28\uC624\uB978\uB2E4"
+    InitCost: 4
+    CostGrowth: 1.5
+    MaxLevel: 5
+    SortOrder: 7
+    Effects:
+    - Stat: 7
+      Type: 0
+      ValuePerLevel: 1
+  - Id: fortune_ring
+    DisplayName: "\uD589\uC6B4\uC758 \uBC18\uC9C0"
+    Description: "\uC800\uAE08\uD1B5 \uD30C\uAD34 \uC2DC \uC989\uC2DC \uCD94\uAC00
+      \uC800\uAE08\uD1B5\uC774 \uB098\uD0C0\uB0A0 \uD655\uB960\uC774 \uC624\uB978\uB2E4"
+    InitCost: 5
+    CostGrowth: 1.5
+    MaxLevel: 5
+    SortOrder: 8
+    Effects:
+    - Stat: 15
+      Type: 0
+      ValuePerLevel: 1

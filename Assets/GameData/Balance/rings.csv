@@ -1,3 +1,9 @@
-id,display_name,description,init_cost,cost_growth,max_level,sort_order
+﻿id,display_name,description,init_cost,cost_growth,max_level,sort_order
 power_ring,힘의 반지,쥐는 힘이 영구히 남는다. 파산해도 손가락에서 빠지지 않는다,3,1.5,5,1
 vigor_ring,활력의 반지,하루를 조금 더 오래 버틴다. 파산해도 손가락에서 빠지지 않는다,3,1.5,5,2
+wealth_ring,부의 반지,코인 획득량이 영구히 증가한다. 파산해도 금빛은 바래지 않는다,4,1.5,5,3
+zeal_ring,열정의 반지,피버 타임이 더 오래 지속된다. 뜨거운 열정은 회차를 넘는다,4,1.5,5,4
+fever_gold_ring,황금빛 반지,피버 중 코인 배율이 크게 증가한다. 황금의 축복이 깃든다,5,1.5,5,5
+focus_ring,집중의 반지,타격 유효 범위가 확대되어 빗맞힘을 줄여준다,3,1.5,5,6
+spark_ring,불꽃의 반지,타격할 때마다 피버 게이지가 더 빠르게 차오른다,4,1.5,5,7
+fortune_ring,행운의 반지,저금통 파괴 시 즉시 추가 저금통이 나타날 확률이 오른다,5,1.5,5,8

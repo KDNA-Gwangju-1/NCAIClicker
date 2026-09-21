@@ -166,6 +166,7 @@ namespace NCAIClicker.EditorTools
         private class FakeBillService : IBillService
         {
             public int CurrentDay => 1;
+            public int CurrentCycle { get; set; } = 1;
             public int DaysLeft => 1;
             public float LoanDailyCut { get; set; }
             public Bill ActiveBill => null;
@@ -174,6 +175,8 @@ namespace NCAIClicker.EditorTools
             public bool TryTakeLoan(long amount) => false;
             public bool TryRepayLoan() => false;
             public bool TryChoosePerk(string perkId) => false;
+            public bool TryCloseDay() => false;
+            public void RestoreCycle(int cycle) { CurrentCycle = cycle; }
 
             /// <summary>이 검증은 자발적 파산을 쓰지 않는다 (계약 #175).</summary>
             public int DeclaredBankruptcyCount { get; private set; }
