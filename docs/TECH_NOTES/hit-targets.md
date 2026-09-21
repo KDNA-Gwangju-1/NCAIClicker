@@ -1,6 +1,6 @@
 # 타격 대상 (크리처)
 
-> 관련 이슈: #16, #17, #141, #148, #161, #37 · 최종 수정: 2026-09-21
+> 관련 이슈: #16, #17, #141, #148, #161, #37, #156 · 최종 수정: 2026-09-21
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -10,7 +10,8 @@
 타격은 내구도만 깎고, 다 깎이는 순간 `OnTargetBroken` 을 한 번 발행해 보상을 넘긴다.
 평상시 크리처는 멈춰 서서 대기(Idle)와 짧은 배회(Moving)를 반복하며 책상 안전 경계 안을 배회한다.
 피격 시에는 타격 지점 반대 방향으로 도망(Fleeing)치며, 연속 타격이 누적될수록 공포(패닉)가 누적되어 도망 속도가 가속된다.
-파괴된 자리는 일정 시간 뒤 다시 스폰된다.
+파괴된 자리는 **시간이 지나도 자동으로 채워지지 않는다** (#156). 파괴할 때마다 확률적으로
+즉시 1개가 추가되고, 책상 위가 완전히 비면(0마리) 그때만 1개가 즉시 채워진다.
 
 4종(일반·거치·고속·회복)은 **같은 스크립트에 `targets.csv` 의 다른 행**을 물린 것이다.
 종류마다 클래스를 만들지 않는다.
@@ -30,6 +31,8 @@
 | 파괴 보상을 남은 내구도로 계산 | ❌ | 계약 2번이 **초기 최대 내구도** 기준이라고 못박았다. 남은 값으로 하면 마지막 타격 크기에 따라 보상이 달라진다 |
 | FSM 대신 행동 트리(BT) 사용 | ❌ | 타격 대상의 상태는 Idle, Moving, BeingHit, Fleeing 의 단순 순환뿐이라 FSM으로 충분하다 (ARCHITECTURE 4절) |
 | 이동과 스폰 수치를 코드 상수로 하드코딩 | ❌ | 밸런스 CSV 및 저금통 수집벽 업그레이드로 수치가 변하므로 BalanceData와 업그레이드 연동 구조로 계산한다 |
+| 부서진 자리를 슬롯별 타이머로 시간 기반 자동 리스폰 (#141 당시 구조) | ❌ | 원작 재관찰 결과 원작 기본 규칙이 아니었다 — `docs/REFERENCE_ANALYSIS.md` 9절. 등급 A 플레이 영상에서 시간 기반 스폰은 "Piggy Timer"라는 별도 가젯 효과로만 확인됐다 (#156) |
+| 파괴 시 확률로 즉시 추가 스폰 + 전멸(0마리) 시 1개만 즉시 스폰 | ✅ | 같은 재관찰에서 확인한 원작 규칙. *"when you break all pigs on the table, one will immediately spawn"* (`sYyTekFrgvc` 1:18:39). 확률은 저금통 수집벽 업그레이드로만 열린다 (#156) |
 | Edit Mode 에서 DestroyImmediate 로 분기 (SafeDestroy) | ✅ | 에디트 모드 검증 하네스에서 Destroy 호출 시 오류 발생 및 씬 잔류를 방지하고 리스폰 회계를 온전히 검증한다 (#161) |
 | 검증 하네스 쪽에서만 스텁을 우회 파괴 | ❌ | CreatureManager 의 RemoveDeadCreatures 실제 동작과 쿨다운 예약 회계가 온전히 검증되지 않는다 |
 
@@ -62,7 +65,7 @@ flowchart LR
   balance -. "SerializeField" .-> mgr
   mgr -- "Instantiate & Initialize" --> target
   target == "OnTargetBroken 발행" ==> events
-  events == "구독 (리스폰 타이머)" ==> mgr
+  events == "구독 (확률 추가 스폰 · 전멸 시 1개)" ==> mgr
   events == "구독" ==> econ
   events == "구독" ==> vfx
 ```
@@ -93,7 +96,7 @@ TargetNormal (루트)          ← 로직: Target, CreatureMovement, SphereColli
 | `CreatureHpDisplay` | `Assets/Scripts/Runtime/Targets/CreatureHpDisplay.cs` | 크리처 머리 위 실시간 HP 숫자 표시 및 피격 시 펀치 스케일 연출 |
 | `DamagePopup` | `Assets/Scripts/Runtime/Targets/DamagePopup.cs` | 타격 시 피해량을 공중에 띄우고 서서히 페이드아웃 후 소멸하는 연출 |
 | `TargetChecks` | `Assets/Scripts/Editor/TargetChecks.cs` | 프리팹 구조·동작 검증 25건 |
-| `CreatureMovementChecks` | `Assets/Scripts/Editor/CreatureMovementChecks.cs` | 이동, FSM 전이, 경계 클램프, 스폰, HP표시 검증 13건 |
+| `CreatureMovementChecks` | `Assets/Scripts/Editor/CreatureMovementChecks.cs` | 이동, FSM 전이, 경계 클램프, 스폰, HP표시 검증 17건 |
 
 프리팹 4종은 `Assets/Prefabs/Targets/`, 머티리얼 4종은 `Assets/Materials/` 다.
 
@@ -112,7 +115,7 @@ TargetNormal (루트)          ← 로직: Target, CreatureMovement, SphereColli
 | 이벤트 | 발행/구독 | 언제 |
 |---|---|---|
 | `GameEvents.OnTargetBroken` | **발행** | 내구도가 0 이하로 떨어지는 순간. 살아 있음 → 부서짐 전이에서 **한 번만** |
-| `GameEvents.OnTargetBroken` | **구독** | `CreatureManager` 가 수신하여 **실제로 치운 개체 수만큼** 리스폰 쿨다운을 예약한다 (#141) |
+| `GameEvents.OnTargetBroken` | **구독** | `CreatureManager` 가 수신하여 **실제로 치운 개체 수만큼** 추가 생성 확률을 굴리고, 필드가 완전히 비면 1개를 즉시 스폰한다 (#141, #156) |
 | `Target.HitReceived` (인스턴스) | **발행** | `Target.OnHit` 호출 시 `OnHitReceived` 메서드를 통해 피격 정보 통지 (#148) |
 | `Target.HitReceived` (인스턴스) | **구독** | `CreatureMovement` (피격 상태 전이 및 도망), `CreatureHpDisplay` (HP 갱신 및 펀치 연출) |
 
@@ -129,7 +132,8 @@ TargetNormal (루트)          ← 로직: Target, CreatureMovement, SphereColli
 | `stages.csv` | `spawn_count` | `CreatureManager` 동시 출현 목표 수 |
 | `stages.csv` | `normal_ratio`, `anchor_ratio`, `runner_ratio`, `tourist_ratio` | `CreatureManager` 크리처 종류별 등장 확률 가중치 |
 | `economy.csv` | `hit_radius_bonus` | 피격 반경 확대 비율 |
-| `economy.csv` | `spawn_interval_sec` | `CreatureManager` 파괴 후 재등장 대기 시간 |
+| `economy.csv` | `spawn_interval_sec` | **미사용 호환 필드** (#156 이후 0 고정, 되돌릴 경우를 대비해 남김) |
+| `economy.csv` | `extra_spawn_chance_on_destroy` | `CreatureManager` 파괴 시 즉시 추가 스폰될 확률(%). 기본 0, 저금통 수집벽이 올림 (#156) |
 
 ## 검증
 
@@ -143,7 +147,7 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-17.
   * 책상 평면 경계 초과 좌표 클램프 및 반사 방향 벡터 확인
   * 4종 크리처 move_speed 수치 파싱 일치 확인
   * 1단계 기준 spawn_count 6개 및 desk_expand 업그레이드 확장 반영 계산 확인
-  * 기본 spawn_interval_sec 7.0초 및 업그레이드 단축 배율 계산 확인
+  * (2026-09-21 갱신, #156) 기본 추가 생성 확률 0% 및 desk_expand 업그레이드 확률 증가 계산 확인 — 아래 #156 절 참고
 * [x] 컴파일 에러·경고 0건
 
 ### #141 리스폰 회계 (2026-09-17)
@@ -165,6 +169,9 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-17.
 **타이머 리스트 구조는 유지했다.** 밸런스 시뮬레이터(`.github/scripts/simulate_balance.py`)가
 "슬롯별 파괴 후 재등장 대기" 로 모델링하므로, 공용 타이머 하나로 바꾸면 N 마리 복구에 N 배
 시간이 걸려 모델과 어긋난다.
+
+> **2026-09-21 뒤집힘 (#156).** 이 절의 "타이머 리스트 구조 유지" 결정은 원작 재관찰로 뒤집혔다.
+> 타이머 자체가 없어졌으므로 아래 #156 절 참고.
 
 **최초 이슈 본문의 전제("동시 파괴 시 개체 수 감소")는 재현되지 않아 정정했다.** `Target.OnHit`
 이 죽는 순간 동기적으로 이벤트를 발행하고 같은 대상이 두 번 발행하지 않으므로, 첫 핸들러가
@@ -239,6 +246,40 @@ instance 로 끼웠다. `TargetAnchor`/`Runner`/`Tourist` 는 대응하는 3D �
 * [x] `execute_code` 로 실제 스폰된 `TargetNormal(Clone)` 의 `Renderer.bounds` 를 직접 측정해
   밑변 0.746×0.600, 높이 0.800 확인 — 조준 원 지름(0.9) 대비 약 83%
 
+### #156 스폰 규칙 B안 채택 — 슬롯 타이머 폐기 (2026-09-21)
+
+원작([Bills Must Be Paid](https://store.steampowered.com/app/4421010/_Bills_Must_Be_Paid/)) 등급 A
+플레이 영상 자막을 재관찰한 결과, "부서진 자리가 고정 시간 뒤 자동으로 채워진다"는 기존 규칙은
+원작 기본 규칙이 아니었다. 근거와 인용은 `docs/REFERENCE_ANALYSIS.md` 9절.
+
+**바뀐 것**:
+
+- `_respawnTimers` 리스트와 `GetSpawnIntervalSec()`/`UpdateRespawnTimers()`/`Update()` 를 전부
+  제거했다. 부서진 자리는 더 이상 시간이 지나도 자동으로 채워지지 않는다.
+- `HandleTargetBroken` 이 파괴 개수만큼 `GetExtraSpawnChancePercent()`(신규, 기본 0%) 확률을
+  굴려 성공 시 즉시 `SpawnRandomCreature()` 를 부르고, 그 뒤 필드가 완전히 비었으면(0마리)
+  1개를 추가로 즉시 스폰한다.
+- `economy.csv` 의 `spawn_interval_sec` 는 미사용 호환 필드로 0에 고정했다(삭제하지 않음 —
+  되돌릴 경우를 대비). 신규 `extra_spawn_chance_on_destroy`(기본 0)를 추가했다.
+- `BalanceData.StatId` 에 `ExtraSpawnChance` 를 추가하고, `upgrade_effects.csv` 의
+  `desk_expand`(저금통 수집벽) 두 번째 효과를 `spawn_interval_sec percent -6` 에서
+  `extra_spawn_chance add 2` 로 바꿨다 — 레벨당 파괴 시 추가 생성 확률 +2%p (잠정값, 7.2 실측 전).
+- `.github/scripts/simulate_balance.py` 를 같은 모델로 재작성했다. 업그레이드 없는 1단계
+  기준으로 재검증한 결과 이전 모델과 수치 차이가 거의 없었다 — 짧은 런(17.85초)에서는 책상이
+  완전히 비는 일이 드물어 "전멸 시 1개" 규칙이 거의 발동하지 않기 때문이다. `stages.csv` 의
+  `bill_amount` 는 이번엔 바꾸지 않았다 (`docs/BALANCE.md` 3절).
+
+**검증 (Unity 6000.3.21f1, Edit Mode, 2026-09-21)**:
+
+* [x] `CreatureMovementChecks.RunBatch()` **17건 통과** — 확률 0% 에서 부순 자리가 채워지지
+  않는지, 유령 파괴 이벤트가 아무 것도 하지 않는지, 전멸 후 정확히 1개만 채워지는지, desk_expand
+  업그레이드가 추가 생성 확률을 올리는지 각각 단언 추가
+* [x] `NCAI > 전체 검증 실행` — 통과 21 / 실패 1 (전체 22). 실패 1건(`TargetChecks: TargetNormal
+  Visual 아래 Mesh 자식이 없음`)은 이번 변경과 무관한 기존 이슈 (#37 3D 에셋 교체 관련, 별도 확인 필요)
+* [x] `convention-checker` 9대 규칙 전수 점검 — 위반 0건
+* [x] `python -B .github/scripts/simulate_balance.py --runs 2000 --seed 46 --uptime 0.6` 재실행,
+  random/value 두 정책 모두 확인 (`docs/BALANCE.md` 참고)
+
 ## 알려진 한계
 
 * **파괴 연출이 없다.** 부서져도 오브젝트가 그대로 남거나 숨겨지는 연출은 작업 6.3 이다.
@@ -270,3 +311,4 @@ instance 로 끼웠다. `TargetAnchor`/`Runner`/`Tourist` 는 대응하는 3D �
 | 2026-09-21 | #37 | Claude | 피기 방향 철회, 광물 크리처 4종(Copper/Silver/Gold/Diamond)으로 전면 교체. HP 기준 매핑, 모델별 스케일 실측 산출. 자세한 내용은 [광물 크리처 에셋](mineral-creature-assets.md) |
 | 2026-09-21 | #37 | Claude | 조준 원(지름 0.9유닛) 대비 너무 작다는 사용자 피드백으로 높이 기준 0.4 → 0.8유닛 재조정, 4종 재실측 |
 | 2026-09-21 | #215 | Claude | `CreatureHpDisplay._offset.y` 가 저금통 시절 0.4유닛 높이 기준(0.55)에 머물러 있어 #37 의 0.8유닛 재조정 이후 HP 숫자가 몸통에 파묻힘. 1.0으로 조정 |
+| 2026-09-21 | #156 | Claude | 원작 재관찰로 슬롯 타이머 기반 자동 리스폰을 폐기. "파괴 시 확률로 즉시 추가 스폰 + 전멸 시 1개 즉시 스폰" 모델로 교체. `economy.csv`·`upgrade_effects.csv`·`BalanceData.StatId` 갱신, 밸런스 시뮬레이터 재작성 |
