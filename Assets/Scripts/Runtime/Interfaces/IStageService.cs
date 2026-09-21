@@ -2,7 +2,8 @@ namespace NCAIClicker.Interfaces
 {
     /// <summary>
     /// 단계(Stage) 진행 상태를 제공하는 공용 조회 계약.
-    /// StageGoalManager 가 구현하고 ManagerBootstrap 이 CreatureManager 와 BillManager 에 주입한다.
+    /// StageGoalManager 가 구현하고 ManagerBootstrap 이 CreatureManager·BillManager·SaveManager 에 주입한다.
+    /// SaveManager 는 단계 저장·복원에만 쓴다 (이슈 #203).
     /// 완료 기준의 정본은 GitHub 이슈 #150 (3.7).
     /// </summary>
     public interface IStageService

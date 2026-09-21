@@ -58,16 +58,30 @@ namespace NCAIClicker.Core
         /// <summary>
         /// 새 회차 시작. 저장을 기본값으로 덮어쓴 뒤 Game 씬으로 전환한다.
         /// 덮어쓴다는 확인은 호출측(MainMenuController)이 먼저 받는다 — 이슈 #90 완료 기준.
+        ///
+        /// 지우는 일 자체는 ResetAndDistribute 가 한다 (이슈 #203) — 파일만 비우면 업그레이드
+        /// 레벨·레거시 포인트·반지가 메모리에 남아 직전 회차의 성장을 달고 시작하게 되고,
+        /// 볼륨·창모드 같은 설정까지 함께 날아간다. 설정 초기화(#196)와 **같은 메서드를 쓴다** —
+        /// "무엇을 지우는가" 를 두 곳에 적으면 서로 다른 답을 낸다.
+        ///
+        /// 파산은 성장을 지우지 않는다 (이슈 #183). 지우는 경로는 이것과 설정 초기화 둘뿐이다.
         /// </summary>
         public void StartNewRun()
         {
-            SaveManager.Instance?.Save(new SaveData());
+            SaveManager.Persistence?.ResetAndDistribute();
             SceneManager.LoadScene(GameSceneName);
         }
 
-        /// <summary>이어하기. Game 씬으로 전환한다. 저장값 실제 복원 배선은 알려진 한계 — docs/TECH_NOTES/main-menu.md 참고.</summary>
+        /// <summary>
+        /// 이어하기. Game 씬으로 전환한다.
+        ///
+        /// **떠나기 전에 저장한다** (이슈 #203). 업그레이드·반지 상점이 이 버튼 바로 앞의
+        /// 고지서 화면에 있어서, 여기서 저장하지 않으면 사 놓고 게임을 끈 플레이어가 산 것을
+        /// 잃는다. ARCHITECTURE 저장 경계의 "런 시작 직전" 이 이 지점이다.
+        /// </summary>
         public void ContinueRun()
         {
+            SaveManager.Persistence?.CollectAndSave();
             SceneManager.LoadScene(GameSceneName);
         }
 
@@ -99,10 +113,19 @@ namespace NCAIClicker.Core
         private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
         {
             var next = ResolveState(scene.name);
-            if (next.HasValue)
+            if (!next.HasValue)
             {
-                SetState(next.Value);
+                return;
             }
+
+            // **여기서 복원하지 않는다** (이슈 #203). 매니저는 DontDestroyOnLoad 라 씬을 다시
+            // 로드해도 값을 그대로 들고 있다 — 씬 로드마다 저장을 덮어씌우면 마지막 저장 이후에
+            // 생긴 변경이 사라진다. 실제로 고지서 화면에서 반지를 사고 "다음 날"을 누르면
+            // 구매가 통째로 되돌아갔다.
+            //
+            // 복원은 앱이 켜질 때 ManagerBootstrap 이 한 번만 한다. 그 뒤로 저장은 기록일 뿐,
+            // 살아 있는 값의 출처가 아니다.
+            SetState(next.Value);
         }
 
         /// <summary>Running 중에만 Result 로 전이한다. 스태미나 소진과 파산 둘 다 같은 전이를 부른다.</summary>
@@ -235,6 +258,11 @@ namespace NCAIClicker.Core
                 _runScopedServices[i].EndRun();
             }
             NotifyScene(false);
+
+            // 하루가 끝나는 이 지점이 저장 체크포인트다 (이슈 #203). **EndRun 을 전부 돌린 뒤**에
+            // 저장한다 — 단계 진행과 파산 초기화가 여기서 일어나므로, 먼저 저장하면 한 판 뒤처진
+            // 값이 남는다.
+            SaveManager.Persistence?.CollectAndSave();
         }
 
         /// <summary>

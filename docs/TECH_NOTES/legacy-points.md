@@ -1,7 +1,6 @@
 # 레거시 포인트와 반지
 
-> 관련 이슈: #175, #183 · 최종 수정: 2026-09-21
-
+> 관련 이슈: #175, #183, #203 · 최종 수정: 2026-09-21
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
 ## 무엇을 하는가
@@ -43,8 +42,8 @@ flowchart LR
     shop[RingShopPanel / RingShopEntry<br/>반지 구매]
   end
 
-  subgraph Save["저장 — 아직 배선되지 않았다"]
-    save[SaveManager<br/>SaveData v3 필드는 있으나<br/>읽거나 쓰는 곳이 없다]
+  subgraph Save["저장"]
+    save[SaveManager<br/>SaveData<br/>LegacyPoints · RingLevels]
   end
 
   events{{"GameEvents"}}
@@ -58,18 +57,18 @@ flowchart LR
   panel -- "DeclareBankruptcy (IBillService)" --> bill
   shop -- "TryPurchaseRing (IRingShop)" --> econ
   shop -- "잔액 조회 (ILegacyService)" --> econ
-  save -. "RestoreLegacy (ILegacyPersistence)<br/>**미배선**" .-> econ
+  save -- "RestoreLegacy / CurrentRingLevels<br/>(ILegacyPersistence, #203)" --> econ
 ```
 
 | 클래스 | 경로 | 하는 일 |
 |---|---|---|
 | `ILegacyService` | `Runtime/Interfaces/IEconomyService.cs` | 포인트 적립·조회·소비 |
 | `IRingShop` | 〃 | 반지 레벨·비용·구매 |
-| `ILegacyPersistence` | 〃 | 포인트·반지 레벨 저장 복원. `SaveManager` 만 쓸 계약이지만 **아직 아무도 부르지 않는다** (아래 한계) |
+| `ILegacyPersistence` | 〃 | 포인트·반지 레벨 저장 복원. `SaveManager` 만 쓴다 (배선은 #203, [저장·불러오기](save-load.md)) |
 | `EconomyManager` | `Runtime/Economy/EconomyManager.cs` | 위 세 계약의 구현. `OnBillPaid` 를 구독해 적립하고 `GetStat` 에서 반지를 얹는다 |
 | `BillManager` | `Runtime/Economy/BillManager.cs` | `DeclareBankruptcy()` 를 열어 자발적 파산 진입점을 만든다 |
 | `BillPanelController` | `Runtime/UI/BillPanelController.cs` | 파산 선고 버튼·확인창과 반지 탭 |
-| `SaveManager` | `Runtime/SaveManager.cs` | `SaveData` v3 마이그레이션. 포인트·반지 배선은 아직 없다 |
+| `SaveManager` | `Runtime/SaveManager.cs` | `SaveData` v3 마이그레이션. 포인트·반지 수집·복원 (#203) |
 | `IBillService.DeclareBankruptcy` | `Runtime/Interfaces/IBillService.cs` | 자발적 파산 진입점 |
 | `GrowthFormula` | `Runtime/Economy/GrowthFormula.cs` | 실효값·비용 공식. **업그레이드와 반지가 공유한다** |
 | `RingState` | `Runtime/Economy/RingState.cs` | 반지 레벨 보관과 계산 |
@@ -100,14 +99,14 @@ flowchart LR
 
 지금은 반지 효과가 전부 `add` 라 **순서를 바꿔도 값이 같다.** `percent` 효과가 생기는 순간 갈리므로 규칙을 미리 정하고 검증으로 고정했다.
 
-### 저장 — 계약과 필드만 있고 아직 배선되지 않았다
+### 저장
 
-**지금 포인트와 반지는 저장되지 않는다.** `SaveManager` 가 `RestoreLegacy`/`CurrentRingLevels` 를
-부르지 않고, `SaveData.LegacyPoints`·`RingLevels` 도 읽거나 쓰는 곳이 없다.
+`SaveData` 를 v2 → v3 으로 올리며 필드를 먼저 만들어 두었고, **배선은 #203 에서 붙였다** —
+`IUpgradePersistence` 와 **같은 방식으로** 함께 연결했다. 한쪽만 연결하면 방식이 두 벌 생기기
+때문에 한 이슈로 묶었다. 실제 경로와 시점은 [저장·불러오기](save-load.md)가 정본이다.
 
-이것은 이 작업이 만든 구멍이 아니라 **기존 상태를 그대로 따른 것**이다 — `IUpgradePersistence` 도
-같은 상태이고 [공용 계약](contracts.md)이 그렇게 기록해 두었다. `SaveManager` 가 영속 계약을
-매니저에 연결하는 일 자체가 아직 없다. 여기서 혼자 연결하면 업그레이드와 다른 방식이 두 벌 생긴다.
+요약하면 복원은 앱이 켜질 때 `ManagerBootstrap` 이 한 번, 저장은 `GameManager` 가 고지서 화면을
+떠날 때와 하루가 끝날 때다. **반지를 산 뒤 "다음 날"을 누르면 그 구매가 저장에 실린다.**
 
 `SaveData` 를 v2 → **v3** 으로 올리고 `LegacyPoints`·`RingLevels` 를 더했다. 마이그레이션 분기는 지우지 않고 누적한다.
 
@@ -161,14 +160,14 @@ flowchart LR
 **네 번째 줄이 이 기능의 존재 이유다.** 파산 후 새 회차가 기본 120 이 아니라 125 로 시작한다 —
 반지 효과가 회차를 넘어 실제 게임플레이에 적용된다는 뜻이다.
 
-마지막 줄은 아래 "저장되지 않는다" 한계가 사실임을 확인한 것이다. 저장 버전만 3으로 올라가고
-값은 실리지 않는다.
+마지막 줄은 **당시** 저장이 배선되지 않았음을 확인한 것이다 — 저장 버전만 3으로 올라가고 값은
+실리지 않았다. #203 이 배선을 붙여 이 상태는 해소됐고, 왕복은 `SavePersistenceChecks` 가 본다.
 
 ## 알려진 한계
 
-- **포인트와 반지가 저장되지 않는다.** 계약과 `SaveData` 필드는 있지만 `SaveManager` 가 부르지
-  않는다 — 앱을 끄면 사라진다. `IUpgradePersistence` 와 같은 상태이고, 영속 계약을 매니저에
-  연결하는 일은 별도 작업이다. **파산을 넘어 남는다는 이 기능의 핵심이 세션 안에서만 성립한다**
+- ~~**포인트와 반지가 저장되지 않는다.**~~ — #203 에서 배선했다. 다만 저장 시점이 성기어서
+  **반지를 산 직후 앱이 강제 종료되면 그 구매를 잃는다** ([저장·불러오기](save-load.md) 알려진 한계).
+  정상적으로 "다음 날"을 누르거나 하루를 끝내면 저장된다
 - **반지 효과는 다음 런부터 적용된다.** 지금 쓰는 두 스탯이 모두 `BeginRun` 에서 한 번 읽혀
   캐시되기 때문이다 (`StaminaManager._runMaxStamina`, `HammerSwingController._runHitPower`).
   반지 상점이 런 사이(고지서 탭 화면)에만 열려 실제로는 어긋나지 않지만, 런 도중에 살 수 있는
@@ -182,7 +181,7 @@ flowchart LR
   [퍼크 3장 선택 화면](perk-choice-ui.md)이 "도달할 수 없다"고 적은 근거(런이 끝날 길이 없다)보다
   경계가 얇아졌다 — 퍼크가 뜬 상태에서 회차를 초기화하는 경로가 하나라도 더 생기면 걸린다
 - **수치가 전부 잠정값이다.** 적립 계수·반지 효과·비용 모두 3.8([#176](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/176)) 재계산 뒤 확정한다. #176 은 피버를 콤보로 바꿀지도 검토 중이라 **반지 효과를 피버·코인 계열 스탯에 걸지 않았다**
-- **저장 v3 은 되돌리기 어렵다.** 마이그레이션 분기는 누적 규칙이라 되돌리려면 v4 가 된다
+- **저장 v3 은 되돌리기 어렵다.** 마이그레이션 분기는 누적 규칙이라 되돌리려면 버전을 또 올려야 한다 (실제로 #202 가 곧 v4 로 올렸다)
 - **반지가 2종뿐이다.** 구조를 증명할 최소 구성이고, 원작처럼 여러 종을 고르는 재미는 아직 없다
 - **포인트를 얻는 경로가 고지서 납부 하나뿐이다.** 원작도 그렇지만, 우리는 파산 후 첫 고지서를 내기 전까지 포인트가 전혀 늘지 않는다
 - **자발적 파산의 득실이 화면에 안 보인다.** 확인창이 "코인과 진행이 사라지고 반지는 남는다"고 글로만 적는다. 지금 몇 점을 들고 있는지, 이번 회차에 몇 점을 벌었는지는 안 보여 준다
@@ -194,3 +193,4 @@ flowchart LR
 |---|---|---|---|
 | 2026-09-21 | #175 · #183 | twins6375-art | 최초 작성. 계약 3종과 저장 v3, 납부 적립, 반지 데이터·구매·상점 화면, 자발적 파산. `GrowthFormula` 로 업그레이드와 공식 공유. `LegacyPointChecks` 22건 |
 | 2026-09-21 | #175 · #183 | twins6375-art | Play Mode 로 납부→적립→구매→자발적 파산→다음 회차까지 확인하고 검증 절에 반영. 반지 효과가 다음 런부터 적용되는 것과, 퍼크 화면이 떠 있을 때 회차가 초기화되면 얼어붙는 것을 한계에 추가 |
+| 2026-09-21 | #203 | twins6375-art | 저장 배선이 붙어 "저장되지 않는다" 한계를 닫았다. 구조 도식의 점선을 실선으로 바꾸고, 시점(앱 시작 1회 복원 / 고지서 화면을 떠날 때·하루 종료 시 저장)을 명시 |

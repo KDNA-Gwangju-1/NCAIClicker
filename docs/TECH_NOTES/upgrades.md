@@ -1,7 +1,6 @@
 # 업그레이드
 
-> 관련 이슈: #24, #32, #131, #140, #91 · 최종 수정: 2026-09-18
-
+> 관련 이슈: #24, #32, #131, #140, #91, #203 · 최종 수정: 2026-09-21
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
 ## 무엇을 하는가
@@ -72,14 +71,15 @@ flowchart LR
 
   mgr --> state
   mgr --> wallet
-  ui -. "IUpgradeShop (#116)" .-> mgr
-  save -. "IUpgradePersistence (#116)" .-> mgr
+  ui -- "IUpgradeShop (#116, 배선 #91)" --> mgr
+  save -- "IUpgradePersistence (#116, 배선 #203)" --> mgr
   mgr == "OnBalanceChanged 발행" ==> events
   events == "구독" ==> ui
 ```
 
-점선은 **계약은 있으나 아직 배선되지 않은 경로**다. 계약은 #116 에서 생겼고, 그 계약을
-부르는 소비처는 아직 저장소에 하나도 없다.
+**점선은 더 이상 없다.** #116 이 만든 계약 둘 다 소비처가 생겼다 — `IUpgradeShop` 은
+#91 의 구매 화면이, `IUpgradePersistence` 는 #203 의 저장 배선이 부른다. 후자는 복원이 앱
+시작 1회, 저장이 고지서 화면을 떠날 때와 하루가 끝날 때다 ([저장·불러오기](save-load.md)).
 
 | 클래스 | 경로 | 하는 일 |
 |---|---|---|
@@ -277,10 +277,7 @@ stat 은 일부뿐이라(`max_stamina`·`fever_gauge_per_hit`·`coin_bonus_multi
   `auto_hammer_*` 세 개(작업 3.2)와 조준 원 반경(#132)뿐이다
 - ~~**Play Mode 로 "사면 다음 런에 세진다"를 본 사람이 아직 없다.**~~ — #91 에서 구매 화면이
   생겨 확인했다 (위 "구매 화면 Play Mode 검증")
-- **저장·복원이 연결되지 않았다.** `RestoreUpgradeLevels`·`CurrentUpgradeLevels` 는 있지만
-  `IUpgradePersistence` (#116) 를 `SaveManager` 가 아직 부르지 않는다.
-  **#91 의 구매 화면이 이 구멍을 눈에 보이게 만들었다** — 사서 레벨을 올려도 게임을 껐다 켜면
-  0 으로 돌아간다. 화면이 없을 때는 드러나지 않던 문제다
+- ~~**저장·복원이 연결되지 않았다.**~~ — #203 에서 배선했다. `ManagerBootstrap` 이 `SaveManager` 에 `IUpgradePersistence` 를 주입하고, 복원은 앱 시작 1회·저장은 고지서 화면을 떠날 때와 하루 종료 시다. 업그레이드 레벨이 앱을 껐다 켜도 남는다 ([저장·불러오기](save-load.md)).
 - **구매 시점을 강제하지 않는다.** "메뉴·결과 화면에서만, 다음 런부터 반영"(BALANCE 6절)은
   호출측 책임으로 두었다. 런 상태를 매니저가 알면 GameManager 를 직접 참조하게 된다
 - **`auto_hammer_count` 를 쓰는 곳이 아직 없다.** 자동 망치는 작업 3.2 이며,
@@ -301,3 +298,4 @@ stat 은 일부뿐이라(`max_stamina`·`fever_gauge_per_hit`·`coin_bonus_multi
 | 2026-09-17 | #131 | twins6375-art | 소비처 6곳을 `IUpgradeStats` 로 연결. 런 시작 캐시로 "다음 런부터" 보장, push 방식 `SetUpgradeOverrides` 제거 |
 | 2026-09-17 | #140 | saltlake00 | `CreatureManager` 가 `Managers` 프리팹으로 옮겨 가 주입 주체가 `GameManager` → `ManagerBootstrap` 으로 바뀐 것을 반영 |
 | 2026-09-18 | #91 | yahoo-afk | 구매 화면(6.8) 추가 — `UpgradeShopPanel`/`UpgradeShopEntry`/`UpgradeStatNames` 와 `MainMenu` 씬 배치. #171 이 연 `EconomyManager.Shop` 통로를 첫 소비. "다음 런부터" 를 Play Mode 로 처음 확인 |
+| 2026-09-21 | #203 | twins6375-art | `IUpgradePersistence` 가 `SaveManager` 에 배선되어 구조 도식의 점선 하나가 실선이 됐다. 업그레이드 레벨이 앱을 껐다 켜도 남는다 |

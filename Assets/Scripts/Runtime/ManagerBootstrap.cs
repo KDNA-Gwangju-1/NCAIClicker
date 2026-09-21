@@ -49,6 +49,41 @@ namespace NCAIClicker
 
             WireUpgradeStats(_instance);
             WireStageService(_instance);
+            WirePersistence(_instance);
+        }
+
+        /// <summary>
+        /// 저장 대상 통로를 SaveManager 에 넣는다 (이슈 #203).
+        ///
+        /// **SaveManager 가 스스로 찾지 않게 하려고 여기서 넣는다.** 매니저가 매니저를 뒤지기
+        /// 시작하면 조립 지점이 흩어진다 — ARCHITECTURE 는 "조립하는 지점 한 곳만 구현 클래스를
+        /// 안다"로 정했고 그 한 곳이 여기다. 덕분에 새 공용 통로를 열 필요도 없었다.
+        ///
+        /// 공급자는 전부 인터페이스로 찾는다. 지금은 EconomyManager 하나가 앞의 다섯을 모두
+        /// 구현하지만, 나뉘어도 이 코드는 그대로다.
+        /// </summary>
+        private static void WirePersistence(GameObject managers)
+        {
+            var save = managers.GetComponentInChildren<SaveManager>(true);
+            if (save == null)
+            {
+                Debug.LogWarning("[ManagerBootstrap] SaveManager 가 없어 저장·복원이 연결되지 않는다.");
+                return;
+            }
+
+            save.SetPersistenceTargets(
+                managers.GetComponentInChildren<IEconomyService>(true),
+                managers.GetComponentInChildren<IWalletPersistence>(true),
+                managers.GetComponentInChildren<IUpgradePersistence>(true),
+                managers.GetComponentInChildren<ILegacyService>(true),
+                managers.GetComponentInChildren<ILegacyPersistence>(true),
+                managers.GetComponentInChildren<IStageService>(true));
+
+            // **복원은 여기서 한 번만 한다.** 매니저는 DontDestroyOnLoad 라 씬을 다시 로드해도
+            // 값을 들고 있으므로, 씬마다 복원하면 마지막 저장 이후의 변경(고지서 화면에서 산
+            // 업그레이드·반지)이 덮어써진다. Instantiate 가 Awake 를 이미 돌린 뒤이고 첫 씬은
+            // 아직 로드되지 않았으므로, 어느 BeginRun 보다도 앞선다 (ARCHITECTURE 초기화 순서 1).
+            save.LoadAndDistribute();
         }
 
         /// <summary>

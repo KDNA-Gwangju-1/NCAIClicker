@@ -171,20 +171,22 @@ namespace NCAIClicker.UI
         }
 
         /// <summary>
-        /// 업그레이드·납부 기록만 지운다. 방금 조정한 볼륨·창모드·화면 흔들림 값은 그대로 옮겨 담는다 —
+        /// 업그레이드·납부 기록만 지운다. 방금 조정한 볼륨·창모드·화면 흔들림 값은 그대로 남는다 —
         /// DoD가 "업그레이드와 납부 기록이 사라진다"고만 했고 설정 초기화는 요구하지 않았다.
+        ///
+        /// **파일만 비우던 것을 ResetAndDistribute 로 바꿨다** (이슈 #203). 매니저는
+        /// DontDestroyOnLoad 라 파일을 비워도 업그레이드 레벨·레거시 포인트·반지를 메모리에
+        /// 그대로 들고 있었고, 3.10 이 붙인 자동 저장이 그 값을 파일에 도로 써서 **초기화가
+        /// 없던 일이 됐다.** 이제 메모리까지 함께 비운다.
+        ///
+        /// 설정을 먼저 파일에 반영하는 이유는 `ResetAndDistribute` 가 설정을 넘겨받지 않고
+        /// 현재 저장에서 옮겨 담기 때문이다 — 설정은 패널을 닫을 때만 반영되므로, 열어 둔 채
+        /// 초기화하면 방금 조정한 값이 아니라 옛 값이 살아남는다.
         /// </summary>
         private void HandleResetConfirmed()
         {
-            var audio = AudioManager.Instance;
-            var fresh = new SaveData
-            {
-                BgmVolume = audio?.BgmVolume ?? 1f,
-                SfxVolume = audio?.SfxVolume ?? 1f,
-                IsFullscreen = Screen.fullScreen,
-                IsScreenShakeEnabled = audio?.IsScreenShakeEnabled ?? true
-            };
-            SaveManager.Instance?.Save(fresh);
+            PersistCurrentSettings();
+            SaveManager.Persistence?.ResetAndDistribute();
 
             if (_resetConfirmPanel != null)
             {

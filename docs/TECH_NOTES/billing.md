@@ -1,7 +1,6 @@
 # 하루 진행과 고지서
 
-> 관련 이슈: #27, #28, #29, #150, #30, #164, #92, #175 · 최종 수정: 2026-09-21
-
+> 관련 이슈: #27, #28, #29, #150, #30, #164, #92, #175, #203 · 최종 수정: 2026-09-21
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
 ## 무엇을 하는가
@@ -262,7 +261,7 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 - ~~단계 진행(`_billIndex`)을 `BillManager`가 자체 순번으로 관리한다.~~ — #150 에서 `IStageService` 단일 출처 연결로 해결됐다. 고지서 금액과 기한은 현재 단계를 따르고, `_billIndex` 는 대출 해금 등에서 쓸 누적 발행 순번으로만 쓰인다.
 - ~~파산 판정(#30)이 없어 고지서를 기한 내에 내지 않아도 아무 일이 일어나지 않는다.~~ — #30 에서 붙였다. 함께 남았던 셋 중 지갑 초기화는 #158 이 해결했고 아래 둘이 남는다.
 - **결과 화면에 "파산"이 뜨지 않는다.** `OnBankrupt` 를 받아 표시할 화면(6.2/#34)이 아직 없다. #34 가 이 카드를 선행으로 잡고 있어 순환이었고, 발행까지가 #30 의 몫이다.
-- **파산 결과가 저장되지 않는다.** `SaveData.WasBankrupt`·`LastCompletedDay` 필드는 있지만 채우는 곳이 없다. `SaveManager` 를 부르는 곳이 `GameManager.StartNewRun()` 하나뿐이고 거기서 `new SaveData()` 빈 객체를 쓴다 — 매니저 상태가 전혀 담기지 않는다.
+- **파산 결과가 저장되지 않는다.** `SaveData.WasBankrupt`·`LastCompletedDay` 필드는 있지만 채우는 곳이 없다. #203 이 매니저↔저장 배선을 붙였지만 수집 대상은 코인·업그레이드·레거시·반지·단계까지이고, 고지서·대출·파산 결과는 **`IBillService` 에 복원 통로가 없어** 범위 밖으로 남았다 — 담아 봐야 되돌릴 수 없다. 공용 계약 이슈가 먼저다 ([저장·불러오기](save-load.md) 알려진 한계).
 - ~~**파산해도 돈이 그대로 남는다 — 페널티가 약하다.**~~ — #158 에서 해결. `IWalletPersistence`
   소비자에 `BillManager` 를 추가해(A안) 파산 시 `RestoreWallet(0, "0")` 으로 코인·소수 잔여를
   비운다. 영구 업그레이드는 여전히 유지된다.
@@ -270,7 +269,7 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 - 대출을 부르는 UI가 없다. `TryTakeLoan`의 금액은 호출측이 정하고 이 클래스는 활성 고지서 금액을 넘지 못하게만 막는다 — 얼마를 빌릴지 고르는 화면은 아직 없다.
 - 대출 상태(`ActiveLoan`·`LastLoanRepaidDay`)가 저장·복원되지 않는다. `SaveData`에 필드는 이미 있지만 `IBillService`에 복원 통로가 없어 재실행하면 빚이 사라진다 — 공용 계약 변경이라 별도 이슈로 발의한다.
 - 징수는 수입이 들어올 때만 일어난다. 하루 종일 한 푼도 벌지 못하면 뜯기는 것도 없다 — 원작이 그러한지는 7.2 실측에서 확인한다.
-- `BillManager`의 날짜·고지서·퍼크 후보(`OfferedPerkIds`) 상태는 저장/복원되지 않는다(`SaveManager` 미연동). ARCHITECTURE.md는 `SaveData.OfferedPerkIds`/`PendingPerkIds` 필드를 이미 계약해 뒀으므로, 저장 연동은 그 필드에 채워 넣는 방식으로 붙이면 된다.
+- `BillManager`의 날짜·고지서·퍼크 후보(`OfferedPerkIds`) 상태는 저장/복원되지 않는다. #203 이 매니저↔저장 배선을 붙였지만 수집 대상은 코인·업그레이드·레거시·반지·단계까지이고, 이쪽은 **`IBillService` 에 복원 통로가 없어** 범위 밖으로 남았다 — 담아도 되돌릴 수 없다. 필드(`SaveData.CurrentDay`·`BillIndex`·`OfferedPerkIds`·`PendingPerkIds`)는 이미 있으므로, 복원 통로를 여는 계약 이슈만 서면 채워 넣는 방식으로 붙는다.
 * ~~`BillHud.prefab`은 **쓰지 않는다.**~~ #173 (1.25)에서 중복 정리를 위해 `BillHud.prefab` 에셋을 삭제하고 `GameHud.prefab` 으로 단일화했다.
 - ~~퍼크 선택(`OnPerkChosen`)의 실제 게임플레이 효과 적용이 없다.~~ — #126 에서 네 소유자(`StaminaManager`·`EconomyManager`·`HammerSwingController`·`CreatureManager`)가 `OnPerkChosen` 을 구독해 스스로 적용한다. 적용 시점 규칙과 한계는 [퍼크 효과](perks.md).
 - ~~퍼크 선택 UI가 없다.~~ — #92 에서 붙였다. "선택 중 게임 시계 정지"도 함께 들어갔다
@@ -292,3 +291,4 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 | 2026-09-18 | #92 | twins6375-art | 퍼크 선택 화면이 붙어 관련 한계를 닫았다. 납부 통로가 없다는 사실(`TryPay` 호출처 0)을 한계에 명시 |
 | 2026.09.18 | #173 | saltlake00 | HUD 프리팹 중복 정리. BillHud.prefab 에셋 삭제 및 GameHud 단일화 (1.25) |
 | 2026-09-21 | #175 | twins6375-art | 자발적 파산 진입점(`DeclareBankruptcy`) 추가와 고지서 화면 파산 선고 잠금 해제. 회차 초기화 표에 레거시 포인트·반지를 '유지' 로 명시 |
+| 2026-09-21 | #203 | twins6375-art | 매니저↔저장 배선이 붙었으나 고지서·대출·파산 결과는 `IBillService` 에 복원 통로가 없어 범위 밖으로 남은 사실을 한계에 명시 |
