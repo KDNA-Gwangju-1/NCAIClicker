@@ -52,6 +52,8 @@ namespace NCAIClicker.EditorTools
                 new Color(0.10f, 0.08f, 0.07f), new Color(0.60f, 0.49f, 0.28f), Color.white, 30);
             bound["_upgradeTabButton"] = CreateButton("TabUpgradeButton", tabBar, font, new Vector2(240f, 56f), "업그레이드",
                 new Color(0.10f, 0.08f, 0.07f), new Color(0.30f, 0.26f, 0.20f), new Color(0.78f, 0.69f, 0.55f), 30);
+            bound["_ringTabButton"] = CreateButton("TabRingButton", tabBar, font, new Vector2(200f, 56f), "반지",
+                new Color(0.10f, 0.08f, 0.07f), new Color(0.30f, 0.26f, 0.20f), new Color(0.78f, 0.69f, 0.55f), 30);
             bound["_tabBar"] = tabBar;
 
             // 탭 내용은 두 덩어리다. 고지서 쪽은 종이와 버튼, 업그레이드 쪽은 상점을 담는 빈 자리.
@@ -72,6 +74,21 @@ namespace NCAIClicker.EditorTools
             bound["_upgradeShopPrefab"] = AssetDatabase.LoadAssetAtPath<GameObject>(
                 "Assets/Prefabs/UI/UpgradeShopPanel.prefab");
             upgradeTabRoot.SetActive(false);
+
+            // 반지 탭 (#183). 업그레이드 탭과 같은 상자·같은 방식이다 — 처음 펼칠 때
+            // 프리팹을 한 번 심고 이후에는 켜고 끄기만 한다.
+            var ringTabRoot = CreateStretched("RingTabRoot", panelRoot);
+            var ringRect = ringTabRoot.GetComponent<RectTransform>();
+            ringRect.anchorMin = new Vector2(0.5f, 0.5f);
+            ringRect.anchorMax = new Vector2(0.5f, 0.5f);
+            ringRect.pivot = new Vector2(0.5f, 0.5f);
+            ringRect.sizeDelta = new Vector2(1100f, 760f);
+            ringRect.anchoredPosition = new Vector2(0f, -20f);
+            bound["_ringTabRoot"] = ringTabRoot;
+            bound["_ringContent"] = ringTabRoot.transform;
+            bound["_ringShopPrefab"] = AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Prefabs/UI/RingShopPanel.prefab");
+            ringTabRoot.SetActive(false);
 
             // 보유 코인 — 낼 수 있는지 판단하려면 지금 얼마를 들고 있는지가 같이 보여야 한다.
             var balanceLabel = CreateLabel("BalanceText", panelRoot, font, 34, new Color(0.992f, 0.953f, 0.874f), "보유 $0");
@@ -164,7 +181,8 @@ namespace NCAIClicker.EditorTools
             bound["_continueButton"] = CreateButton("ContinueButton", continueRow, font, new Vector2(260f, 72f), "계속하기",
                 new Color(0.11f, 0.31f, 0.45f), new Color(0.24f, 0.51f, 0.71f), new Color(0.9f, 0.95f, 0.98f), 28);
 
-            // 파산 선고 — 우측 가장자리 탭. 자발적 파산은 #175 범위라 잠근 채 자리만 둔다.
+            // 파산 선고 — 우측 가장자리 탭. #175 에서 잠금을 풀었다. 눌러도 바로 파산하지 않고
+            // 확인창을 거친다 (아래) — 되돌릴 수 없는 선택이다.
             var bankruptcy = CreateButton("DeclareBankruptcyButton", billTabRoot, font, new Vector2(240f, 110f), "파산 선고",
                 new Color(0.369f, 0.102f, 0.094f), new Color(0.753f, 0.541f, 0.353f), new Color(1f, 0.843f, 0.812f), 32);
             var bankruptcyRect = bankruptcy.GetComponent<RectTransform>();
@@ -172,11 +190,10 @@ namespace NCAIClicker.EditorTools
             bankruptcyRect.anchorMax = new Vector2(1f, 0.5f);
             bankruptcyRect.pivot = new Vector2(1f, 0.5f);
             bankruptcyRect.anchoredPosition = new Vector2(0f, 60f);
-            bankruptcy.interactable = false;
             bound["_declareBankruptcyButton"] = bankruptcy;
 
             // 잠긴 버튼은 이유가 보이지 않으면 고장으로 읽힌다. 왜 못 누르는지 옆에 적는다.
-            var bankruptcyCaption = CreateLabel("BankruptcyCaption", billTabRoot, font, 18, InkFaint, "준비 중");
+            var bankruptcyCaption = CreateLabel("BankruptcyCaption", billTabRoot, font, 18, InkFaint, "회차를 접는다");
             var captionRect = bankruptcyCaption.GetComponent<RectTransform>();
             captionRect.anchorMin = new Vector2(1f, 0.5f);
             captionRect.anchorMax = new Vector2(1f, 0.5f);
@@ -185,6 +202,45 @@ namespace NCAIClicker.EditorTools
             captionRect.anchoredPosition = new Vector2(0f, 0f);
             bound["_declareBankruptcyCaptionText"] = bankruptcyCaption;
 
+            // 파산 선고 확인창 (#175). 되돌릴 수 없는 선택이라 한 번 더 묻는다.
+            // 기본은 꺼 둔다 — 컨트롤러가 OnEnable 에서도 다시 내린다.
+            var confirmRoot = CreateStretched("BankruptcyConfirmPanel", root);
+            confirmRoot.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.88f);
+            bound["_bankruptcyConfirmPanel"] = confirmRoot;
+            
+            // 색은 Warn(진한 붉은색)을 쓰지 않는다. 0.88 알파 검은 막 위에서 대비가 2.88:1 로
+            // 떨어져 UI_GUIDE 기준(4.5:1)을 크게 밑돈다 — 되돌릴 수 없는 선택을 알리는
+            // 문구가 화면에서 가장 안 읽히면 안 된다 (UiGuidelineChecks).
+            var confirmText = CreateLabel("BankruptcyConfirmText", confirmRoot, font, 34,
+                new Color(1f, 0.843f, 0.812f),
+                "파산을 선고하면 코인과 진행이 사라지고 1일차로 돌아갑니다.\n반지와 레거시 포인트는 남습니다. 되돌릴 수 없습니다.");
+            var confirmTextRect = confirmText.GetComponent<RectTransform>();
+            confirmTextRect.anchorMin = new Vector2(0.5f, 0.5f);
+            confirmTextRect.anchorMax = new Vector2(0.5f, 0.5f);
+            confirmTextRect.pivot = new Vector2(0.5f, 0f);
+            confirmTextRect.sizeDelta = new Vector2(760f, 160f);
+            confirmTextRect.anchoredPosition = new Vector2(0f, 40f);
+            
+            var yes = CreateButton("BankruptcyConfirmYesButton", confirmRoot, font, new Vector2(240f, 76f), "선고한다",
+                new Color(0.369f, 0.102f, 0.094f), new Color(0.753f, 0.541f, 0.353f), new Color(1f, 0.843f, 0.812f), 28);
+            var yesRect = yes.GetComponent<RectTransform>();
+            yesRect.anchorMin = new Vector2(0.5f, 0.5f);
+            yesRect.anchorMax = new Vector2(0.5f, 0.5f);
+            yesRect.pivot = new Vector2(1f, 1f);
+            yesRect.anchoredPosition = new Vector2(-20f, 0f);
+            bound["_bankruptcyConfirmYesButton"] = yes;
+            
+            var no = CreateButton("BankruptcyConfirmNoButton", confirmRoot, font, new Vector2(240f, 76f), "돌아간다",
+                new Color(0.11f, 0.31f, 0.45f), new Color(0.24f, 0.51f, 0.71f), new Color(0.9f, 0.95f, 0.98f), 28);
+            var noRect = no.GetComponent<RectTransform>();
+            noRect.anchorMin = new Vector2(0.5f, 0.5f);
+            noRect.anchorMax = new Vector2(0.5f, 0.5f);
+            noRect.pivot = new Vector2(0f, 1f);
+            noRect.anchoredPosition = new Vector2(20f, 0f);
+            bound["_bankruptcyConfirmNoButton"] = no;
+            
+            confirmRoot.SetActive(false);
+            
             Bind(controller, bound);
 
             System.IO.Directory.CreateDirectory("Assets/Prefabs/Resources/UI");

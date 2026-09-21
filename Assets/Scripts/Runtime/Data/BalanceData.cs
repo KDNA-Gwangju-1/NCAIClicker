@@ -30,6 +30,10 @@ namespace NCAIClicker.Data
         public UpgradeDef GetUpgrade(string id) => Upgrades.Find(u => u.Id == id);
         public PerkDef GetPerk(string id) => Perks.Find(p => p.Id == id);
 
+        public List<RingDef> Rings = new();
+
+        public RingDef GetRing(string id) => Rings.Find(r => r.Id == id);
+
         /// <summary>stageNumber 는 1부터 시작한다.</summary>
         public StageDef GetStage(int stageNumber) => Stages.Find(s => s.Stage == stageNumber);
 
@@ -80,6 +84,9 @@ namespace NCAIClicker.Data
 
         /// <summary>부서진 자리에 새 저금통이 등장하기까지의 대기 시간.</summary>
         public float SpawnIntervalSec;
+        /// <summary>고지서 납부액 이만큼당 레거시 포인트 1점 (이슈 #175). 0 이하면 적립하지 않는다.</summary>
+        public float LegacyPointPerAmount;
+
         public float UpgradeCostGrowth;
         public float StageGoalGrowth;
     }
@@ -167,11 +174,37 @@ namespace NCAIClicker.Data
     }
 
     [Serializable]
+    /// <summary>
+    /// 스탯 하나에 얹는 효과. **업그레이드와 반지가 함께 쓴다** (이슈 #183) — 계산이 같아서
+    /// 형을 나누지 않았다. 이름은 먼저 생긴 쪽을 따른다.
+    /// </summary>
     public class UpgradeEffect
     {
         public StatId Stat;
         public EffectType Type;
         public float ValuePerLevel;
+    }
+
+    /// <summary>
+    /// 반지 한 종류 (이슈 #183). 업그레이드와 같은 모양이지만 **사는 화폐가 다르다** —
+    /// 이쪽은 레거시 포인트로 사고, 파산해도 레벨이 남는다.
+    /// 효과는 UpgradeEffect 를 그대로 쓴다. 스탯에 얹는 계산이 완전히 같아서,
+    /// 형만 새로 파면 GetStat 합성 코드가 두 벌이 된다.
+    /// </summary>
+    [Serializable]
+    public class RingDef
+    {
+        public string Id;
+        public string DisplayName;
+        public string Description;
+
+        /// <summary>레거시 포인트 단위다. 코인이 아니다.</summary>
+        public long InitCost;
+
+        public float CostGrowth;
+        public int MaxLevel;
+        public int SortOrder;
+        public List<UpgradeEffect> Effects = new();
     }
 
     [Serializable]

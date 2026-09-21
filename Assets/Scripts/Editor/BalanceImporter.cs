@@ -64,6 +64,7 @@ namespace NCAIClicker.EditorTools
                     ReticleRadius = Req(economy, "reticle_radius"),
                     CoinBonusMultiplier = Req(economy, "coin_bonus_multiplier"),
                     SpawnIntervalSec = Req(economy, "spawn_interval_sec"),
+                    LegacyPointPerAmount = Req(economy, "legacy_point_per_amount"),
                     UpgradeCostGrowth = Req(economy, "upgrade_cost_growth"),
                     StageGoalGrowth = Req(economy, "stage_goal_growth"),
                 };
@@ -116,6 +117,20 @@ namespace NCAIClicker.EditorTools
                 data.Upgrades.Sort((a, b) => a.SortOrder.CompareTo(b.SortOrder));
 
                 AttachUpgradeEffects(data);
+
+                data.Rings = ReadRows("rings.csv", r => new RingDef
+                {
+                    Id = r["id"],
+                    DisplayName = r["display_name"],
+                    Description = r.ContainsKey("description") ? r["description"] : "",
+                    InitCost = ToLong(r["init_cost"]),
+                    CostGrowth = ToFloat(r["cost_growth"]),
+                    MaxLevel = ToInt(r["max_level"]),
+                    SortOrder = ToInt(r["sort_order"]),
+                });
+                data.Rings.Sort((a, b) => a.SortOrder.CompareTo(b.SortOrder));
+
+                AttachRingEffects(data);
 
                 data.Stages = ReadRows("stages.csv", r => new StageDef
                 {
@@ -199,6 +214,60 @@ namespace NCAIClicker.EditorTools
                 existing.Targets.Count, existing.Upgrades.Count, existing.Stages.Count,
                 existing.Stamina.Max / existing.Stamina.IdleDrainPerSec));
             return true;
+        }
+
+        /// <summary>
+        /// ring_effects.csv 를 읽어 각 반지에 붙인다 (이슈 #183).
+        /// AttachUpgradeEffects 와 같은 규칙이다 — id 가 없으면 오류, stat/effect_type 은
+        /// enum 과 대조, 효과가 하나도 없는 반지도 오류다.
+        /// </summary>
+        private static void AttachRingEffects(BalanceData data)
+        {
+            foreach (var row in ReadCsv("ring_effects.csv"))
+            {
+                var ringId = row.ContainsKey("ring_id") ? row["ring_id"] : "";
+                var target = data.Rings.Find(r => r.Id == ringId);
+                if (target == null)
+                {
+                    _errors.Add("ring_effects.csv: ring_id '" + ringId +
+                               "' 에 해당하는 반지가 rings.csv 에 없습니다.");
+                    continue;
+                }
+
+                StatId stat;
+                if (!TryParseEnum(row.ContainsKey("stat") ? row["stat"] : "", out stat))
+                {
+                    _errors.Add("ring_effects.csv: 알 수 없는 stat '" +
+                               (row.ContainsKey("stat") ? row["stat"] : "") +
+                               "'. 쓸 수 있는 값: " + string.Join(", ", EnumNamesSnake<StatId>()));
+                    continue;
+                }
+
+                EffectType type;
+                if (!TryParseEnum(row.ContainsKey("effect_type") ? row["effect_type"] : "", out type))
+                {
+                    _errors.Add("ring_effects.csv: 알 수 없는 effect_type '" +
+                               (row.ContainsKey("effect_type") ? row["effect_type"] : "") +
+                               "'. 쓸 수 있는 값: " + string.Join(", ", EnumNamesSnake<EffectType>()));
+                    continue;
+                }
+
+                target.Effects.Add(new UpgradeEffect
+                {
+                    Stat = stat,
+                    Type = type,
+                    ValuePerLevel = ToFloat(row["value_per_level"]),
+                });
+            }
+
+            foreach (var ring in data.Rings)
+            {
+                if (ring.Effects.Count == 0)
+                {
+                    _errors.Add("ring_effects.csv: '" + ring.Id + "' 에 효과가 하나도 없습니다. " +
+                               "효과 없는 반지는 포인트만 먹고 아무 일도 하지 않습니다.");
+                }
+            }
         }
 
         /// <summary>

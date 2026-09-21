@@ -27,6 +27,13 @@ namespace NCAIClicker.UI
         [Header("탭")]
         [SerializeField] private GameObject _billTabRoot;
         [SerializeField] private GameObject _upgradeTabRoot;
+
+        // 반지 탭 (#183). 업그레이드 탭과 같은 방식이다 — 처음 펼칠 때 프리팹을 한 번 심고
+        // 이후에는 켜고 끄기만 한다.
+        [SerializeField] private GameObject _ringTabRoot;
+        [SerializeField] private Button _ringTabButton;
+        [SerializeField] private RectTransform _ringContent;
+        [SerializeField] private GameObject _ringShopPrefab;
         [SerializeField] private Transform _upgradeContent;
         [SerializeField] private GameObject _upgradeShopPrefab;
         [SerializeField] private Button _billTabButton;
@@ -51,6 +58,12 @@ namespace NCAIClicker.UI
         [SerializeField] private Button _declareBankruptcyButton;
         [SerializeField] private TextMeshProUGUI _declareBankruptcyCaptionText;
 
+        // 되돌릴 수 없는 선택이라 확인을 한 번 받는다 (#175). MainMenuController 의
+        // 저장 덮어쓰기 확인창과 같은 방식이다 — 새 패턴을 만들지 않는다.
+        [SerializeField] private GameObject _bankruptcyConfirmPanel;
+        [SerializeField] private Button _bankruptcyConfirmYesButton;
+        [SerializeField] private Button _bankruptcyConfirmNoButton;
+
         // 다른 프리팹(Target, HammerSwingController)과 같은 방식으로 프리팹에 직렬화해 둔다.
         // 씬을 건너 주입할 통로를 새로 만들지 않기 위해서다.
         [Header("데이터")]
@@ -71,6 +84,7 @@ namespace NCAIClicker.UI
         {
             Bill,
             Upgrade,
+            Ring,
         }
 
         private Mode _mode = Mode.Modal;
@@ -113,6 +127,23 @@ namespace NCAIClicker.UI
             {
                 _upgradeTabButton.onClick.AddListener(ShowUpgradeTab);
             }
+            if (_ringTabButton != null)
+            {
+                _ringTabButton.onClick.AddListener(ShowRingTab);
+            }
+            if (_declareBankruptcyButton != null)
+            {
+                _declareBankruptcyButton.onClick.AddListener(ShowBankruptcyConfirm);
+            }
+            if (_bankruptcyConfirmYesButton != null)
+            {
+                _bankruptcyConfirmYesButton.onClick.AddListener(HandleBankruptcyConfirmed);
+            }
+            if (_bankruptcyConfirmNoButton != null)
+            {
+                _bankruptcyConfirmNoButton.onClick.AddListener(HideBankruptcyConfirm);
+            }
+            HideBankruptcyConfirm();
         }
 
         private void OnDisable()
@@ -136,6 +167,22 @@ namespace NCAIClicker.UI
             if (_upgradeTabButton != null)
             {
                 _upgradeTabButton.onClick.RemoveListener(ShowUpgradeTab);
+            }
+            if (_ringTabButton != null)
+            {
+                _ringTabButton.onClick.RemoveListener(ShowRingTab);
+            }
+            if (_declareBankruptcyButton != null)
+            {
+                _declareBankruptcyButton.onClick.RemoveListener(ShowBankruptcyConfirm);
+            }
+            if (_bankruptcyConfirmYesButton != null)
+            {
+                _bankruptcyConfirmYesButton.onClick.RemoveListener(HandleBankruptcyConfirmed);
+            }
+            if (_bankruptcyConfirmNoButton != null)
+            {
+                _bankruptcyConfirmNoButton.onClick.RemoveListener(HideBankruptcyConfirm);
             }
         }
 
@@ -165,6 +212,7 @@ namespace NCAIClicker.UI
         private void ShowBillTab() => ShowAsTab(Tab.Bill);
 
         private void ShowUpgradeTab() => ShowAsTab(Tab.Upgrade);
+        private void ShowRingTab() => ShowAsTab(Tab.Ring);
 
         private void Show(Mode mode)
         {
@@ -201,25 +249,35 @@ namespace NCAIClicker.UI
         {
             // 모달일 때는 탭이 없다. 고지서만 보인다.
             var showUpgrade = _mode == Mode.Tab && _tab == Tab.Upgrade;
+            var showRing = _mode == Mode.Tab && _tab == Tab.Ring;
 
             if (_billTabRoot != null)
             {
-                _billTabRoot.SetActive(!showUpgrade);
+                _billTabRoot.SetActive(!showUpgrade && !showRing);
             }
             if (_upgradeTabRoot != null)
             {
                 _upgradeTabRoot.SetActive(showUpgrade);
+            }
+            if (_ringTabRoot != null)
+            {
+                _ringTabRoot.SetActive(showRing);
             }
 
             if (showUpgrade && _upgradeContent != null && _upgradeShopPrefab != null && _upgradeContent.childCount == 0)
             {
                 Instantiate(_upgradeShopPrefab, _upgradeContent, false);
             }
+            if (showRing && _ringContent != null && _ringShopPrefab != null && _ringContent.childCount == 0)
+            {
+                Instantiate(_ringShopPrefab, _ringContent, false);
+            }
 
             // 어느 탭에 있는지 버튼 색으로 알린다. 업그레이드를 보고 있는데 고지서가 켜진 것처럼
             // 보이면 탭이 안 먹은 줄 안다.
-            SetTabSelected(_billTabButton, !showUpgrade);
+            SetTabSelected(_billTabButton, !showUpgrade && !showRing);
             SetTabSelected(_upgradeTabButton, showUpgrade);
+            SetTabSelected(_ringTabButton, showRing);
         }
 
         private static void SetTabSelected(Button tab, bool selected)
@@ -395,15 +453,16 @@ namespace NCAIClicker.UI
                 }
             }
 
-            // 자발적 파산은 #175 범위다. 자리만 두고 잠그되, 왜 못 누르는지 적어 둔다 —
-            // 이유가 안 보이는 잠긴 버튼은 고장으로 읽힌다.
+            // 자발적 파산 (#175). 고지서가 살아 있을 때만 의미가 있다 — 낼 것이 없는데
+            // 파산을 선언하면 잃기만 하고 얻는 것이 없다.
             if (_declareBankruptcyButton != null)
             {
-                _declareBankruptcyButton.interactable = false;
+                _declareBankruptcyButton.interactable = hasUnpaidBill;
             }
             if (_declareBankruptcyCaptionText != null)
             {
-                _declareBankruptcyCaptionText.text = "준비 중";
+                // 잠긴 이유가 안 보이는 버튼은 고장으로 읽힌다.
+                _declareBankruptcyCaptionText.text = hasUnpaidBill ? "회차를 접는다" : "낼 고지서 없음";
             }
         }
 
@@ -421,6 +480,40 @@ namespace NCAIClicker.UI
                 // 모두 사라져 빠져나갈 길이 없고, 닫아 버리면 업그레이드를 살 기회가 사라진다.
                 ShowBillTab();
             }
+        }
+
+        /// <summary>
+        /// 확인창을 띄운다. **여기서 파산시키지 않는다** — 되돌릴 수 없는 선택이라 한 번 더 묻는다.
+        /// </summary>
+        private void ShowBankruptcyConfirm()
+        {
+            if (_bankruptcyConfirmPanel != null)
+            {
+                _bankruptcyConfirmPanel.SetActive(true);
+            }
+        }
+
+        private void HideBankruptcyConfirm()
+        {
+            if (_bankruptcyConfirmPanel != null)
+            {
+                _bankruptcyConfirmPanel.SetActive(false);
+            }
+        }
+
+        /// <summary>
+        /// 확인을 받고 실제로 선언한다. 마감 미납 파산과 같은 처리를 탄다 (IBillService, #175).
+        /// 코인·단계는 사라지고 레거시 포인트와 반지는 남는다 (#183).
+        /// </summary>
+        private void HandleBankruptcyConfirmed()
+        {
+            HideBankruptcyConfirm();
+            _billService?.DeclareBankruptcy();
+
+            // 파산은 회차를 1일차로 되돌린다. 고지서 화면에 머물면 방금 사라진 고지서를
+            // 계속 보여 주게 되므로 닫고 다음 런으로 보낸다.
+            Close();
+            GameManager.Instance?.ContinueRun();
         }
 
         private void HandleContinueClicked()

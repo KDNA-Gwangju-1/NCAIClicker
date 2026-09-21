@@ -70,9 +70,59 @@ namespace NCAIClicker.EditorTools
             }
 
             var save = new SaveData();
-            if (save.Version != 2 || save.CurrentDay != 1 || save.LastLoanRepaidDay != -1)
+            // 버전 숫자를 박지 않는다. 박아 두면 저장 구조를 늘릴 때마다 이 검증이 깨지는데,
+            // 정작 위험한 것은 숫자가 바뀌는 것이 아니라 **마이그레이션 분기를 빠뜨리는 것**이다
+            // (바로 아래에서 본다).
+            if (save.Version != SaveData.CurrentVersion || save.CurrentDay != 1 || save.LastLoanRepaidDay != -1)
             {
                 throw new InvalidOperationException("SaveData default values mismatch");
+            }
+
+            VerifySaveMigrations();
+        }
+
+        /// <summary>
+        /// 1 부터 현재 버전까지 **모든 저장 버전**이 마이그레이션을 통과해 현재 버전으로 올라오는지 본다.
+        ///
+        /// 버전만 올리고 `ApplyVersionMigrations` 에 분기를 더하지 않으면 그 버전의 저장 파일이
+        /// `NotSupportedException` 으로 떨어져 **사용자의 저장이 통째로 버려진다.** 그 경로는
+        /// 예전 저장 파일이 있는 사람에게만 터지므로 개발 중에는 드러나지 않는다.
+        /// </summary>
+        private static void VerifySaveMigrations()
+        {
+            var migrate = typeof(SaveManager).GetMethod("ApplyVersionMigrations",
+                BindingFlags.NonPublic | BindingFlags.Static);
+            if (migrate == null)
+            {
+                throw new InvalidOperationException("ApplyVersionMigrations not found — renamed?");
+            }
+
+            for (var version = 1; version <= SaveData.CurrentVersion; version++)
+            {
+                var data = new SaveData { Version = version, TotalCoin = 777L };
+                SaveData migrated;
+                try
+                {
+                    migrated = (SaveData)migrate.Invoke(null, new object[] { data });
+                }
+                catch (TargetInvocationException e)
+                {
+                    throw new InvalidOperationException(
+                        "저장 버전 " + version + " 의 마이그레이션 분기가 없다. " +
+                        "SaveData.CurrentVersion 을 올렸으면 ApplyVersionMigrations 에 case 를 더한다: " +
+                        e.InnerException?.Message);
+                }
+
+                if (migrated.Version != SaveData.CurrentVersion)
+                {
+                    throw new InvalidOperationException(
+                        "저장 버전 " + version + " 이 현재 버전으로 올라오지 않았다: " + migrated.Version);
+                }
+                if (migrated.TotalCoin != 777L)
+                {
+                    throw new InvalidOperationException(
+                        "저장 버전 " + version + " 마이그레이션이 기존 값을 잃었다.");
+                }
             }
         }
 

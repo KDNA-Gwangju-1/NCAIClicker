@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NCAIClicker.Data.BalanceData
   Stamina:
     Max: 120
-    IdleDrainPerSec: 6.5
+    IdleDrainPerSec: 7
     MoveDrainPerUnit: 0
     HitDrainPerSwing: 0
     FeverDrainMultiplier: 1
@@ -28,6 +28,7 @@ MonoBehaviour:
     ReticleRadius: 0.45
     CoinBonusMultiplier: 1
     SpawnIntervalSec: 7
+    LegacyPointPerAmount: 50
     UpgradeCostGrowth: 1.15
     StageGoalGrowth: 2.5
   Fever:
@@ -207,3 +208,30 @@ MonoBehaviour:
   - Id: hospital
     Issuer: "\uBC1D\uC740\uBBF8\uC18C \uCE58\uACFC"
     Title: "\uC2E0\uACBD\uCE58\uB8CC\uBE44"
+  Rings:
+  - Id: power_ring
+    DisplayName: "\uD798\uC758 \uBC18\uC9C0"
+    Description: "\uC950\uB294 \uD798\uC774 \uC601\uAD6C\uD788 \uB0A8\uB294\uB2E4.
+      \uD30C\uC0B0\uD574\uB3C4 \uC190\uAC00\uB77D\uC5D0\uC11C \uBE60\uC9C0\uC9C0
+      \uC54A\uB294\uB2E4"
+    InitCost: 3
+    CostGrowth: 1.5
+    MaxLevel: 5
+    SortOrder: 1
+    Effects:
+    - Stat: 0
+      Type: 0
+      ValuePerLevel: 0.2
+  - Id: vigor_ring
+    DisplayName: "\uD65C\uB825\uC758 \uBC18\uC9C0"
+    Description: "\uD558\uB8E8\uB97C \uC870\uAE08 \uB354 \uC624\uB798 \uBC84\uD2F4\uB2E4.
+      \uD30C\uC0B0\uD574\uB3C4 \uC190\uAC00\uB77D\uC5D0\uC11C \uBE60\uC9C0\uC9C0
+      \uC54A\uB294\uB2E4"
+    InitCost: 3
+    CostGrowth: 1.5
+    MaxLevel: 5
+    SortOrder: 2
+    Effects:
+    - Stat: 8
+      Type: 0
+      ValuePerLevel: 5

@@ -131,6 +131,7 @@ public interface IBillService
     float LoanDailyCut { get; }        // 대출이 없으면 0
     Bill ActiveBill { get; }           // 마감 전 고지서. 없으면 null
     string[] OfferedPerkIds { get; }   // 납부 직후 골라야 할 퍼크 후보 3개. 고르면 비워진다
+    void DeclareBankruptcy();          // 자발적 파산 (#175). 미납 파산과 같은 처리를 탄다
     bool TryPay(Bill bill);
     bool TryTakeLoan(long amount);     // 두 번째 고지서부터, 동시 1건
     bool TryRepayLoan();               // 전액 상환. 재대출 쿨다운 시작
@@ -185,6 +186,32 @@ public interface IUpgradePersistence
     int[] CurrentUpgradeLevels { get; }
 }
 
+// 레거시 포인트와 반지 (#175, #183). 코인과 별개의 화폐이고 **파산해도 남는다**.
+// 적립은 고지서 납부에 비례한다 (economy.csv 의 legacy_point_per_amount).
+public interface ILegacyService
+{
+    long CurrentLegacyPoints { get; }
+    void AddLegacyPoints(long amount);
+    bool TrySpendLegacyPoints(long amount);
+}
+
+// 반지 구매. IUpgradeShop 과 모양이 같지만 쓰는 화폐가 레거시 포인트라 따로 둔다.
+public interface IRingShop
+{
+    int GetRingLevel(string ringId);
+    long GetNextRingCost(string ringId);   // 최대 레벨이거나 없는 id 면 long.MaxValue
+    bool TryPurchaseRing(string ringId);
+}
+
+// 저장 복원. SaveManager 만 쓸 계약이지만 IUpgradePersistence 와 마찬가지로 **아직 배선되지 않았다**
+// (docs/TECH_NOTES/contracts.md 알려진 한계).
+// ringLevelsBySortOrder 는 null 로 올 수 있다 — v2 이하 저장에는 그 배열이 없다.
+public interface ILegacyPersistence
+{
+    void RestoreLegacy(long points, int[] ringLevelsBySortOrder);
+    int[] CurrentRingLevels { get; }
+}
+
 public interface ISaveService
 {
     SaveData Load();
@@ -233,7 +260,7 @@ public enum ResumePoint { MainMenu, Result, PerkSelection }
 [Serializable]
 public class SaveData
 {
-    public const int CurrentVersion = 2; // SaveManager도 이 상수를 참조한다. 숫자를 두 곳에 적지 않는다
+    public const int CurrentVersion = 3; // SaveManager도 이 상수를 참조한다. 숫자를 두 곳에 적지 않는다
     public int Version = CurrentVersion;
     public long TotalCoin;
     public string CoinRemainder = "0"; // decimal을 InvariantCulture 문자열로 저장
@@ -254,6 +281,8 @@ public class SaveData
     public bool IsCompleted;
     public string[] OfferedPerkIds;    // 선택 화면을 다시 열어도 같은 후보
     public string[] PendingPerkIds;    // 결과 화면에서 선택한 다음 런 효과
+    public long LegacyPoints;          // 파산을 넘어 남는다 (#175). v3 부터
+    public int[] RingLevels;           // rings.csv sort_order 순. 파산해도 남는다 (#183). v3 부터
 }
 ```
 
@@ -290,7 +319,7 @@ public class SaveData
 
 ```json
 {
-  "Version": 2,
+  "Version": 3,
   "TotalCoin": 15420,
   "CoinRemainder": "0.37",
   "StageIndex": 2,

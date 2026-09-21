@@ -1,0 +1,3 @@
+ring_id,stat,effect_type,value_per_level,note
+power_ring,base_hit_power,add,0.2,레벨당 타격 피해 +0.2. 잠정값 — 3.8(#176) 재계산 뒤 확정
+vigor_ring,max_stamina,add,5,레벨당 최대 스태미나 +5. 잠정값 — 3.8(#176) 재계산 뒤 확정

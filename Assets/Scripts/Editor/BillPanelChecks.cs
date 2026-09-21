@@ -54,10 +54,16 @@ namespace NCAIClicker.EditorTools
             }
             checkCount++;
 
-            // 자발적 파산은 #175 범위다. 여기서 눌리면 안 된다.
+            // 자발적 파산이 #175 에서 붙었다. 이제는 **있는지**와 **확인창이 딸려 있는지**를 본다 —
+            // 되돌릴 수 없는 버튼이라 확인창 없이 눌리면 회차가 통째로 날아간다.
             var bankruptcy = FindButton(prefab, "DeclareBankruptcyButton");
-            Assert(bankruptcy != null && !bankruptcy.interactable,
-                   "DeclareBankruptcyButton 은 #175 전까지 interactable = false 여야 합니다.");
+            Assert(bankruptcy != null, "DeclareBankruptcyButton 이 프리팹에 없습니다 (#175).");
+            checkCount++;
+
+            Assert(FindButton(prefab, "BankruptcyConfirmYesButton") != null &&
+                   FindButton(prefab, "BankruptcyConfirmNoButton") != null,
+                   "파산 선고 확인창의 예/아니오 버튼이 프리팹에 없습니다. " +
+                   "되돌릴 수 없는 선택이라 확인 절차가 있어야 합니다 (#175).");
             checkCount++;
 
             return checkCount;
@@ -234,6 +240,14 @@ namespace NCAIClicker.EditorTools
             public bool TryTakeLoan(long amount) => false;
             public bool TryRepayLoan() => false;
             public bool TryChoosePerk(string perkId) => false;
+
+            /// <summary>자발적 파산 호출 횟수 (계약 #175). 확인창을 거치지 않고 불리면 여기서 드러난다.</summary>
+            public int DeclaredBankruptcyCount { get; private set; }
+
+            public void DeclareBankruptcy()
+            {
+                DeclaredBankruptcyCount++;
+            }
         }
     }
 }
