@@ -1,4 +1,5 @@
 using NCAIClicker.Data;
+using NCAIClicker.Economy;
 using NCAIClicker.Events;
 using NCAIClicker.Interfaces;
 using UnityEngine;
@@ -47,9 +48,14 @@ namespace NCAIClicker.Targets
         /// </summary>
         private float _perkHitRadiusPercent;
         private float _currentHp;
-        private decimal _rawCoin;
         private float _staminaRestore;
         private bool _isAlive;
+
+        /// <summary>
+        /// 액면 추첨용 공유 난수기 (이슈 #178). 인스턴스마다 새로 만들면 같은 프레임에 여럿이
+        /// 죽을 때 시드가 겹쳐 같은 결과만 나올 수 있어, 타입 전체가 하나를 공유한다.
+        /// </summary>
+        private static readonly System.Random _coinRandom = new System.Random();
 
         public bool IsAlive => _isAlive;
 
@@ -124,11 +130,11 @@ namespace NCAIClicker.Targets
                 return;
             }
 
-            // 원시 보상은 남은 내구도가 아니라 초기 최대 내구도로 계산한다
-            // (ARCHITECTURE 코인 계산·정산 계약 2번).
+            // 내구도는 초기 최대 내구도로 계산한다 (ARCHITECTURE 코인 계산·정산 계약 2번).
+            // 코인 액면은 여기서 정하지 않는다 — 파괴되는 순간(OnHit)에 추첨해야
+            // "같은 저금통도 부술 때마다 다르게" 나온다 (이슈 #178, CoinLottery).
             _currentHp = def.Hp;
             MaxHp = def.Hp;
-            _rawCoin = def.Hp * (decimal)def.CoinMult + def.BreakBonus;
             _staminaRestore = def.StaminaRestore;
             _isAlive = true;
 
@@ -197,8 +203,17 @@ namespace NCAIClicker.Targets
 
             // 살아 있음 → 파괴됨으로 바뀌는 순간에만, 한 번만 발행한다 (계약 2번).
             _isAlive = false;
+
+            // 액면 추첨은 파괴되는 지금 한다 (이슈 #178) — Initialize 에서 미리 정하면
+            // 같은 프리팹 인스턴스가 매번 같은 액면만 내놓게 된다.
+            var def = _balanceData != null ? _balanceData.GetTarget(_targetId) : null;
+            var coins = def != null
+                ? CoinLottery.Draw(_balanceData, def.MinDenomId, def.CoinCount, () => _coinRandom.NextDouble())
+                : System.Array.Empty<CoinDrop>();
+            var rawCoin = CoinLottery.SumValue(coins, _balanceData);
+
             GameEvents.PublishTargetBroken(
-                new BreakInfo(_targetId, _rawCoin, _staminaRestore, transform.position));
+                new BreakInfo(_targetId, rawCoin, coins, _staminaRestore, transform.position));
         }
     }
 }

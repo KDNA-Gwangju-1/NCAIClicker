@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using NCAIClicker.Data;
 using NCAIClicker.Events;
+using NCAIClicker.Interfaces;
 using NCAIClicker.UI;
 using TMPro;
 using UnityEngine;
@@ -20,6 +22,7 @@ namespace NCAIClicker.EditorTools
             checkCount += RunAccuracyChecks();
             checkCount += RunViewBranchChecks();
             checkCount += RunResultPrefabChecks();
+            checkCount += RunDenomBreakdownChecks();
 
             Debug.Log("[ResultUIChecks] PASS " + checkCount + " checks.");
         }
@@ -178,6 +181,105 @@ namespace NCAIClicker.EditorTools
             checkCount++;
 
             return checkCount;
+        }
+
+        /// <summary>
+        /// 코인 칸(개수)과 액면별 칸이 RunCoinBreakdown 하나로 채워지는지 본다 — RunCoin(금액)을
+        /// 쓰던 이전 버전은 개수와 금액이 항상 같은 숫자였다 (이슈 #178, 원래 버그).
+        /// </summary>
+        private static int RunDenomBreakdownChecks()
+        {
+            var checkCount = 0;
+            var host = new GameObject("ResultUIControllerDenomHost");
+            var controller = host.AddComponent<ResultUIController>();
+            var balance = MakeMiniBalance();
+            var economy = new FakeEconomyService();
+
+            var runCoinGo = new GameObject("RunCoinText");
+            var runCoinText = runCoinGo.AddComponent<TextMeshProUGUI>();
+            var denomGos = new GameObject[4];
+            var denomTexts = new TextMeshProUGUI[4];
+            for (var i = 0; i < denomGos.Length; i++)
+            {
+                denomGos[i] = new GameObject("Denom" + i);
+                denomTexts[i] = denomGos[i].AddComponent<TextMeshProUGUI>();
+            }
+
+            var type = typeof(ResultUIController);
+            var flags = BindingFlags.NonPublic | BindingFlags.Instance;
+            type.GetField("_balanceData", flags)?.SetValue(controller, balance);
+            type.GetField("_runCoinText", flags)?.SetValue(controller, runCoinText);
+            type.GetField("_denomCountTexts", flags)?.SetValue(controller, denomTexts);
+
+            try
+            {
+                // c1×3, c5×2, c100×1, c25는 안 뽑힘. 개수 6, 금액 3+10+100=113 — 서로 달라야 한다.
+                economy.Breakdown.Add(new CoinDrop("c1", 3));
+                economy.Breakdown.Add(new CoinDrop("c5", 2));
+                economy.Breakdown.Add(new CoinDrop("c100", 1));
+                economy.RunCoin = 113;
+                controller.SetServices(economy, null, null);
+
+                controller.ShowSettlement();
+
+                AssertCondition(runCoinText.text == "6", "코인 칸은 개수(6)를 보여야 하는데 " + runCoinText.text + " 입니다.");
+                checkCount++;
+
+                AssertCondition(denomTexts[0].text == "3", "c1 칸이 3이어야 하는데 " + denomTexts[0].text + " 입니다.");
+                AssertCondition(denomTexts[1].text == "2", "c5 칸이 2여야 하는데 " + denomTexts[1].text + " 입니다.");
+                AssertCondition(denomTexts[2].text == "0", "안 뽑힌 c25 칸은 0이어야 하는데 " + denomTexts[2].text + " 입니다.");
+                AssertCondition(denomTexts[3].text == "1", "c100 칸이 1이어야 하는데 " + denomTexts[3].text + " 입니다.");
+                checkCount++;
+
+                AssertCondition(runCoinText.text != economy.RunCoin.ToString(),
+                    "코인 개수 칸이 금액(" + economy.RunCoin + ")과 같은 숫자를 보이면 안 됩니다 — #178 버그 재발입니다.");
+                checkCount++;
+
+                // 서비스가 없어도 예외 없이 0/자리표시자로 채워야 한다.
+                controller.SetServices(null, null, null);
+                controller.ShowSettlement();
+                AssertCondition(runCoinText.text == "0", "서비스가 없으면 코인 칸은 0이어야 합니다.");
+                AssertCondition(denomTexts[0].text == "0", "서비스가 없으면 액면 칸은 0이어야 합니다 (예외로 죽으면 안 됩니다).");
+                checkCount++;
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(host);
+                UnityEngine.Object.DestroyImmediate(runCoinGo);
+                for (var i = 0; i < denomGos.Length; i++)
+                {
+                    UnityEngine.Object.DestroyImmediate(denomGos[i]);
+                }
+                UnityEngine.Object.DestroyImmediate(balance);
+            }
+
+            return checkCount;
+        }
+
+        private static BalanceData MakeMiniBalance()
+        {
+            var data = ScriptableObject.CreateInstance<BalanceData>();
+            data.hideFlags = HideFlags.HideAndDontSave;
+            data.Coins = new List<CoinDef>
+            {
+                new CoinDef { Id = "c1", Value = 1, Weight = 60, DisplayColor = "#C9CDD2" },
+                new CoinDef { Id = "c5", Value = 5, Weight = 25, DisplayColor = "#D8A24A" },
+                new CoinDef { Id = "c25", Value = 25, Weight = 10, DisplayColor = "#4AA86A" },
+                new CoinDef { Id = "c100", Value = 100, Weight = 4, DisplayColor = "#C1483C" },
+            };
+            return data;
+        }
+
+        /// <summary>테스트 전용 가짜 구현. 이번 검증이 볼 것은 RunCoinBreakdown 배선뿐이다.</summary>
+        private class FakeEconomyService : IEconomyService
+        {
+            public long CurrentCoin { get; set; }
+            public long RunCoin { get; set; }
+            public List<CoinDrop> Breakdown { get; } = new List<CoinDrop>();
+            public IReadOnlyList<CoinDrop> RunCoinBreakdown => Breakdown;
+            public void AddCoin(decimal rawAmount) { }
+            public void AddLoanPrincipal(long amount) { }
+            public bool TrySpendCoin(long amount) => true;
         }
 
         private static Button FindButton(GameObject root, string name)

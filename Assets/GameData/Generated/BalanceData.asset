@@ -55,6 +55,8 @@ MonoBehaviour:
     StaminaRestore: 0
     MoveSpeed: 2
     TurnIntervalSec: 1.5
+    CoinCount: 1
+    MinDenomId: c1
   - Id: anchor
     DisplayName: "\uAC70\uCE58\uD615"
     Hp: 12
@@ -63,6 +65,8 @@ MonoBehaviour:
     StaminaRestore: 0
     MoveSpeed: 0.2
     TurnIntervalSec: 4
+    CoinCount: 1
+    MinDenomId: c1
   - Id: runner
     DisplayName: "\uACE0\uC18D\uD615"
     Hp: 1
@@ -71,6 +75,8 @@ MonoBehaviour:
     StaminaRestore: 0
     MoveSpeed: 5
     TurnIntervalSec: 0.4
+    CoinCount: 1
+    MinDenomId: c1
   - Id: tourist
     DisplayName: "\uD68C\uBCF5\uD615"
     Hp: 10
@@ -79,6 +85,8 @@ MonoBehaviour:
     StaminaRestore: 2
     MoveSpeed: 0.8
     TurnIntervalSec: 3
+    CoinCount: 1
+    MinDenomId: c1
   Upgrades:
   - Id: strong_hammer
     DisplayName: "\uC545\uB825 \uB2E8\uB828"
@@ -208,6 +216,27 @@ MonoBehaviour:
   - Id: hospital
     Issuer: "\uBC1D\uC740\uBBF8\uC18C \uCE58\uACFC"
     Title: "\uC2E0\uACBD\uCE58\uB8CC\uBE44"
+  Coins:
+  - Id: c1
+    Value: 1
+    Weight: 60
+    DisplayColor: '#C9CDD2'
+  - Id: c5
+    Value: 5
+    Weight: 25
+    DisplayColor: '#D8A24A'
+  - Id: c25
+    Value: 25
+    Weight: 10
+    DisplayColor: '#4AA86A'
+  - Id: c100
+    Value: 100
+    Weight: 4
+    DisplayColor: '#C1483C'
+  - Id: c1000
+    Value: 1000
+    Weight: 1
+    DisplayColor: '#3D82B4'
   Rings:
   - Id: power_ring
     DisplayName: "\uD798\uC758 \uBC18\uC9C0"

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NCAIClicker.Data;
 
 namespace NCAIClicker.Interfaces
@@ -12,6 +13,12 @@ namespace NCAIClicker.Interfaces
         bool TrySpendCoin(long amount);
         long CurrentCoin { get; }
         long RunCoin { get; }
+
+        /// <summary>
+        /// 이번 런에서 액면별로 누적된 코인 개수 (이슈 #178). BeginRun 에서 비워진다.
+        /// 결과 화면의 "$1×113" 같은 액면 칸이 이 조회 하나로 채워진다.
+        /// </summary>
+        IReadOnlyList<CoinDrop> RunCoinBreakdown { get; }
     }
 
     /// <summary>

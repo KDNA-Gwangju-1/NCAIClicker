@@ -205,7 +205,7 @@ namespace NCAIClicker.EditorTools
                                   float perkMultiplier, string message)
         {
             expectedNet += RawCoin * (decimal)perkMultiplier * (decimal)balance.Economy.CoinBonusMultiplier;
-            GameEvents.PublishTargetBroken(new BreakInfo("perk-check", RawCoin, 0f, Vector3.zero));
+            GameEvents.PublishTargetBroken(new BreakInfo("perk-check", RawCoin, Array.Empty<CoinDrop>(), 0f, Vector3.zero));
 
             var expected = (long)decimal.Floor(expectedNet);
             AssertCondition(economy.CurrentCoin == expected,

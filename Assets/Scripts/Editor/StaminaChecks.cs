@@ -325,7 +325,7 @@ namespace NCAIClicker.EditorTools
 
         private static BreakInfo CreateBreak(float staminaRestore)
         {
-            return new BreakInfo("tourist", 0m, staminaRestore, Vector3.zero);
+            return new BreakInfo("tourist", 0m, Array.Empty<CoinDrop>(), staminaRestore, Vector3.zero);
         }
 
         private static void AssertThrows(Action action, string message)
