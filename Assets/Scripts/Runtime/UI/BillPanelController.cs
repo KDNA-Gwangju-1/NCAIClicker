@@ -51,6 +51,7 @@ namespace NCAIClicker.UI
 
         [Header("버튼")]
         [SerializeField] private Button _payButton;
+        [SerializeField] private TextMeshProUGUI _payCaptionText;
         [SerializeField] private Button _laterButton;
         [SerializeField] private Button _loanButton;
         [SerializeField] private TextMeshProUGUI _loanCaptionText;
@@ -427,20 +428,24 @@ namespace NCAIClicker.UI
         private void RenderButtons(Bill bill)
         {
             var hasUnpaidBill = bill != null && !bill.IsPaid;
-            var daysLeft = _billService != null ? _billService.DaysLeft : 0;
-            var isDueToday = hasUnpaidBill && daysLeft <= 1;
 
             if (_payButton != null)
             {
                 _payButton.gameObject.SetActive(hasUnpaidBill);
             }
+            if (_payCaptionText != null && !hasUnpaidBill)
+            {
+                _payCaptionText.text = string.Empty;
+            }
 
             // "아직" 은 탭 화면으로 빠지는 버튼이다. 이미 탭 화면이면 할 일이 없으므로 감춘다 —
             // 상단 탭으로 어디든 갈 수 있는 상태에서 또 하나의 출구는 군더더기다.
-            // 마감 당일에도 감춘다. 미루는 선택지 자체를 없애는 것이 원작 규칙이다.
+            // 마감 당일에도 보인다 (#212) — 미루는 선택지를 없애는 원작 규칙은 이 버튼이 아니라
+            // BillManager.IsBillOverdue() 의 날짜 비교가 지킨다. 이 버튼은 탭 화면으로 나갈 뿐 납부
+            // 기한을 조작하지 않으므로, 마감 당일에 감추면 납부 실패 시 빠져나갈 길이 없어진다.
             if (_laterButton != null)
             {
-                _laterButton.gameObject.SetActive(_mode == Mode.Modal && hasUnpaidBill && !isDueToday);
+                _laterButton.gameObject.SetActive(_mode == Mode.Modal && hasUnpaidBill);
             }
 
             if (_loanButton != null)
@@ -478,7 +483,20 @@ namespace NCAIClicker.UI
             {
                 // 납부가 끝나면 탭 화면으로 나간다. 납부 완료 화면에 머물면 납부·아직 버튼이
                 // 모두 사라져 빠져나갈 길이 없고, 닫아 버리면 업그레이드를 살 기회가 사라진다.
+                if (_payCaptionText != null)
+                {
+                    _payCaptionText.text = string.Empty;
+                }
                 ShowBillTab();
+                return;
+            }
+
+            // 잔액 부족으로 실패했을 때 아무 표시가 없으면 버튼이 고장난 것처럼 보인다 (#212).
+            // 정산창(ResultUIController._payCaptionText)과 같은 문구 규칙을 쓴다.
+            if (_payCaptionText != null)
+            {
+                var coin = _economyService != null ? _economyService.CurrentCoin : 0L;
+                _payCaptionText.text = $"${bill.Amount - coin:N0} 부족";
             }
         }
 

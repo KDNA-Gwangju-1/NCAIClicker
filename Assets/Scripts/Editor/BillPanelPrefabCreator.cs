@@ -139,7 +139,8 @@ namespace NCAIClicker.EditorTools
             actionsRect.anchorMin = new Vector2(0.5f, 0f);
             actionsRect.anchorMax = new Vector2(0.5f, 0f);
             actionsRect.pivot = new Vector2(0.5f, 0f);
-            actionsRect.sizeDelta = new Vector2(760f, 180f);
+            // 210f: PayCaption 한 줄(#212)이 더해져 180f 로는 LoanColumn 과 겹친다.
+            actionsRect.sizeDelta = new Vector2(760f, 210f);
             actionsRect.anchoredPosition = new Vector2(0f, 40f);
             var actionsColumn = actions.AddComponent<VerticalLayoutGroup>();
             actionsColumn.spacing = 12f;
@@ -155,6 +156,9 @@ namespace NCAIClicker.EditorTools
                 new Color(0.23f, 0.21f, 0.19f), new Color(0.37f, 0.33f, 0.29f), new Color(0.91f, 0.87f, 0.8f), 30);
             bound["_payButton"] = CreateButton("PayButton", payRow, font, new Vector2(300f, 76f), "납부하기",
                 new Color(0.086f, 0.075f, 0.059f), new Color(0.604f, 0.486f, 0.275f), new Color(0.992f, 0.953f, 0.874f), 30);
+
+            // 잔액 부족으로 납부 실패 시 부족액을 보여준다 (#212). LoanCaption 과 같은 자리 규칙.
+            bound["_payCaptionText"] = CreateLabel("PayCaption", actions, font, 18, Warn, string.Empty);
 
             var loanColumn = CreateObject("LoanColumn", actions);
             var loanGroup = loanColumn.AddComponent<VerticalLayoutGroup>();
