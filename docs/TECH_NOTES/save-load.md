@@ -36,6 +36,8 @@
 | 씬이 로드될 때마다 복원 | ❌ | **처음엔 이렇게 했다가 되돌렸다.** 매니저는 `DontDestroyOnLoad`라 씬을 다시 로드해도 값을 들고 있다 — 저장을 덮어씌우면 마지막 저장 이후의 변경이 사라진다. 실제로 고지서 화면에서 반지를 사고 "다음 날"을 누르면 구매가 통째로 되돌아갔다 (500점 → 구매 후 497점·1레벨 → 복원 후 500점·0레벨) |
 | 복원은 앱이 켜질 때 `ManagerBootstrap`에서 한 번만 | ✅ | 저장은 기록이지 살아 있는 값의 출처가 아니다. `Instantiate`가 `Awake`를 이미 돌린 뒤이고 첫 씬은 아직 로드되지 않아, 어느 `BeginRun`보다도 앞선다 |
 | 새 회차는 빈 저장을 쓰는 것으로 충분 | ❌ | 파일만 비우면 업그레이드·반지가 메모리에 남아 직전 회차의 성장을 달고 시작한다. `StartNewRun`이 빈 저장을 곧바로 **분배**해 명시적으로 지운다 — 이 게임에서 성장을 지우는 유일한 지점이다 (파산은 지우지 않는다, #183) |
+| 성장을 지우는 곳마다 각자 빈 저장을 쓴다 | ❌ | **실제로 그 상태였고 답이 갈렸다.** 새 회차는 설정까지 지웠고, 설정 초기화(#196)는 파일만 비워 메모리를 남겼다. "무엇을 지우는가" 를 두 곳에 적으면 서로 다른 답을 낸다 |
+| `ResetAndDistribute()` 하나를 두고 두 경로가 같이 쓴다 | ✅ | 성장만 지우고 설정은 남긴다는 규칙이 한 곳에만 있다. 설정을 인자로 받지 않고 현재 저장에서 옮겨 담아 `SaveManager` 가 `AudioManager` 를 알지 않아도 된다 — 대신 부르는 쪽이 먼저 파일에 반영한다 |
 | 구매할 때마다 저장 | ❌ | `EconomyManager`가 저장을 부르게 되어 매니저 간 결합이 늘고, 구매 UI 세 곳을 모두 고쳐야 한다. 대신 고지서 화면을 떠나는 `ContinueRun`에서 저장한다 — ARCHITECTURE 저장 경계의 "런 시작 직전"이 그 지점이다 |
 
 ## 구조
@@ -64,7 +66,8 @@ flowchart LR
   boot -- "SetPersistenceTargets (주입)" --> mgr
   boot -- "LoadAndDistribute (앱 시작 1회)" --> mgr
   gm -- "CollectAndSave<br/>(ContinueRun · 하루 종료)" --> mgr
-  gm -- "LoadAndDistribute<br/>(StartNewRun: 빈 저장 분배)" --> mgr
+  gm -- "ResetAndDistribute<br/>(StartNewRun)" --> mgr
+  settings["SettingsPanelController<br/>저장 초기화 (#196)"] -- "ResetAndDistribute" --> mgr
 
   mgr -- "Load: 읽기·역직렬화·버전 마이그레이션" --> disk
   mgr -- "Save: 임시 파일 쓰기 후 교체" --> disk
@@ -87,7 +90,8 @@ flowchart LR
 | `IGamePersistence` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | 수집·분배 계약(#203). `SaveManager.Persistence`가 이 타입으로 노출. `ManagerBootstrap`과 `GameManager`만 쓴다 |
 | `ManagerBootstrap` | `Assets/Scripts/Runtime/ManagerBootstrap.cs` | `WirePersistence()`로 저장 대상 6개를 주입하고, 이어서 복원을 **한 번** 실행 (#203) |
 | `GameManager` | `Assets/Scripts/Runtime/Core/GameManager.cs` | 저장 시점 둘(`ContinueRun`·`NotifyEndRun`)과 새 회차 초기화(`StartNewRun`) (#203) |
-| `SavePersistenceChecks` | `Assets/Scripts/Editor/SavePersistenceChecks.cs` | 저장 왕복·길이 불일치·호출부 존재 검증 15건 (#203) |
+| `SettingsPanelController` | `Assets/Scripts/Runtime/UI/SettingsPanelController.cs` | 저장 초기화(#196). `ResetAndDistribute()` 로 `StartNewRun` 과 같은 경로를 쓴다 (#203) |
+| `SavePersistenceChecks` | `Assets/Scripts/Editor/SavePersistenceChecks.cs` | 저장 왕복·길이 불일치·초기화·호출부 위치 검증 20건 (#203) |
 
 ### 이벤트
 
@@ -115,13 +119,15 @@ Unity 6000.3.21f1 에디터, `UnityMCP execute_code`로 Edit Mode에서 직접 �
 
 ### 배선 (2026-09-21, #203)
 
-`SavePersistenceChecks.RunBatch()` — `[SavePersistenceChecks] PASS 15 checks.`
+`SavePersistenceChecks.RunBatch()` — `[SavePersistenceChecks] PASS 20 checks.`
 
 - [x] 코인·소수 잔여·업그레이드 레벨·레거시 포인트·반지 레벨·단계를 저장 → 전부 0으로 비운 뒤 복원 → 원래 값으로 돌아온다
 - [x] `UpgradeLevels`·`RingLevels` 길이가 CSV와 다를 때(짧을 때·길 때·`null`일 때) 겹치는 만큼만 채우고 예외가 나지 않는다
 - [x] v2 이하 저장(`RingLevels`가 `null`)을 읽어도 깨지지 않는다
 - [x] 저장 파일이 없을 때 복원하면 코인 0·단계 0
 - [x] 고지서·대출은 담지 않는다 (`HasActiveBill == false`, `ActiveBill == null`)
+- [x] 초기화가 **메모리까지** 비운다. 비운 뒤 한 번 더 저장해도 옛 값이 돌아오지 않는다
+- [x] 초기화가 설정(볼륨·창모드·화면 흔들림)은 남긴다
 - [x] 전체 검증 회귀: 23개 검증 스위트 전부 통과
 
 **변이 시험** — 검사가 정말로 결함을 잡는지 하나씩 결함을 넣고 확인했다. 왕복 검증만으로는
@@ -135,6 +141,11 @@ Unity 6000.3.21f1 에디터, `UnityMCP execute_code`로 Edit Mode에서 직접 �
 | `HandleSceneLoaded`에 `LoadAndDistribute()` 다시 추가 | 실패 — "씬 로드마다 복원하면 마지막 저장 이후의 구매가 사라집니다" |
 | `StartNewRun`에서 `LoadAndDistribute()` 삭제 | 실패 — "업그레이드·반지가 메모리에 남아 새 회차로 넘어갑니다" |
 | `ContinueRun`에서 `CollectAndSave()` 삭제 | 실패 — "고지서 화면에서 산 업그레이드·반지가 종료 시 사라집니다" |
+| `StartNewRun`을 `Save(new SaveData())`로 되돌림 | 실패 — "파일만 비우면 메모리에 남고 설정까지 지워집니다" |
+| 설정 초기화를 `Save(new SaveData())`로 되돌림 | 실패 — "파일만 비우면 다음 저장이 되돌려 놓습니다" |
+| 설정 초기화에서 `PersistCurrentSettings()` 삭제 | 실패 — "옛 값이 살아남습니다" |
+| `ResetAndDistribute`에서 `LoadAndDistribute()` 삭제 | 실패 — "초기화 후에도 레거시 포인트가 메모리에 남아 있습니다: 77" |
+| `ResetAndDistribute`에서 설정 이월 삭제 | 실패 — "초기화가 설정까지 지웠습니다" |
 
 첫 시도의 `WirePersistence` 검사는 **메서드가 있는지만 봐서 변이를 놓쳤다.** 호출부 문자열을
 직접 확인하도록 고친 뒤 다시 잡혔다. 같은 이유로 `HandleSceneLoaded`·`StartNewRun`·`ContinueRun`
@@ -181,3 +192,4 @@ Unity 6000.3.21f1 에디터, `UnityMCP execute_code`로 Edit Mode에서 직접 �
 | 2026-09-17 | #139 | hunil58 | `ISaveService.HasSave` 추가(6.7 메인 메뉴 #90 착수 중 발견), `SaveManager.HasSave => File.Exists(SavePath)` 구현. 자동 로드/저장 배선 한계와는 무관함을 명시 |
 | 2026-09-21 | #203 | twins6375-art | 매니저↔저장 배선. `IGamePersistence` 계약 추가, `ManagerBootstrap` 주입 + 앱 시작 1회 복원, `GameManager` 저장 시점 둘과 새 회차 초기화. `SavePersistenceChecks` 15건. "자동 로드/저장 호출부가 없다" 한계 해소 |
 | 2026-09-21 | #203 | twins6375-art | Play Mode 로 앱 시작 복원·구매 존속·새 회차 초기화를 확인하고 검증 절에 반영 |
+| 2026-09-21 | #203 | twins6375-art | `ResetAndDistribute()` 추가. 성장을 지우는 두 경로(새 회차 시작·설정 초기화)가 각자 빈 저장을 쓰다 답이 갈리던 것을 한 메서드로 모았다. 초기화 회귀 검사 5건 (15 → 20) |
