@@ -5,4 +5,4 @@ auto_hammer,auto_hammer_count,add,1,레벨당 자동 망치 +1기
 fever_boost,fever_duration,add,0.5,레벨당 피버 지속 +0.5초
 fever_boost,fever_multiplier,add,0.2,레벨당 피버 배율 +0.2
 desk_expand,spawn_count,add,1,레벨당 동시 출현 저금통 +1
-desk_expand,spawn_interval_sec,percent,-6,레벨당 재등장 대기 시간 6% 단축
+desk_expand,extra_spawn_chance,add,2,레벨당 파괴 시 즉시 추가 생성 확률 +2%p (#156 B안 잠정값 — 7.2 실측 전)
