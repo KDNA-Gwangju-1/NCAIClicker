@@ -63,6 +63,7 @@ namespace NCAIClicker.UI
             var saveService = SaveManager.Instance;
             if (saveService != null && saveService.HasSave)
             {
+                _overwriteConfirmPanel.transform.SetAsLastSibling();
                 _overwriteConfirmPanel.SetActive(true);
                 return;
             }
@@ -93,6 +94,7 @@ namespace NCAIClicker.UI
 
         private void HandleSettingsClicked()
         {
+            _settingsPanel.transform.SetAsLastSibling();
             _settingsPanel.Open();
         }
     }

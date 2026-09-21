@@ -3,6 +3,7 @@ using NCAIClicker.Economy;
 using NCAIClicker.Events;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace NCAIClicker.UI
 {
@@ -29,10 +30,26 @@ namespace NCAIClicker.UI
         [Tooltip("이름·설명·효과의 출처. Managers 프리팹이 쓰는 것과 같은 에셋을 넣는다.")]
         [SerializeField] private BalanceData _balanceData;
 
+        [Tooltip("닫기 버튼. 연결하면 클릭 시 패널을 닫는다.")]
+        [SerializeField] private Button _closeButton;
+
+        public event System.Action Closed;
+
+        public void Close()
+        {
+            gameObject.SetActive(false);
+            Closed?.Invoke();
+        }
+
         // 정적 이벤트는 구독과 해제를 쌍으로 맞춘다 (AGENTS.md).
         private void OnEnable()
         {
             GameEvents.OnBalanceChanged += HandleBalanceChanged;
+
+            if (_closeButton != null)
+            {
+                _closeButton.onClick.AddListener(Close);
+            }
 
             BindEntries();
             RefreshAll();
@@ -41,6 +58,11 @@ namespace NCAIClicker.UI
         private void OnDisable()
         {
             GameEvents.OnBalanceChanged -= HandleBalanceChanged;
+
+            if (_closeButton != null)
+            {
+                _closeButton.onClick.RemoveListener(Close);
+            }
         }
 
         /// <summary>

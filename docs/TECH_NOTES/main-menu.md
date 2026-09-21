@@ -73,10 +73,11 @@ flowchart LR
 - `EventSystem` (`EventSystem`, `InputSystemUIInputModule`)
 - `Canvas` (`RenderMode.ScreenSpaceOverlay`, `CanvasScaler` 1920×1080 기준 `ScaleWithScreenSize`,
   `matchWidthOrHeight 0.5`) — `MainMenuController` 부착
-  - `Title` (TextMeshProUGUI, "NCAI Clicker")
-  - `NewRunButton` / `ContinueButton` / `QuitButton` (Button + TextMeshProUGUI 자식 `Label`)
-  - `OverwriteConfirmPanel` (기본 비활성, 전체 화면 반투명 배경)
-    - `DialogBox` → `ConfirmText`, `YesButton`, `NoButton`
+  * `Title` (TextMeshProUGUI, "NCAI Clicker")
+  * `NewRunButton` (Y = 60) / `ContinueButton` (Y = -50) / `SettingsButton` (Y = -160) / `QuitButton` (Y = -270)
+  * `OverwriteConfirmPanel` (기본 비활성, 전체 화면 반투명 배경, 활성화 시 SetAsLastSibling 호출로 최상단 렌더링)
+    * `DialogBox` → `ConfirmText`, `YesButton`, `NoButton`
+  * `SettingsPanel` (기본 비활성, 설정 버튼 클릭 시 활성화 및 SetAsLastSibling 호출로 최상단 렌더링)
 
 ## 검증
 
@@ -117,3 +118,5 @@ Unity 6000.3.21f1 에디터, UnityMCP `execute_code`/`manage_camera(screenshot)`
 |---|---|---|---|
 | 2026-09-17 | #90, #139 | hunil58 | 최초 작성. `MainMenu` 씬을 처음부터 구성(Camera/EventSystem/Canvas/버튼 3개/확인 다이얼로그), `MainMenuController` 신규, `GameManager.StartNewRun/ContinueRun/QuitGame` 추가, `ISaveService.HasSave` 계약 추가(#139) |
 | 2026-09-17 | #142 | hunil58 | convention-checker가 `GameManager.Instance` 구체 클래스 직접 참조 위반을 발견. `IGameFlowService` 계약 추가, `GameManager.Instance`를 그 타입으로 재노출 |
+| 2026.09.21 | #91, #192 | saltlake00 | UpgradeButton 신설 및 MainMenuController 배선, UpgradeShopPanel 기본 비활성화 적용으로 시작화면 스킬트리 상시 노출 문제 해결, 5개 버튼 105px 등간격 수직 정렬 |
+| 2026.09.21 | #192 | saltlake00 | 본래 기획(인게임 고지서 화면의 업그레이드 탭)에 맞춰 시작 화면에서 UpgradeShopPanel 및 UpgradeButton 완전 제거. 메인 4개 버튼(새 회차, 이어하기, 설정, 종료) 110px 등간격 재정렬. OverwriteConfirmPanel 및 SettingsPanel 최상단(SetAsLastSibling) 정렬 처리로 팝업 창 위로 메인 버튼이 뚫고 나오는 z순서 결함 완전 해결 |
