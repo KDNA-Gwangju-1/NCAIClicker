@@ -51,7 +51,8 @@ namespace NCAIClicker.EditorTools
                        "normal 의 turn_interval_sec 가 targets.csv 와 다릅니다: " + movement.TurnIntervalSec);
                 passedCount++;
 
-                // 3. FSM 피격 전이 검증 (BeingHit)
+                // 3. FSM 피격 전이 검증 (BeingHit). 도망 여부는 확률이라 검증에서는 고정한다 (#267)
+                movement.SetFleeAfterHit(true);
                 movement.ChangeState(CreatureState.BeingHit);
                 Assert(movement.CurrentState == CreatureState.BeingHit, "BeingHit 상태 전이 실패");
                 passedCount++;
@@ -66,6 +67,14 @@ namespace NCAIClicker.EditorTools
                 Assert(movement.CurrentState == CreatureState.Moving, "도망 후 Moving 복귀 실패");
                 passedCount++;
 
+                // 5-1. 도망치지 않는 피격 — 경직 후 Moving 으로 바로 복귀 (#267)
+                movement.SetFleeAfterHit(false);
+                movement.ChangeState(CreatureState.BeingHit);
+                movement.UpdateFSM(0.25f);
+                Assert(movement.CurrentState == CreatureState.Moving,
+                       "도망치지 않는 피격은 경직 후 Moving 으로 복귀해야 합니다: " + movement.CurrentState);
+                passedCount++;
+
                 // 6. 경계 클램프 및 반사 검증
                 var outOfBoundsPos = new Vector3(5f, 0f, 2f);
                 movement.SetDirection(new Vector3(1f, 0f, 0f));
@@ -73,6 +82,37 @@ namespace NCAIClicker.EditorTools
 
                 Assert(clampedPos.x <= testBounds.max.x, "경계 X 최대값을 초과하지 않아야 합니다.");
                 Assert(movement.CurrentDirection.x < 0f, "경계 도달 시 반대 방향으로 반사되어야 합니다.");
+                passedCount++;
+
+                // 6-1. 바운스·회전 연출 검증 (#267) — 루트 y 는 고정, Visual 로컬 y 만 튄다
+                var visualGo = new GameObject("Visual");
+                visualGo.transform.SetParent(go.transform, false);
+                var targetSerialized = new SerializedObject(target);
+                targetSerialized.FindProperty("_visual").objectReferenceValue = visualGo.transform;
+                targetSerialized.ApplyModifiedPropertiesWithoutUndo();
+
+                var rootYBefore = go.transform.position.y;
+                movement.SetDirection(new Vector3(1f, 0f, 0f));
+                movement.ChangeState(CreatureState.Moving);
+                movement.UpdateVisual(0.2f); // 한 주기 안의 중간쯤 → 정점 부근
+                Assert(visualGo.transform.localPosition.y > 0f,
+                       "Moving 중에는 Visual 이 위로 떠야 합니다: " + visualGo.transform.localPosition.y);
+                Assert(visualGo.transform.localPosition.y <= movement.HopHeight + 0.001f,
+                       "바운스 높이가 _hopHeight 를 넘으면 안 됩니다.");
+                Assert(Mathf.Abs(go.transform.position.y - rootYBefore) < 0.0001f,
+                       "바운스는 루트 y 를 건드리면 안 됩니다 (타격 판정 불변).");
+
+                for (var i = 0; i < 20; i++)
+                {
+                    movement.UpdateVisual(0.1f);
+                }
+                Assert(Quaternion.Angle(go.transform.rotation, movement.GetTargetRotation()) < 1f,
+                       "충분한 시간이 지나면 루트가 이동 방향(+X)을 바라봐야 합니다.");
+
+                movement.ChangeState(CreatureState.Idle);
+                movement.UpdateVisual(0.1f);
+                Assert(Mathf.Abs(visualGo.transform.localPosition.y) < 0.0001f,
+                       "Idle 이면 Visual 이 원위치로 내려와야 합니다.");
                 passedCount++;
 
                 // 7. 4종 크리처 속도 파싱 검증
