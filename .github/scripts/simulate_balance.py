@@ -16,6 +16,66 @@ def read_config(root, name):
     return {row["key"]: float(row["value"]) for row in read_rows(root, name)}
 
 
+def draw_coin_lottery(coins, min_denom_id, count, rng):
+    """`coins.csv` 가중치 표에서 `min_denom_id` 액면의 value 이상인 액면만 후보로 놓고,
+    weight 비례로 count 개를 뽑아 합계를 돌려준다. `CoinLottery.Draw` + `SumValue`
+    (Assets/Scripts/Runtime/Economy/CoinLottery.cs, 이슈 #178)를 그대로 옮긴 것이다 —
+    두 구현이 갈리면 이 도구의 추정이 실제 게임과 어긋난다."""
+    if count <= 0:
+        return 0.0
+    min_value = None
+    for coin in coins:
+        if coin["id"] == min_denom_id:
+            min_value = float(coin["value"])
+            break
+    pool = []
+    total_weight = 0.0
+    for coin in coins:
+        weight = float(coin["weight"])
+        if weight <= 0:
+            continue
+        if min_value is not None and float(coin["value"]) < min_value:
+            continue
+        pool.append((float(coin["value"]), weight))
+        total_weight += weight
+    if not pool or total_weight <= 0:
+        return 0.0
+    total = 0.0
+    for _ in range(count):
+        roll = rng.random() * total_weight
+        acc = 0.0
+        picked_value = pool[-1][0]
+        for value, weight in pool:
+            acc += weight
+            if roll < acc:
+                picked_value = value
+                break
+        total += picked_value
+    return total
+
+
+def expected_coin_value(coins, min_denom_id, count):
+    """타겟의 기대 지급액. `value` 정책이 이제 죽은 열(coin_mult·break_bonus) 대신
+    실제 지급을 결정하는 coin_count·min_denom_id 로 목표를 고르게 한다."""
+    min_value = None
+    for coin in coins:
+        if coin["id"] == min_denom_id:
+            min_value = float(coin["value"])
+            break
+    total_weight, weighted_value = 0.0, 0.0
+    for coin in coins:
+        weight = float(coin["weight"])
+        if weight <= 0:
+            continue
+        if min_value is not None and float(coin["value"]) < min_value:
+            continue
+        total_weight += weight
+        weighted_value += weight * float(coin["value"])
+    if total_weight <= 0:
+        return 0.0
+    return count * weighted_value / total_weight
+
+
 def simulate(root, runs, seed, uptime, policy):
     stamina = read_config(root, "stamina.csv")
     economy = read_config(root, "economy.csv")
@@ -24,6 +84,11 @@ def simulate(root, runs, seed, uptime, policy):
     if economy["auto_hammer_count_init"] != 0:
         raise ValueError("This baseline model only supports an initial auto-hammer count of zero")
     targets = read_rows(root, "targets.csv")
+    coins = read_rows(root, "coins.csv")
+    for target in targets:
+        value = expected_coin_value(coins, target["min_denom_id"], int(float(target["coin_count"])))
+        target["expected_value"] = value
+        target["expected_value_per_hp"] = value / float(target["hp"])
     weights = [float(stage[target["id"] + "_ratio"]) for target in targets]
     extra_spawn_chance = economy["extra_spawn_chance_on_destroy"]
     rng = random.Random(seed)
@@ -62,8 +127,10 @@ def simulate(root, runs, seed, uptime, policy):
                 if policy == "random":
                     chosen = rng.choice(active)
                 else:
-                    chosen = max(active, key=lambda s: float(s["target"]["coin_mult"]) +
-                                 float(s["target"]["break_bonus"]) / float(s["target"]["hp"]))
+                    # 기대 지급액을 내구도로 나눈 "타격당 기대값"이 가장 큰 목표 종류를 고른다.
+                    # coin_mult·break_bonus 는 지급액에 관여하지 않는 죽은 열이라 더는 쓰지 않는다
+                    # (이슈 #217, Target.OnHit 확인 완료).
+                    chosen = max(active, key=lambda s: s["target"]["expected_value_per_hp"])
                 selected_id = chosen["id"]
             if rng.random() >= uptime:
                 continue
@@ -79,7 +146,11 @@ def simulate(root, runs, seed, uptime, policy):
                 continue
             target = selected["target"]
             multiplier = fever["coin_multiplier"] if elapsed < fever_end else 1.0
-            coin += (float(target["hp"]) * float(target["coin_mult"]) + float(target["break_bonus"])) * multiplier * economy["coin_bonus_multiplier"]
+            # 파괴 보상은 coin_mult·break_bonus 가 아니라 coins.csv 액면 추첨의 합이다
+            # (이슈 #178). Target.OnHit 은 이 두 열을 더는 읽지 않는다 — CoinLottery.Draw
+            # 만 본다. 이 두 열은 현재 지급액에 영향이 없는 죽은 필드다.
+            raw_coin = draw_coin_lottery(coins, target["min_denom_id"], int(float(target["coin_count"])), rng)
+            coin += raw_coin * multiplier * economy["coin_bonus_multiplier"]
             restore = float(target["stamina_restore"])
             energy = min(stamina["max_stamina"], energy + restore)
             restorations += int(restore > 0)
@@ -91,20 +162,20 @@ def simulate(root, runs, seed, uptime, policy):
                 active.append(spawn())
             selected_id = None
         results.append((coin, elapsed, breaks, restorations, elapsed >= cap, fevers))
-    coins = sorted(row[0] for row in results)
+    coins_sorted = sorted(row[0] for row in results)
     return {
         "runs": runs, "seed": seed, "hover_uptime": uptime, "policy": policy,
-        "mean_coin": round(statistics.mean(coins), 2),
-        "p10_coin": round(coins[int((runs - 1) * 0.1)], 2),
-        "median_coin": round(statistics.median(coins), 2),
-        "p90_coin": round(coins[int((runs - 1) * 0.9)], 2),
+        "mean_coin": round(statistics.mean(coins_sorted), 2),
+        "p10_coin": round(coins_sorted[int((runs - 1) * 0.1)], 2),
+        "median_coin": round(statistics.median(coins_sorted), 2),
+        "p90_coin": round(coins_sorted[int((runs - 1) * 0.9)], 2),
         "mean_seconds": round(statistics.mean(row[1] for row in results), 2),
         "mean_breaks": round(statistics.mean(row[2] for row in results), 2),
         "mean_restorations": round(statistics.mean(row[3] for row in results), 2),
         "mean_fevers": round(statistics.mean(row[5] for row in results), 2),
         "min_fevers": min(row[5] for row in results),
         "max_fevers": max(row[5] for row in results),
-        "goal_reached_percent": round(100 * sum(c >= int(stage["bill_amount"]) for c in coins) / runs, 1),
+        "goal_reached_percent": round(100 * sum(c >= int(stage["bill_amount"]) for c in coins_sorted) / runs, 1),
         "capped_runs": sum(row[4] for row in results),
     }
 
