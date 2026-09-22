@@ -54,6 +54,9 @@ Assets/
     Editor/     에디터 전용 (임포터·툴). 빌드에 포함되지 않는다
   Scenes/       씬 — MainMenu, Game 둘뿐이다
   Prefabs/      프리팹
+    Props/      소품 프리팹 (#236 합의)
+      Small/    소형 소품 (예: 랜턴·곡괭이)
+      Large/    대형 소품 (예: 갱도 입구·목책)
   Models/       3D 메시·FBX (이 프로젝트는 스프라이트를 쓰지 않는다)
   Materials/    머티리얼·텍스처
   Audio/        효과음·배경음
