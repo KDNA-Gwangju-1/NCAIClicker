@@ -51,6 +51,13 @@ namespace NCAIClicker.Economy
         /// </summary>
         private IWalletPersistence _walletPersistence;
 
+        /// <summary>
+        /// 파산 시 업그레이드 레벨을 비우는 통로. EconomyManager 가 초기화 때 넣어 준다
+        /// (ManagerBootstrap, 이슈 #250). 업그레이드는 영구 층이 아니라 회차 층이라 파산에서
+        /// 함께 지워진다 (GDD 파산 절 층 표, 4.16). 없으면 지우지 않고 건너뛴다.
+        /// </summary>
+        private IUpgradePersistence _upgradePersistence;
+
         /// <summary>단계 진행 조회 통로. ManagerBootstrap 이 넣어 준다 (이슈 #150). 없으면 1단계로 폴백한다.</summary>
         private IStageService _stageService;
 
@@ -119,6 +126,15 @@ namespace NCAIClicker.Economy
         public void SetWalletPersistence(IWalletPersistence walletPersistence)
         {
             _walletPersistence = walletPersistence;
+        }
+
+        /// <summary>
+        /// EconomyManager 가 업그레이드 초기화 통로를 넘겨 준다. 파산 시 회차 초기화(ResetRound)에서만
+        /// 쓴다 — 구매·조회는 여전히 IUpgradeShop 으로만 한다 (이슈 #250).
+        /// </summary>
+        public void SetUpgradePersistence(IUpgradePersistence upgradePersistence)
+        {
+            _upgradePersistence = upgradePersistence;
         }
 
         /// <summary>
@@ -230,7 +246,7 @@ namespace NCAIClicker.Economy
         }
 
         /// <summary>
-        /// 새 회차 값으로 되돌린다. 영구 업그레이드와 최고 기록은 건드리지 않는다
+        /// 새 회차 값으로 되돌린다. 레거시 포인트·반지와 최고 기록은 건드리지 않는다
         /// (ARCHITECTURE "저장 경계"). 다음 BeginRun 이 1일차 첫 고지서를 발행한다 —
         /// _hasBegun 을 내려 두므로 날짜가 증가하지 않는다.
         ///
@@ -252,6 +268,15 @@ namespace NCAIClicker.Economy
 
             // 단계를 1단계로 되돌린다. 인덱스는 0부터라 0 이 1단계다.
             _stageService?.RestoreStage(0);
+
+            // 업그레이드 레벨을 0 으로 비운다 (이슈 #250, 4.16). 업그레이드는 영구 층이 아니라
+            // 회차 층이라 파산에서 사라진다 — 영구로 남는 것은 레거시 포인트와 반지뿐이다
+            // (GDD 파산 절 층 표). ILegacyPersistence 를 여기서 건드리지 않는 것이 그 구분이다.
+            //
+            // **지갑 복원보다 먼저 부른다.** RestoreWallet 이 OnBalanceChanged 를 발행하고
+            // UpgradeShopPanel 이 그것을 받아 카드를 다시 그리는데, 순서가 뒤집히면 이미 지워진
+            // 레벨이 화면에 옛 값으로 남는다. RestoreUpgradeLevels 는 이벤트를 쏘지 않는다.
+            _upgradePersistence?.RestoreUpgradeLevels(null);
 
             // 코인과 소수 잔여도 새 회차 값(0)으로 비운다 (ARCHITECTURE "저장 경계", 계약 7번
             // "소수 잔여는 파산 시 버린다"). IWalletPersistence 소비자에 BillManager 를 추가해
