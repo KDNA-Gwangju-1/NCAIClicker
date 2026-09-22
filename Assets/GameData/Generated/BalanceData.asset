@@ -57,7 +57,7 @@ MonoBehaviour:
     MoveSpeed: 2
     TurnIntervalSec: 1.5
     CoinCount: 1
-    MinDenomId: c1
+    MinDenomId: c5
   - Id: anchor
     DisplayName: "\uAC70\uCE58\uD615"
     Hp: 12
@@ -67,7 +67,7 @@ MonoBehaviour:
     MoveSpeed: 0.2
     TurnIntervalSec: 4
     CoinCount: 1
-    MinDenomId: c1
+    MinDenomId: c25
   - Id: runner
     DisplayName: "\uACE0\uC18D\uD615"
     Hp: 1
@@ -87,7 +87,7 @@ MonoBehaviour:
     MoveSpeed: 0.8
     TurnIntervalSec: 3
     CoinCount: 1
-    MinDenomId: c1
+    MinDenomId: c5
   Upgrades:
   - Id: strong_hammer
     DisplayName: "\uC644\uB825 \uB2E8\uB828"
@@ -148,7 +148,7 @@ MonoBehaviour:
       ValuePerLevel: 2
   Stages:
   - Stage: 1
-    BillAmount: 10
+    BillAmount: 35
     DueDays: 5
     NormalRatio: 0.6
     AnchorRatio: 0.15
@@ -156,7 +156,7 @@ MonoBehaviour:
     TouristRatio: 0.15
     SpawnCount: 6
   - Stage: 2
-    BillAmount: 25
+    BillAmount: 90
     DueDays: 4
     NormalRatio: 0.45
     AnchorRatio: 0.2
@@ -164,7 +164,7 @@ MonoBehaviour:
     TouristRatio: 0.15
     SpawnCount: 7
   - Stage: 3
-    BillAmount: 65
+    BillAmount: 235
     DueDays: 3
     NormalRatio: 0.35
     AnchorRatio: 0.25

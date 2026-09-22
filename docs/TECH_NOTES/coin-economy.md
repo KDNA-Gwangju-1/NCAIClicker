@@ -1,6 +1,6 @@
 # 코인 정산
 
-> 관련 이슈: #22, #71, #116, #32, #126, #30, #178 · 최종 수정: 2026-09-21
+> 관련 이슈: #22, #71, #116, #32, #126, #30, #178, #217 · 최종 수정: 2026-09-22
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -100,7 +100,7 @@ flowchart LR
 | `Assets/GameData/Balance/upgrade_effects.csv` | `stat`, `value_per_level` | 위 기준값에 얹는 업그레이드 증분. `stat` 이 `fever_multiplier` 인 행 (#32) |
 | `Assets/GameData/Balance/economy.csv` | `coin_bonus_multiplier` | 보너스 배율 기준값 |
 | `Assets/GameData/Balance/coins.csv` | `id`, `value`, `weight` | 코인 액면과 추첨 가중치. `CoinLottery` 만 읽는다 (#178) |
-| `Assets/GameData/Balance/targets.csv` | `coin_count`, `min_denom_id` | 파괴 시 뽑을 코인 개수와 최소 액면. 현재 전 대상 `1`/`c1` — 자리표시자, [BALANCE.md](../BALANCE.md) 3절 참고 |
+| `Assets/GameData/Balance/targets.csv` | `coin_count`, `min_denom_id` | 파괴 시 뽑을 코인 개수와 최소 액면. 타겟별 확정값은 [BALANCE.md](../BALANCE.md) 3절 "코인 액면 확정" 참고 (#217) |
 
 피버 배율은 CSV 값을 그대로 쓰지 않는다. `GetStat(StatId.FeverMultiplier, ...)` 를 거쳐
 업그레이드가 얹힌 실효값을 쓴다 — 자세한 것은 [업그레이드](upgrades.md)·[피버 게이지](fever-gauge.md).
@@ -150,10 +150,19 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
   `RestoreWallet(0, "0")` 으로 코인과 소수 잔여를 비운다 ([고지서·파산](billing.md) "마감 미납과 파산").
 - `SaveManager`(작업 3.4)가 없어 지금은 매번 잔액 0 에서 시작한다. 초기화 순서상
   저장 로드가 먼저여야 한다 (ARCHITECTURE 1절).
-- **`coins.csv` 가중치 테이블과 `targets.csv`의 `coin_count`/`min_denom_id`는 잠정값이다.**
-  1회 추첨 기댓값(≈18.35)이 대상별 원시 보상 기준선과 아직 맞지 않는다. 공용 계약이라 팀
-  합의 없이 구조를 바꾸지 않았고, 최종 수치는 파괴 모델을 재계산하는 이슈 #176 이후 확정한다
-  ([BALANCE.md](../BALANCE.md) 3절 "코인 액면 추첨").
+- ~~**`coins.csv` 가중치 테이블과 `targets.csv`의 `coin_count`/`min_denom_id`는 잠정값이다.**~~ —
+  #217 에서 확정. `normal`/`tourist`는 `min_denom_id=c5`, `anchor`는 `c25`, `runner`는 `c1` 유지로
+  타겟별 차등을 뒀다([BALANCE.md](../BALANCE.md) 3절 "코인 액면 확정"). `coins.csv` 자체의 가중치·
+  액면 구조는 여전히 공용 계약이라 이번에도 바꾸지 않았다.
+- **`coin_mult`·`break_bonus`(`targets.csv`)는 죽은 열이다.** `Target.OnHit`이 읽지 않고
+  `BalanceImporter`의 값 검증에만 쓰인다. 제거가 맞다고 판단했지만 CSV 스키마 변경이라 별도
+  공용 계약 변경 이슈가 선행돼야 해서, #217 에서는 결정과 근거만 남기고 열은 그대로 뒀다 — 실제
+  제거는 [#241](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/241)
+  ([BALANCE.md](../BALANCE.md) 3절 "코인 액면 확정").
+- **`stages.csv`의 `bill_amount`가 1단계만 실측·재조정됐다.** `coins.csv` 도입으로 경제 규모
+  자체가 커져(1회 추첨 기댓값 ≈18.35) 1단계는 10→35로 다시 뽑았지만, 2·3단계(25→90, 65→235)는
+  1단계와 같은 성장률(2.5배·2.6배)을 적용한 값일 뿐 직접 재시뮬레이션하지 않았다. 실측은 작업
+  7.2(3단계 밸런싱 실측)의 몫이다.
 
 ## 갱신 이력
 
@@ -169,3 +178,4 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
 | 2026-09-18 | #30 | twins6375-art | 파산 시 지갑 비우기가 공용 계약에 막혀 있음을 확인하고 한계를 다시 씀 |
 | 2026-09-18 | #158 | hunil58 | `IWalletPersistence` 소비자에 `BillManager` 추가로 파산 시 지갑 비우기 해결. 한계 항목 취소선 처리 |
 | 2026-09-21 | #178 | yahoo-afk | 코인 액면 도입 — 개수와 금액을 분리했다. `coins.csv` 신설, `CoinLottery` 추가, `BreakInfo`에 `Coins` 필드, `IEconomyService.RunCoinBreakdown` 추가. `EconomyManager`가 파괴마다 액면별 개수를 런 단위로 누적한다. `coin_count`/`min_denom_id`/가중치 테이블은 #176 재계산 전까지 잠정값 — 한계 항목에 반영 |
+| 2026-09-22 | #217 | hunil58 | `coin_count`·`min_denom_id`를 타겟별로 확정(`normal`/`tourist` c5, `anchor` c25, `runner` c1 유지). `simulate_balance.py`에 `draw_coin_lottery` 추가해 실제 추첨을 반영하고 `value` 정책의 목표 선택 기준을 죽은 열(`coin_mult`·`break_bonus`) 대신 기대 지급액 기준으로 교체. `coin_mult`·`break_bonus` 제거가 맞다고 판단했으나 스키마 변경이라 별도 공용 계약 이슈로 미룸. `stages.csv`의 `bill_amount`(10→35→90→235) 재조정 |
