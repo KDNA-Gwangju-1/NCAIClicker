@@ -23,7 +23,8 @@ MonoBehaviour:
     HoverSwingIntervalSec: 0.85
     AutoHammerCountInit: 0
     AutoHammerPower: 1
-    AutoHammerHitsPerSec: 0.5
+    AutoHammerProcChancePercent: 1
+    AutoHammerSwingSec: 1
     HitRadiusBonusPercent: 25
     ReticleRadius: 0.45
     CoinBonusMultiplier: 1
@@ -125,10 +126,10 @@ MonoBehaviour:
     MaxLevel: 15
     SortOrder: 3
     Effects:
-    - Stat: 5
+    - Stat: 6
       Type: 0
       ValuePerLevel: 0.5
-    - Stat: 6
+    - Stat: 7
       Type: 0
       ValuePerLevel: 0.2
   - Id: desk_expand
@@ -140,10 +141,10 @@ MonoBehaviour:
     MaxLevel: 12
     SortOrder: 4
     Effects:
-    - Stat: 13
+    - Stat: 14
       Type: 0
       ValuePerLevel: 1
-    - Stat: 15
+    - Stat: 16
       Type: 0
       ValuePerLevel: 2
   Stages:
@@ -260,7 +261,7 @@ MonoBehaviour:
     MaxLevel: 5
     SortOrder: 2
     Effects:
-    - Stat: 8
+    - Stat: 9
       Type: 0
       ValuePerLevel: 5
   - Id: wealth_ring
@@ -272,7 +273,7 @@ MonoBehaviour:
     MaxLevel: 5
     SortOrder: 3
     Effects:
-    - Stat: 12
+    - Stat: 13
       Type: 0
       ValuePerLevel: 0.05
   - Id: zeal_ring
@@ -284,7 +285,7 @@ MonoBehaviour:
     MaxLevel: 5
     SortOrder: 4
     Effects:
-    - Stat: 5
+    - Stat: 6
       Type: 0
       ValuePerLevel: 0.5
   - Id: fever_gold_ring
@@ -296,7 +297,7 @@ MonoBehaviour:
     MaxLevel: 5
     SortOrder: 5
     Effects:
-    - Stat: 6
+    - Stat: 7
       Type: 0
       ValuePerLevel: 0.2
   - Id: focus_ring
@@ -320,7 +321,7 @@ MonoBehaviour:
     MaxLevel: 5
     SortOrder: 7
     Effects:
-    - Stat: 7
+    - Stat: 8
       Type: 0
       ValuePerLevel: 1
   - Id: fortune_ring
@@ -332,6 +333,6 @@ MonoBehaviour:
     MaxLevel: 5
     SortOrder: 8
     Effects:
-    - Stat: 15
+    - Stat: 16
       Type: 0
       ValuePerLevel: 1

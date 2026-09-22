@@ -23,7 +23,8 @@ namespace NCAIClicker.UI
                 case StatId.HitRadius: return "대상 크기";
                 case StatId.AutoHammerCount: return "자동 망치";
                 case StatId.AutoHammerPower: return "자동 망치 피해";
-                case StatId.AutoHammerHitsPerSec: return "자동 망치 속도";
+                case StatId.AutoHammerProcChance: return "자동 망치 발동 확률";
+                case StatId.AutoHammerSwingSec: return "자동 망치 속도";
                 case StatId.FeverDuration: return "피버 지속";
                 case StatId.FeverMultiplier: return "피버 배율";
                 case StatId.FeverGaugePerHit: return "피버 게이지";
