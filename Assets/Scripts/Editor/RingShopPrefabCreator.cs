@@ -114,7 +114,7 @@ namespace NCAIClicker.EditorTools
             tooltipRect.pivot = new Vector2(1f, 0.5f);
             tooltipRect.sizeDelta = new Vector2(340f, 660f);
             tooltipRect.anchoredPosition = new Vector2(-15f, -25f);
-            tooltipGo.AddComponent<Image>().color = new Color(0.10f, 0.08f, 0.06f, 0.95f);
+            tooltipGo.AddComponent<Image>().color = PanelFill;
             var tooltipOutline = tooltipGo.AddComponent<Outline>();
             tooltipOutline.effectColor = OutlineColor;
             tooltipOutline.effectDistance = new Vector2(2f, -2f);
@@ -122,23 +122,25 @@ namespace NCAIClicker.EditorTools
             var tooltip = tooltipGo.AddComponent<RingTooltip>();
             SetPrivate(panel, "_tooltip", tooltip);
 
+            // childControlHeight 가 false 면 구분선(preferredHeight 2)이 기본 높이 100 으로 그려져
+            // 빈 상자처럼 보이고 아래 줄을 패널 밖으로 민다 (#261). 슬롯과 같은 이유다.
             var tooltipLayout = tooltipGo.AddComponent<VerticalLayoutGroup>();
             tooltipLayout.padding = new RectOffset(20, 20, 24, 24);
-            tooltipLayout.spacing = 14f;
+            tooltipLayout.spacing = 12f;
             tooltipLayout.childControlWidth = true;
-            tooltipLayout.childControlHeight = false;
+            tooltipLayout.childControlHeight = true;
             tooltipLayout.childForceExpandWidth = true;
             tooltipLayout.childForceExpandHeight = false;
 
-            var tipHeader = CreateLabel("TipHeader", tooltipGo, font, 22, GoldText, "ⓘ 반지 정보");
+            var tipHeader = CreateLabel("TipHeader", tooltipGo, font, 24, GoldText, "ⓘ 반지 정보");
             var tipTitle = CreateLabel("TipTitle", tooltipGo, font, 28, Color.white, "반지 이름");
             CreateDivider("Divider1", tooltipGo);
-            var tipDesc = CreateLabel("TipDesc", tooltipGo, font, 18, new Color(0.80f, 0.75f, 0.68f), "설명 문구", TextAlignmentOptions.TopLeft, 90f, true);
+            var tipDesc = CreateLabel("TipDesc", tooltipGo, font, 20, new Color(0.80f, 0.75f, 0.68f), "설명 문구", TextAlignmentOptions.TopLeft, 90f, true);
             CreateDivider("Divider2", tooltipGo);
-            var tipLevel = CreateLabel("TipLevel", tooltipGo, font, 20, GoldText, "현재 레벨: Lv 0 / 5");
-            var tipEffect = CreateLabel("TipEffect", tooltipGo, font, 20, new Color(0.60f, 0.85f, 0.60f), "효과 수치", TextAlignmentOptions.TopLeft, 110f, true);
+            var tipLevel = CreateLabel("TipLevel", tooltipGo, font, 24, GoldText, "현재 레벨: Lv 0 / 5");
+            var tipEffect = CreateLabel("TipEffect", tooltipGo, font, 24, new Color(0.60f, 0.85f, 0.60f), "효과 수치", TextAlignmentOptions.TopLeft, 128f, true);
             CreateDivider("Divider3", tooltipGo);
-            var tipCost = CreateLabel("TipCost", tooltipGo, font, 22, GoldText, "다음 레벨: 3 포인트");
+            var tipCost = CreateLabel("TipCost", tooltipGo, font, 24, GoldText, "다음 레벨: 3 포인트");
 
             SetPrivate(tooltip, "_rootPanel", tooltipGo);
             SetPrivate(tooltip, "_titleLabel", tipTitle);
@@ -168,7 +170,7 @@ namespace NCAIClicker.EditorTools
             gridRect.offsetMax = new Vector2(-16f, -16f);
 
             var grid = gridGo.AddComponent<GridLayoutGroup>();
-            grid.cellSize = new Vector2(155f, 295f);
+            grid.cellSize = new Vector2(156f, 304f);
             grid.spacing = new Vector2(16f, 16f);
             grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
             grid.constraintCount = 4;
@@ -206,15 +208,17 @@ namespace NCAIClicker.EditorTools
             entry.SetTooltip(tooltip);
             entry.SetRingId(def.Id);
 
+            // 자식 높이는 LayoutElement.preferredHeight 로 정한다 (#261). childControlHeight 가
+            // false 면 RectTransform 기본 높이(100)가 쓰여 합이 셀을 넘고 구매 버튼이 다음 행에 가려진다.
             var layout = slot.AddComponent<VerticalLayoutGroup>();
-            layout.padding = new RectOffset(10, 10, 14, 14);
+            layout.padding = new RectOffset(8, 8, 12, 12);
             layout.spacing = 8f;
             layout.childControlWidth = true;
-            layout.childControlHeight = false;
+            layout.childControlHeight = true;
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
 
-            var nameLabel = CreateLabel("NameLabel", slot, font, 20, GoldText, def.DisplayName);
+            var nameLabel = CreateLabel("NameLabel", slot, font, 24, GoldText, def.DisplayName, TextAlignmentOptions.Center, 32f);
             SetPrivate(entry, "_nameLabel", nameLabel);
 
             // 반지 장식 비주얼 상자
@@ -223,7 +227,7 @@ namespace NCAIClicker.EditorTools
             var iconOutline = iconBox.AddComponent<Outline>();
             iconOutline.effectColor = GoldText;
             iconOutline.effectDistance = new Vector2(1f, -1f);
-            SetPreferred(iconBox, 130f, 90f);
+            SetPreferred(iconBox, 130f, 96f);
 
             var gem = CreateLabel("GemText", iconBox, font, 36, GoldText, "◆");
             var gemRect = gem.GetComponent<RectTransform>();
@@ -232,23 +236,16 @@ namespace NCAIClicker.EditorTools
             gemRect.offsetMin = Vector2.zero;
             gemRect.offsetMax = Vector2.zero;
 
-            var levelLabel = CreateLabel("LevelLabel", slot, font, 18, Color.white, $"Lv 0 / {def.MaxLevel}");
+            var levelLabel = CreateLabel("LevelLabel", slot, font, 24, Color.white, $"Lv 0 / {def.MaxLevel}", TextAlignmentOptions.Center, 32f);
             SetPrivate(entry, "_levelLabel", levelLabel);
 
-            var reasonLabel = CreateLabel("ReasonLabel", slot, font, 16, new Color(0.90f, 0.45f, 0.45f), string.Empty);
+            var reasonLabel = CreateLabel("ReasonLabel", slot, font, 20, new Color(0.90f, 0.45f, 0.45f), string.Empty, TextAlignmentOptions.Center, 28f);
             SetPrivate(entry, "_reasonLabel", reasonLabel);
 
-            // 구매 버튼
-            var btn = CreateButton("BuyButton", slot, font, new Vector2(130f, 48f), "구매",
-                new Color(0.25f, 0.19f, 0.12f), GoldText, Color.white, 18);
+            // 구매 버튼 — 문구와 가격을 한 줄("구매 · N LP")로 쓴다. RingShopEntry 가 이 라벨을 통째로 갱신한다.
+            var btn = CreateButton("BuyButton", slot, font, new Vector2(140f, 56f), $"구매 · {def.InitCost:N0} LP",
+                new Color(0.25f, 0.19f, 0.12f), GoldText, GoldText, 24, out var costLabel);
             SetPrivate(entry, "_purchaseButton", btn);
-
-            var costLabel = CreateLabel("CostText", btn.gameObject, font, 18, GoldText, $"{def.InitCost:N0}");
-            var costRect = costLabel.GetComponent<RectTransform>();
-            costRect.anchorMin = Vector2.zero;
-            costRect.anchorMax = Vector2.one;
-            costRect.offsetMin = Vector2.zero;
-            costRect.offsetMax = Vector2.zero;
             SetPrivate(entry, "_costLabel", costLabel);
 
             return entry;
@@ -287,7 +284,7 @@ namespace NCAIClicker.EditorTools
         }
 
         private static Button CreateButton(string name, GameObject parent, TMP_FontAsset font, Vector2 size,
-            string label, Color fill, Color line, Color textColor, int fontSize)
+            string label, Color fill, Color line, Color textColor, int fontSize, out TextMeshProUGUI text)
         {
             var go = CreateObject(name, parent);
             go.GetComponent<RectTransform>().sizeDelta = size;
@@ -297,6 +294,15 @@ namespace NCAIClicker.EditorTools
             outline.effectDistance = new Vector2(2f, -2f);
             var button = go.AddComponent<Button>();
             SetPreferred(go, size.x, size.y);
+
+            // 버튼 문구. 버튼 자식으로 두고 raycast 를 꺼서 클릭이 버튼에 닿게 한다.
+            text = CreateLabel("Label", go, font, fontSize, textColor, label);
+            text.raycastTarget = false;
+            var textRect = text.GetComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
             return button;
         }
 

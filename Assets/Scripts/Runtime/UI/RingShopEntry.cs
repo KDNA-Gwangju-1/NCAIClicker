@@ -112,7 +112,7 @@ namespace NCAIClicker.UI
         {
             if (_definition == null)
             {
-                SetInteractable(false, "정의 없음", string.Empty);
+                SetInteractable(false, "정의 없음", "—");
                 return;
             }
 
@@ -124,7 +124,7 @@ namespace NCAIClicker.UI
 
             if (_shop == null || _legacy == null)
             {
-                SetInteractable(false, "상점을 열 수 없다", string.Empty);
+                SetInteractable(false, "상점을 열 수 없다", "—");
                 return;
             }
 
@@ -134,18 +134,21 @@ namespace NCAIClicker.UI
             // "더 살 수 없다"로만 읽는다 (IUpgradeShop 과 같은 약속).
             if (cost == long.MaxValue)
             {
-                SetInteractable(false, "최대 레벨", "—");
+                SetInteractable(false, "최대 레벨", "최대 레벨");
                 return;
             }
 
+            // 버튼 문구는 "구매 · N LP" 한 줄이다 (#261). 살 수 없을 때도 가격은 보여 주고
+            // 버튼만 비활성으로 둔다 — 못 사는 이유는 _reasonLabel 이 말한다.
+            var buyLabel = $"구매 · {cost:N0} LP";
             var points = _legacy.CurrentLegacyPoints;
             if (points < cost)
             {
-                SetInteractable(false, $"포인트 {cost - points:N0} 부족", $"{cost:N0}");
+                SetInteractable(false, $"포인트 {cost - points:N0} 부족", buyLabel);
                 return;
             }
 
-            SetInteractable(true, string.Empty, $"{cost:N0}");
+            SetInteractable(true, string.Empty, buyLabel);
         }
 
         private void RenderStaticParts()
