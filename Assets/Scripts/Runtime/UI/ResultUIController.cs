@@ -409,7 +409,7 @@ namespace NCAIClicker.UI
             {
                 // "코인:" 은 개수다. 금액은 _grossText("합계:") 쪽이다 — 액면이 갈리기 전에는
                 // 둘이 같은 숫자였다 (이슈 #178 전 버그). RunCoinBreakdown 의 개수를 모두 더한다.
-                _runCoinText.text = $"{TotalCoinCount():N0}";
+                _runCoinText.text = $"{GetTotalCoinCount():N0}";
             }
 
             if (_accuracyText != null)
@@ -460,16 +460,16 @@ namespace NCAIClicker.UI
                 _grossText.text = $"${gross:N0}";
             }
 
-            // 내 몫은 징수를 뺀 금액이다. 실제 차감은 EconomyManager 가 한다 — 여기서는 보여만 준다.
-            var cut = _billService != null ? _billService.LoanDailyCut : 0f;
-            var fee = (long)(gross * cut);
+            // RunCoin 은 이미 징수를 뺀 순수입이다 (EconomyManager.AddCoin 이 LoanDailyCut 을 적용한
+            // 뒤의 값, ARCHITECTURE 계약). 여기서 다시 빼면 이중 차감이다 (#261). 징수 전 금액은
+            // IEconomyService 에 조회 통로가 없어 징수 줄은 자리표시로 둔다.
             if (_feeText != null)
             {
-                _feeText.text = cut > 0f ? $"-${fee:N0}" : UnwiredPlaceholder;
+                _feeText.text = UnwiredPlaceholder;
             }
             if (_netText != null)
             {
-                _netText.text = $"${gross - fee:N0}";
+                _netText.text = $"${gross:N0}";
             }
 
             if (_brokenCountText != null)
@@ -585,7 +585,7 @@ namespace NCAIClicker.UI
         }
 
         /// <summary>이번 런에 실제로 뽑힌 코인 총 개수. RunCoinBreakdown 각 항목의 Count 합이다.</summary>
-        private int TotalCoinCount()
+        private int GetTotalCoinCount()
         {
             if (_economyService == null)
             {
