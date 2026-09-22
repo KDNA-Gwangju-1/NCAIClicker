@@ -17,7 +17,8 @@
 | 망치마다 개별 타이머 | ❌ | GDD 4절 공식 `자동 망치 기여 = 수 × 파워 × 초당 타격 횟수`는 모든 망치가 같은 박자로 동시에 적중한다고 전제한다. 망치마다 따로 돌리면 이 공식을 맞추기 위해 다시 나눗셈을 해야 하고, 구현도 복잡해진다 |
 | 단일 글로벌 타이머(주기 = 1 / 초당 타격 횟수), 틱마다 `수 × 파워`를 한 대상에 적용 | ✅ | 위 공식과 정확히 일치한다. `HammerSwingController` 의 "나머지 시간 이월" 패턴을 그대로 가져와 프레임이 밀려도 박자가 어긋나지 않는다 |
 | `Physics.Raycast` 로 대상 판정 | ❌ | GDD가 명시적으로 금지한다 — "물리적으로 추적하지 않고, 글로벌 타이머에 따라 무조건 자동 적중으로 가산" (물리 연산 오버헤드·빗맞음 오류 방지) |
-| 살아있는 `Target` 중 무작위 하나 선택 | ✅ | GDD의 "무조건 적중" 전제와 맞고, 대상이 여러 개일 때 항상 같은 개체(예: 먼저 스폰된 것)만 노리는 편향을 피한다 |
+| 살아있는 `Target` 중 무작위 하나 선택 | ⚠️ | GDD의 "무조건 적중" 전제와 맞고 편향도 피하지만, 망치가 여러 기일 때 전부 같은 대상에 몰린다. [#258](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/258) 에서 아래로 바꿨다 |
+| 망치마다 서로 다른 대상을 하나씩 맡는다 (타이머는 여전히 하나) | ✅ | 팀장 결정 2026-09-22. 살아 있는 대상을 섞어 배분하고, 모자라면 겹치는 것을 허용한다 — 때릴 곳이 없다고 쉬게 하면 대상이 하나 남은 구간에서 자동 망치가 통째로 멈춘다. **틱당 총 피해는 여전히 `수 × 파워`** 라 위 공식은 그대로다 |
 | 대상 탐색에 `IHittable` 인터페이스만 사용 (`FindObjectsByType<MonoBehaviour>()` 후 `is IHittable` 필터) | ❌ | Unity의 `Object.FindObjectsByType<T>()`는 `UnityEngine.Object` 파생 구체 타입만 받고 인터페이스를 직접 못 받는다. 인터페이스로 하려면 씬의 모든 `MonoBehaviour`를 훑어야 해서 대상 6~12개뿐인 이 씬에서는 손해만 크다 |
 | 대상 탐색에 `FindObjectsByType<Target>()` (구체 클래스 직접 참조) | ✅ | `Target`은 ARCHITECTURE 1절의 9종 매니저 목록에 없는 엔티티 컴포넌트라 "다른 매니저 구현 클래스를 직접 참조하지 않는다" 규칙에 걸리지 않는다. `convention-checker`가 판단을 요청했고, 위 성능·API 제약을 근거로 그대로 채택했다 |
 | 업그레이드 개수 반영을 `IUpgradeStats` 등 새 인터페이스로 조회 | ❌ | 그 계약(#116, 업그레이드 실효값 조회 통로)이 아직 합의 전이었다. 선점하면 #116 논의 결과와 어긋날 위험이 있었다. **그 뒤 #116 이 머지되고 #131 이 다른 소비처를 전부 `IUpgradeStats` 로 옮겼으므로, 이 판단은 지금 유효하지 않다** — 작업 3.2 에서 갈아타야 한다 |
@@ -65,8 +66,8 @@ flowchart LR
 | 멤버 | 계약 | 누가 부르나 |
 |---|---|---|
 | `BeginRun()` / `EndRun()` | **`IRunScoped`** | `GameManager` — 런 시작/종료. `EndRun()` 이후에는 틱이 돌지 않는다 |
-| `AutoHammerCount` | 없음 | 조회. `economy.csv`의 `auto_hammer_count_init` + `SetBonusCount`로 주입된 보너스 |
-| `SetBonusCount(int)` | 없음 (일반 메서드 주입) | 작업 3.3(업그레이드)이 나중에 붙일 통로. 지금은 아무도 호출하지 않는다 |
+| `AutoHammerCount` | 없음 | 조회. **런 시작에 굳힌 값**이다 — `BeginRun` 이 `GetStat` 으로 정한다 |
+| `SetUpgradeStats(IUpgradeStats)` | 없음 (조립 통로) | `ManagerBootstrap` 이 다른 프리팹 소비처와 같은 자리에서 넣는다 (#258). 넣지 않으면 `auto_hammer_count_init` 기준값으로 돈다 |
 
 ### 이벤트
 
@@ -84,7 +85,7 @@ flowchart LR
 |---|---|---|
 | `economy.csv` | `auto_hammer_count_init` | `AutoHammerCount`의 기준값 |
 | `economy.csv` | `auto_hammer_power` | 틱당 적용 피해량의 인자 (`count × power`) |
-| `economy.csv` | `auto_hammer_hits_per_sec` | 글로벌 타이머 주기 (`1 / 이 값`) |
+| `economy.csv` | `auto_hammer_hits_per_sec` | 글로벌 타이머 주기 (`1 / 이 값`). 연출 한 주기(장전·강타·반동)의 길이이기도 하다 |
 
 ## 검증
 
@@ -107,16 +108,28 @@ Unity 6000.3.21f1, Play Mode, 2026-09-17. `Game` 씬을 열고 Play 후 리플�
       검증했다
 
 **미검증**: EditMode 자동 테스트 (형제 컴포넌트 `HammerSwingController`·`FeverManager`도
-EditMode 테스트가 없는 선례를 따름). 업그레이드로 `SetBonusCount`가 실제로 호출되는 경로
-(작업 3.3, 진행 중).
+EditMode 테스트가 없는 선례를 따름). 업그레이드가 실제로 반영되는 경로는 #258 에서 붙였고,
+`UpgradeConsumerChecks` 가 Edit Mode 로 검증한다 — 이 문단의 "미검증"은 그 시점(2026-09-17)의
+기록이다.
 
 ## 알려진 한계
 
-- **업그레이드가 반영되지 않는다.** "카페인 중독"(자동 망치 수 증가)은 작업 3.3이며, 아직
-  아무도 `SetBonusCount()`를 호출하지 않아 `auto_hammer_count_init`(현재 0)만 적용된다.
-  즉 지금 상태로는 자동 망치가 실제로 작동하지 않는다 — 업그레이드가 붙어야 수가 0보다 커진다
+- ~~**업그레이드가 반영되지 않는다.**~~ — [#258](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/258)(3.12)
+  에서 붙였다. `BeginRun` 이 `IUpgradeStats.GetStat(AutoHammerCount, auto_hammer_count_init)` 로
+  이번 런의 보유 수를 굳히고, 주입은 `ManagerBootstrap.WireUpgradeStats` 가 한다.
+  그전까지는 아무도 `SetBonusCount()` 를 부르지 않아 `auto_hammer_count_init`(0)만 적용됐고,
+  **자동 망치가 게임 내내 한 번도 때리지 않았다**
 - **대상 탐색이 매 틱 `FindObjectsByType`로 씬을 훑는다.** 동시 대상 수가 지금처럼 10개 미만이면
   문제없지만, "저금통 수집벽" 업그레이드로 동시 출현 수가 크게 늘면 재검토가 필요하다
+- **피버 게이지를 채우지 않는다** ([#258](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/258), 팀장 결정).
+  `OnSwingResolved` 발행은 유지하되 `FeverManager` 가 호버만 센다 — 발행을 멈추지 않는 이유는
+  정확도 집계와 결과 화면이 같은 이벤트를 듣기 때문이다.
+- **타격 파워는 호버 망치가 단일 출처다.** `HammerSwingController.RunHitPower`(업그레이드 + 퍼크)를
+  읽어 `auto_hammer_power` 계수를 곱한다. 호버 컨트롤러는 씬 소속이라 런마다 다시 찾고, 못 찾으면
+  업그레이드까지만 얹은 값으로 떨어진다 — 퍼크는 그쪽이 들고 있어 여기서 알 길이 없다.
+- **망치가 틱 경계에서 순간이동한다.** 대상을 틱마다 무작위로 다시 고르기 때문이다. 한 대상만
+  계속 노리면 편향이 생겨(위 채택 표) 무작위 선택 쪽을 유지한 결과다. 장전 구간에 걸쳐 이동시키는
+  안을 검토했으나 현재 연출로 충분하다고 판단했다 (팀장 확인, 2026-09-22).
 - **정확도 집계 쪽 필터링은 이 문서의 책임이 아니다.** `HitSource.AutoHammer`를 정확도
   분모·분자에서 빼는 것은 아직 구현되지 않은 정확도 UI(작업 6.1)의 몫이다
 
@@ -125,3 +138,6 @@ EditMode 테스트가 없는 선례를 따름). 업그레이드로 `SetBonusCoun
 | 날짜 | 이슈 | 누가 | 무엇이 바뀌었나 |
 |---|---|---|---|
 | 2026-09-17 | #23 | hunil58 | 최초 작성 (글로벌 타이머 적중, `Managers` 프리팹 상주, `SetBonusCount` 주입 통로) |
+| 2026-09-22 | #258 | yahoo-afk | 업그레이드를 `IUpgradeStats` 로 연결 (3.12). `SetBonusCount` 제거, `BeginRun` 이 보유 수를 굳혀 "다음 런부터" 규칙을 구조로 지킨다. 그전까지 자동 망치는 수가 0 이라 한 번도 때리지 않았다 |
+| 2026-09-22 | #258 | yahoo-afk | 틱 연출 추가 — `AutoHammerVisual` 이 이번 틱 대상 위에 망치 한 대를 세우고 내려찍는다. 모델·모션은 `HammerRig` 로 호버 망치와 공유. 대상 선택을 타격 순간에서 **틱 시작**으로 옮겼다(연출이 장전부터 목표를 알아야 한다). 화면 흔들림·타격음은 호버만 유발하도록 걸렀다. `auto_hammer_hits_per_sec` 1.0 → 0.5 |
+| 2026-09-22 | #258 | yahoo-afk | 망치마다 서로 다른 대상을 맡아 때린다 (팀장 결정). 타이머는 하나라 틱당 총 피해는 그대로다. 타격 파워는 `HammerSwingController.RunHitPower` 를 받아 업그레이드·퍼크가 얹히고, `auto_hammer_power` 는 계수(1.0)로 의미가 바뀌었다. 피버 게이지는 더 이상 채우지 않는다 |

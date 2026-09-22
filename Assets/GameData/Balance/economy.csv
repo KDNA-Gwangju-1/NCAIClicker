@@ -2,8 +2,8 @@ key,value,unit,note
 base_hit_power,1.0,hp/hit,호버 타격 1회에 깎는 내구도. 코인은 파괴 시에만 지급한다
 hover_swing_interval_sec,0.85,sec,대상 유무와 무관한 호버 망치 스윙 간격 (원작 쿨타임 게이지 주기에 맞춤)
 auto_hammer_count_init,0,count,자동 망치 초기 보유량. 업그레이드로 증가
-auto_hammer_power,0.6,hp/hit,자동 망치 타격 1회에 깎는 내구도
-auto_hammer_hits_per_sec,1.0,hit/sec,자동 망치 1기당 초당 타격 횟수
+auto_hammer_power,1.0,ratio,자동 망치 1기가 호버 망치 최종 파워(업그레이드·퍼크 적용 후) 대비 내는 비율. 1.0 이면 호버 한 타와 같다
+auto_hammer_hits_per_sec,0.5,hit/sec,자동 망치 1기당 초당 타격 횟수. 틱 주기는 이 값의 역수라 2초다 — 장전·강타 연출이 읽히는 길이이면서 1기 기여를 호버 타격 아래로 두는 값
 hit_radius_bonus,25,percent,타격 대상 콜라이더를 외형보다 넓히는 비율. 조준 반경과는 다른 축이다 (GDD 4절)
 reticle_radius,0.45,world_unit,호버 망치 조준 판정 반경. 커서 주변 이 거리 안의 대상이 맞는다
 spawn_interval_sec,0,sec,미사용 호환 필드. #156 B안 채택으로 시간 기반 개별 리스폰을 제거했다. 되돌릴 경우를 대비해 필드는 남긴다 (REFERENCE_ANALYSIS.md 9절)

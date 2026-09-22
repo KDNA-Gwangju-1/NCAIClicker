@@ -70,7 +70,9 @@ namespace NCAIClicker.Core
 
         private void HandleSwingResolved(HitSource source, bool isHit)
         {
-            if (isHit && (AudioManager.Instance?.IsScreenShakeEnabled ?? true))
+            // 호버 타격만 흔든다. 흔들림은 플레이어 조작에 대한 피드백이라, 자동 망치까지 흔들면
+            // 초당 1회씩 상시로 흔들려 그 피드백이 묽어진다 (자동 망치 연출은 AutoHammerVisual 이 맡는다).
+            if (isHit && source == HitSource.Hover && (AudioManager.Instance?.IsScreenShakeEnabled ?? true))
             {
                 _impulseSource.GenerateImpulseWithForce(_hitImpulseForce);
             }

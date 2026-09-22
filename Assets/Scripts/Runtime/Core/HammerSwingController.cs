@@ -279,6 +279,15 @@ namespace NCAIClicker.Core
         /// 업그레이드 실효값 조회 통로를 넣고 값을 굳힌다. 서비스 계약이 아니라 조립(wiring) 통로다
         /// (ARCHITECTURE "SetBillService" 문단). GameManager 가 Running 전이에서 부른다.
         /// </summary>
+        /// <summary>
+        /// 이번 런의 **최종** 타격 파워. 업그레이드(완력 단련)를 얹고 그 위에 타격력 강화 퍼크를
+        /// 비율로 올린 값이다 (CacheUpgradedStats).
+        ///
+        /// 자동 망치가 이 값을 그대로 쓴다 (#258) — 강화 경로를 두 벌로 만들면 한쪽만 고쳐졌을 때
+        /// 같은 망치가 서로 다른 세기로 때린다. 최종 파워의 출처는 여기 하나다.
+        /// </summary>
+        public float RunHitPower => _runHitPower;
+
         public void SetUpgradeStats(IUpgradeStats upgradeStats)
         {
             _upgradeStats = upgradeStats;

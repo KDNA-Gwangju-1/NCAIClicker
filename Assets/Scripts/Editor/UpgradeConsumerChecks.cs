@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Reflection;
 using NCAIClicker.Core;
 using NCAIClicker.Data;
@@ -36,7 +37,9 @@ namespace NCAIClicker.EditorTools
             checkCount += RunHammerChecks(balance);
             checkCount += RunTargetChecks(balance);
             checkCount += RunEconomyChecks(balance);
+            checkCount += RunAutoHammerChecks(balance);
             checkCount += RunNextRunRuleChecks(balance);
+            checkCount += RunBootstrapWiringCheck();
             AssertCondition(!EditorUtility.IsDirty(balance), "BalanceData 가 수정됐습니다.");
             checkCount++;
 
@@ -289,6 +292,85 @@ namespace NCAIClicker.EditorTools
             return checkCount;
         }
 
+        // ---------------------------------------------------------------- 자동 망치
+
+        /// <summary>
+        /// 자동 망치 보유 수가 GetStat 을 거치는지 본다 (이슈 #258).
+        ///
+        /// **여기만 덧셈 스텁을 쓴다.** 다른 소비처는 기준값의 StubFactor 배로 재는데,
+        /// auto_hammer_count_init 은 0 이고(BALANCE.md 196행, 의도된 값) 0 은 몇 배를 해도 0 이라
+        /// 배선 여부를 증명하지 못한다. upgrade_effects.csv 에서도 이 stat 만 add 다.
+        /// </summary>
+        private static int RunAutoHammerChecks(BalanceData balance)
+        {
+            var checkCount = 0;
+            var baseCount = balance.Economy.AutoHammerCountInit;
+
+            AutoHammerController manager = null;
+            GameObject host = null;
+
+            try
+            {
+                manager = CreateManager<AutoHammerController>(balance, "UpgradeConsumerAutoHammer", out host);
+
+                // 주입이 없으면 CSV 기준값 그대로다. 배선이 빠져도 게임이 돌아가야 한다.
+                manager.BeginRun();
+                AssertCondition(manager.AutoHammerCount == baseCount,
+                                "주입 없이 자동 망치 수가 기준값과 다릅니다: " + manager.AutoHammerCount);
+                checkCount++;
+
+                // 업그레이드가 실제로 반영된다.
+                manager.SetUpgradeStats(new AddUpgradeStats(StatId.AutoHammerCount, StubBonusCount));
+                manager.BeginRun();
+                AssertCondition(manager.AutoHammerCount == baseCount + StubBonusCount,
+                                "자동 망치 수가 GetStat 을 거치지 않습니다: " + manager.AutoHammerCount);
+                checkCount++;
+
+                // 런 도중에 붙어도 이번 런은 그대로다 (BALANCE 6절 "효과는 다음 런부터").
+                manager.SetUpgradeStats(new AddUpgradeStats(StatId.AutoHammerCount, StubBonusCount * 2));
+                AssertCondition(manager.AutoHammerCount == baseCount + StubBonusCount,
+                                "런 도중에 자동 망치 수가 바뀌었습니다. 다음 런부터여야 합니다.");
+                manager.BeginRun();
+                AssertCondition(manager.AutoHammerCount == baseCount + StubBonusCount * 2,
+                                "다음 런에서 자동 망치 수가 갱신되지 않았습니다.");
+                checkCount++;
+            }
+            finally
+            {
+                TearDown(manager, host);
+            }
+
+            return checkCount;
+        }
+
+        // ---------------------------------------------------------------- 조립
+
+        /// <summary>
+        /// 조립 지점이 소비처마다 통로를 실제로 넣는지 원문으로 본다 (이슈 #258).
+        ///
+        /// 위 검증들은 가짜를 직접 주입해 ManagerBootstrap 을 우회하므로 **배선 누락을 못 본다.**
+        /// 자동 망치가 정확히 그 구멍에 빠져 있었다 — 계약도 계산도 맞는데 WireUpgradeStats 가
+        /// 이 소비처 하나만 빠뜨려서, 상점에서 살 수는 있지만 게임에는 반영되지 않았다.
+        /// 주입이 없어도 기준값으로 조용히 폴백하는 설계라 아무도 알아채지 못했다.
+        /// </summary>
+        private static int RunBootstrapWiringCheck()
+        {
+            var bootstrap = File.ReadAllText("Assets/Scripts/Runtime/ManagerBootstrap.cs");
+            var consumers = new[] { "StaminaManager", "FeverManager", "CreatureManager", "AutoHammerController" };
+
+            foreach (var consumer in consumers)
+            {
+                // 정규식 대신 위치로 본다 — 소비처 이름 뒤 가까운 곳에서 주입이 불리면 된다.
+                var at = bootstrap.IndexOf(consumer, StringComparison.Ordinal);
+                var call = at < 0 ? -1 : bootstrap.IndexOf(".SetUpgradeStats(", at, StringComparison.Ordinal);
+                AssertCondition(at >= 0 && call >= 0 && call - at <= 200,
+                                "ManagerBootstrap 이 " + consumer + " 에 SetUpgradeStats 를 넣지 않습니다. " +
+                                "주입이 없으면 그 소비처만 기준값으로 조용히 떨어집니다 (이슈 #258).");
+            }
+
+            return 1;
+        }
+
         // ---------------------------------------------------------------- 다음 런부터 규칙
 
         /// <summary>
@@ -368,6 +450,9 @@ namespace NCAIClicker.EditorTools
         /// <summary>기준값과 확실히 구별되는 배수. 1 이면 통과해도 배선을 증명하지 못한다.</summary>
         private const float StubFactor = 2f;
 
+        /// <summary>기준값이 0 인 stat 에 쓰는 증분. 곱셈으로는 0 과 구별되지 않는다 (#258).</summary>
+        private const int StubBonusCount = 3;
+
         private class StubUpgradeStats : IUpgradeStats
         {
             private readonly StatId _target;
@@ -380,6 +465,27 @@ namespace NCAIClicker.EditorTools
             public float GetStat(StatId stat, float baseValue)
             {
                 return stat == _target ? baseValue * StubFactor : baseValue;
+            }
+        }
+
+        /// <summary>
+        /// 그 stat 하나만 기준값에 고정 증분을 더해 돌려주는 조회 통로 (#258).
+        /// 기준값이 0 인 stat 은 곱셈 스텁으로 배선을 증명할 수 없어 이쪽을 쓴다.
+        /// </summary>
+        private class AddUpgradeStats : IUpgradeStats
+        {
+            private readonly StatId _target;
+            private readonly float _bonus;
+
+            public AddUpgradeStats(StatId target, float bonus)
+            {
+                _target = target;
+                _bonus = bonus;
+            }
+
+            public float GetStat(StatId stat, float baseValue)
+            {
+                return stat == _target ? baseValue + _bonus : baseValue;
             }
         }
 
