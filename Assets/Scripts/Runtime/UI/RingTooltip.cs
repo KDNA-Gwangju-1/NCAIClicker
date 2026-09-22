@@ -103,7 +103,8 @@ namespace NCAIClicker.UI
                     sb.Append('\n');
                 }
 
-                sb.Append($"• {statName}: +{currentVal:0.##}{unit} (다음: +{nextVal:0.##}{unit})");
+                // 현재값과 다음값을 줄로 나눈다 — 툴팁 폭(300)에서 한 줄이면 괄호 안에서 꺾인다 (#261).
+                sb.Append($"• {statName}: +{currentVal:0.##}{unit}\n  (다음: +{nextVal:0.##}{unit})");
             }
             return sb.ToString();
         }
