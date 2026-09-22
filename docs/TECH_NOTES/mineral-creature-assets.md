@@ -1,16 +1,19 @@
 # 광물 크리처 3D 에셋 (구리·은·금·다이아몬드)
 
-> 관련 이슈: #37, #9 · 최종 수정: 2026-09-21
+> 관련 이슈: #234, #37, #9 · 최종 수정: 2026-09-22
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
 ## 무엇을 하는가
 
 작업 6.6(#37)에서 타격 대상 4종의 시각 에셋을 **저금통(피기) 테마에서 광물 크리처 테마로
-전면 교체**했다. VARCO 3D로 생성한 모델(`Assets/Models/MineralCreature{Copper,Silver,Gold,
-Diamond}.glb`)을 glTFast로 임포트하고, 각각을 `Visual` 자식용 프리팹
-(`Assets/Prefabs/MineralCreature{...}Visual.prefab`)으로 분리 제작해 4개의
-`Assets/Prefabs/Targets/TargetXxx.prefab` 의 `Visual` 자식에 끼웠다.
+전면 교체**했고, 작업 6.21(#234)에서 광산 작업장 컨셉아트에 맞춰 그 4종을 **다시 생성해
+디자인을 교체**했다. 현재 자산은 VARCO 3D로 생성한 모델
+(`Assets/Models/MineCreature{Copper,Silver,Gold,Diamond}.glb`)을 glTFast로 임포트하고, 각각을
+`Visual` 자식용 프리팹(`Assets/Prefabs/MineCreature{...}Visual.prefab`)으로 분리 제작해 4개의
+`Assets/Prefabs/Targets/TargetXxx.prefab` 의 `Visual` 자식에 끼운 것이다. 뾰족한 실루엣이던
+구(舊) `MineralCreature*` 세트는 "조가비 + 광물 로브"의 둥근 실루엣으로 교체됐다 — 4종이 같은
+형태 언어를 공유하고 색·광물 종류로만 구분된다.
 
 **저금통(피기) 방향은 폐기했다.** [저금통 3D 에셋](piggy-normal-asset.md) 문서가 다루던
 `PiggyNormalVisual.prefab` 은 `TargetNormal` 에서 이미 빠졌고, 남은 파편·코인 그레이박스는
@@ -42,27 +45,28 @@ Diamond}.glb`)을 glTFast로 임포트하고, 각각을 `Visual` 자식용 프�
 ```mermaid
 flowchart LR
   subgraph Asset["광물 크리처 시각 에셋 (4종)"]
-    glb["MineralCreature{X}.glb<br/>VARCO 3D 생성, glTFast 임포트"]
-    visual["MineralCreature{X}Visual.prefab<br/>root=Visual, 모델별 스케일·오프셋"]
+    glb["MineCreature{X}.glb<br/>VARCO 3D 생성, glTFast 임포트"]
+    visual["MineCreature{X}Visual.prefab<br/>root=Visual, 모델별 스케일"]
     glb --> visual
   end
   subgraph Core["TargetXxx (타격 대상 루트)"]
     root["프리팹 루트<br/>Target / CreatureMovement / SphereCollider"]
   end
-  visual == "Visual 자식으로 끼움 (#37)" ==> root
+  visual == "Visual 자식으로 끼움 (#234)" ==> root
 ```
 
 | 에셋 | 경로 | 높이(유닛) | `localScale` | `localPosition.y` |
 |---|---|---|---|---|
-| `MineralCreatureCopperVisual.prefab` | `Assets/Prefabs/` | 0.8 | 0.8809 | 0.4000 |
-| `MineralCreatureSilverVisual.prefab` | `Assets/Prefabs/` | 0.8 | 0.8001 | 0.4031 |
-| `MineralCreatureGoldVisual.prefab` | `Assets/Prefabs/` | 0.8 | 0.8212 | 0.3984 |
-| `MineralCreatureDiamondVisual.prefab` | `Assets/Prefabs/` | 0.8 | 0.7868 | 0.4000 |
+| `MineCreatureCopperVisual.prefab` | `Assets/Prefabs/` | 0.8 | 0.7970 | 0.0000 |
+| `MineCreatureSilverVisual.prefab` | `Assets/Prefabs/` | 0.8 | 0.7954 | 0.0000 |
+| `MineCreatureGoldVisual.prefab` | `Assets/Prefabs/` | 0.8 | 0.7979 | 0.0000 |
+| `MineCreatureDiamondVisual.prefab` | `Assets/Prefabs/` | 0.8 | 0.8030 | 0.0000 |
 
-스케일·오프셋 산출 방식은 [저금통 3D 에셋](piggy-normal-asset.md) 문서와 동일하다 — glTFast에는
-임포트 시점 스케일 필드가 없으므로(ASSET_PIPELINE 2절) `Visual` 프리팹 루트에서 조정한다. 다만
-저금통은 모델이 1종이라 배율을 손으로 정했지만, 여기서는 4종 각각 `Renderer.bounds` 를 코드로
-직접 측정해 목표 높이에 맞는 스케일과, 바닥(`y=0`)에 밑면이 닿도록 하는 Y 오프셋을 계산했다.
+스케일 산출 방식은 이전 `MineralCreature*` 세트와 동일하다 — glTFast에는 임포트 시점 스케일
+필드가 없으므로(ASSET_PIPELINE 2절) `Visual` 프리팹 루트에서 조정한다. 4종 각각 `Renderer.bounds`
+를 코드로 직접 측정해 목표 높이(0.8유닛)에 맞는 균일 스케일을 계산했다. **이번 세트는 Y 오프셋이
+4종 전부 0.0000이다** — VARCO 다운로드 시 `pivotToBottom=true` 로 내보내 모델 피벗이 이미 바닥에
+있기 때문에(구 세트는 이 옵션 없이 받아 오프셋을 별도 계산해야 했다), 별도 절 참고.
 
 ### 이벤트
 
@@ -93,31 +97,59 @@ Play Mode 에서 실제 스폰된 `TargetNormal(Clone)` 의 `Renderer.bounds` �
 바뀌었다. `PiggyNormalVisual.prefab` 은 이제 어디에서도 참조되지 않으므로 이 표준 변경의
 영향을 받지 않는다(폐기된 에셋).
 
+## 재생성 — MineralCreature → MineCreature (2026-09-22, #234)
+
+광산 작업장 컨셉아트([docs/CONCEPT_ART](../CONCEPT_ART/README.md))가 확정되면서, 뾰족한 실루엣의
+구(舊) `MineralCreature*` 4종을 "조가비 + 광물 로브" 형태의 `MineCreature*` 4종으로 다시 생성해
+전면 교체했다. HP 기준 매핑(Copper=runner, Silver=normal, Gold=tourist, Diamond=anchor)과 목표
+높이(0.8유닛)는 이전과 동일 — 실루엣과 자산 이름만 바뀌었다.
+
+- **입력 이미지는 재생성하지 않았다.** `docs/CONCEPT_ART/PROMPTS.md` 에서 이미 승인된 컨셉아트
+  이미지 URL을 그대로 VARCO 3D `Generate3D` 노드에 연결해 4종을 한 워크플로에서 생성했다
+  (설정은 ASSET_PIPELINE 2절 표 그대로: `polygonCount=1500`, `topology=tri`, `usePbrTexture=1`
+  등 — "바꾸지 않는다" 규칙 준수).
+- **Y 오프셋이 4종 전부 0이 된 이유**: 다운로드 시 `get_output_downloads` 의 `pivotToBottom=true`
+  옵션으로 받아, glb 자체의 피벗이 이미 모델 밑면에 있다. 구 세트는 이 옵션 없이 받아서 밑면이
+  원점에서 떠 있었고, 그래서 `Visual` 프리팹에 별도 `localPosition.y` 보정이 필요했다. 스케일만
+  적용하면 밑면이 자동으로 `y=0` 에 닿으므로, 이번엔 코드로 `Renderer.bounds.min.y` 를 직접 재확인해
+  실제로 0에 닿는지 검증하는 절차만 유지했다(계산상 우연이 아니라 export 옵션 차이).
+- **Target 프리팹 교체는 YAML 수동 편집이 아니라 Unity API로 했다** —
+  `PrefabUtility.LoadPrefabContents` 로 각 `TargetXxx.prefab` 을 열어 기존 `Visual` 자식을 지우고
+  새 `MineCreature{X}Visual.prefab` 인스턴스를 그 자리(로컬 좌표 identity)에 붙인 뒤,
+  `Target._visual` (`Transform` 필드)을 `SerializedObject` 로 새 자식에 재연결하고
+  `SaveAsPrefabAsset` 으로 덮어썼다. fileID 를 손으로 맞출 필요가 없어 참조가 끊길 위험이 없다.
+- 구 에셋(`MineralCreature{Copper,Silver,Gold,Diamond}.glb`,
+  `MineralCreature{...}Visual.prefab`, 총 8개 + `.meta`)은 Unity Project 창 기준으로 삭제했다.
+  `PiggyFragment01~08.glb` 와 코인 그레이박스는 이 정리와 무관하게 유효하므로 건드리지 않았다.
+
 ## 검증
 
-Unity 6000.3.21f1, Play Mode, 2026-09-21.
+Unity 6000.3.21f1, 2026-09-22.
 
-- [x] 4개 GLB 모두 glTFast 정상 임포트 확인 (`manage_asset get_info` 로 GUID·`assetType` 확인, 콘솔
-  임포트 오류 0건)
-- [x] `Renderer.bounds` 실측으로 모델별 스케일·오프셋 산출(1차 0.4유닛, 2차 0.8유닛 재조정)
-- [x] `manage_prefabs get_hierarchy` 로 4개 `TargetXxx.prefab` 전부 `Visual` 자식이 해당
-  `MineralCreature*Visual` 하나뿐임을 확인
-- [x] Play Mode 진입 → 일시정지 → 스크린샷으로 Silver/Gold/Diamond 3종 직접 육안 확인(올바른
-  스케일, 바닥 밀착, 정상 머티리얼). Copper/Runner 는 해당 짧은 런에서 스폰되지 않아 구조
-  검증만 완료 — 나머지 3종과 동일한 방식으로 생성·배선했으므로 다음 검증 세션에서 확인 권장
-- [x] 콘솔 오류·경고 0건(MCP 포트 재연결 로그만 존재), `NotifyBeginRun` → 스폰 → `Running ->
-  Result` 까지 정상 진행 확인
-- [x] `Target._visual` 필드가 여전히 `Visual` GameObject 를 가리켜 로직 참조 안 깨짐 확인
-- [ ] TargetRunner/Copper 의 실제 스폰 장면 육안 확인 — **미검증**, 구조 검증만 완료
+- [x] 4개 GLB(`MineCreature{Copper,Silver,Gold,Diamond}.glb`) 모두 glTFast 정상 임포트 확인
+  (`manage_asset get_info` 로 GUID·`assetType` 확인, 콘솔 임포트 오류 0건)
+- [x] `Renderer.bounds` 실측으로 4종 스케일 산출 (목표 높이 0.8유닛), 오프셋은 전부 0.0000
+- [x] 4개 `MineCreature{X}Visual.prefab` 생성 후 4개 `TargetXxx.prefab` 의 `Visual` 자식 교체,
+  `Target._visual` 참조가 새 자식을 정확히 가리키는지 코드로 확인
+- [x] Play Mode 진입 → `CreatureManager` 가 스폰한 인스턴스(`FindObjectsByType<Target>`)의
+  렌더러·셰이더(`Shader Graphs/glTF-pbrMetallicRoughness`, 분홍 머티리얼 아님) 확인 — 이 짧은
+  런에서는 Normal/Anchor만 스폰되어 Runner/Tourist는 스폰 장면을 못 봄
+- [x] 4개 `TargetXxx.prefab` 을 직접 `InstantiatePrefab` 으로 강제 생성해 4종 **전부** 렌더러 1개·
+  glTF PBR 셰이더·높이 0.800·바닥 `minY=0.000` 확인 (스폰 타이밍에 의존하지 않는 결정적 검증)
+- [x] 콘솔 오류·경고 0건 (Play 진입 전/종료 후, 구 에셋 삭제 후 각각 재확인)
+- [x] Play Mode 진입 후 `Camera.main` 을 `RenderTexture` 로 렌더링해 PNG로 캡처, 직접 육안 확인 —
+  Copper(주황빛 로브)·Silver(회색 로브)·Gold(황금빛 로브)·Diamond(분홍-회색 로브) 4종 전부 동시에
+  스폰된 장면에서 "조가비 + 광물 로브"의 공통 실루엣과 종별 색 구분이 컨셉아트 의도대로 보임.
+  분홍 머티리얼(임포트 실패 시 나타나는 증상) 없음, 바닥 밀착·조준 원 대비 크기도 정상
 
 ## 알려진 한계
 
 - **피기 방향으로 만들었던 `PiggyNormalVisual.prefab`·`PiggyNormal.glb` 는 이제 어디에서도
   참조되지 않는다.** 삭제 여부는 별도 정리 이슈에서 판단한다 — 파편(`PiggyFragment01~08.glb`)과
   코인 그레이박스는 저금통 테마와 무관하게(파괴 연출용) 유효하므로 같이 지우면 안 된다.
-- TargetRunner/Copper 는 이번 세션의 짧은 Play Mode 검증에서 실제 스폰 장면을 보지 못했다.
 - 파괴 연출(작업 6.3)은 여전히 없다. 부서지면 오브젝트가 사라지는 정도이며, 광물 특유의 파편
   연출(예: 결정 조각)은 이 작업 범위 밖이다.
+- 애니메이션·리깅은 이 작업 범위 밖이다(정적 메시).
 - 공개 배포·상업적 이용 시 VARCO 라이선스 약관 재확인 필요 ([THIRD_PARTY.md](../THIRD_PARTY.md) 참고).
 
 ## 갱신 이력
@@ -126,3 +158,4 @@ Unity 6000.3.21f1, Play Mode, 2026-09-21.
 |---|---|---|---|
 | 2026-09-21 | #37 | Claude | 최초 작성 — 저금통 방향 철회, 광물 크리처 4종으로 전면 교체. HP 기준 매핑, 모델별 스케일 실측(0.4유닛 기준) |
 | 2026-09-21 | #37 | Claude | 조준 원 대비 너무 작다는 사용자 피드백으로 높이 기준 0.4 → 0.8유닛 재조정, 4종 재실측 |
+| 2026-09-22 | #234 | Claude | 광산 작업장 컨셉아트에 맞춰 `MineralCreature*` → `MineCreature*` 로 4종 재생성·전면 교체. `pivotToBottom` 옵션으로 Y 오프셋 전부 0, 구 에셋 8개 삭제. Play Mode 렌더 캡처로 4종 동시 육안 확인 완료 |
