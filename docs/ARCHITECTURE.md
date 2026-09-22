@@ -345,7 +345,7 @@ public class SaveData
 - 런 도중 종료하면 **그 런의 시작 스냅샷**으로 복귀한다. 그날의 수입·지출·납부·대출·퍼크 변경을 전부 함께 되돌린다. 씬의 대상 위치·남은 내구도는 저장하지 않는다. 중간 상태 일부만 저장해 재실행으로 빚만 지워지는 일을 막는다.
 - 하루 종료 처리가 끝나면 결과와 다음 행동 상태를 함께 저장한다. 로드 시 `LastCompletedDay`를 다시 정산하지 않는다. **이 줄은 아직 목표다.** `CurrentDay`·`BillIndex`·`LastLoanRepaidDay`·`OfferedPerkIds`·`ActiveBill`·`ActiveLoan`은 #221 이 `IBillPersistence` 통로로 수집·복원을 잇는다. 여전히 수집하지 않는 필드는 `PendingPerkIds`·`LastCompletedDay`·`ResumePoint`·`LastRunCoin`·`BestRunCoin`·`WasBankrupt`·`IsCompleted` 다 — 복원 통로를 가질 계약이 아직 없어서인데, **담아 두고 되돌리지 못하면 "저장된다"는 착각만 만든다.** 계약 이슈가 먼저다 (docs/TECH_NOTES/save-load.md 알려진 한계).
 - 저장은 임시 파일 작성 후 교체한다. JSON 오류·지원하지 않는 버전은 원본을 백업하고 경고 후 초기화한다. 버전 1은 회차 정보가 없으므로 성장·코인은 유지하고 하루/고지서/대출을 기본값으로 보완한다.
-- 파산 시 보유 코인·소수 잔여·단계·날짜·고지서·대출·퍼크를 새 회차 값으로 초기화한다. 영구 업그레이드와 최고 기록은 유지한다. 파산 결과는 `WasBankrupt`와 `LastCompletedDay`로 별도 표시한다.
+- 파산 시 보유 코인·소수 잔여·단계·날짜·고지서·대출·퍼크·업그레이드를 새 회차 값으로 초기화한다. 레거시 포인트·반지와 최고 기록은 유지한다 (회차 층과 영구 층의 경계, #250). 파산 결과는 `WasBankrupt`와 `LastCompletedDay`로 별도 표시한다.
 
 ### 직렬화 방식 (이슈 1.2.2)
 
