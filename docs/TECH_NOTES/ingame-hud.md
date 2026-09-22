@@ -184,7 +184,11 @@ Play Mode 에서 실제로 확인한 것만 적는다.
 * ~~**`Assets/Prefabs/UI/BillHud.prefab` 과 역할이 겹친다.**~~ #173 (1.25)에서 중복을 해소하기 위해 `BillHud.prefab` 에셋을 삭제하고 `GameHud.prefab` 으로 단일화했다.
 - 저해상도에서 글자 크기를 실측하지 않았다. `CanvasScaler` match 0.5, 기준 1920×1080 이라
   창이 작으면 우상단 정보가 작아진다.
-- 스태미나가 낮을 때의 경고 연출(색 전환·깜빡임)은 넣지 않았다. #33 완료 기준 밖이다 — **#225(6.19)** 에서 다룬다.
+- ~~스태미나가 낮을 때의 경고 연출(색 전환·깜빡임)은 넣지 않았다.~~ — **#225(6.19)** 에서 `StaminaHud` 에
+  `_lowStaminaThreshold01`(기본 0.2) 이하일 때 `_fill.color` 를 경고색으로 바꾸는 상태 기반 전환을
+  추가해 풀었다. 임계값·색상은 `BillHud._emphasisDaysLeft` 와 같은 이유로 밸런스 CSV가 아니라
+  `[SerializeField]` 연출 값으로 뒀다. 단계 달성·파산 전환 연출은 이번에 다루지 않았다 — DoD가
+  셋 중 최소 하나만 요구했고 스태미나 경고가 우선순위였다.
 
 ## 갱신 이력
 
@@ -193,3 +197,4 @@ Play Mode 에서 실제로 확인한 것만 적는다.
 | 2026-09-18 | #33 | yahoo-afk | 최초 작성 — `StaminaHud`/`FeverHud`/`CoinHud`/`DayHud`/`AccuracyHud` 신규, `BillHud` 에 임박 강조·`OnBillPaid` 추가, `GameHud.prefab` 생성 및 `Game` 씬 배치, 게이지 스프라이트 `HudBar.png` 추가 |
 | 2026-09-18 | #171 | yahoo-afk | `CoinHud` 가 `EconomyManager.Instance`(`IEconomyService`)로 잔액·런 순수입 초기값을 한 번 읽는다. "매 런 시작마다 `—`" 한계 해소 |
 | 2026.09.18 | #173 | saltlake00 | 1.25 HUD 프리팹 중복 정리. BillHud.prefab 에셋 삭제 반영 |
+| 2026-09-22 | #225 | hunil58 | 6.19 `StaminaHud` 저잔량 경고 색 전환 추가. 알려진 한계 항목 해소 |
