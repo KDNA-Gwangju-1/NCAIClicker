@@ -24,6 +24,8 @@ namespace NCAIClicker.EditorTools
             checkCount += RunPrefabChecks();
             checkCount += RunModeChecks();
             checkCount += RunDueDayChecks();
+            checkCount += RunPostPaymentFlowChecks();
+            checkCount += RunCurrencyHudChecks();
             checkCount += RunNameChecks();
 
             Debug.Log("[BillPanelChecks] PASS " + checkCount + " checks.");
@@ -66,6 +68,18 @@ namespace NCAIClicker.EditorTools
                    "되돌릴 수 없는 선택이라 확인 절차가 있어야 합니다 (#175).");
             checkCount++;
 
+            Assert(FindButton(prefab, "SkillTreeNoticeConfirmButton") != null,
+                   "스킬 트리 최초 투자 안내 팝업의 확인 버튼이 프리팹에 없습니다 (#249).");
+            checkCount++;
+
+            // 원작 기준 납부 버튼 붉은색 유지 검증 (이슈 249)
+            var payBtn = FindButton(prefab, "PayButton");
+            Assert(payBtn != null, "PayButton 이 프리팹에 없습니다.");
+            var payImg = payBtn.GetComponent<Image>();
+            Assert(payImg != null && payImg.color.r > 0.4f && payImg.color.g < 0.3f,
+                   "PayButton 배경색이 원작 기준 붉은색이어야 합니다: " + (payImg != null ? payImg.color.ToString() : "null"));
+            checkCount++;
+
             return checkCount;
         }
 
@@ -99,6 +113,18 @@ namespace NCAIClicker.EditorTools
                 controller.Close();
                 Assert(!controller.IsOpen, "Close 후 패널이 닫혀야 합니다.");
                 checkCount++;
+
+                // 계속하기 클릭 시 정산창이 다시 뜨지 않도록 Closed 이벤트가 발행되지 않는지 검증 (이슈 249)
+                var closedFired = false;
+                Action onClosed = () => closedFired = true;
+                controller.Closed += onClosed;
+                controller.ShowAsTab();
+                var handleContinue = typeof(BillPanelController).GetMethod("HandleContinueClicked", BindingFlags.NonPublic | BindingFlags.Instance);
+                handleContinue.Invoke(controller, null);
+                Assert(!controller.IsOpen, "계속하기 클릭 후 패널이 닫혀야 합니다.");
+                Assert(!closedFired, "계속하기 클릭 시 정산창 복귀를 막기 위해 Closed 이벤트가 발행되지 않아야 합니다.");
+                controller.Closed -= onClosed;
+                checkCount += 2;
             }
             finally
             {
@@ -189,6 +215,94 @@ namespace NCAIClicker.EditorTools
         }
 
         /// <summary>
+        /// 납부 후 화면 전환 흐름을 검증한다 (이슈 #249).
+        /// 1. 납부 성공 시 즉시 기존 고지서가 "납부 완료"로 갱신되고 패널은 닫히거나 탭으로 도망가지 않는다.
+        /// 2. 새 고지서 발행 시 모달로 갱신된다.
+        /// 3. 새 고지서의 [아직] 클릭 시 스킬 트리 탭으로 전환된다.
+        /// 4. 스킬 트리 진입 시 최초 1회 투자 안내 팝업이 뜨고, 확인 후에는 다시 뜨지 않는다.
+        /// </summary>
+        private static int RunPostPaymentFlowChecks()
+        {
+            var checkCount = 0;
+            var host = BuildHost(out var controller, out var parts);
+            var noticeKey = "HasSeenSkillTreeNotice";
+            var originalNoticeVal = PlayerPrefs.GetInt(noticeKey, 0);
+
+            try
+            {
+                PlayerPrefs.DeleteKey(noticeKey);
+
+                var service = new FakeBillService { DaysLeft = 3 };
+                service.ActiveBill = new Bill { Amount = 1000, IssuedDay = 1, DueDay = 4, IsPaid = false };
+                controller.SetServices(service);
+
+                InvokeLifecycle(controller, "OnEnable");
+                controller.ShowAsModal();
+
+                // 1. 납부 성공 시 즉시 납부 완료가 표시되며 모달 상태를 유지한다 (ShowBillTab으로 나가지 않음)
+                service.ShouldFailPay = false;
+                var payButton = parts.PayButton.GetComponent<Button>();
+                payButton.onClick.Invoke();
+
+                Assert(parts.DueValue.text == "납부 완료",
+                       "납부 성공 직후 납부 완료 표기가 떠야 합니다: " + parts.DueValue.text);
+                Assert(controller.CurrentMode == BillPanelController.Mode.Modal,
+                       "납부 완료 직후에는 탭 화면으로 나가지 않고 모달 상태를 유지해야 합니다 (#249).");
+                checkCount++;
+
+                // 2. 새 고지서가 발행되면 모달 상태로 새 고지서가 표시된다
+                var newBill = new Bill { Amount = 2500, IssuedDay = 1, DueDay = 4, IsPaid = false };
+                service.ActiveBill = newBill;
+                NCAIClicker.Events.GameEvents.PublishBillIssued(newBill);
+
+                Assert(controller.CurrentMode == BillPanelController.Mode.Modal, "새 고지서 발행 시 모달 모드여야 합니다.");
+                Assert(parts.LaterButton.activeSelf, "새 고지서 화면에 [아직] 버튼이 보여야 합니다.");
+                checkCount++;
+
+                // 3. [아직] 클릭 시 스킬 트리(Upgrade) 탭으로 이동하고 최초 안내 팝업이 뜬다
+                var laterButton = parts.LaterButton.GetComponent<Button>();
+                laterButton.onClick.Invoke();
+
+                Assert(controller.CurrentMode == BillPanelController.Mode.Tab, "아직 클릭 후 탭 모드여야 합니다.");
+                Assert(controller.CurrentTab == BillPanelController.Tab.Upgrade, "아직 클릭 시 스킬 트리 탭이 선택되어야 합니다 (#249).");
+                Assert(parts.SkillTreeNoticePanel != null && parts.SkillTreeNoticePanel.activeSelf,
+                       "최초 스킬 트리 탭 진입 시 투자 안내 팝업이 떠야 합니다 (#249).");
+                checkCount++;
+
+                // 4. 안내 팝업 확인 버튼 클릭 시 팝업이 닫히고, 이후 다시 [아직]을 눌러도 강제 표시되지 않는다
+                var noticeConfirm = parts.SkillTreeNoticeConfirmButton.GetComponent<Button>();
+                noticeConfirm.onClick.Invoke();
+
+                Assert(!parts.SkillTreeNoticePanel.activeSelf, "안내 팝업 확인 후 팝업이 닫혀야 합니다.");
+                Assert(PlayerPrefs.GetInt(noticeKey, 0) == 1, "안내 확인 여부가 PlayerPrefs에 기록되어야 합니다.");
+                checkCount++;
+
+                // 재진입 시 강제 표시되지 않음 확인
+                controller.ShowAsModal();
+                laterButton.onClick.Invoke();
+                Assert(!parts.SkillTreeNoticePanel.activeSelf, "이미 확인한 안내 팝업은 재진입 시 다시 뜨지 않아야 합니다 (#249).");
+                checkCount++;
+            }
+            finally
+            {
+                if (originalNoticeVal == 1)
+                {
+                    PlayerPrefs.SetInt(noticeKey, 1);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(noticeKey);
+                }
+                PlayerPrefs.Save();
+
+                InvokeLifecycle(controller, "OnDisable");
+                UnityEngine.Object.DestroyImmediate(host);
+            }
+
+            return checkCount;
+        }
+
+        /// <summary>
         /// 고지서 이름은 고지서마다 달라지되 같은 고지서면 늘 같아야 한다.
         /// 열 때마다 바뀌면 "아까 그 고지서가 맞나" 를 의심하게 된다.
         /// </summary>
@@ -233,9 +347,13 @@ namespace NCAIClicker.EditorTools
             public GameObject LaterButton;
             public GameObject PayButton;
             public GameObject LoanButton { get; set; }
+            public GameObject SkillTreeNoticePanel;
+            public GameObject SkillTreeNoticeConfirmButton;
             public TMPro.TextMeshProUGUI DueValue;
             public TMPro.TextMeshProUGUI PayCaption;
             public TMPro.TextMeshProUGUI LoanCaption { get; set; }
+            public TMPro.TextMeshProUGUI BalanceText;
+            public TMPro.TextMeshProUGUI LegacyPointText;
         }
 
         private static GameObject BuildHost(out BillPanelController controller, out Parts parts)
@@ -253,9 +371,13 @@ namespace NCAIClicker.EditorTools
                 LaterButton = ((Button)typeof(BillPanelController).GetField("_laterButton", flags).GetValue(controller)).gameObject,
                 PayButton = ((Button)typeof(BillPanelController).GetField("_payButton", flags).GetValue(controller)).gameObject,
                 LoanButton = ((Button)typeof(BillPanelController).GetField("_loanButton", flags).GetValue(controller)).gameObject,
+                SkillTreeNoticePanel = (GameObject)typeof(BillPanelController).GetField("_skillTreeNoticePanel", flags).GetValue(controller),
+                SkillTreeNoticeConfirmButton = ((Button)typeof(BillPanelController).GetField("_skillTreeNoticeConfirmButton", flags).GetValue(controller)).gameObject,
                 DueValue = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_dueValueText", flags).GetValue(controller),
                 PayCaption = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_payCaptionText", flags).GetValue(controller),
                 LoanCaption = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_loanCaptionText", flags).GetValue(controller),
+                BalanceText = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_balanceText", flags).GetValue(controller),
+                LegacyPointText = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_legacyPointText", flags).GetValue(controller),
             };
             return host;
         }
@@ -296,6 +418,7 @@ namespace NCAIClicker.EditorTools
             public float LoanDailyCut { get; set; }
             public Bill ActiveBill { get; set; }
             public string[] OfferedPerkIds => Array.Empty<string>();
+            public PostPaymentFlowState PaymentFlowState { get; set; }
 
             /// <summary>true면 TryPay 가 실패한다 — 잔액 부족 캡션 표시를 검증하려고 둔 스위치.</summary>
             public bool ShouldFailPay { get; set; }
@@ -304,7 +427,18 @@ namespace NCAIClicker.EditorTools
             public int LoanAttemptCount { get; private set; }
             public long LastLoanTakenAmount { get; private set; }
 
-            public bool TryPay(Bill bill) => !ShouldFailPay;
+            public bool TryPay(Bill bill)
+            {
+                if (ShouldFailPay)
+                {
+                    return false;
+                }
+                if (bill != null)
+                {
+                    bill.IsPaid = true;
+                }
+                return true;
+            }
             public bool TryTakeLoan(long amount)
             {
                 LoanAttemptCount++;
@@ -318,6 +452,17 @@ namespace NCAIClicker.EditorTools
             }
             public bool TryRepayLoan() => false;
             public bool TryChoosePerk(string perkId) => false;
+            public bool TryConfirmPaidFeedback() => true;
+            public bool TryEnterInvestmentMenu()
+            {
+                PaymentFlowState = PostPaymentFlowState.InvestmentMenu;
+                return true;
+            }
+            public bool TryCompletePostPaymentFlow()
+            {
+                PaymentFlowState = PostPaymentFlowState.None;
+                return true;
+            }
             public bool TryCloseDay() => false;
             public void RestoreCycle(int cycle) { CurrentCycle = cycle; }
 
@@ -328,6 +473,65 @@ namespace NCAIClicker.EditorTools
             {
                 DeclaredBankruptcyCount++;
             }
+        }
+
+        private static int RunCurrencyHudChecks()
+        {
+            var checkCount = 0;
+            var host = BuildHost(out var controller, out var parts);
+
+            try
+            {
+                var billService = new FakeBillService { DaysLeft = 5 };
+                billService.ActiveBill = new Bill { Amount = 45, IssuedDay = 1, DueDay = 5, IsPaid = false };
+                var econService = new FakeEconomyAndLegacyService { CurrentCoin = 158, CurrentLegacyPoints = 16 };
+
+                controller.SetServices(billService, econService, econService);
+
+                // 모달 모드 (납부 시 원작 사진처럼 $158 보유액과 16 레거시 포인트 표시)
+                controller.ShowAsModal();
+                Assert(parts.BalanceText != null && parts.BalanceText.text == "$158",
+                    "납부 화면에서 현재 사이클 보유 금액이 $158로 보여야 합니다: " + (parts.BalanceText != null ? parts.BalanceText.text : "null"));
+                Assert(parts.LegacyPointText != null && parts.LegacyPointText.text == "16",
+                    "납부 화면에서 레거시 포인트가 16으로 보여야 합니다: " + (parts.LegacyPointText != null ? parts.LegacyPointText.text : "null"));
+                checkCount += 2;
+
+                // 탭 모드
+                controller.ShowAsTab();
+                Assert(parts.BalanceText != null && parts.BalanceText.text == "$158",
+                    "탭 화면에서도 현재 사이클 보유 금액이 $158로 보여야 합니다.");
+                Assert(parts.LegacyPointText != null && parts.LegacyPointText.text == "16",
+                    "탭 화면에서도 레거시 포인트가 16으로 보여야 합니다.");
+                checkCount += 2;
+
+                // 프레스티지 화면 (파산 후 코인은 몰수되어 숨김, 레거시 포인트는 유지)
+                controller.ShowAsPrestige(2);
+                Assert(parts.BalanceText != null && string.IsNullOrEmpty(parts.BalanceText.text),
+                    "프레스티지 화면에서는 코인 표기가 숨겨져야 합니다.");
+                Assert(parts.LegacyPointText != null && parts.LegacyPointText.text == "16",
+                    "프레스티지 화면에서도 레거시 포인트는 유지되어야 합니다.");
+                checkCount += 2;
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(host);
+            }
+
+            return checkCount;
+        }
+
+        private sealed class FakeEconomyAndLegacyService : IEconomyService, ILegacyService
+        {
+            public long CurrentCoin { get; set; } = 158;
+            public long RunCoin => 0;
+            public System.Collections.Generic.IReadOnlyList<Data.CoinDrop> RunCoinBreakdown => null;
+            public void AddCoin(decimal rawAmount) { }
+            public void AddLoanPrincipal(long amount) { }
+            public bool TrySpendCoin(long amount) => false;
+
+            public long CurrentLegacyPoints { get; set; } = 16;
+            public void AddLegacyPoints(long amount) { }
+            public bool TrySpendLegacyPoints(long amount) => false;
         }
     }
 }

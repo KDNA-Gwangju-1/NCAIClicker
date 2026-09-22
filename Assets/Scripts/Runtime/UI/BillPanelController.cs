@@ -1,6 +1,8 @@
 using System;
+using System.Collections;
 using NCAIClicker.Core;
 using NCAIClicker.Data;
+using NCAIClicker.Events;
 using NCAIClicker.Interfaces;
 using TMPro;
 using UnityEngine;
@@ -46,8 +48,10 @@ namespace NCAIClicker.UI
         [SerializeField] private TextMeshProUGUI _dueLabelText;
         [SerializeField] private TextMeshProUGUI _dueValueText;
 
-        [Header("보유 코인")]
+        [Header("보유 코인 및 레거시 포인트")]
         [SerializeField] private TextMeshProUGUI _balanceText;
+        [SerializeField] private TextMeshProUGUI _legacyPointText;
+        [SerializeField] private LegacyPointHint _legacyPointHint;
 
         [Header("버튼")]
         [SerializeField] private Button _payButton;
@@ -65,6 +69,10 @@ namespace NCAIClicker.UI
         [SerializeField] private Button _bankruptcyConfirmYesButton;
         [SerializeField] private Button _bankruptcyConfirmNoButton;
 
+        [Header("스킬 트리 안내")]
+        [SerializeField] private GameObject _skillTreeNoticePanel;
+        [SerializeField] private Button _skillTreeNoticeConfirmButton;
+
         // 다른 프리팹(Target, HammerSwingController)과 같은 방식으로 프리팹에 직렬화해 둔다.
         // 씬을 건너 주입할 통로를 새로 만들지 않기 위해서다.
         [Header("데이터")]
@@ -72,6 +80,9 @@ namespace NCAIClicker.UI
 
         private IBillService _billService;
         private IEconomyService _economyService;
+        private ILegacyService _legacyService;
+        private IGameFlowService _gameFlowService;
+        private Coroutine _paidFeedbackRoutine;
 
         /// <summary>어느 상태로 열려 있는가. 탭일 때만 탭 줄과 계속하기가 보인다.</summary>
         public enum Mode
@@ -107,15 +118,18 @@ namespace NCAIClicker.UI
 
         private void OnEnable()
         {
+            GameEvents.OnBillIssued += HandleBillIssued;
+            GameEvents.OnBalanceChanged += HandleBalanceChanged;
+            GameEvents.OnBillPaid += HandleBillPaid;
+
             if (_payButton != null)
             {
                 _payButton.onClick.AddListener(HandlePayClicked);
             }
             if (_laterButton != null)
             {
-                // "아직" 은 닫는 버튼이 아니라 **미루는** 버튼이다. 닫아 버리면 바로 다음 런이
-                // 시작돼 업그레이드를 살 기회가 사라진다. 탭 화면으로 나가 선택지를 남긴다.
-                _laterButton.onClick.AddListener(ShowBillTab);
+                // "아직" 은 고지서 탭이 아니라 스킬 트리 탭으로 이동하며, 최초 1회 투자 안내를 표시한다 (이슈 #249).
+                _laterButton.onClick.AddListener(HandleLaterClicked);
             }
             if (_loanButton != null)
             {
@@ -149,18 +163,33 @@ namespace NCAIClicker.UI
             {
                 _bankruptcyConfirmNoButton.onClick.AddListener(HideBankruptcyConfirm);
             }
+            if (_skillTreeNoticeConfirmButton != null)
+            {
+                _skillTreeNoticeConfirmButton.onClick.AddListener(HideSkillTreeNotice);
+            }
             HideBankruptcyConfirm();
+            HideSkillTreeNoticePanelOnly();
+            RestorePostPaymentView();
         }
 
         private void OnDisable()
         {
+            GameEvents.OnBillIssued -= HandleBillIssued;
+            GameEvents.OnBalanceChanged -= HandleBalanceChanged;
+            GameEvents.OnBillPaid -= HandleBillPaid;
+            if (_paidFeedbackRoutine != null)
+            {
+                StopCoroutine(_paidFeedbackRoutine);
+                _paidFeedbackRoutine = null;
+            }
+
             if (_payButton != null)
             {
                 _payButton.onClick.RemoveListener(HandlePayClicked);
             }
             if (_laterButton != null)
             {
-                _laterButton.onClick.RemoveListener(ShowBillTab);
+                _laterButton.onClick.RemoveListener(HandleLaterClicked);
             }
             if (_loanButton != null)
             {
@@ -194,13 +223,21 @@ namespace NCAIClicker.UI
             {
                 _bankruptcyConfirmNoButton.onClick.RemoveListener(HideBankruptcyConfirm);
             }
+            if (_skillTreeNoticeConfirmButton != null)
+            {
+                _skillTreeNoticeConfirmButton.onClick.RemoveListener(HideSkillTreeNotice);
+            }
         }
 
         /// <summary>조립 지점이 넣어 준다. 소비처가 구현 클래스를 직접 찾지 않는다.</summary>
-        public void SetServices(IBillService billService, IEconomyService economyService = null)
+        public void SetServices(IBillService billService, IEconomyService economyService = null,
+                                ILegacyService legacyService = null, IGameFlowService gameFlowService = null)
         {
             _billService = billService;
             _economyService = economyService;
+            _legacyService = legacyService ?? (economyService as ILegacyService);
+            _gameFlowService = gameFlowService;
+            RestorePostPaymentView();
         }
 
         /// <summary>검증에서 데이터만 갈아끼울 때 쓴다.</summary>
@@ -365,14 +402,14 @@ namespace NCAIClicker.UI
             }
         }
 
-        public void Close()
+        public void Close(bool notifyClosed = true)
         {
             var wasOpen = IsOpen;
             if (_panelRoot != null)
             {
                 _panelRoot.SetActive(false);
             }
-            if (wasOpen)
+            if (wasOpen && notifyClosed)
             {
                 Closed?.Invoke();
             }
@@ -385,35 +422,9 @@ namespace NCAIClicker.UI
         /// </summary>
         private void EnsureServices()
         {
-            if (_billService != null)
+            if (_legacyService == null && _economyService is ILegacyService legacyFallback)
             {
-                return;
-            }
-
-            var managersGo = GameObject.Find("Managers");
-            if (managersGo != null)
-            {
-                _billService = managersGo.GetComponentInChildren<IBillService>(true);
-                _economyService = managersGo.GetComponentInChildren<IEconomyService>(true);
-            }
-
-            if (_billService != null)
-            {
-                return;
-            }
-
-            var behaviours = FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            for (var i = 0; i < behaviours.Length; i++)
-            {
-                if (_economyService == null && behaviours[i] is IEconomyService economy)
-                {
-                    _economyService = economy;
-                }
-                if (behaviours[i] is IBillService bill)
-                {
-                    _billService = bill;
-                    return;
-                }
+                _legacyService = legacyFallback;
             }
         }
 
@@ -430,10 +441,22 @@ namespace NCAIClicker.UI
                 }
                 else
                 {
-                    // 낼 수 있는지 판단하려면 지금 얼마를 들고 있는지가 같이 보여야 한다.
+                    // 원작처럼 달러 기호와 숫자로 현재 보유 코인을 깔끔하게 표시한다.
                     var economy = _economyService;
-                    _balanceText.text = economy != null ? $"보유 ${economy.CurrentCoin:N0}" : string.Empty;
+                    _balanceText.text = economy != null ? $"${economy.CurrentCoin:N0}" : "$0";
                 }
+            }
+
+            if (_legacyPointText != null)
+            {
+                // 원작처럼 레거시 포인트를 아이콘 옆에 표시한다.
+                var legacy = _legacyService;
+                _legacyPointText.text = legacy != null ? $"{legacy.CurrentLegacyPoints:N0}" : "0";
+            }
+
+            if (_legacyPointHint != null && _balanceData != null)
+            {
+                _legacyPointHint.Bind(_balanceData);
             }
 
             if (_issuerText != null || _titleText != null)
@@ -557,13 +580,13 @@ namespace NCAIClicker.UI
 
             if (_billService.TryPay(bill))
             {
-                // 납부가 끝나면 탭 화면으로 나간다. 납부 완료 화면에 머물면 납부·아직 버튼이
-                // 모두 사라져 빠져나갈 길이 없고, 닫아 버리면 업그레이드를 살 기회가 사라진다.
+                // 납부 성공 시 기존 고지서 종이에 "납부 완료"가 즉시 표시된다 (이슈 #249).
+                // 이 피드백이 갱신됨과 동시에 OnPerkOffered 에 의해 퍽 3장 선택 창이 위에 뜬다.
                 if (_payCaptionText != null)
                 {
                     _payCaptionText.text = string.Empty;
                 }
-                ShowBillTab();
+                Render();
                 return;
             }
 
@@ -574,6 +597,95 @@ namespace NCAIClicker.UI
             {
                 var coin = _economyService != null ? _economyService.CurrentCoin : 0L;
                 _payCaptionText.text = $"${bill.Amount - coin:N0} 부족";
+            }
+        }
+
+        private void HandleBillIssued(Bill newBill)
+        {
+            // 퍽 선택 완료 직후 새 고지서가 발행되면 모달 상태로 금액과 납기 일수를 보여준다 (이슈 #249).
+            if (IsOpen && _mode != Mode.PrestigeOnly)
+            {
+                ShowAsModal();
+            }
+        }
+
+        private void HandleLaterClicked()
+        {
+            // 새 고지서 화면의 "아직" 버튼을 누르면 스킬 트리 탭이 선택된다 (이슈 #249).
+            if (_billService == null || !_billService.TryEnterInvestmentMenu())
+            {
+                return;
+            }
+            ShowUpgradeTab();
+            ShowSkillTreeNoticeIfNeeded();
+        }
+
+        private void RestorePostPaymentView()
+        {
+            var billService = _billService;
+            if (billService == null)
+            {
+                return;
+            }
+
+            switch (billService.PaymentFlowState)
+            {
+                case PostPaymentFlowState.PaidFeedback:
+                    ShowAsModal();
+                    StartPaidFeedbackTransition();
+                    break;
+                case PostPaymentFlowState.PerkSelection:
+                case PostPaymentFlowState.NewBillConfirmation:
+                    ShowAsModal();
+                    break;
+                case PostPaymentFlowState.InvestmentMenu:
+                    ShowAsTab(Tab.Upgrade);
+                    ShowSkillTreeNoticeIfNeeded();
+                    break;
+            }
+        }
+
+        private void StartPaidFeedbackTransition()
+        {
+            if (_paidFeedbackRoutine == null && isActiveAndEnabled)
+            {
+                _paidFeedbackRoutine = StartCoroutine(ShowPerksAfterPaidFeedback());
+            }
+        }
+
+        private IEnumerator ShowPerksAfterPaidFeedback()
+        {
+            // 클릭 프레임을 끝까지 렌더링해 고지서의 "납부 완료"를 실제로 보여준 뒤 퍽 창을 연다.
+            yield return null;
+            _paidFeedbackRoutine = null;
+            _billService?.TryConfirmPaidFeedback();
+        }
+
+        private const string SkillTreeNoticeKey = "HasSeenSkillTreeNotice";
+
+        private void ShowSkillTreeNoticeIfNeeded()
+        {
+            if (PlayerPrefs.GetInt(SkillTreeNoticeKey, 0) == 0)
+            {
+                if (_skillTreeNoticePanel != null)
+                {
+                    _skillTreeNoticePanel.SetActive(true);
+                }
+            }
+        }
+
+        private void HideSkillTreeNotice()
+        {
+            PlayerPrefs.SetInt(SkillTreeNoticeKey, 1);
+            PlayerPrefs.Save();
+            HideSkillTreeNoticePanelOnly();
+        }
+
+        private void HideSkillTreeNoticePanelOnly()
+        {
+            if (_skillTreeNoticePanel != null)
+            {
+                _skillTreeNoticePanel.SetActive(false);
             }
         }
 
@@ -636,10 +748,33 @@ namespace NCAIClicker.UI
             ShowAsPrestige();
         }
 
+        private void HandleBalanceChanged(long currentBalance)
+        {
+            if (_balanceText != null && _mode != Mode.PrestigeOnly)
+            {
+                _balanceText.text = $"${currentBalance:N0}";
+            }
+        }
+
+        private void HandleBillPaid(Bill bill)
+        {
+            Render();
+            StartPaidFeedbackTransition();
+        }
+
         private void HandleContinueClicked()
         {
-            Close();
-            GameManager.Instance?.ContinueRun();
+            if (_billService != null && !_billService.TryCompletePostPaymentFlow())
+            {
+                return;
+            }
+
+            // 계속하기로 다음 런을 진행할 때는 정산창이 0.1초 동안 다시 깜빡이지 않도록 닫기 알림 없이 닫는다.
+            Close(notifyClosed: false);
+            if (Application.isPlaying)
+            {
+                _gameFlowService?.ContinueRun();
+            }
         }
     }
 }

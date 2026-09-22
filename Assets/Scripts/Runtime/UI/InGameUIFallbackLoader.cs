@@ -65,6 +65,9 @@ namespace NCAIClicker.UI
 
             var managersGo = GameObject.Find("Managers");
             var billService = managersGo != null ? managersGo.GetComponentInChildren<IBillService>(true) : null;
+            var economyService = managersGo != null ? managersGo.GetComponentInChildren<IEconomyService>(true) : null;
+            var legacyService = managersGo != null ? managersGo.GetComponentInChildren<ILegacyService>(true) : null;
+            var gameFlowService = managersGo != null ? managersGo.GetComponentInChildren<IGameFlowService>(true) : null;
 
             // 고지서 패널을 먼저 띄운다. 정산창이 납부 버튼에서 이 패널을 열기 때문이다.
             BillPanelController billPanel = null;
@@ -76,7 +79,7 @@ namespace NCAIClicker.UI
                 billPanel = billInstance.GetComponent<BillPanelController>();
                 if (billPanel != null)
                 {
-                    billPanel.SetServices(billService);
+                    billPanel.SetServices(billService, economyService, legacyService, gameFlowService);
                 }
             }
 

@@ -15,6 +15,8 @@ namespace NCAIClicker.UI
         [SerializeField] private GameObject _hintPanel;
         [SerializeField] private TextMeshProUGUI _hintText;
 
+        [SerializeField] private bool _singleLineFormat;
+
         private BalanceData _balanceData;
 
         private void Awake()
@@ -59,6 +61,15 @@ namespace NCAIClicker.UI
             }
 
             var perAmount = _balanceData != null ? _balanceData.Economy.LegacyPointPerAmount : 0f;
+
+            if (_singleLineFormat)
+            {
+                _hintText.text = perAmount > 0f
+                    ? $"지불한 고지서 금액 ${perAmount:N0}당 1 레거시 포인트를 얻습니다."
+                    : "고지서를 납부하면 레거시 포인트를 얻습니다.";
+                return;
+            }
+
             var rateLine = perAmount > 0f
                 ? $"고지서 납부액 ${perAmount:N0}당 1 LP"
                 : "고지서를 납부하면 쌓인다";

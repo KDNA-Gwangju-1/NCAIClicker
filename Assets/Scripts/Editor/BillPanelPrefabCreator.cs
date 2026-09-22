@@ -90,15 +90,100 @@ namespace NCAIClicker.EditorTools
                 "Assets/Prefabs/UI/RingShopPanel.prefab");
             ringTabRoot.SetActive(false);
 
-            // 보유 코인 — 낼 수 있는지 판단하려면 지금 얼마를 들고 있는지가 같이 보여야 한다.
-            var balanceLabel = CreateLabel("BalanceText", panelRoot, font, 34, new Color(0.992f, 0.953f, 0.874f), "보유 $0");
+            // 원작 고지서 화면 우측 상단 HUD: 현재 사이클 보유 금액 및 레거시 포인트 알약 박스 (이슈 249)
+            var coinBox = CreateObject("CoinBox", panelRoot);
+            var coinBoxRect = coinBox.GetComponent<RectTransform>();
+            coinBoxRect.anchorMin = new Vector2(1f, 1f);
+            coinBoxRect.anchorMax = new Vector2(1f, 1f);
+            coinBoxRect.pivot = new Vector2(1f, 1f);
+            coinBoxRect.sizeDelta = new Vector2(190f, 52f);
+            coinBoxRect.anchoredPosition = new Vector2(-48f, -28f);
+            coinBox.AddComponent<Image>().color = new Color(0.20f, 0.17f, 0.14f, 0.96f);
+            var coinOutline = coinBox.AddComponent<Outline>();
+            coinOutline.effectColor = new Color(0.38f, 0.32f, 0.25f);
+            coinOutline.effectDistance = new Vector2(2f, -2f);
+
+            var balanceLabel = CreateLabel("BalanceText", coinBox, font, 34, new Color(0.992f, 0.953f, 0.874f), "$0", TextAlignmentOptions.Center);
             var balanceRect = balanceLabel.GetComponent<RectTransform>();
-            balanceRect.anchorMin = new Vector2(1f, 1f);
-            balanceRect.anchorMax = new Vector2(1f, 1f);
-            balanceRect.pivot = new Vector2(1f, 1f);
-            balanceRect.sizeDelta = new Vector2(360f, 56f);
-            balanceRect.anchoredPosition = new Vector2(-60f, -40f);
+            balanceRect.anchorMin = Vector2.zero;
+            balanceRect.anchorMax = Vector2.one;
+            balanceRect.offsetMin = new Vector2(12f, 0f);
+            balanceRect.offsetMax = new Vector2(-12f, 0f);
             bound["_balanceText"] = balanceLabel;
+
+            // 레거시 포인트 박스
+            var pointBox = CreateObject("LegacyPointBox", panelRoot);
+            var pointBoxRect = pointBox.GetComponent<RectTransform>();
+            pointBoxRect.anchorMin = new Vector2(1f, 1f);
+            pointBoxRect.anchorMax = new Vector2(1f, 1f);
+            pointBoxRect.pivot = new Vector2(1f, 1f);
+            pointBoxRect.sizeDelta = new Vector2(190f, 52f);
+            pointBoxRect.anchoredPosition = new Vector2(-48f, -88f);
+            pointBox.AddComponent<Image>().color = new Color(0.20f, 0.17f, 0.14f, 0.96f);
+            var pointOutline = pointBox.AddComponent<Outline>();
+            pointOutline.effectColor = new Color(0.38f, 0.32f, 0.25f);
+            pointOutline.effectDistance = new Vector2(2f, -2f);
+
+            var pointRow = pointBox.AddComponent<HorizontalLayoutGroup>();
+            pointRow.padding = new RectOffset(16, 16, 6, 6);
+            pointRow.spacing = 10f;
+            pointRow.childAlignment = TextAnchor.MiddleCenter;
+            pointRow.childControlWidth = false;
+            pointRow.childControlHeight = false;
+            pointRow.childForceExpandWidth = false;
+            pointRow.childForceExpandHeight = false;
+
+            // 포인트 배지
+            var badgeGo = CreateObject("Badge", pointBox);
+            var badgeRect = badgeGo.GetComponent<RectTransform>();
+            badgeRect.sizeDelta = new Vector2(36f, 36f);
+            badgeGo.AddComponent<Image>().color = new Color(0.42f, 0.33f, 0.21f);
+            var badgeOutline = badgeGo.AddComponent<Outline>();
+            badgeOutline.effectColor = new Color(0.70f, 0.58f, 0.38f);
+            badgeOutline.effectDistance = new Vector2(1.5f, -1.5f);
+            var badgeText = CreateLabel("BadgeText", badgeGo, font, 18, new Color(0.99f, 0.95f, 0.88f), "LP", TextAlignmentOptions.Center);
+            var badgeTextRect = badgeText.GetComponent<RectTransform>();
+            badgeTextRect.anchorMin = Vector2.zero;
+            badgeTextRect.anchorMax = Vector2.one;
+            badgeTextRect.offsetMin = Vector2.zero;
+            badgeTextRect.offsetMax = Vector2.zero;
+
+            var pointLabel = CreateLabel("LegacyPointText", pointBox, font, 32, new Color(0.992f, 0.953f, 0.874f), "0", TextAlignmentOptions.MidlineLeft);
+            var pointLabelRect = pointLabel.GetComponent<RectTransform>();
+            pointLabelRect.sizeDelta = new Vector2(90f, 40f);
+            bound["_legacyPointText"] = pointLabel;
+
+            // 마우스 호버 시 원작 단일 라인 툴팁 표시
+            var pointHint = pointBox.AddComponent<LegacyPointHint>();
+            SetPrivate(pointHint, "_singleLineFormat", true);
+
+            var hintPanel = CreateObject("PointHintPanel", panelRoot);
+            var hintRect = hintPanel.GetComponent<RectTransform>();
+            hintRect.anchorMin = new Vector2(1f, 1f);
+            hintRect.anchorMax = new Vector2(1f, 1f);
+            hintRect.pivot = new Vector2(1f, 1f);
+            hintRect.sizeDelta = new Vector2(440f, 48f);
+            hintRect.anchoredPosition = new Vector2(-248f, -90f);
+            var hintImg = hintPanel.AddComponent<Image>();
+            hintImg.color = new Color(0.12f, 0.10f, 0.08f, 0.98f);
+            hintImg.raycastTarget = false;
+            var hintOut = hintPanel.AddComponent<Outline>();
+            hintOut.effectColor = new Color(0.42f, 0.33f, 0.21f);
+            hintOut.effectDistance = new Vector2(2f, -2f);
+
+            var hintText = CreateLabel("PointHintText", hintPanel, font, 19, new Color(0.99f, 0.95f, 0.88f),
+                "지불한 고지서 금액 $50당 1 레거시 포인트를 얻습니다.", TextAlignmentOptions.Center);
+            hintText.raycastTarget = false;
+            var hintTextRect = hintText.GetComponent<RectTransform>();
+            hintTextRect.anchorMin = Vector2.zero;
+            hintTextRect.anchorMax = Vector2.one;
+            hintTextRect.offsetMin = new Vector2(12f, 0f);
+            hintTextRect.offsetMax = new Vector2(-12f, 0f);
+
+            SetPrivate(pointHint, "_hintPanel", hintPanel);
+            SetPrivate(pointHint, "_hintText", hintText);
+            hintPanel.SetActive(false);
+            bound["_legacyPointHint"] = pointHint;
 
             // 종이. 원작 실측 비율 (1920x1080 기준 폭 630 / 높이 780).
             var paper = CreateObject("Paper", billTabRoot);
@@ -155,7 +240,7 @@ namespace NCAIClicker.EditorTools
             bound["_laterButton"] = CreateButton("LaterButton", payRow, font, new Vector2(300f, 76f), "아직",
                 new Color(0.23f, 0.21f, 0.19f), new Color(0.37f, 0.33f, 0.29f), new Color(0.91f, 0.87f, 0.8f), 30);
             bound["_payButton"] = CreateButton("PayButton", payRow, font, new Vector2(300f, 76f), "납부하기",
-                new Color(0.086f, 0.075f, 0.059f), new Color(0.604f, 0.486f, 0.275f), new Color(0.992f, 0.953f, 0.874f), 30);
+                new Color(0.52f, 0.14f, 0.12f), new Color(0.78f, 0.62f, 0.35f), new Color(0.992f, 0.953f, 0.874f), 30);
 
             // 잔액 부족으로 납부 실패 시 부족액을 보여준다 (#212). LoanCaption 과 같은 자리 규칙.
             bound["_payCaptionText"] = CreateLabel("PayCaption", actions, font, 18, Warn, string.Empty);
@@ -244,6 +329,32 @@ namespace NCAIClicker.EditorTools
             bound["_bankruptcyConfirmNoButton"] = no;
             
             confirmRoot.SetActive(false);
+
+            // 스킬 트리 최초 투자 안내 팝업 (이슈 #249).
+            var noticeRoot = CreateStretched("SkillTreeNoticePanel", root);
+            noticeRoot.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.85f);
+            bound["_skillTreeNoticePanel"] = noticeRoot;
+
+            var noticeText = CreateLabel("SkillTreeNoticeText", noticeRoot, font, 30,
+                new Color(0.992f, 0.953f, 0.874f),
+                "남은 코인으로 스킬을 구매할 수 있습니다!\n스킬 트리 탭에서 능력치를 업그레이드하고 다음 런을 준비하세요.");
+            var noticeTextRect = noticeText.GetComponent<RectTransform>();
+            noticeTextRect.anchorMin = new Vector2(0.5f, 0.5f);
+            noticeTextRect.anchorMax = new Vector2(0.5f, 0.5f);
+            noticeTextRect.pivot = new Vector2(0.5f, 0f);
+            noticeTextRect.sizeDelta = new Vector2(760f, 120f);
+            noticeTextRect.anchoredPosition = new Vector2(0f, 20f);
+
+            var noticeConfirm = CreateButton("SkillTreeNoticeConfirmButton", noticeRoot, font, new Vector2(240f, 68f), "확인",
+                new Color(0.086f, 0.075f, 0.059f), new Color(0.604f, 0.486f, 0.275f), new Color(0.992f, 0.953f, 0.874f), 28);
+            var noticeConfirmRect = noticeConfirm.GetComponent<RectTransform>();
+            noticeConfirmRect.anchorMin = new Vector2(0.5f, 0.5f);
+            noticeConfirmRect.anchorMax = new Vector2(0.5f, 0.5f);
+            noticeConfirmRect.pivot = new Vector2(0.5f, 1f);
+            noticeConfirmRect.anchoredPosition = new Vector2(0f, -10f);
+            bound["_skillTreeNoticeConfirmButton"] = noticeConfirm;
+
+            noticeRoot.SetActive(false);
             
             Bind(controller, bound);
 
@@ -350,6 +461,15 @@ namespace NCAIClicker.EditorTools
             if (height > 0f)
             {
                 element.preferredHeight = height;
+            }
+        }
+
+        private static void SetPrivate(object target, string fieldName, object value)
+        {
+            var field = target.GetType().GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance);
+            if (field != null)
+            {
+                field.SetValue(target, value);
             }
         }
 
