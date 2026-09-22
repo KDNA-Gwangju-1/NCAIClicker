@@ -116,17 +116,22 @@ flowchart LR
 
 ### 구매 화면 (#91, 6.8)
 
-`MainMenu` 씬 Canvas 아래에 `UpgradeShopPanel.prefab` 인스턴스가 있다. 씬 소유자가 UI·연출이라
-(ARCHITECTURE 0절) 씬에 직접 넣었다.
+~~`MainMenu` 씬 Canvas 아래에 `UpgradeShopPanel.prefab` 인스턴스가 있다.~~ #192 에서 고지서 패널의
+업그레이드 탭으로 옮겼다 — `BillPanelController` 가 탭을 처음 펼칠 때 프리팹을 심는다.
+**#184 부터 프리팹은 `UpgradeShopPrefabCreator`(`NCAI/UI/업그레이드 상점 프리팹 생성`) 산출물이다** —
+손으로 고치지 않고 생성기를 고쳐 다시 만든다. 카드는 `BalanceData.Upgrades` 순서대로 만들고 id 를 심는다.
 
 ```
-UpgradeShopPanel      서비스 조립 · 잔액 표시 · 전체 갱신
-├ TitleLabel / BalanceLabel
-└ Entries              (VerticalLayoutGroup)
-  └ Card_<id> × 4      UpgradeShopEntry — 카드 한 장
-    ├ NameLabel / LevelLabel / DescriptionLabel / EffectLabel / ReasonLabel
-    └ PurchaseButton → CostLabel
+UpgradeShopPanel      서비스 조립 · 전체 갱신 (제목·잔고·닫기는 없다 — 탭 이름과 우상단 잔고가 그 역할)
+└ Entries              (GridLayoutGroup 2열, 534×328)
+  └ Card_<id> × 4      UpgradeShopEntry — 카드 한 장. Surface #16130F + 패널 선
+    ├ Head → NameLabel / LevelLabel
+    ├ DescriptionLabel / EffectLabel
+    └ BuyRow → ReasonLabel · PurchaseButton(Base: 테두리 이미지가 targetGraphic, 호버 금색) → Fill → Dollar · CostLabel
 ```
+
+비주얼은 디자인 시스템 2차(2026-09-22)를 따른다 — 파란 버튼·`#262B3A` 카드 폐기, 구매 버튼은 Base 톤에
+금색 숫자, 호버·눌림에서 테두리가 금색으로 바뀐다 (목업: [퍽 선택 · 업그레이드 탭 목업](https://claude.ai/artifact/1VHLpgcfwdRH4YAqt76RhW)).
 
 - 서비스는 `EconomyManager.Shop`(`IUpgradeShop`)·`EconomyManager.Instance`(`IEconomyService`)로
   잡는다 — #171 이 연 통로다. 패널이 `OnEnable` 마다 다시 잡아 카드에 `Bind` 로 넣는다
@@ -299,3 +304,4 @@ stat 은 일부뿐이라(`max_stamina`·`fever_gauge_per_hit`·`coin_bonus_multi
 | 2026-09-17 | #140 | saltlake00 | `CreatureManager` 가 `Managers` 프리팹으로 옮겨 가 주입 주체가 `GameManager` → `ManagerBootstrap` 으로 바뀐 것을 반영 |
 | 2026-09-18 | #91 | yahoo-afk | 구매 화면(6.8) 추가 — `UpgradeShopPanel`/`UpgradeShopEntry`/`UpgradeStatNames` 와 `MainMenu` 씬 배치. #171 이 연 `EconomyManager.Shop` 통로를 첫 소비. "다음 런부터" 를 Play Mode 로 처음 확인 |
 | 2026-09-21 | #203 | twins6375-art | `IUpgradePersistence` 가 `SaveManager` 에 배선되어 구조 도식의 점선 하나가 실선이 됐다. 업그레이드 레벨이 앱을 껐다 켜도 남는다 |
+| 2026-09-22 | #184 | saltlake00 | 구매 화면 비주얼을 디자인 시스템 2차로 교체. `UpgradeShopPrefabCreator` 신설 → 프리팹 재생성(카드 2×2, Base 구매 버튼 + 호버 금색 테두리). 런타임 로직 변경 없음 |
