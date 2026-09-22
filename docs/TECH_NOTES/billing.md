@@ -1,6 +1,6 @@
 # 하루 진행과 고지서
 
-> 관련 이슈: #27, #28, #29, #150, #30, #164, #92, #175, #203, #212, #211, #249 · 최종 수정: 2026-09-22
+> 관련 이슈: #27, #28, #29, #150, #30, #164, #92, #175, #203, #212, #211, #249, #270 · 최종 수정: 2026-09-22
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
 ## 무엇을 하는가
@@ -44,6 +44,8 @@
 | (#211) `IBillService.TryCloseDay()` 계약 추가 및 `GameManager.ContinueRun()` 에서 호출 | ✅ | 공용 계약에 `bool TryCloseDay()` 를 열고, `GameManager.ContinueRun()` 에서 Result 상태일 때 마감을 확정하여 미납 파산 시 씬 전환을 차단하고 파산 화면을 유지한다 |
 | (#211) 마감 당일 납부 실패 시 즉시 파산 직행 | ❌ | 플레이어에게 대출 기회가 있어도 납부 버튼을 먼저 누르면 즉시 파산하고 `TryCloseDay()` 중앙 판정을 우회한다. 현재는 부족액을 표시하고 대출 기회를 유지하며, 최종 파산은 `GameManager.ContinueRun()`의 `TryCloseDay()` 한 곳에서 확정한다 |
 | (#211) 고지서 모달의 대출 버튼을 활성 고지서 전액 대출로 배선 | ✅ | 마감 당일 `[아직]` 이 사라져도 `TryTakeLoan(bill.Amount)`으로 부족분을 막을 기회를 보장한다. 성공 직후 다시 그려 보유 코인과 `대출 완료` 상태를 동기화한다 |
+| (#270) `IssueBill()`에 발행일을 매개변수로 받는 오버로드 추가 | ✅ | `TryChoosePerk()`가 정산 중(아직 `계속하기` 전, `_currentDay`가 다음 날로 안 넘어간 시점)에 새 고지서를 발행할 때 `_currentDay`를 그대로 썼더니 `DueDay`가 `due_days`보다 하루 짧게 나왔다(#249가 정한 "정산 중엔 날짜를 진행하지 않는다" 원칙과, `IssueBill`이 발행일=현재 날짜를 전제하던 기존 가정이 충돌). 무인자 `IssueBill()`은 `_currentDay`를 그대로 쓰는 기존 호출(`BeginRun`)을 유지하고, `IssueBill(int issuedDay)`만 다음 런의 날짜(`_currentDay + 1`)를 명시로 받는다 |
+| (#270) `TryChoosePerk()`에서 `_currentDay`를 먼저 증가시켜 두고 `IssueBill()` 무인자로 호출 | ❌ | `_currentDay`는 `BeginRun`이 하루 시작을 알리는 단일 출처다. 여기서 미리 올리면 아직 `계속하기`를 누르지 않았는데도 다른 조회자(HUD 등)가 다음 날짜를 보게 되어 #249가 막은 "계속하기 전 날짜 진행"이 다시 생긴다 |
 
 ## 구조
 
@@ -302,6 +304,26 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 4.5:1) 권고 2건을 추가로 냈다 — 같은 화면의 기존 `LoanCaption` 과 동일한 스타일이라 일관성을
 위해 그대로 두었다. 하드 실패는 아니다(`UiGuidelineChecks` 는 여전히 `PASS`).
 
+### 퍼크 선택 후 새 고지서 마감일이 하루 짧음 (2026-09-22, #270)
+
+**버그**: 납부 후 퍼크를 고르면(`TryChoosePerk`) 다음 단계 고지서가 즉시 발행되는데, 이때
+`IssueBill()`이 `_currentDay`(정산 중인, 아직 안 넘어간 날)를 발행일로 썼다. 실제로 그 고지서를
+받는 시점은 `계속하기`를 눌러 다음 런으로 넘어간 뒤이므로, 발행일이 하루 이르게 찍혀
+`DueDay = IssuedDay + due_days - 1`도 `stages.csv`가 정한 기한보다 하루 짧게 나왔다.
+
+**고침**: 위 "왜 이 방법인가" #270 행 참고. `TryChoosePerk()`에서 `IssueBill(_currentDay + 1)`을
+명시로 호출한다.
+
+**Edit Mode**: `BillManagerChecks.RunBatch()`에 퍼크 선택 후 발행된 고지서의 `IssuedDay`/`DueDay`가
+`_currentDay + 1` 기준으로 맞는지 보는 단언을 추가했다. `NCAI/전체 검증 실행`(Unity 6000.3.21f1,
+MCP로 열린 에디터에서 직접 호출):
+`[BillManagerChecks] PASS 25 checks.`(기존 24건 + 신규 1건), `[BankruptcyChecks] PASS 14 checks.`
+포함 나머지 `*Checks` 전부 통과. 유일한 실패는 이 브랜치가 건드리지 않은 기존 실패
+`TargetChecks: TargetNormal: Visual 아래 Mesh 자식이 없습니다`.
+
+**미검증**: Play Mode. 퍼크 선택 후 실제로 다음 날 진입 시 고지서 기한이 온전한 일수만큼
+남는지는 크리처를 때려 코인을 모으고 납부·퍼크 선택까지 거쳐야 확인할 수 있다.
+
 ## 알려진 한계
 
 - ~~`GameManager`가 `BillManager.BeginRun()`/`EndRun()`을 호출하지 않는다.~~ — #164 에서 `IRunScoped` 를 구현해 붙였다. Play Mode 로 하루 진행·고지서 발행·파산 발동을 확인했다 (위 검증).
@@ -349,3 +371,4 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 | 2026-09-22 | #249, #255 | Codex | 납부 후 흐름을 `PaidFeedback → PerkSelection → NewBillConfirmation → InvestmentMenu` 상태로 분리했다. 납부 완료는 한 프레임 렌더링한 뒤 퍽 화면으로 전환하고, 각 상태를 SaveData v5에 저장·복원한다. 퍽 대기 중 `BeginRun`과 투자 메뉴 이전 `계속하기`를 차단하며 저장은 주입된 `IGamePersistence`만 사용한다. |
 | 2026-09-22 | #249 | saltlake00 | 고지서 납부 및 탭 화면 우측 상단에 원작 스타일의 보유 금액 알약 박스와 레거시 포인트 알약 박스 및 단일 라인 툴팁 추가. BillPanelChecks에 통화 및 레거시 포인트 HUD 검증 추가 |
 | 2026-09-22 | #249 | saltlake00 | 보유 금액 갱신 버그 수정(EnsureServices 서비스 개별 탐색 및 InGameUIFallbackLoader 서비스 전달, OnBalanceChanged 구독), 납부 버튼 원작 기준 붉은색 적용, 계속하기 클릭 시 정산창 0.1초 노출 제거(Close notifyClosed false 처리) |
+| 2026-09-22 | #270 | Claude | 퍼크 선택 직후 발행되는 고지서의 마감일이 하루 짧던 버그 수정. `IssueBill()`을 무인자/발행일 명시 오버로드로 나누고 `TryChoosePerk()`는 `_currentDay + 1`을 넘긴다. `BillManagerChecks`에 발행일·마감일 검증 추가 |
