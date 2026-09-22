@@ -23,11 +23,22 @@ namespace NCAIClicker.Economy
 
         private float _tickTimer;
         private bool _isRunning;
-        private int _bonusCount;
 
-        /// <summary>기준값 + 업그레이드 보너스. 업그레이드 통로는 #116 계약이 확정되기 전까지 SetBonusCount 로만 받는다.</summary>
-        public int AutoHammerCount =>
-            (_balanceData != null ? _balanceData.Economy.AutoHammerCountInit : 0) + _bonusCount;
+        /// <summary>업그레이드 실효값 조회 통로. ManagerBootstrap 이 넣어 준다 (이슈 #258).</summary>
+        private IUpgradeStats _upgradeStats;
+
+        /// <summary>
+        /// 런 시작에 굳힌 보유 수. BeginRun 이 채우고 그 뒤로는 이 값만 쓴다 —
+        /// 런 도중 레벨이 올라도 이번 런은 변하지 않는다 (BALANCE 6절 "효과는 다음 런부터",
+        /// docs/TECH_NOTES/upgrades.md).
+        /// </summary>
+        private int _cachedCount;
+
+        /// <summary>런 시작에 굳힌 자동 망치 보유 수. 조회용이다.</summary>
+        public int AutoHammerCount => _cachedCount;
+
+        /// <summary>업그레이드가 없을 때의 보유 수. economy.csv 의 auto_hammer_count_init 이며 기본은 0 이다.</summary>
+        private int BaseCount => _balanceData != null ? _balanceData.Economy.AutoHammerCountInit : 0;
 
         private void Awake()
         {
@@ -36,6 +47,9 @@ namespace NCAIClicker.Economy
                 Debug.LogError("[AutoHammerController] BalanceData 가 연결되지 않았다. " +
                                "자동 망치가 작동하지 않으니 Managers 프리팹의 참조를 확인하라.");
             }
+
+            // 첫 BeginRun 전에 조회해도 기준값이 나오게 해 둔다.
+            _cachedCount = BaseCount;
         }
 
         /// <summary>
@@ -45,7 +59,26 @@ namespace NCAIClicker.Economy
         public void BeginRun()
         {
             _tickTimer = 0f;
+            _cachedCount = ResolveCount();
             _isRunning = true;
+        }
+
+        /// <summary>
+        /// 이번 런의 보유 수를 정한다. 주입이 없으면 기준값 그대로다 — 배선이 빠진 화면에서
+        /// 게임이 멈추는 것보다 업그레이드만 안 먹는 편이 낫다 (docs/TECH_NOTES/upgrades.md).
+        ///
+        /// GetStat 은 float 를 돌려주지만 보유 수는 개수라 반올림한다. 음수는 0 으로 막는다 —
+        /// CSV 가 손으로 고쳐질 수 있고, 음수 개수는 ResolveTick 의 가드와 의미가 겹친다.
+        /// </summary>
+        private int ResolveCount()
+        {
+            var baseCount = BaseCount;
+            if (_upgradeStats == null)
+            {
+                return baseCount;
+            }
+
+            return Mathf.Max(0, Mathf.RoundToInt(_upgradeStats.GetStat(StatId.AutoHammerCount, baseCount)));
         }
 
         /// <summary>런을 종료한다. GameManager 가 Result 전이 시 부른다 (IRunScoped, 이슈 #111).</summary>
@@ -55,16 +88,16 @@ namespace NCAIClicker.Economy
         }
 
         /// <summary>
-        /// 업그레이드가 보유 수를 늘릴 때 쓰는 주입 통로. EconomyManager.SetBillService 와 같은
-        /// 일반 메서드 주입 방식이라 새 공용 인터페이스가 필요 없다.
+        /// 업그레이드 실효값 조회 통로를 넣는다. ManagerBootstrap 이 다른 프리팹 소비처
+        /// (StaminaManager·FeverManager·CreatureManager)와 같은 자리에서 넣어 준다 (#131, #258).
         ///
-        /// **이 방식은 과도기다.** #131 에서 다른 소비처는 값을 밀어 넣는 대신 IUpgradeStats 를
-        /// 주입받아 스스로 읽도록 바뀌었고(같은 이유로 CreatureManager.SetUpgradeOverrides 는
-        /// 걷어냈다), 자동 망치도 작업 3.2 에서 같은 방식으로 통일할 것이다.
+        /// 이전에는 조립 지점이 증분을 계산해 밀어 넣는 SetBonusCount(int) 였다. #131 이 다른
+        /// 소비처를 전부 이쪽으로 옮길 때 자동 망치만 남아 **부르는 곳이 없는 채로 방치됐고**,
+        /// 그래서 상점에서 살 수는 있지만 게임에는 반영되지 않는 업그레이드가 됐다 (#258).
         /// </summary>
-        public void SetBonusCount(int bonusCount)
+        public void SetUpgradeStats(IUpgradeStats upgradeStats)
         {
-            _bonusCount = Mathf.Max(0, bonusCount);
+            _upgradeStats = upgradeStats;
         }
 
         private void Update()

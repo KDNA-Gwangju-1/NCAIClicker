@@ -128,6 +128,13 @@ namespace NCAIClicker
             {
                 creatures.SetUpgradeStats(upgradeStats);
             }
+
+            // 자동 망치가 빠져 있어 auto_hammer 업그레이드가 게임에 반영되지 않았다 (이슈 #258).
+            var autoHammer = managers.GetComponentInChildren<AutoHammerController>(true);
+            if (autoHammer != null)
+            {
+                autoHammer.SetUpgradeStats(upgradeStats);
+            }
         }
 
         /// <summary>
