@@ -229,9 +229,12 @@ Edit Mode 검사는 **씬 전환 직전까지**만 본다. `SceneManager.LoadSce
   데이터가 깨지지는 않지만, "초기화했는데 이어할 것이 있다"는 말이 된다. #196 부터의 동작이라
   #220 범위 밖으로 두었다.
 - **같은 초기화 확인창이 두 프리팹에 복제돼 있다.** `Assets/Prefabs/UI/SettingsPanel.prefab` 과
-  `Assets/Prefabs/Resources/UI/PausePanel.prefab` 이 각각 들고 있어, 문구를 고칠 때 **양쪽을
-  같이 고쳐야 한다.** #220 에서 실제로 한쪽만 고쳤다가 놓쳤고, 검증이 이제 두 곳을 모두 본다.
+  `Assets/Prefabs/Resources/UI/PausePanel.prefab` 이 **각각 자기 사본을** 들고 있어, 문구를 고칠 때
+  **양쪽을 같이 고쳐야 한다.** #220 에서 실제로 한쪽만 고쳤다가 놓쳤고, 검증이 이제 모든 프리팹을 본다.
   1.25(#173)가 `BillHud.prefab` 중복을 정리한 것과 같은 종류의 정리가 필요하다.
+  - 검증을 돌리면 **셋**이 걸리는데 `Assets/Prefabs/UI/MainMenuPanel.prefab` 은 사본이 아니라
+    `SettingsPanel.prefab` 을 **중첩한 인스턴스**다 — 원본을 고치면 따라 바뀌므로 손댈 필요가 없다.
+    고쳐야 하는 사본은 둘뿐이다.
 - **`SettingsPanelController`가 참조하는 색(`_selectedBg`·`_neutralBg` 등)은 인스펙터에 노출된 `[SerializeField]`라 프리팹에서 바로 조정할 수 있지만, 시안 색상표와 다르게 바뀌어도 컴파일 타임에 잡히지 않는다.** 색이 바뀌면 이 문서와 #192 레이아웃 명세 댓글을 함께 갱신해야 한다.
 
 ## 갱신 이력
