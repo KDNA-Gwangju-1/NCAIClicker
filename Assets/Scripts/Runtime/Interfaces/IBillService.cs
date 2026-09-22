@@ -17,6 +17,7 @@ namespace NCAIClicker.Interfaces
 
         /// <summary>납부 직후 골라야 할 퍼크 후보 id 3개. 고르기 전까지만 값이 있고 고르면 비워진다.</summary>
         string[] OfferedPerkIds { get; }
+        PostPaymentFlowState PaymentFlowState { get; }
 
         bool TryPay(Bill bill);
         bool TryTakeLoan(long amount);
@@ -24,6 +25,9 @@ namespace NCAIClicker.Interfaces
 
         /// <summary>OfferedPerkIds 중 하나를 고른다. 목록에 없는 id 면 false.</summary>
         bool TryChoosePerk(string perkId);
+        bool TryConfirmPaidFeedback();
+        bool TryEnterInvestmentMenu();
+        bool TryCompletePostPaymentFlow();
 
         /// <summary>
         /// 플레이어가 스스로 파산을 선언한다 (이슈 #175). 마감 미납으로 자동 발동하는 파산과
@@ -54,11 +58,13 @@ namespace NCAIClicker.Interfaces
     public interface IBillPersistence
     {
         void RestoreBillState(int currentDay, int billIndex, Bill activeBill,
-                              Loan activeLoan, int lastLoanRepaidDay, string[] offeredPerkIds);
+                              Loan activeLoan, int lastLoanRepaidDay, string[] offeredPerkIds,
+                              PostPaymentFlowState postPaymentFlowState = PostPaymentFlowState.None);
 
         int CurrentDay { get; }
         Bill ActiveBill { get; }
         string[] OfferedPerkIds { get; }
+        PostPaymentFlowState PaymentFlowState { get; }
         int CurrentBillIndex { get; }
         Loan CurrentLoan { get; }
         int LastLoanRepaidDay { get; }

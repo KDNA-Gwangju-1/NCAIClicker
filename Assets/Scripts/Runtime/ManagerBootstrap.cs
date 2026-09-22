@@ -82,6 +82,12 @@ namespace NCAIClicker
                 managers.GetComponentInChildren<IStageService>(true),
                 managers.GetComponentInChildren<IBillPersistence>(true));
 
+            var billManager = managers.GetComponentInChildren<BillManager>(true);
+            if (billManager != null)
+            {
+                billManager.SetPersistence(save);
+            }
+
             // **복원은 여기서 한 번만 한다.** 매니저는 DontDestroyOnLoad 라 씬을 다시 로드해도
             // 값을 들고 있으므로, 씬마다 복원하면 마지막 저장 이후의 변경(고지서 화면에서 산
             // 업그레이드·반지)이 덮어써진다. Instantiate 가 Awake 를 이미 돌린 뒤이고 첫 씬은

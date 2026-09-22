@@ -189,11 +189,16 @@ namespace NCAIClicker.EditorTools
                     AssertCondition(economy.LastSpendAmount == lastIssued.Amount,
                                     "차감 요청 금액이 청구 금액과 다릅니다: " + economy.LastSpendAmount);
                     AssertCondition(lastIssued.IsPaid, "납부한 고지서의 IsPaid 가 true 로 바뀌지 않았습니다.");
-                    AssertCondition(manager.ActiveBill == null, "납부 후 ActiveBill 이 비지 않았습니다.");
-                    AssertCondition(manager.DaysLeft == 0, "납부 후 DaysLeft 가 0 이 아닙니다: " + manager.DaysLeft);
+                    AssertCondition(manager.ActiveBill != null && manager.ActiveBill.IsPaid, "납부 후 기존 고지서가 납부 완료 상태로 유지되어야 합니다 (#249).");
                     AssertCondition(paidCount == 1, "OnBillPaid 가 정확히 1번 발행되지 않았습니다: " + paidCount);
                     AssertCondition(lastPaid == lastIssued, "OnBillPaid 인자가 납부한 고지서와 다릅니다.");
                     checkCount++;
+
+                    AssertCondition(manager.PaymentFlowState == PostPaymentFlowState.PaidFeedback,
+                                    "납부 직후 납부 완료 피드백 상태가 아닙니다.");
+                    AssertCondition(manager.OfferedPerkIds.Length == 0,
+                                    "납부 완료가 확인되기 전에 퍼크 후보가 열렸습니다.");
+                    AssertCondition(manager.TryConfirmPaidFeedback(), "납부 완료 확인 전환이 실패했습니다.");
 
                     AssertCondition(offeredCount == 1, "OnPerkOffered 가 정확히 1번 발행되지 않았습니다: " + offeredCount);
                     AssertCondition(manager.OfferedPerkIds.Length == 3, "퍼크 후보가 3종이 아닙니다: " + manager.OfferedPerkIds.Length);
@@ -217,12 +222,13 @@ namespace NCAIClicker.EditorTools
                     AssertCondition(chosenCount == 0, "실패한 TryChoosePerk 인데 OnPerkChosen 이 발행됐습니다.");
                     checkCount++;
 
-                    // 후보 중 하나를 고르면 성공하고 OnPerkChosen 이 뜨고 후보 목록이 비워진다.
+                    // 후보 중 하나를 고르면 성공하고 OnPerkChosen 이 뜨고 후보 목록이 비워지며 다음 단계 고지서가 즉시 발행된다 (#249).
                     var picked = offeredBefore[0];
                     AssertCondition(manager.TryChoosePerk(picked) == true, "제시된 퍼크를 고르지 못했습니다.");
                     AssertCondition(chosenCount == 1, "OnPerkChosen 이 정확히 1번 발행되지 않았습니다: " + chosenCount);
                     AssertCondition(lastChosen == picked, "OnPerkChosen 인자가 고른 퍼크와 다릅니다.");
                     AssertCondition(manager.OfferedPerkIds.Length == 0, "고른 뒤에도 후보 목록이 남아 있습니다.");
+                    AssertCondition(manager.ActiveBill != null && !manager.ActiveBill.IsPaid, "퍼크 선택 직후 새 고지서가 발행되어야 합니다 (#249).");
                     checkCount++;
 
                     // 이미 고른 뒤에는 같은 id 라도 다시 고를 수 없다.
@@ -276,6 +282,10 @@ namespace NCAIClicker.EditorTools
                 // 첫 고지서를 내고 하루를 넘기면 두 번째 고지서가 나오고 대출이 열린다.
                 economy.NextSpendSucceeds = true;
                 AssertCondition(manager.TryPay(firstBill), "첫 고지서 납부가 실패했습니다.");
+                AssertCondition(manager.TryConfirmPaidFeedback(), "첫 고지서 납부 완료 확인이 실패했습니다.");
+                AssertCondition(manager.TryChoosePerk(manager.OfferedPerkIds[0]), "첫 고지서 퍽 선택이 실패했습니다.");
+                AssertCondition(manager.TryEnterInvestmentMenu(), "첫 고지서 뒤 투자 메뉴 진입이 실패했습니다.");
+                AssertCondition(manager.TryCompletePostPaymentFlow(), "첫 고지서 뒤 계속하기가 실패했습니다.");
                 manager.BeginRun();
                 var secondBill = manager.ActiveBill;
                 AssertCondition(secondBill != null, "두 번째 고지서가 발행되지 않았습니다.");

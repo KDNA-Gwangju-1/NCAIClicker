@@ -2,13 +2,22 @@ using System;
 
 namespace NCAIClicker.Data
 {
+    public enum PostPaymentFlowState
+    {
+        None,
+        PaidFeedback,
+        PerkSelection,
+        NewBillConfirmation,
+        InvestmentMenu
+    }
+
     /// <summary>
     /// 저장 데이터 전송 객체
     /// </summary>
     [Serializable]
     public class SaveData
     {
-        public const int CurrentVersion = 4;
+        public const int CurrentVersion = 5;
 
         public int Version = CurrentVersion;
         public long TotalCoin;
@@ -34,6 +43,7 @@ namespace NCAIClicker.Data
         public bool WasBankrupt;
         public bool IsCompleted;
         public string[] OfferedPerkIds;
+        public PostPaymentFlowState PostPaymentFlowState;
         public string[] PendingPerkIds;
 
         // 파산을 넘어 남는 영구 성장 (이슈 #175·#183). 위의 다른 값과 달리
