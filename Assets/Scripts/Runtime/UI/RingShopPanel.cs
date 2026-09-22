@@ -27,6 +27,9 @@ namespace NCAIClicker.UI
         [Tooltip("마우스 호버 시 상세 정보를 띄울 툴팁 패널")]
         [SerializeField] private RingTooltip _tooltip;
 
+        [Tooltip("포인트 박스에 마우스를 올리면 규칙을 설명하는 힌트 (이슈 #184)")]
+        [SerializeField] private LegacyPointHint _pointHint;
+
         [Tooltip("이름·설명·효과의 출처. Managers 프리팹이 쓰는 것과 같은 에셋을 넣는다.")]
         [SerializeField] private BalanceData _balanceData;
 
@@ -38,6 +41,7 @@ namespace NCAIClicker.UI
             }
             _tooltip?.Hide();
             EnsureBalanceData();
+            _pointHint?.Bind(_balanceData);
             BindEntries();
             RefreshAll();
         }
@@ -45,6 +49,7 @@ namespace NCAIClicker.UI
         private void OnDisable()
         {
             _tooltip?.Hide();
+            _pointHint?.Hide();
         }
 
         private void EnsureBalanceData()

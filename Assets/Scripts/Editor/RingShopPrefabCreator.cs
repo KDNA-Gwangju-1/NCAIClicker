@@ -22,6 +22,11 @@ namespace NCAIClicker.EditorTools
         private static readonly Color SlotBg = new Color(0.12f, 0.09f, 0.07f);
         private static readonly Color GoldText = new Color(0.95f, 0.78f, 0.38f);
         private static readonly Color OutlineColor = new Color(0.45f, 0.35f, 0.22f);
+        private static readonly Color SurfaceFill = new Color(0.086f, 0.075f, 0.059f, 1f); // #16130F
+        private static readonly Color PanelFill = new Color(0.106f, 0.078f, 0.063f, 1f); // #1B1410
+        private static readonly Color LineSecondary = new Color(0.604f, 0.486f, 0.275f, 1f); // #9A7C46
+        private static readonly Color TextCream = new Color(0.992f, 0.953f, 0.875f, 1f); // #FDF3DF
+        private static readonly Color TextMuted = new Color(0.784f, 0.718f, 0.604f, 1f); // #C8B79A
 
         [MenuItem("NCAI/UI/반지 상점 프리팹 생성")]
         public static void CreatePrefab()
@@ -36,8 +41,8 @@ namespace NCAIClicker.EditorTools
             var panel = root.AddComponent<RingShopPanel>();
             SetPrivate(panel, "_balanceData", balance);
 
-            // 상단 타이틀
-            var header = CreateLabel("HeaderTitle", root, font, 32, GoldText, "보석함 — 영구 성장");
+            // 상단 타이틀 — 탭 이름("반지")과 맞춘다 (#184)
+            var header = CreateLabel("HeaderTitle", root, font, 32, GoldText, "반지 — 영구 성장");
             var headerRect = header.GetComponent<RectTransform>();
             headerRect.anchorMin = new Vector2(0f, 1f);
             headerRect.anchorMax = new Vector2(0f, 1f);
@@ -45,15 +50,61 @@ namespace NCAIClicker.EditorTools
             headerRect.sizeDelta = new Vector2(400f, 44f);
             headerRect.anchoredPosition = new Vector2(20f, -10f);
 
-            // 상단 포인트 라벨
-            var pointLabel = CreateLabel("PointLabel", root, font, 30, GoldText, "보유 포인트: 0");
-            var pointRect = pointLabel.GetComponent<RectTransform>();
-            pointRect.anchorMin = new Vector2(1f, 1f);
-            pointRect.anchorMax = new Vector2(1f, 1f);
-            pointRect.pivot = new Vector2(1f, 1f);
-            pointRect.sizeDelta = new Vector2(350f, 44f);
-            pointRect.anchoredPosition = new Vector2(-20f, -10f);
+            // 상단 포인트 박스 — Surface 면 + 금색 선, 호버하면 아래에 규칙 힌트가 뜬다 (#184)
+            var pointBox = CreateObject("PointBox", root);
+            var pointBoxRect = pointBox.GetComponent<RectTransform>();
+            pointBoxRect.anchorMin = new Vector2(1f, 1f);
+            pointBoxRect.anchorMax = new Vector2(1f, 1f);
+            pointBoxRect.pivot = new Vector2(1f, 1f);
+            pointBoxRect.sizeDelta = new Vector2(240f, 52f);
+            pointBoxRect.anchoredPosition = new Vector2(-20f, -8f);
+            pointBox.AddComponent<Image>().color = SurfaceFill;
+            var pointBoxOutline = pointBox.AddComponent<Outline>();
+            pointBoxOutline.effectColor = LineSecondary;
+            pointBoxOutline.effectDistance = new Vector2(2f, -2f);
+            var pointHint = pointBox.AddComponent<LegacyPointHint>();
+            SetPrivate(panel, "_pointHint", pointHint);
+
+            var pointRow = pointBox.AddComponent<HorizontalLayoutGroup>();
+            pointRow.padding = new RectOffset(16, 16, 8, 8);
+            pointRow.spacing = 8f;
+            pointRow.childAlignment = TextAnchor.MiddleRight;
+            pointRow.childControlWidth = true;
+            pointRow.childControlHeight = true;
+            pointRow.childForceExpandWidth = false;
+            pointRow.childForceExpandHeight = true;
+
+            var pointPrefix = CreateLabel("PointPrefix", pointBox, font, 20, TextMuted, "LP", TextAlignmentOptions.MidlineRight);
+            pointPrefix.raycastTarget = false;
+            SetPreferred(pointPrefix.gameObject, 36f, 0f);
+            var pointLabel = CreateLabel("PointLabel", pointBox, font, 30, GoldText, "0", TextAlignmentOptions.MidlineRight);
+            pointLabel.raycastTarget = false;
+            SetPreferred(pointLabel.gameObject, 150f, 0f);
             SetPrivate(panel, "_pointLabel", pointLabel);
+
+            var hintPanel = CreateObject("PointHintPanel", root);
+            var hintRect = hintPanel.GetComponent<RectTransform>();
+            hintRect.anchorMin = new Vector2(1f, 1f);
+            hintRect.anchorMax = new Vector2(1f, 1f);
+            hintRect.pivot = new Vector2(1f, 1f);
+            hintRect.sizeDelta = new Vector2(360f, 148f);
+            hintRect.anchoredPosition = new Vector2(-20f, -68f);
+            var hintImage = hintPanel.AddComponent<Image>();
+            hintImage.color = PanelFill;
+            hintImage.raycastTarget = false;
+            var hintOutline = hintPanel.AddComponent<Outline>();
+            hintOutline.effectColor = OutlineColor;
+            hintOutline.effectDistance = new Vector2(2f, -2f);
+            var hintText = CreateLabel("PointHintText", hintPanel, font, 20, TextCream, "레거시 포인트 (LP)", TextAlignmentOptions.TopLeft, 0f, true);
+            hintText.raycastTarget = false;
+            var hintTextRect = hintText.GetComponent<RectTransform>();
+            hintTextRect.anchorMin = Vector2.zero;
+            hintTextRect.anchorMax = Vector2.one;
+            hintTextRect.offsetMin = new Vector2(16f, 12f);
+            hintTextRect.offsetMax = new Vector2(-16f, -12f);
+            SetPrivate(pointHint, "_hintPanel", hintPanel);
+            SetPrivate(pointHint, "_hintText", hintText);
+            hintPanel.SetActive(false);
 
             // 우측 툴팁 패널 (원작의 정보 패널)
             var tooltipGo = CreateObject("TooltipPanel", root);

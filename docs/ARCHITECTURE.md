@@ -240,7 +240,7 @@ public interface ISaveService
 // **런타임 소비처는 ManagerBootstrap·GameManager·SettingsPanelController 셋이다** —
 // 복원 1회는 조립 지점(ManagerBootstrap), 저장 시점과 새 회차 초기화는 GameManager,
 // 저장 초기화는 설정 패널(#196)이다.
-// ISaveService 와 나눈 이유는 소비처가 다르기 때문이다. 메인 메뉴는 HasSave 만 쓴다.
+// ISaveService 와 나눈 이유는 소비처가 다르기 때문이다. 메인 메뉴는 HasSave 와 표시용 Load() 만 쓴다.
 // IRunScoped 로 대신할 수 없다: 복원은 모든 BeginRun 보다 앞, 저장은 모든 EndRun 보다 뒤여야
 // 하는데 GameManager 는 두 경계에 같은 순서 배열을 쓴다.
 public interface IGamePersistence
