@@ -289,7 +289,7 @@ c100·c1000)이 등록되어 있으며, 수치는 여기 옮겨 적지 않고 CS
 `coin_count`·`min_denom_id`가 대신하고 있어 이 두 열은 완전히 중복이다. 다만 `targets.csv` 컬럼
 제거는 CSV 스키마 변경이라 AGENTS.md 규칙상 구현 전에 별도 "공용 계약 변경" 이슈가 선행돼야 한다.
 이번 이슈에서는 스키마를 건드리지 않고 **결정과 근거만 남기며**, 실제 제거는 후속 이슈
-[#241](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/241)로 넘긴다.
+[#241](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/241)로 넘긴다. → **#241 에서 제거 완료.**
 
 ### 크리처 이동 속도 — 원작 실측으로 재조정 (2026-09-22, #267)
 
@@ -474,11 +474,14 @@ strong_hammer,hit_radius,percent,2,레벨당 피격 판정 반경 +2%
 **코인은 타격마다가 아니라 대상이 파괴될 때 한 번에 지급한다.**
 
 ```
-파괴 시 지급 = (hp × coin_mult + break_bonus) × 피버 배율 × 보너스 배율
+파괴 시 지급 = Σ(coins.csv 액면 추첨 × coin_count) × 피버 배율 × 보너스 배율
 ```
 
-`coin_mult` 는 이제 **타격당 배율이 아니라 내구도 1당 배율**이다. 총량은 타격마다 주던 때와 같지만,
-**끝까지 못 부순 대상은 0원**이라는 점이 다르다. 내구도가 곧 투자 시간이 된다.
+원시 보상은 `targets.csv` 의 `coin_count`(뽑는 개수)와 `min_denom_id`(최소 액면)로 정해지고,
+액면 자체는 `coins.csv` 가중치로 추첨한다 (#178, #217). **끝까지 못 부순 대상은 0원**이라
+내구도가 곧 투자 시간이 된다. 예전의 `hp × coin_mult + break_bonus` 산식과 두 열은 #241 에서
+제거했다 — 원작도 HP 산식이 아니라 종류별 가중 구간 테이블을 쓴다
+([REFERENCE_ANALYSIS.md](REFERENCE_ANALYSIS.md) 6절 "저금통 스탯").
 
 ### `due_days` 가 두 파일에 있는 이유
 

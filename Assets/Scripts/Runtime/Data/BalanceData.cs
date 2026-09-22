@@ -154,8 +154,6 @@ namespace NCAIClicker.Data
         public string Id;
         public string DisplayName;
         public int Hp;
-        public float CoinMult;
-        public int BreakBonus;
 
         /// <summary>부수면 회복되는 스태미나. 회복형(tourist)만 0보다 크다.</summary>
         public float StaminaRestore;

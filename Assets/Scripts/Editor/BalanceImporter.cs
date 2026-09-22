@@ -107,8 +107,6 @@ namespace NCAIClicker.EditorTools
                     Id = r["id"],
                     DisplayName = r["display_name"],
                     Hp = ToInt(r["hp"]),
-                    CoinMult = ToFloat(r["coin_mult"]),
-                    BreakBonus = ToInt(r["break_bonus"]),
                     StaminaRestore = ToFloat(r["stamina_restore"]),
                     MoveSpeed = ToFloat(r["move_speed"]),
                     TurnIntervalSec = ToFloat(r["turn_interval_sec"]),
@@ -422,8 +420,8 @@ namespace NCAIClicker.EditorTools
             }
             foreach (var target in d.Targets)
             {
-                if (string.IsNullOrWhiteSpace(target.Id) || target.Hp <= 0 || target.CoinMult < 0 ||
-                    target.BreakBonus < 0 || target.StaminaRestore < 0 || target.MoveSpeed < 0 || target.TurnIntervalSec <= 0)
+                if (string.IsNullOrWhiteSpace(target.Id) || target.Hp <= 0 ||
+                    target.StaminaRestore < 0 || target.MoveSpeed < 0 || target.TurnIntervalSec <= 0)
                     _errors.Add("targets.csv: id 및 체력·보상·이동 수치 범위를 확인하세요.");
             }
             foreach (var requiredId in new[] { "normal", "anchor", "runner", "tourist" })

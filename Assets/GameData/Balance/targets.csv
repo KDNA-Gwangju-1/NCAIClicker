@@ -1,5 +1,5 @@
-id,display_name,hp,coin_mult,break_bonus,stamina_restore,move_speed,turn_interval_sec,coin_count,min_denom_id,note
-normal,일반형,3,1.0,1,0,0.5,4.0,1,c5,기본 수입원. 코인은 파괴 시 coins.csv 가중치로 액면을 추첨해 지급 (#178). coin_count·min_denom_id 확정 (#217) — 전체 스폰의 60%를 차지해 하위 구간(p10)을 좌우한다. 최소 액면을 c5로 올려 c1만 뽑히는 최악의 경우를 없앤다
-anchor,거치형,12,1.6,10,0,0.05,6.0,1,c25,멀어도 갈 만한 고가치 목표. coin_count·min_denom_id 확정 (#217) — 고내구도 투자를 낮은 액면(c1·c5)으로 보상하면 값이 죽으므로 최소 액면을 c25로 올려 투자한 만큼 받게 한다
-runner,고속형,1,0.6,0,0,1.25,1.5,1,c1,쫓을 가치가 있는지 판단하게 만드는 미끼. coin_count·min_denom_id 확정 (#217) — 총 기대 지급액(coin_count×액면 기대값) 자체를 낮게 유지한다. 이동속도가 빨라 조준이 어려운 것에 비해 실제 보상은 크지 않은 미끼 역할을 지킨다
-tourist,회복형,10,0.2,0,2,0.2,5.0,1,c5,부수면 스태미나 회복. 기본 런 연장은 모델 및 플레이로 검증한다. coin_count·min_denom_id 확정 (#217) — 주 가치는 스태미나 회복이지만 코인이 c1 하나뿐이면 무가치해 보이므로 최소 액면만 c5로 소폭 올린다
+id,display_name,hp,stamina_restore,move_speed,turn_interval_sec,coin_count,min_denom_id,note
+normal,일반형,3,0,0.5,4.0,1,c5,기본 수입원. 코인은 파괴 시 coins.csv 가중치로 액면을 추첨해 지급 (#178). coin_count·min_denom_id 확정 (#217) — 전체 스폰의 60%를 차지해 하위 구간(p10)을 좌우한다. 최소 액면을 c5로 올려 c1만 뽑히는 최악의 경우를 없앤다
+anchor,거치형,12,0,0.05,6.0,1,c25,멀어도 갈 만한 고가치 목표. coin_count·min_denom_id 확정 (#217) — 고내구도 투자를 낮은 액면(c1·c5)으로 보상하면 값이 죽으므로 최소 액면을 c25로 올려 투자한 만큼 받게 한다
+runner,고속형,1,0,1.25,1.5,1,c1,쫓을 가치가 있는지 판단하게 만드는 미끼. coin_count·min_denom_id 확정 (#217) — 총 기대 지급액(coin_count×액면 기대값) 자체를 낮게 유지한다. 이동속도가 빨라 조준이 어려운 것에 비해 실제 보상은 크지 않은 미끼 역할을 지킨다
+tourist,회복형,10,2,0.2,5.0,1,c5,부수면 스태미나 회복. 기본 런 연장은 모델 및 플레이로 검증한다. coin_count·min_denom_id 확정 (#217) — 주 가치는 스태미나 회복이지만 코인이 c1 하나뿐이면 무가치해 보이므로 최소 액면만 c5로 소폭 올린다

@@ -208,10 +208,10 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
   #217 에서 확정. `normal`/`tourist`는 `min_denom_id=c5`, `anchor`는 `c25`, `runner`는 `c1` 유지로
   타겟별 차등을 뒀다([BALANCE.md](../BALANCE.md) 3절 "코인 액면 확정"). `coins.csv` 자체의 가중치·
   액면 구조는 여전히 공용 계약이라 이번에도 바꾸지 않았다.
-- **`coin_mult`·`break_bonus`(`targets.csv`)는 죽은 열이다.** `Target.OnHit`이 읽지 않고
-  `BalanceImporter`의 값 검증에만 쓰인다. 제거가 맞다고 판단했지만 CSV 스키마 변경이라 별도
-  공용 계약 변경 이슈가 선행돼야 해서, #217 에서는 결정과 근거만 남기고 열은 그대로 뒀다 — 실제
-  제거는 [#241](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/241)
+- ~~**`coin_mult`·`break_bonus`(`targets.csv`)는 죽은 열이다.**~~ — #241 에서 제거했다.
+  `TargetDef.CoinMult`/`BreakBonus` 와 임포터의 파싱·검증도 함께 없앴다. 원작 관찰
+  ([REFERENCE_ANALYSIS.md](../REFERENCE_ANALYSIS.md) 6절 "저금통 스탯")도 HP 산식이 아니라
+  종류별 가중 구간 테이블이라 제거가 원작과 부합한다
   ([BALANCE.md](../BALANCE.md) 3절 "코인 액면 확정").
 - **`stages.csv`의 `bill_amount`가 1단계만 실측·재조정됐다.** `coins.csv` 도입으로 경제 규모
   자체가 커져(1회 추첨 기댓값 ≈18.35) 1단계는 10→35로 다시 뽑았지만, 2·3단계(25→90, 65→235)는
@@ -233,4 +233,5 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
 | 2026-09-18 | #158 | hunil58 | `IWalletPersistence` 소비자에 `BillManager` 추가로 파산 시 지갑 비우기 해결. 한계 항목 취소선 처리 |
 | 2026-09-21 | #178 | yahoo-afk | 코인 액면 도입 — 개수와 금액을 분리했다. `coins.csv` 신설, `CoinLottery` 추가, `BreakInfo`에 `Coins` 필드, `IEconomyService.RunCoinBreakdown` 추가. `EconomyManager`가 파괴마다 액면별 개수를 런 단위로 누적한다. `coin_count`/`min_denom_id`/가중치 테이블은 #176 재계산 전까지 잠정값 — 한계 항목에 반영 |
 | 2026-09-22 | #217 | hunil58 | `coin_count`·`min_denom_id`를 타겟별로 확정(`normal`/`tourist` c5, `anchor` c25, `runner` c1 유지). `simulate_balance.py`에 `draw_coin_lottery` 추가해 실제 추첨을 반영하고 `value` 정책의 목표 선택 기준을 죽은 열(`coin_mult`·`break_bonus`) 대신 기대 지급액 기준으로 교체. `coin_mult`·`break_bonus` 제거가 맞다고 판단했으나 스키마 변경이라 별도 공용 계약 이슈로 미룸. `stages.csv`의 `bill_amount`(10→35→90→235) 재조정 |
+| 2026-09-22 | #241 | saltlake00 | `targets.csv` 의 죽은 열 `coin_mult`·`break_bonus` 와 `TargetDef.CoinMult`/`BreakBonus`, 임포터 파싱·검증을 제거. 지급 경로(`CoinLottery`)는 변경 없음 |
 | 2026-09-22 | #235 | soilrist | 고아 프리팹이던 `Coin.prefab`에 액면별 광석 시각을 붙임. `Visual` 자식(역수 스케일로 루트의 비균일 스케일 상쇄) 아래 `OreChunk{Iron,Copper,Silver,Gold}Visual.prefab` 4종을 두고 `CoinVisual.SetDenomination`으로 스위칭. 스포너·호출 코드는 범위 밖(YAGNI) |
