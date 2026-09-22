@@ -22,8 +22,11 @@
 Piggy_Normal (프리팹 루트)
 ├─ [로직]  Collider, PiggyController, IHittable 구현     ← 코어 플레이 담당 소유
 └─ Visual  (빈 GameObject)                                ← UI·연출 담당 소유
-   └─ Mesh  ← 그레이박스 Cube → 나중에 VARCO 3D 모델로 교체
+   └─ <모델명>  ← Renderer 를 가진 모델 자식. 그레이박스 시절엔 Cube 였고 지금은 MineCreature{X}
 ```
+
+- `Visual` 아래 자식 **이름은 고정하지 않는다** — 어떤 프리팹에 어떤 모델이 붙었는지 이름으로 구분되는
+  편이 낫다. 검증(`TargetChecks`)은 "Visual 은 비어 있고, 그 아래 Renderer 를 가진 자식이 있다"만 본다 (#287).
 
 - **로직 컴포넌트는 루트에만 붙인다.** 메시 오브젝트에 직접 붙이면 교체할 때 같이 날아간다.
 - 콜라이더도 루트에 둔다. 모델이 바뀌어도 판정 크기는 그대로여야 밸런스가 유지된다.

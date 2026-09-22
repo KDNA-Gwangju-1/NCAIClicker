@@ -18,8 +18,11 @@ namespace NCAIClicker.EditorTools
     {
         private const string PrefabDir = "Assets/Prefabs/Targets/";
 
-        /// <summary>그레이박스 통일 높이. 카메라 구도(#14)에 맞춰 정한 값이다.</summary>
-        private const float GreyboxHeight = 0.4f;
+        /// <summary>
+        /// 타격 대상 통일 높이 (ASSET_PIPELINE 2절). 카메라 구도와 조준 원(지름 0.9유닛) 대비 크기로 정했다.
+        /// 그레이박스 시절 0.4 에서 광물 크리처 교체(6.6) 때 0.8 로 올렸다 (#287 에서 검증도 맞춤).
+        /// </summary>
+        private const float TargetHeight = 0.8f;
 
         private static readonly Dictionary<string, string> _prefabs = new Dictionary<string, string>
         {
@@ -57,8 +60,8 @@ namespace NCAIClicker.EditorTools
                     AssertCondition(prefab.GetComponent<SphereCollider>() != null,
                         pair.Key + ": 루트에 SphereCollider 가 없습니다.");
 
-                    // ASSET_PIPELINE 1절: Visual 은 빈 GameObject, 그 아래 Mesh 자식.
-                    // 에셋 교체(작업 6.6)가 Mesh 하나만 갈아끼우면 끝나야 한다.
+                    // ASSET_PIPELINE 1절: Visual 은 빈 GameObject, 그 아래 Renderer 를 가진 모델 자식.
+                    // 자식 이름은 모델명이라 고정하지 않는다 (#287) — 에셋 교체가 자식 하나만 갈아끼우면 끝나야 한다.
                     var visual = prefab.transform.Find("Visual");
                     AssertCondition(visual != null, pair.Key + ": Visual 자식이 없습니다.");
                     AssertCondition(visual.GetComponent<Renderer>() == null,
@@ -66,10 +69,9 @@ namespace NCAIClicker.EditorTools
                     AssertCondition(visual.localScale == Vector3.one,
                         pair.Key + ": Visual 의 스케일이 1 이 아닙니다. 연출이 여기를 스케일합니다.");
 
-                    var meshChild = visual.Find("Mesh");
-                    AssertCondition(meshChild != null, pair.Key + ": Visual 아래 Mesh 자식이 없습니다.");
-                    AssertCondition(meshChild.GetComponent<Renderer>() != null,
-                        pair.Key + ": Mesh 에 Renderer 가 없습니다.");
+                    AssertCondition(visual.childCount > 0, pair.Key + ": Visual 아래 모델 자식이 없습니다.");
+                    AssertCondition(visual.GetComponentInChildren<Renderer>() != null,
+                        pair.Key + ": Visual 아래에 Renderer 를 가진 자식이 없습니다.");
                     AssertCondition(visual.GetComponentInChildren<Collider>() == null,
                         pair.Key + ": Visual 아래에 콜라이더가 남아 있습니다. 피격 판정은 루트가 단독으로 갖습니다.");
                     checkCount++;
@@ -86,11 +88,11 @@ namespace NCAIClicker.EditorTools
                     var def = balance.GetTarget(pair.Value);
                     AssertCondition(def != null, "targets.csv 에 '" + pair.Value + "' 가 없습니다.");
 
-                    // 그레이박스 높이가 합의한 값인지 — 카메라 구도와 직결된다.
+                    // 높이가 합의한 값인지 — 카메라 구도와 직결된다.
                     var meshRenderer = live.GetComponentInChildren<Renderer>();
                     var bounds = meshRenderer.bounds;
-                    AssertCondition(Mathf.Abs(bounds.size.y - GreyboxHeight) < 0.01f,
-                        pair.Key + ": 높이가 " + bounds.size.y.ToString("0.###") + " 입니다. " + GreyboxHeight + " 여야 합니다.");
+                    AssertCondition(Mathf.Abs(bounds.size.y - TargetHeight) < 0.01f,
+                        pair.Key + ": 높이가 " + bounds.size.y.ToString("0.###") + " 입니다. " + TargetHeight + " 여야 합니다.");
                     AssertCondition(Mathf.Abs(bounds.min.y) < 0.01f,
                         pair.Key + ": 바닥이 y=" + bounds.min.y.ToString("0.###") + " 입니다. 0 에 닿아야 합니다.");
                     checkCount++;
@@ -102,7 +104,7 @@ namespace NCAIClicker.EditorTools
                     var radiusBefore = hitCollider.radius;
                     AssertCondition(radiusBefore > 0f, pair.Key + ": 피격 반경이 0 입니다.");
 
-                    var liveMesh = live.transform.Find("Visual/Mesh");
+                    var liveMesh = live.transform.Find("Visual").GetChild(0);
                     liveMesh.localScale *= 2f;
                     live.Initialize();
                     AssertCondition(Mathf.Abs(hitCollider.radius - radiusBefore) < 0.0001f,
