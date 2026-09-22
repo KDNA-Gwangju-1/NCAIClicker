@@ -687,6 +687,17 @@ namespace NCAIClicker.UI
 
         private void HandleContinueClicked()
         {
+            // 납부 후 흐름(퍽 선택·새 고지서 확인·투자 메뉴)이 끝나기 전에는 이 버튼으로 다음 런을
+            // 시작하지 않는다 (이슈 #249 DoD). 고지서 화면의 하단 계속하기만이 흐름을 닫는다 —
+            // 조용히 막으면 버튼이 고장 난 것처럼 보이니 고지서 화면을 다시 띄운다.
+            if (_billService != null && _billPanel != null &&
+                _billService.PaymentFlowState != PostPaymentFlowState.None)
+            {
+                HideAll();
+                _billPanel.ShowAsModal();
+                return;
+            }
+
             HideAll();
             GameManager.Instance?.ContinueRun();
         }
