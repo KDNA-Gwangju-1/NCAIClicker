@@ -22,8 +22,8 @@ MonoBehaviour:
     BaseHitPower: 1
     HoverSwingIntervalSec: 0.85
     AutoHammerCountInit: 0
-    AutoHammerPower: 0.6
-    AutoHammerHitsPerSec: 1
+    AutoHammerPower: 1
+    AutoHammerHitsPerSec: 0.5
     HitRadiusBonusPercent: 25
     ReticleRadius: 0.45
     CoinBonusMultiplier: 1
