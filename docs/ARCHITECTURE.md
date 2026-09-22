@@ -305,6 +305,7 @@ public class SaveData
     public int[] UpgradeLevels;        // upgrades.csv sort_order 순
     public int CurrentDay = 1;
     public int BillIndex = 1;
+    public int CycleIndex = 1;         // 파산 후 재시작 횟수. 1부터, HandleBankruptcy에서 1씩 증가 (#211)
     public bool HasActiveBill;         // 저장 파일 전용 플래그. 메모리상에서는 ActiveBill == null로만 판단
     public Bill ActiveBill;
     public bool HasActiveLoan;         // 저장 파일 전용 플래그. 메모리상에서는 ActiveLoan == null로만 판단
@@ -322,7 +323,7 @@ public class SaveData
     public int[] RingLevels;           // rings.csv sort_order 순. 파산해도 남는다 (#183). v3 부터
     public float BgmVolume = 1f;       // 설정. 성장이 아니므로 새 회차에서도 지우지 않는다 (#202). v4 부터
     public float SfxVolume = 1f;       // 〃
-    public bool IsFullscreen;          // 〃
+    public bool IsFullscreen = true;   // 〃
     public bool IsScreenShakeEnabled = true; // 〃
 }
 ```
@@ -385,6 +386,7 @@ public class SaveData
   "RingLevels": [1, 0],
   "CurrentDay": 5,
   "BillIndex": 2,
+  "CycleIndex": 1,
   "HasActiveBill": true,
   "ActiveBill": { "Amount": 500, "IssuedDay": 3, "DueDay": 7, "IsPaid": false },
   "HasActiveLoan": false,
@@ -400,7 +402,7 @@ public class SaveData
   "PendingPerkIds": [],
   "BgmVolume": 0.8,
   "SfxVolume": 1.0,
-  "IsFullscreen": false,
+  "IsFullscreen": true,
   "IsScreenShakeEnabled": true
 }
 ```
