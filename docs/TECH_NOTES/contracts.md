@@ -68,7 +68,7 @@ flowchart LR
 | `Bill` | `Assets/Scripts/Runtime/Data/Bill.cs` | 고지서 데이터(Amount, IssuedDay, DueDay, IsPaid) 직렬화 클래스 |
 | `Loan` | `Assets/Scripts/Runtime/Data/Loan.cs` | 대출 데이터(Principal, Owed, DailyCut) 직렬화 클래스 |
 | `ResumePoint` | `Assets/Scripts/Runtime/Data/ResumePoint.cs` | 재개 지점(MainMenu, Result, PerkSelection) 열거형 |
-| `SaveData` | `Assets/Scripts/Runtime/Data/SaveData.cs` | 저장 DTO(Version 5 기준 전체 영속 필드). v3에서 `LegacyPoints`·`RingLevels` 추가(#175·#183), v4에서 설정 필드 추가(#202), v5에서 `PostPaymentFlowState` 추가(#249·#255). `CycleIndex`(파산 후 재시작 횟수, #211)는 `Version` 증가 없이 v5 안에서 함께 추가됐다 — ARCHITECTURE.md에 누락돼 있던 것을 #263에서 반영 |
+| `SaveData` | `Assets/Scripts/Runtime/Data/SaveData.cs` | 저장 DTO(Version 5 기준 전체 영속 필드). v3에서 `LegacyPoints`·`RingLevels` 추가(#175·#183), v4에서 설정 필드 추가(#202), v5에서 `PostPaymentFlowState` 추가(#249·#255). `CycleIndex`(파산 후 재시작 횟수, #211)는 `Version` 증가 없이 v4 구간에서 함께 추가됐다(#202 커밋 이후·v5 bump 이전) — ARCHITECTURE.md에 누락돼 있던 것을 #263에서 반영 |
 | `IHittable` | `Assets/Scripts/Runtime/Interfaces/IHittable.cs` | 타격 대상 피격(OnHit) 및 생존 여부(IsAlive) 인터페이스 |
 | `IBillService` | `Assets/Scripts/Runtime/Interfaces/IBillService.cs` | 고지서 납부 및 대출 서비스 인터페이스 |
 | `IEconomyService` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 코인 적립, 지출, 대출 원금 입금 인터페이스. `EconomyManager.Instance` 가 이 타입으로 노출 — UI 가 초기 잔액을 한 번 읽는 통로 (이슈 #171) |
@@ -162,3 +162,4 @@ flowchart LR
 | 2026-09-21 | #34 (뒤늦게 기록) | twins6375-art | `IStageService.IsGoalReached` 가 #34 에서 `IsStageCleared` 로 개명됐는데 ARCHITECTURE 2절과 위 표가 옛 이름 그대로였다. #203 작업 중 `convention-checker` 가 잡아 문서를 코드에 맞췄다 — **시그니처를 바꿀 때 ARCHITECTURE 2절을 같이 고친다** |
 | 2026-09-21 | #203 | twins6375-art | `IGamePersistence`(`CollectAndSave`/`LoadAndDistribute`/`ResetAndDistribute`) 추가 — `SaveManager` 구현, `SaveManager.Persistence` 통로 개방. 런타임 소비처는 `ManagerBootstrap`(복원 1회)·`GameManager`(저장·새 회차 초기화)·`SettingsPanelController`(저장 초기화) 셋. `IUpgradePersistence`·`ILegacyPersistence` 미배선 한계를 닫고, `IStageService` 소비자에 `SaveManager` 를 추가. **선행 계약 이슈 없이 구현 중에 정했다** — 절차상 먼저 발의했어야 했다 |
 | 2026-09-22 | #263 | Claude | ARCHITECTURE.md `SaveData` 블록에 누락돼 있던 `CycleIndex`(파산 후 재시작 횟수, #211에서 추가 — 이슈 본문의 #250 기재는 git 이력상 오귀속) 필드·주석 추가, `IsFullscreen` 기본값을 문서 `false`에서 코드(`true`)로 정정 — #202 행(위 30행)이 밝힌 "전부 켬" 원 설계 의도와 일치함을 근거로 코드 쪽이 맞다고 판단. 예시 JSON도 함께 갱신, 위 `SaveData` 행 설명 최신화 |
+| 2026-09-22 | #263 (정정) | Claude | 위 행에서 `CycleIndex`가 "v5 안에서" 추가됐다고 적은 것이 틀렸다. #227 빌드 검증 중 실제 save.json(Version 4에 `CycleIndex` 이미 존재)을 보고서야 발견 — 커밋 시각 대조 결과 v3→v4 bump(#202, `a7c9cd5` 09-21 10:16) 이후·v4→v5 bump(#249, `a68d1ed` 09-22 14:42) 이전인 09-21 17:13(`a1a3920`, #211)에 추가됐다. **v4 구간**이 맞다. 위 30행 `SaveData` 행도 이 표현으로 정정 — git 커밋 순서만으로 검증하고 파일 하나(save.json)는 대조하지 않아 생긴 오류 |
