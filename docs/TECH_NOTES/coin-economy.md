@@ -1,6 +1,6 @@
 # 코인 정산
 
-> 관련 이슈: #22, #71, #116, #32, #126, #30, #178, #217 · 최종 수정: 2026-09-22
+> 관련 이슈: #22, #71, #116, #32, #126, #30, #178, #217, #235 · 최종 수정: 2026-09-22
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -73,6 +73,7 @@ flowchart LR
 | `CoinWalletChecks` | `Assets/Scripts/Editor/CoinWalletChecks.cs` | 계산식 검증 11건 |
 | `EconomyManagerChecks` | `Assets/Scripts/Editor/EconomyManagerChecks.cs` | 이벤트 배선 검증 8건 |
 | `CoinLotteryChecks` | `Assets/Scripts/Editor/CoinLotteryChecks.cs` | 추첨 로직 검증 — 경계값, 액면 필터, 분포 수렴, 집계 (#178) |
+| `CoinVisual` | `Assets/Scripts/Runtime/Economy/CoinVisual.cs` | `Coin.prefab`의 `Visual` 자식 아래 액면별 광석 모델 4종 중 하나만 활성화. 아직 아무도 호출하지 않는다 — 코인 스폰 기능이 붙을 때 `SetDenomination`을 부른다 (#235) |
 
 계산식 자체는 [ARCHITECTURE](../ARCHITECTURE.md) "코인 계산·정산 계약" 4·5번이 정본이라 옮겨 적지 않는다.
 구현에서 갈리는 지점만 적는다 — `CoinWallet` 은 **누적기를 두 개** 들고 있다.
@@ -91,6 +92,53 @@ flowchart LR
 | `GameEvents.OnRunCoinChanged` | 발행 | 런 순수입 **정수값이 바뀐 때만**. 파괴마다 같은 값을 다시 쏘지 않는다 |
 
 구독은 `OnEnable`, 해제는 `OnDisable` 에서 쌍으로 한다. 빠뜨리면 코인이 두 배로 들어간다.
+
+### 시각 매핑 (#235)
+
+`Coin.prefab`은 코드 어디서도 스폰하지 않는 고아 프리팹이었다(grep 결과 참조 0건).
+그래서 이번 작업은 스포너를 새로 만들지 않고 **프리팹 구조만** 갖췄다 — `SetDenomination`을
+부르는 코드는 미래의 코인 스폰 기능 몫이다.
+
+`coins.csv`는 액면 5개(c1/c5/c25/c100/c1000)지만 시각 자원은 광석 4종뿐이라 가장 희귀한
+두 액면이 Gold를 공유한다(이슈 코멘트로 합의):
+
+| 액면 | 시각 | 등장 비중(`coins.csv` weight 기준) |
+|---|---|---|
+| c1 | Iron | 60% |
+| c5 | Copper | 25% |
+| c25 | Silver | 10% |
+| c100 | Gold | 4% |
+| c1000 | Gold (재사용) | 1% |
+
+`Coin.prefab` 구조 — 루트(Transform + CapsuleCollider)는 손대지 않았다(판정 반경이 공용 계약이라
+#235 범위 밖):
+
+```
+Coin (Transform + CapsuleCollider + CoinVisual)
+└ Visual (Transform, localScale = (1/0.3, 1/0.05, 1/0.3))
+  ├ IronVisual   (OreChunkIronVisual.prefab 인스턴스, 기본 활성)
+  ├ CopperVisual (OreChunkCopperVisual.prefab 인스턴스, 비활성)
+  ├ SilverVisual (OreChunkSilverVisual.prefab 인스턴스, 비활성)
+  └ GoldVisual   (OreChunkGoldVisual.prefab 인스턴스, 비활성)
+```
+
+루트 `localScale`이 `(0.3, 0.05, 0.3)`으로 비균일하다 — 그레이박스 시절 원통 메시를 얇은
+코인 모양으로 눌러 놓은 값인데, 판정 반경을 바꾸는 게 이번 이슈 범위 밖이라 그대로 뒀다.
+그대로 두면 그 아래 어떤 자식도 같은 비율로 눌린다. `Visual`에 역수 스케일
+`(1/0.3, 1/0.05, 1/0.3)`을 줘서 그 지점에서 스케일을 다시 `(1,1,1)`로 되돌리고,
+그 안의 광석 모델은 원래 계산된 절대 크기로 렌더링되게 했다.
+
+각 `OreChunk{X}Visual.prefab`은 [mineral-creature-assets.md](mineral-creature-assets.md)와 같은
+컨벤션이다 — 루트(빈 GameObject)가 스케일을 들고, 그 안에 `.glb` 임포트 자산의 중첩 인스턴스
+하나만 둔다. 목표 높이는 크리처 높이(0.8)의 약 1/3인 0.267(이슈 본문 지정값). VARCO 내보내기 시
+`pivotToBottom=true`를 써서 스케일만 맞추면 바닥이 자동으로 y=0에 온다:
+
+| 프리팹 | 원본 높이 | 스케일 | 최종 높이 | 최종 minY |
+|---|---|---|---|---|
+| OreChunkIronVisual | 0.9826325 | 0.271719068 | 0.267 | 0 |
+| OreChunkCopperVisual | 0.99538064 | 0.268239081 | 0.267 | 0 |
+| OreChunkSilverVisual | 1.00245762 | 0.2663454 | 0.267 | 0 |
+| OreChunkGoldVisual | 1.00066566 | 0.266822368 | 0.267 | 0 |
 
 ### 읽는 밸런스 값
 
@@ -123,6 +171,12 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
 - [x] **실제 루프 확인** (2026-09-16, 작업 2.1) — `Target` 프리팹을 3타로 부수니
       `OnTargetBroken` → `EconomyManager` → 지갑 4코인 / `RunCoin` 4 로 이어졌다.
       다만 스폰과 이동이 붙은 상태에서는 아직 못 돌려 봤다 (작업 2.2)
+- [x] **`Coin.prefab` 시각 교체 확인** (2026-09-22, #235, Unity 6000.3.21f1) —
+      Prefab Stage를 열어 Iron 비주얼(기본 활성)이 실제로 렌더링되는지 Scene View 스크린샷으로
+      확인. 컴파일·콘솔 에러 0건(MCP 포트 재연결 경고만 있음). `Coin.prefab`이 여전히 어디서도
+      스폰되지 않는 고아 프리팹이라 `SetDenomination("c5"/"c25"/"c100"/"c1000")` 분기는 Play
+      Mode에서 실제로 호출해 볼 무대가 없다 — 코드 리뷰로만 확인(스위치문이 4개 필드를 배타적으로
+      켜고 끄는 것을 `CoinVisual.cs` 소스로 직접 확인)
 
 ## 알려진 한계
 
@@ -179,3 +233,4 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
 | 2026-09-18 | #158 | hunil58 | `IWalletPersistence` 소비자에 `BillManager` 추가로 파산 시 지갑 비우기 해결. 한계 항목 취소선 처리 |
 | 2026-09-21 | #178 | yahoo-afk | 코인 액면 도입 — 개수와 금액을 분리했다. `coins.csv` 신설, `CoinLottery` 추가, `BreakInfo`에 `Coins` 필드, `IEconomyService.RunCoinBreakdown` 추가. `EconomyManager`가 파괴마다 액면별 개수를 런 단위로 누적한다. `coin_count`/`min_denom_id`/가중치 테이블은 #176 재계산 전까지 잠정값 — 한계 항목에 반영 |
 | 2026-09-22 | #217 | hunil58 | `coin_count`·`min_denom_id`를 타겟별로 확정(`normal`/`tourist` c5, `anchor` c25, `runner` c1 유지). `simulate_balance.py`에 `draw_coin_lottery` 추가해 실제 추첨을 반영하고 `value` 정책의 목표 선택 기준을 죽은 열(`coin_mult`·`break_bonus`) 대신 기대 지급액 기준으로 교체. `coin_mult`·`break_bonus` 제거가 맞다고 판단했으나 스키마 변경이라 별도 공용 계약 이슈로 미룸. `stages.csv`의 `bill_amount`(10→35→90→235) 재조정 |
+| 2026-09-22 | #235 | soilrist | 고아 프리팹이던 `Coin.prefab`에 액면별 광석 시각을 붙임. `Visual` 자식(역수 스케일로 루트의 비균일 스케일 상쇄) 아래 `OreChunk{Iron,Copper,Silver,Gold}Visual.prefab` 4종을 두고 `CoinVisual.SetDenomination`으로 스위칭. 스포너·호출 코드는 범위 밖(YAGNI) |
