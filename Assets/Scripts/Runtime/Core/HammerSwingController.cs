@@ -358,10 +358,9 @@ namespace NCAIClicker.Core
             // 스윙마다 배열을 새로 만들지 않도록 미리 잡아 둔 버퍼로 훑는다 (런 내내 쌓이는 GC 쓰레기를 없앤다).
             var hitCount = Physics.OverlapSphereNonAlloc(CursorWorldPosition, _hitRadius, _hitBuffer, _hittableLayerMask);
             WarnIfBufferFull(hitCount);
-            IHittable closestTarget = null;
-            var minDistanceSqr = float.MaxValue;
-            var hitPoint = CursorWorldPosition;
 
+            // 반경 안의 대상을 전부 때린다 — 최근접 하나만 고르던 판정을 범위 타격으로 바꿨다
+            // (#256, 최근접-단일 타격은 #109/#132 의 의도된 설계였으나 팀 논의로 전환 승인).
             for (var i = 0; i < hitCount; i++)
             {
                 var col = _hitBuffer[i];
@@ -371,19 +370,8 @@ namespace NCAIClicker.Core
                     continue;
                 }
 
-                var closestPoint = col.ClosestPoint(CursorWorldPosition);
-                var distSqr = (closestPoint - CursorWorldPosition).sqrMagnitude;
-                if (distSqr < minDistanceSqr)
-                {
-                    minDistanceSqr = distSqr;
-                    closestTarget = target;
-                    hitPoint = closestPoint;
-                }
-            }
-
-            if (closestTarget != null)
-            {
-                closestTarget.OnHit(new HitInfo(HitSource.Hover, _runHitPower, hitPoint));
+                var hitPoint = col.ClosestPoint(CursorWorldPosition);
+                target.OnHit(new HitInfo(HitSource.Hover, _runHitPower, hitPoint));
                 isHit = true;
             }
 
@@ -391,8 +379,8 @@ namespace NCAIClicker.Core
         }
 
         /// <summary>
-        /// 버퍼가 가득 차면 반경 안의 대상 일부가 보이지 않는다. 최근접 하나를 고르는 판정이라
-        /// 잘린 쪽이 더 가까웠으면 조용히 엉뚱한 대상을 때리게 되므로 한 번은 알린다.
+        /// 버퍼가 가득 차면 반경 안의 대상 일부가 넘쳐 판정에서 빠진다 — 범위 타격이라
+        /// 넘친 대상은 조용히 맞지 않게 되므로 한 번은 알린다.
         /// </summary>
         private void WarnIfBufferFull(int hitCount)
         {

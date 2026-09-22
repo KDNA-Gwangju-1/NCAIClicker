@@ -88,7 +88,7 @@ namespace NCAIClicker.EditorTools
                 Assert(!foundFar, $"반경 {controller.HitRadius} 밖에 위치한 targetFar(거리 {farDistance})는 감지되지 않아야 합니다.");
                 passedCount++;
 
-                // 4. 최근접 타깃 선택 및 피격 검증
+                // 4. 피격 시 체력 감소 검증 (반경 내 다중 타격으로 바뀐 뒤에도 개별 OnHit 은 동일하게 동작해야 한다, #256)
                 var initialHp = targetNear.CurrentHp;
                 var col = instanceNear.GetComponent<SphereCollider>();
                 var closestPoint = col != null ? col.ClosestPoint(Vector3.zero) : instanceNear.transform.position;
