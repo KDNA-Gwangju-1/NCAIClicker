@@ -126,7 +126,7 @@ TargetNormal (루트)          ← 로직: Target, CreatureMovement, SphereColli
 | CSV | 열 | 쓰는 곳 |
 |---|---|---|
 | `targets.csv` | `hp` | 초기 내구도, 원시 보상 계산 |
-| `targets.csv` | `coin_mult`, `break_bonus` | `BreakInfo.RawCoin` |
+| `targets.csv` | `coin_count`, `min_denom_id` | `CoinLottery.Draw` → `BreakInfo.Coins`·`RawCoin` (#178). 예전 `coin_mult`·`break_bonus` 는 #241 에서 제거 |
 | `targets.csv` | `stamina_restore` | `BreakInfo.StaminaRestore`. 회복형만 0 보다 크다 |
 | `targets.csv` | `move_speed`, `turn_interval_sec` | `CreatureMovement` 배회 이동 속도 및 방향 전환 주기 |
 | `stages.csv` | `spawn_count` | `CreatureManager` 동시 출현 목표 수 |
