@@ -183,13 +183,17 @@ namespace NCAIClicker.Fever
         }
 
         /// <summary>
-        /// 스윙 판정을 받는다. **적중만 누적한다** — 망치가 상시 스윙하므로 헛스윙까지 세면
+        /// 스윙 판정을 받는다. **호버 적중만 누적한다** — 망치가 상시 스윙하므로 헛스윙까지 세면
         /// 빈 곳에 커서를 둬도 게이지가 찬다 (GDD 4절).
-        /// 호버와 자동 망치를 모두 센다. 소스를 가리는 것은 정확도 집계뿐이다 (BALANCE 5절).
+        ///
+        /// **자동 망치는 게이지를 채우지 않는다** (팀장 결정 2026-09-22, #258). 망치마다 따로
+        /// 대상을 골라 때리게 되면서 적중 발행이 틱당 보유 수만큼으로 늘었는데, 그대로 세면
+        /// 10기에서 게이지가 7초 만에 차 피버가 상시 발동한다 — 코인 배율 3.0 이 항상 걸린다.
+        /// 게이지는 플레이어가 조준해서 맞힌 것에 대한 보상으로 남긴다.
         /// </summary>
         private void HandleSwingResolved(HitSource source, bool isHit)
         {
-            if (!_isRunning || !isHit)
+            if (!_isRunning || !isHit || source != HitSource.Hover)
             {
                 return;
             }
