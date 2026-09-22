@@ -65,8 +65,8 @@ flowchart LR
 | 멤버 | 계약 | 누가 부르나 |
 |---|---|---|
 | `BeginRun()` / `EndRun()` | **`IRunScoped`** | `GameManager` — 런 시작/종료. `EndRun()` 이후에는 틱이 돌지 않는다 |
-| `AutoHammerCount` | 없음 | 조회. `economy.csv`의 `auto_hammer_count_init` + `SetBonusCount`로 주입된 보너스 |
-| `SetBonusCount(int)` | 없음 (일반 메서드 주입) | 작업 3.3(업그레이드)이 나중에 붙일 통로. 지금은 아무도 호출하지 않는다 |
+| `AutoHammerCount` | 없음 | 조회. **런 시작에 굳힌 값**이다 — `BeginRun` 이 `GetStat` 으로 정한다 |
+| `SetUpgradeStats(IUpgradeStats)` | 없음 (조립 통로) | `ManagerBootstrap` 이 다른 프리팹 소비처와 같은 자리에서 넣는다 (#258). 넣지 않으면 `auto_hammer_count_init` 기준값으로 돈다 |
 
 ### 이벤트
 
@@ -107,14 +107,17 @@ Unity 6000.3.21f1, Play Mode, 2026-09-17. `Game` 씬을 열고 Play 후 리플�
       검증했다
 
 **미검증**: EditMode 자동 테스트 (형제 컴포넌트 `HammerSwingController`·`FeverManager`도
-EditMode 테스트가 없는 선례를 따름). 업그레이드로 `SetBonusCount`가 실제로 호출되는 경로
-(작업 3.3, 진행 중).
+EditMode 테스트가 없는 선례를 따름). 업그레이드가 실제로 반영되는 경로는 #258 에서 붙였고,
+`UpgradeConsumerChecks` 가 Edit Mode 로 검증한다 — 이 문단의 "미검증"은 그 시점(2026-09-17)의
+기록이다.
 
 ## 알려진 한계
 
-- **업그레이드가 반영되지 않는다.** "카페인 중독"(자동 망치 수 증가)은 작업 3.3이며, 아직
-  아무도 `SetBonusCount()`를 호출하지 않아 `auto_hammer_count_init`(현재 0)만 적용된다.
-  즉 지금 상태로는 자동 망치가 실제로 작동하지 않는다 — 업그레이드가 붙어야 수가 0보다 커진다
+- ~~**업그레이드가 반영되지 않는다.**~~ — [#258](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/258)(3.12)
+  에서 붙였다. `BeginRun` 이 `IUpgradeStats.GetStat(AutoHammerCount, auto_hammer_count_init)` 로
+  이번 런의 보유 수를 굳히고, 주입은 `ManagerBootstrap.WireUpgradeStats` 가 한다.
+  그전까지는 아무도 `SetBonusCount()` 를 부르지 않아 `auto_hammer_count_init`(0)만 적용됐고,
+  **자동 망치가 게임 내내 한 번도 때리지 않았다**
 - **대상 탐색이 매 틱 `FindObjectsByType`로 씬을 훑는다.** 동시 대상 수가 지금처럼 10개 미만이면
   문제없지만, "저금통 수집벽" 업그레이드로 동시 출현 수가 크게 늘면 재검토가 필요하다
 - **정확도 집계 쪽 필터링은 이 문서의 책임이 아니다.** `HitSource.AutoHammer`를 정확도
@@ -125,3 +128,4 @@ EditMode 테스트가 없는 선례를 따름). 업그레이드로 `SetBonusCoun
 | 날짜 | 이슈 | 누가 | 무엇이 바뀌었나 |
 |---|---|---|---|
 | 2026-09-17 | #23 | hunil58 | 최초 작성 (글로벌 타이머 적중, `Managers` 프리팹 상주, `SetBonusCount` 주입 통로) |
+| 2026-09-22 | #258 | yahoo-afk | 업그레이드를 `IUpgradeStats` 로 연결 (3.12). `SetBonusCount` 제거, `BeginRun` 이 보유 수를 굳혀 "다음 런부터" 규칙을 구조로 지킨다. 그전까지 자동 망치는 수가 0 이라 한 번도 때리지 않았다 |

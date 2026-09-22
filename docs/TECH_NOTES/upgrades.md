@@ -154,6 +154,7 @@ UpgradeShopPanel      서비스 조립 · 전체 갱신 (제목·잔고·닫기�
 | `EconomyManager` (`coin_bonus_multiplier`, `fever_multiplier`) | Managers 프리팹 | 자기 자신이 공급자라 주입이 없다 |
 | `StaminaManager`, `FeverManager` | Managers 프리팹 | `ManagerBootstrap` |
 | `CreatureManager` | Managers 프리팹 | `ManagerBootstrap` (#140 에서 씬 → 프리팹으로 옮겼다) |
+| `AutoHammerController` | Managers 프리팹 | `ManagerBootstrap` (#258 에서 뒤늦게 붙었다) |
 | `HammerSwingController` | **씬** | `GameManager` (런 시작) |
 | `Target` | 스폰된 인스턴스 | `CreatureManager` 가 `Initialize()` 전에 |
 
@@ -186,7 +187,9 @@ BALANCE 6절이 "구매는 메뉴·결과 화면에서, 효과는 다음 런부�
 `CreatureManager.SetUpgradeOverrides(int bonusSpawnCount, float intervalMultiplier)` 가 있었다.
 stat 마다 인자를 늘려야 하고(`+N` 이냐 `×배` 냐도 제각각), 무엇보다 업그레이드 반영 경로가
 `IUpgradeStats` 와 **두 갈래**가 된다. #131 에서 걷어냈다.
-`AutoHammerController.SetBonusCount(int)` 는 같은 방식이지만 자동 망치(작업 3.2)의 몫이라 남겼다.
+`AutoHammerController.SetBonusCount(int)` 도 같은 방식이었는데 자동 망치(작업 3.2)의 몫이라
+남겼다. **그것이 그대로 잊혔다** — 부르는 곳이 없는 채로 남아 상점에서 살 수는 있지만 게임에는
+반영되지 않는 업그레이드가 됐고, #258 에서 `IUpgradeStats` 로 옮기며 제거했다.
 
 ### 저장 배열의 자리
 
@@ -309,17 +312,22 @@ stat 은 일부뿐이라(`max_stamina`·`fever_gauge_per_hit`·`coin_bonus_multi
   표시하도록 연결 완료.
 
 - ~~**효과가 대부분 게임에 반영되지 않는다.**~~ — #131 에서 소비처를 연결했다. 남은 것은
-  `auto_hammer_*` 세 개(작업 3.2)와 조준 원 반경(#132)뿐이다
+  `auto_hammer_count`(#258 에서 붙였다)와 조준 원 반경(#132)뿐이었다
 - ~~**Play Mode 로 "사면 다음 런에 세진다"를 본 사람이 아직 없다.**~~ — #91 에서 구매 화면이
   생겨 확인했다 (위 "구매 화면 Play Mode 검증")
 - ~~**저장·복원이 연결되지 않았다.**~~ — #203 에서 배선했다. `ManagerBootstrap` 이 `SaveManager` 에 `IUpgradePersistence` 를 주입하고, 복원은 앱 시작 1회·저장은 고지서 화면을 떠날 때와 하루 종료 시다. 업그레이드 레벨이 앱을 껐다 켜도 남는다 ([저장·불러오기](save-load.md)).
 - **구매 시점을 강제하지 않는다.** "메뉴·결과 화면에서만, 다음 런부터 반영"(BALANCE 6절)은
   호출측 책임으로 두었다. 런 상태를 매니저가 알면 GameManager 를 직접 참조하게 된다
-- **`auto_hammer_count` 를 쓰는 곳이 아직 없다.** 자동 망치는 작업 3.2 이며,
-  `AutoHammerController.SetBonusCount(int)` 가 옛 push 방식으로 남아 있고 **부르는 곳이 없다.**
-  #91 확인 중 실측했다 — `auto_hammer` 를 Lv 10 까지 사면 `GetStat(AutoHammerCount)` 는 10 을
-  돌려주는데 `AutoHammerController._bonusCount` 는 0 그대로다. **상점에서는 살 수 있지만
-  게임에는 반영되지 않는 유일한 업그레이드다.** 그 카드에서 `IUpgradeStats` 로 통일할 것
+- ~~**`auto_hammer_count` 를 쓰는 곳이 아직 없다.**~~ — [#258](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/258)
+  에서 붙였다. `SetBonusCount(int)` 를 걷어내고 `BeginRun` 이 `GetStat(AutoHammerCount)` 를 굳히며,
+  주입은 `ManagerBootstrap.WireUpgradeStats` 가 다른 프리팹 소비처와 같은 자리에서 넣는다.
+  발견 경위: #91 확인 중 `auto_hammer` 를 Lv 10 까지 사도 `_bonusCount` 가 0 그대로인 것을 실측했는데,
+  담을 카드가 3.2(이미 닫힘)로 지목돼 있어 한동안 문서에만 남아 있었다. **상점에서는 살 수 있지만
+  게임에는 반영되지 않는 업그레이드였다** — 주입이 없으면 기준값으로 조용히 폴백하는 설계라
+  아무 검증도 걸리지 않았다. 같은 사고를 막으려고 `UpgradeConsumerChecks` 가 `ManagerBootstrap`
+  원문에서 소비처 넷의 주입을 직접 확인한다
+- **`auto_hammer_power`·`auto_hammer_hits_per_sec` 는 업그레이드를 받지 않는다.** 한계가 아니라
+  설계다 — 이 업그레이드의 축은 수량 하나이고 기당 주기·파워는 기본값을 유지한다 (GDD 5절)
 - **조준 원 반경은 업그레이드를 받지 않는다.** `economy.csv` 의 `reticle_radius` 로 옮겼고
   ([#132](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/132)), `hit_radius`(대상 콜라이더
   확대)와는 다른 축이다. 두 축에 같은 업그레이드를 걸면 효과가 두 번 곱해진다 (BALANCE 6절 표)
@@ -337,3 +345,4 @@ stat 은 일부뿐이라(`max_stamina`·`fever_gauge_per_hit`·`coin_bonus_multi
 | 2026-09-22 | #184 | saltlake00 | 구매 화면 비주얼을 디자인 시스템 2차로 교체. `UpgradeShopPrefabCreator` 신설 → 프리팹 재생성(카드 2×2, Base 구매 버튼 + 호버 금색 테두리). 런타임 로직 변경 없음 |
 | 2026-09-22 | #250 | yahoo-afk | 업그레이드를 영구 층에서 **회차 층**으로 이관 (4.16, 팀장 결정). `BillManager.ResetRound` 가 `IUpgradePersistence.RestoreUpgradeLevels(null)` 로 비운다. 레거시 포인트·반지는 그대로 영구 층 |
 | 2026-09-22 | #249 | saltlake00 | 새 고지서의 `아직` 버튼을 스킬 트리 탭으로 연결하고 최초 1회 투자 안내 팝업 배선 완료 |
+| 2026-09-22 | #258 | yahoo-afk | 자동 망치를 `IUpgradeStats` 로 연결 (3.12). push 통로 `SetBonusCount` 제거, `BeginRun` 이 보유 수를 굳힌다. `UpgradeConsumerChecks` 에 자동 망치 3건과 조립 지점 원문 확인 1건 추가 |
