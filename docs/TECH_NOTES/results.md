@@ -153,6 +153,7 @@ EditMode 검증(ResultUIChecks) 및 Unity MCP 런타임 환경에서 확인했�
   각 구간은 `PostPaymentFlowState`로 저장되어 재실행해도 같은 화면에서 재개한다 (#255).
 * Game.unity 씬에 프리팹을 실제 캔버스 하위로 영구 배치하는 작업은 씬 소유권 규칙에 따라 코어 플레이 담당이 진행한다.
 * InGameUIFallbackLoader 는 6.1 정식 HUD가 유입되면 완전히 제거해야 할 임시 기술 부채다.
+* **"내 몫" 은 `RunCoin` 그대로다 (#261).** `EconomyManager.AddCoin` 이 대출 징수(`LoanDailyCut`)를 이미 뺀 뒤의 값이 `RunCoin` 이므로(ARCHITECTURE 계약 — 징수는 EconomyManager 안에서만) 뷰에서 다시 빼면 이중 차감이다. #261 전에는 `gross * cut` 을 한 번 더 빼서 대출 중 "내 몫" 이 실제 입금액보다 작게 보였다. 징수 전 총액은 `IEconomyService` 에 조회 통로가 없어 "빅 토니 징수" 줄은 `UnwiredPlaceholder` 로 둔다 — 조회를 추가하려면 공용 계약 변경 이슈가 먼저다.
 * 원작 정산 화면의 상세 요소는 **레이아웃만** 이식했다. 토니의 몫 10% 차감, 격파 저금통 집계, 해금 진행도는 조회 계약이 없어 값을 채우지 못하며 `ResultUIController.UnwiredPlaceholder`(`—`)로 표시한다. 0 을 넣지 않는 이유는 "정말 0"과 "배선 누락"이 구분되지 않기 때문이다. **코인 종류별(액면별) 환산은 #178 에서 해결** — `RunCoinBreakdown` 이 생기면서 자리표시자가 아니라 실제 개수를 표시한다.
 * 코인 종류별 개수는 표시하지만, `targets.csv`의 `coin_count`/`min_denom_id`와 `coins.csv` 가중치가 아직 잠정값이라 (이슈 #176 대기, [coin-economy.md](coin-economy.md) 참고) 숫자 자체의 밸런스는 검증되지 않았다 — 배선만 검증했다.
 * ~~정산창 현장 납부와 더블 오어 낫싱은 버튼만 배치하고 `interactable = false` 로 잠갔다. 도박 규칙이 GDD·BALANCE 어디에도 없어 동작을 정의할 수 없다.~~ **#222(4.15)에서 처분 확정·문서화(2026.09.21) — 현장 납부(PayButton)는 이미 배선돼 있었고(#34/#181/#212), 더블 오어 낫싱(GambleButton)은 애초에 프리팹에 없어 잠긴 버튼 자체가 남아 있지 않다.** Play Mode 실측으로 PayButton `interactable=true`·클릭 시 고지서 모달 정상 진입, 정산창 버튼 5개(Upgrade/Pay/Continue/Restart/MainMenu) 전부 `interactable=true` 확인, `ValidationRunner` 26개 검증 클래스 전부 PASS 확인.
@@ -170,4 +171,5 @@ EditMode 검증(ResultUIChecks) 및 Unity MCP 런타임 환경에서 확인했�
   <tr><td>2026.09.22</td><td>#184</td><td>saltlake00</td><td>정산창 고지서 정보를 한 줄로 통합 — 부제 두 조각("고지서 마감: N일 남음 (N원)" / "N단계 고지서 $N 미납")을 <code>N단계 고지서 $N · 마감 N일 남음</code> 하나로 합치고 <code>_stageGoalText</code> 는 비워 둔다(프리팹 호환용으로 필드 유지). 버튼 3종(업그레이드·납부·계속)을 Base 톤으로 통일하고, <code>ResultUIPrefabCreator.CreateButton</code> 을 테두리 Image(targetGraphic)+면(Fill) 구조로 바꿔 호버·눌림에서 테두리가 금색으로 바뀌게 했다 — 전에는 어두운 면에 흰색 틴트라 호버가 보이지 않아 눌리지 않는 것처럼 읽혔다. <code>ResultUIChecks</code>·<code>UiGuidelineChecks</code> 통과</td></tr>
   <tr><td>2026.09.21</td><td>#222</td><td>Claude</td><td>정산창 잠긴 버튼 2종 처분 확정. 코드 변경 없음 — 현장 납부(PayButton)가 이미 배선돼 있었고 더블 오어 낫싱(GambleButton)은 애초에 없었음을 Play Mode 실측으로 확인하고 알려진 한계·왜 이 방법인가 표에 근거 기록</td></tr>
   <tr><td>2026.09.22</td><td>#249</td><td>saltlake00</td><td>납부 후 퍽 선택 및 스킬 트리 안내 흐름 전체 연결 완료</td></tr>
+  <tr><td>2026.09.22</td><td>#261</td><td>saltlake00</td><td>정산창 "내 몫" 이중 징수 제거 — <code>RunCoin</code> 은 이미 순수입이라 <code>gross * cut</code> 을 다시 빼지 않는다. "빅 토니 징수" 줄은 조회 계약이 없어 자리표시자로 되돌림. <code>TotalCoinCount</code> → <code>GetTotalCoinCount</code> (메서드 동사 규칙)</td></tr>
 </table>

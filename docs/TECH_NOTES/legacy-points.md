@@ -1,6 +1,6 @@
 # 레거시 포인트와 반지
 
-> 관련 이슈: #175, #183, #203 · 최종 수정: 2026-09-21
+> 관련 이슈: #175, #183, #203, #261 · 최종 수정: 2026-09-22
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
 ## 무엇을 하는가
@@ -74,7 +74,7 @@ flowchart LR
 | `RingState` | `Runtime/Economy/RingState.cs` | 반지 레벨 보관과 계산 |
 | `RingShopPanel` / `RingShopEntry` | `Runtime/UI/` | 반지 상점(보석함) 화면 및 슬롯 |
 | `RingTooltip` | `Runtime/UI/RingTooltip.cs` | 마우스 오버 시 표시되는 상세 정보 툴팁 |
-| `RingShopPrefabCreator` | `Editor/RingShopPrefabCreator.cs` | 보석함 8종 슬롯 및 툴팁 프리팹 생성 도구. #184: 제목을 탭 이름과 맞춰 "반지 — 영구 성장", 우상단 포인트를 `PointBox`(Surface 면 + 금색 선, "LP" 접두) 로 감싸고 그 아래 `PointHintPanel` 을 둔다 |
+| `RingShopPrefabCreator` | `Editor/RingShopPrefabCreator.cs` | 보석함 8종 슬롯 및 툴팁 프리팹 생성 도구. #184: 제목을 탭 이름과 맞춰 "반지 — 영구 성장", 우상단 포인트를 `PointBox`(Surface 면 + 금색 선, "LP" 접두) 로 감싸고 그 아래 `PointHintPanel` 을 둔다. #261: 슬롯·툴팁의 `VerticalLayoutGroup` 은 **`childControlHeight = true`** 여야 한다 — false 면 `LayoutElement.preferredHeight` 가 무시되고 RectTransform 기본 높이(100)가 쓰여 슬롯 합이 셀을 넘고(구매 버튼이 다음 행에 가려짐) 툴팁 구분선(2px)이 100px 빈 상자로 그려진다. 슬롯 셀 156×304, 자식 높이 이름 32 · 아이콘 96 · 레벨 32 · 사유 28 · 버튼 56, 글자 24/24/20/24 (UI_GUIDE 계층·4배수). 구매 버튼 문구는 `Label` 자식 하나로 `구매 · N LP` 를 쓰며 `RingShopEntry._costLabel` 이 그 라벨을 통째로 갱신한다 |
 | `LegacyPointHint` | `Runtime/UI/LegacyPointHint.cs` | `PointBox` 에 마우스를 올리는 동안 규칙을 설명한다 (#184). `고지서 납부액 $N당 1 LP` 의 N 은 `BalanceData.Economy.LegacyPointPerAmount`(economy.csv) 에서 읽고, `RingShopPanel` 이 `OnEnable` 에서 `Bind` 로 넣어 준다. 표시만 하며 매니저를 부르지 않는다 |
 
 ### 이벤트
@@ -200,4 +200,5 @@ flowchart LR
 | 2026-09-21 | #203 | twins6375-art | 저장 배선이 붙어 "저장되지 않는다" 한계를 닫았다. 구조 도식의 점선을 실선으로 바꾸고, 시점(앱 시작 1회 복원 / 고지서 화면을 떠날 때·하루 종료 시 저장)을 명시 |
 | 2026-09-21 | #211 | saltlake00 | 파산 판정 시점 분리 및 파산 확정 후 프레스티지(반지 상점) 탭 직행 배선 (#211) |
 | 2026-09-21 | #211 | saltlake00 | 파산 전용 보석함 단일 화면(PrestigeOnly, 100% 불투명 배경) 전환, 사이클 번호 추적 및 [사이클 N 시작] 버튼 연동, 반지 8종 확장 및 마우스 오버 툴팁 시스템(RingTooltip) 구현 |
+| 2026-09-22 | #261 | saltlake00 | 슬롯·툴팁 `VerticalLayoutGroup` 을 `childControlHeight = true` 로 — 구매 버튼이 셀 밖으로 밀려 다음 행에 가려지고 툴팁 구분선이 100px 상자로 그려지던 버그 수정. 구매 버튼에 문구(`구매 · N LP`) 추가(전에는 숫자만 있었다), 글자 크기를 UI_GUIDE 계층(24/20)으로, 툴팁 효과 줄을 현재값/다음값 두 줄로 분리. 프리팹 재생성, `UiGuidelineChecks` RingShopPanel 경고 0건 |
 | 2026-09-22 | #184 | saltlake00 | 패널 제목을 "반지 — 영구 성장" 으로(탭 이름과 통일). 우상단 포인트에 배경 박스(`PointBox`) 와 호버 힌트(`LegacyPointHint` 신규) 추가 — 납부액당 포인트 규칙을 CSV 값으로 설명한다. 프리팹 재생성 |
