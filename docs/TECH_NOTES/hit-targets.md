@@ -42,7 +42,7 @@
 flowchart LR
   subgraph Core["코어 플레이"]
     mgr["CreatureManager<br/>스폰 · 리스폰 · 개체수 관리"]
-    movement["CreatureMovement<br/>평면 2축 이동 · FSM 제어"]
+    movement["CreatureMovement<br/>평면 2축 이동 · FSM 제어 · 바운스·회전 연출"]
     target["Target<br/>내구도 · 피격 판정"]
     swing["호버 스윙 · 자동 망치<br/>(작업 2.3 · 3.2)"]
   end
@@ -91,12 +91,12 @@ TargetNormal (루트)          ← 로직: Target, CreatureMovement, SphereColli
 |---|---|---|
 | `Target` | `Assets/Scripts/Runtime/Targets/Target.cs` | `IHittable` 구현. 내구도, 피격, 파괴 1회 발행, 피격 반경 적용 |
 | `CreatureState` | `Assets/Scripts/Runtime/Targets/CreatureState.cs` | 크리처 FSM 상태 열거형 (Idle, Moving, BeingHit, Fleeing) |
-| `CreatureMovement` | `Assets/Scripts/Runtime/Targets/CreatureMovement.cs` | 평면 2축(XZ) 배회 이동, FSM 전이, 책상 평면 안전 경계 이탈 방지 |
+| `CreatureMovement` | `Assets/Scripts/Runtime/Targets/CreatureMovement.cs` | 평면 2축(XZ) 배회 이동, FSM 전이, 책상 평면 안전 경계 이탈 방지, `Visual` 상하 바운스·이동 방향 회전 연출 (#267) |
 | `CreatureManager` | `Assets/Scripts/Runtime/Core/CreatureManager.cs` | 크리처 4종 스폰, 동시 출현 수 유지, 파괴 후 리스폰 관리 |
 | `CreatureHpDisplay` | `Assets/Scripts/Runtime/Targets/CreatureHpDisplay.cs` | 크리처 머리 위 실시간 HP 숫자 표시 및 피격 시 펀치 스케일 연출 |
 | `DamagePopup` | `Assets/Scripts/Runtime/Targets/DamagePopup.cs` | 타격 시 피해량을 공중에 띄우고 서서히 페이드아웃 후 소멸하는 연출 |
 | `TargetChecks` | `Assets/Scripts/Editor/TargetChecks.cs` | 프리팹 구조·동작 검증 25건 |
-| `CreatureMovementChecks` | `Assets/Scripts/Editor/CreatureMovementChecks.cs` | 이동, FSM 전이, 경계 클램프, 스폰, HP표시 검증 17건 |
+| `CreatureMovementChecks` | `Assets/Scripts/Editor/CreatureMovementChecks.cs` | 이동, FSM 전이, 경계 클램프, 바운스·회전, 피격 반응, 스폰, HP표시 검증 19건 |
 
 프리팹 4종은 `Assets/Prefabs/Targets/`, 머티리얼 4종은 `Assets/Materials/` 다.
 
@@ -280,6 +280,47 @@ instance 로 끼웠다. `TargetAnchor`/`Runner`/`Tourist` 는 대응하는 3D �
 * [x] `python -B .github/scripts/simulate_balance.py --runs 2000 --seed 46 --uptime 0.6` 재실행,
   random/value 두 정책 모두 확인 (`docs/BALANCE.md` 참고)
 
+### #267 바운스 이동·이동 방향 회전 — 원작 동작 재현 (2026-09-22)
+
+**증상**: 크리처가 프리팹 초기 방향(화면 상단)을 바라본 채 미끄러지듯 움직였다. 원작은 인트로 문구
+*"piggy banks are jumping on your desk"* 대로 통통 튀며 이동하고 이동 방향을 바라본다.
+
+**원인**: `MoveStep` 이 `transform.position` 을 직선으로 밀고 y 를 고정했으며, 회전을 건드리는 코드가 없었다.
+
+**해결** — 이동 방향·거리·FSM·CSV 는 그대로 두고 연출만 얹었다. 물리(Rigidbody·중력)는 쓰지 않는다.
+
+| 항목 | 어디에 | 내용 |
+|---|---|---|
+| 상하 바운스 | `Target.Visual` 자식의 `localPosition.y` | Moving/Fleeing 이면 `_hopHeight × \|sin(위상·π)\|`. 착지가 뾰족한 포물선. Idle/BeingHit 이면 원위치 |
+| 도망 시 주기 단축 | 같은 곳 | Fleeing 은 `_fleeHopPeriodSec` 로 더 촘촘히 튄다 |
+| 이동 방향 회전 | 루트 `transform.rotation` | `_currentDirection` 을 향해 `RotateTowards`(도/초). `_facingOffsetDeg` 로 모델 정면 축 보정 |
+
+- 루트 y 는 바뀌지 않으므로 타격 판정·HP 표시·경계 반사에 영향이 없다 (검증 6-1 이 루트 y 불변을 단언).
+- 바운스 높이·주기·회전 속도는 **연출 파라미터**라 `[SerializeField]` 에 두었다. `targets.csv` 의
+  `move_speed`·`turn_interval_sec` 의미는 그대로다. 크리처별 차등이 필요해지면 CSV 열 추가는 계약 변경 이슈로 낸다.
+- `UpdateVisual(deltaTime)` 은 `UpdateFSM` 과 같은 이유로 public — 에디트 모드 검증이 프레임 없이 호출한다.
+  `_target` 은 Awake 를 거치지 않은 경우를 위해 지연 조회한다.
+
+**범위 밖으로 남긴 것**: 수평 이동을 점프 위상에 맞춰 끊는 "점프 단위 이동"(착지 순간 정지). 필요하면
+`MoveStep` 속도에 위상 배율을 곱하는 한 줄로 얹을 수 있다. 스쿼시&스트레치·착지 효과음은 6.3 계열.
+
+**2차 조정 — 속도·상태 전환·피격 반응 (같은 이슈)**: 플레이해 보니 이동이 너무 빠르고 상태 전환이
+잦았으며, 매 타격마다 도망치는 것도 원작과 달랐다. 원작 프레임 실측(근거는 [BALANCE.md](../BALANCE.md)
+"크리처 이동 속도" 절)으로 `targets.csv` 의 `move_speed`·`turn_interval_sec` 를 재조정하고, 코드에서는
+
+| 파라미터 | 전 | 후 |
+|---|---|---|
+| `_idleChance` (방향 전환 시 정지 확률, 기존 하드코딩 0.6) | 60% | 25% |
+| `_fleeChance` (피격 시 도망 확률, 신규) | 항상 | 35% — 아니면 경직 후 방향 유지한 채 Moving 복귀 |
+| `_fleeSpeedMultiplierMax` (기존 하드코딩 2.6) | 2.6 | 1.8 |
+| `_fleeDuration` | 0.8초 | 0.5초 |
+| `_turnSpeedDegPerSec` | 540 | 240 |
+
+도망 여부는 `HandleHitReceived` 에서 한 번 굴려 `_shouldFleeAfterHit` 에 담고 BeingHit 종료 시 읽는다.
+검증은 확률에 기대지 않도록 `SetFleeAfterHit` 로 고정한다 (검증 5-1).
+
+**확인할 것**: 광물 크리처 4종 모델의 정면 축이 +Z 가 아니면 프리팹의 `_facingOffsetDeg` 를 맞춘다.
+
 ## 알려진 한계
 
 * **파괴 연출이 없다.** 부서져도 오브젝트가 그대로 남거나 숨겨지는 연출은 작업 6.3 이다.
@@ -312,3 +353,4 @@ instance 로 끼웠다. `TargetAnchor`/`Runner`/`Tourist` 는 대응하는 3D �
 | 2026-09-21 | #37 | Claude | 조준 원(지름 0.9유닛) 대비 너무 작다는 사용자 피드백으로 높이 기준 0.4 → 0.8유닛 재조정, 4종 재실측 |
 | 2026-09-21 | #215 | Claude | `CreatureHpDisplay._offset.y` 가 저금통 시절 0.4유닛 높이 기준(0.55)에 머물러 있어 #37 의 0.8유닛 재조정 이후 HP 숫자가 몸통에 파묻힘. 1.0으로 조정 |
 | 2026-09-21 | #156 | Claude | 원작 재관찰로 슬롯 타이머 기반 자동 리스폰을 폐기. "파괴 시 확률로 즉시 추가 스폰 + 전멸 시 1개 즉시 스폰" 모델로 교체. `economy.csv`·`upgrade_effects.csv`·`BalanceData.StatId` 갱신, 밸런스 시뮬레이터 재작성 |
+| 2026-09-22 | #267 | saltlake00 | `Visual` 상하 바운스·이동 방향 회전 연출 추가 (6.29). 이어서 원작 실측으로 `targets.csv` 속도·주기 재조정, 정지·도망 확률 도입. 검증 2건 추가 |
