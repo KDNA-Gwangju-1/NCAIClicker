@@ -264,7 +264,7 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 | 대출·재대출 쿨다운 | 없음으로 | |
 | 퍼크 후보 | 비움 | |
 | 코인·소수 잔여 | **0 으로 초기화** | `IWalletPersistence` 소비자에 `BillManager` 를 추가해 열었다 (#158) |
-| **영구 업그레이드** | **유지** | 회차를 넘겨 남는다 |
+| **업그레이드** | **0 으로 초기화** | 업그레이드는 영구 층이 아니라 회차 층이다 ([#250](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/250), 4.16). `IUpgradePersistence.RestoreUpgradeLevels(null)` 로 비운다 — **지갑 초기화보다 먼저** 부른다. `RestoreWallet` 이 발행하는 `OnBalanceChanged` 를 `UpgradeShopPanel` 이 받아 카드를 다시 그리므로, 순서가 뒤집히면 이미 지워진 레벨이 화면에 옛 값으로 남는다 |
 | **레거시 포인트·반지** | **유지** | 파산을 넘어 남는 영구 층 ([#183](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/183)). 회차 초기화가 `IWalletPersistence` 로 코인만 비우므로 이쪽은 닿지 않는다 — [레거시 포인트와 반지](legacy-points.md) |
 | **단계** | 1단계로 | `IStageService.RestoreStage(0)`. #150 이 단일 출처를 열어 주었고 그 주석이 "저장 복원 및 **파산 처리용**"으로 이 자리를 가리킨다 |
 
@@ -311,7 +311,8 @@ Result 이므로 `GameManager.HandleRunEnded` 의 `CurrentState == Running` 검�
 - **파산 결과가 저장되지 않는다.** `SaveData.WasBankrupt`·`LastCompletedDay` 필드는 있지만 채우는 곳이 없다. #221 이 `IBillPersistence` 로 날짜·고지서·대출·퍼크 후보의 복원 통로는 열었지만, `WasBankrupt`·`LastCompletedDay` 는 그 계약에 없어 여전히 범위 밖이다 — 담아 봐야 되돌릴 수 없다 ([저장·불러오기](save-load.md) 알려진 한계).
 - ~~**파산해도 돈이 그대로 남는다 — 페널티가 약하다.**~~ — #158 에서 해결. `IWalletPersistence`
   소비자에 `BillManager` 를 추가해(A안) 파산 시 `RestoreWallet(0, "0")` 으로 코인·소수 잔여를
-  비운다. 영구 업그레이드는 여전히 유지된다.
+  비운다. 업그레이드도 [#250](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/250) 에서 함께
+  비우도록 바꿨다 — 파산을 넘어 남는 것은 레거시 포인트와 반지뿐이다.
 - **파산 즉시 상태를 되돌리는 것이 임시 방편이다.** 원래는 결과 화면을 보여 준 뒤 새 회차를 시작할 때 되돌리는 것이 맞지만, 새 회차 시작이 매니저 상태를 초기화하지 않아(`DontDestroyOnLoad`) 지금은 여기서 되돌리지 않으면 1일차 재시작이 성립하지 않는다.
 - ~~마감일 잔액 부족 시 고지서 모달에서 진행할 경로가 없다.~~ — #211 후속 보완에서 `_loanButton`을 활성 고지서 전액 대출로 배선했다. 마감 당일 `[아직]` 은 원작대로 숨긴다.
 - 대출 금액을 고르는 UI는 없다. 현재는 활성 고지서 전액을 빌리는 단일 선택이며, `BillManager`가 같은 금액을 상한으로 검증한다.

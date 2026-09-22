@@ -198,6 +198,32 @@ stat 마다 인자를 늘려야 하고(`+N` 이냐 `×배` 냐도 제각각), �
 길이가 맞지 않으면 겹치는 만큼만 복원하고 경고를 남긴다. 최대 레벨을 넘거나 음수인 값은
 잘라낸다 — 저장 파일은 손으로 고칠 수 있고 `max_level` 이 나중에 낮아질 수도 있다.
 
+### 파산하면 사라진다 (#250, 4.16)
+
+업그레이드는 **회차 층**이다. 파산하면 레벨이 0 으로 돌아가고, 파산을 넘어 남는 영구 성장은
+레거시 포인트와 반지가 맡는다 (GDD "파산" 절 층 표, [레거시 포인트와 반지](legacy-points.md)).
+원작도 같은 구조다 — 우리 업그레이드 4종은 원작의 분기형 스킬 트리를 축소한 것이지 반지가
+아니고, 원작에서 스킬 트리는 파산으로 사라진다 ([REFERENCE_ANALYSIS](../REFERENCE_ANALYSIS.md) 대조표).
+
+지우는 곳은 `BillManager.ResetRound` 하나다. 미납 파산과 자발적 파산이 둘 다
+`HandleBankruptcy` → `ResetRound` 를 타므로 여기 한 곳만 보면 된다. 통로는 조립 지점
+(`ManagerBootstrap`)이 넣어 주는 `IUpgradePersistence` 이고, 비우는 방법은
+`RestoreUpgradeLevels(null)` 이다 — `UpgradeState.RestoreLevels` 가 null 을 받으면
+레벨 배열을 통째로 `Array.Clear` 한다.
+
+**지갑 초기화보다 먼저 부른다.** `RestoreWallet` 이 `OnBalanceChanged` 를 발행하고
+`UpgradeShopPanel` 이 그것을 받아 카드를 다시 그리는데, `RestoreUpgradeLevels` 는 이벤트를
+쏘지 않는다. 순서가 뒤집히면 이미 지워진 레벨이 화면에 옛 값으로 남는다. `BankruptcyChecks` 가
+이 순서를 검증한다.
+
+주입이 빠져도 `_upgradePersistence?.` 가 **조용히 건너뛴다** — 파산해도 업그레이드가 남는데
+검증은 전부 통과하는 상태가 된다. 그래서 `BankruptcyChecks` 가 `ManagerBootstrap` 원문에
+`SetUpgradePersistence(` 가 있는지까지 본다.
+
+저장은 따로 손대지 않는다. `ResetRound` 는 메모리만 바꾸고, 다음 저장 시점에
+`CurrentUpgradeLevels`(이미 0)가 그대로 담긴다 — `SaveData` 스키마가 그대로라 마이그레이션도
+필요 없다.
+
 ### 읽는 밸런스 값
 
 | CSV | 열 | 쓰는 곳 |
@@ -305,3 +331,4 @@ stat 은 일부뿐이라(`max_stamina`·`fever_gauge_per_hit`·`coin_bonus_multi
 | 2026-09-18 | #91 | yahoo-afk | 구매 화면(6.8) 추가 — `UpgradeShopPanel`/`UpgradeShopEntry`/`UpgradeStatNames` 와 `MainMenu` 씬 배치. #171 이 연 `EconomyManager.Shop` 통로를 첫 소비. "다음 런부터" 를 Play Mode 로 처음 확인 |
 | 2026-09-21 | #203 | twins6375-art | `IUpgradePersistence` 가 `SaveManager` 에 배선되어 구조 도식의 점선 하나가 실선이 됐다. 업그레이드 레벨이 앱을 껐다 켜도 남는다 |
 | 2026-09-22 | #184 | saltlake00 | 구매 화면 비주얼을 디자인 시스템 2차로 교체. `UpgradeShopPrefabCreator` 신설 → 프리팹 재생성(카드 2×2, Base 구매 버튼 + 호버 금색 테두리). 런타임 로직 변경 없음 |
+| 2026-09-22 | #250 | yahoo-afk | 업그레이드를 영구 층에서 **회차 층**으로 이관 (4.16, 팀장 결정). `BillManager.ResetRound` 가 `IUpgradePersistence.RestoreUpgradeLevels(null)` 로 비운다. 레거시 포인트·반지는 그대로 영구 층 |

@@ -45,6 +45,8 @@ namespace NCAIClicker
                 billManager.SetEconomyService(economyManager);
                 // 파산 시 지갑을 비우는 통로 (이슈 #158). IWalletPersistence 는 SaveManager·BillManager 만 쓴다.
                 billManager.SetWalletPersistence(economyManager);
+                // 파산 시 업그레이드 레벨을 비우는 통로 (이슈 #250). 업그레이드는 회차 층이다 (GDD 파산 절).
+                billManager.SetUpgradePersistence(economyManager);
             }
 
             WireUpgradeStats(_instance);

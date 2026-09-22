@@ -681,7 +681,7 @@ namespace NCAIClicker.UI
 
             if (_bankruptcyCoinLossText != null)
             {
-                _bankruptcyCoinLossText.text = "보유 코인이 모두 몰수되며, 프레스티지(반지 상점)로 이동합니다. (영구 업그레이드와 레거시 포인트는 유지됩니다)";
+                _bankruptcyCoinLossText.text = "보유 코인과 업그레이드가 모두 사라지며, 프레스티지(반지 상점)로 이동합니다. (레거시 포인트와 반지는 유지됩니다)";
             }
         }
 
