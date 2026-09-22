@@ -68,7 +68,7 @@ flowchart LR
 | `Bill` | `Assets/Scripts/Runtime/Data/Bill.cs` | 고지서 데이터(Amount, IssuedDay, DueDay, IsPaid) 직렬화 클래스 |
 | `Loan` | `Assets/Scripts/Runtime/Data/Loan.cs` | 대출 데이터(Principal, Owed, DailyCut) 직렬화 클래스 |
 | `ResumePoint` | `Assets/Scripts/Runtime/Data/ResumePoint.cs` | 재개 지점(MainMenu, Result, PerkSelection) 열거형 |
-| `SaveData` | `Assets/Scripts/Runtime/Data/SaveData.cs` | 저장 DTO(Version 4 기준 전체 영속 필드). v3에서 `LegacyPoints`·`RingLevels` 추가(#175·#183), v4에서 `BgmVolume`·`SfxVolume`·`IsFullscreen`·`IsScreenShakeEnabled` 추가(#202) |
+| `SaveData` | `Assets/Scripts/Runtime/Data/SaveData.cs` | 저장 DTO(Version 5 기준 전체 영속 필드). v3에서 `LegacyPoints`·`RingLevels` 추가(#175·#183), v4에서 설정 필드 추가(#202), v5에서 `PostPaymentFlowState` 추가(#249·#255) |
 | `IHittable` | `Assets/Scripts/Runtime/Interfaces/IHittable.cs` | 타격 대상 피격(OnHit) 및 생존 여부(IsAlive) 인터페이스 |
 | `IBillService` | `Assets/Scripts/Runtime/Interfaces/IBillService.cs` | 고지서 납부 및 대출 서비스 인터페이스 |
 | `IEconomyService` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 코인 적립, 지출, 대출 원금 입금 인터페이스. `EconomyManager.Instance` 가 이 타입으로 노출 — UI 가 초기 잔액을 한 번 읽는 통로 (이슈 #171) |

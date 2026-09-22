@@ -146,11 +146,15 @@ public interface IBillService
     float LoanDailyCut { get; }        // 대출이 없으면 0
     Bill ActiveBill { get; }           // 마감 전 고지서. 없으면 null
     string[] OfferedPerkIds { get; }   // 납부 직후 골라야 할 퍼크 후보 3개. 고르면 비워진다
+    PostPaymentFlowState PaymentFlowState { get; } // 납부 후 화면 흐름 재개 지점 (#249, #255)
     void DeclareBankruptcy();          // 자발적 파산 (#175). 미납 파산과 같은 처리를 탄다
     bool TryPay(Bill bill);
     bool TryTakeLoan(long amount);     // 두 번째 고지서부터, 동시 1건
     bool TryRepayLoan();               // 전액 상환. 재대출 쿨다운 시작
     bool TryChoosePerk(string perkId); // OfferedPerkIds 중 하나를 고른다. 목록에 없으면 false
+    bool TryConfirmPaidFeedback();     // 납부 완료가 렌더링된 뒤 퍼크 선택으로 전환
+    bool TryEnterInvestmentMenu();     // 새 고지서 확인 뒤 투자 메뉴로 전환
+    bool TryCompletePostPaymentFlow(); // 투자 메뉴에서만 다음 런 진입 허용
     bool TryCloseDay();                // 다음 날 진입 직전 미납 마감을 확정. 파산 처리 시 true
     void RestoreCycle(int cycle);      // 저장 복원 시 회차 번호를 되돌린다
 }
@@ -237,9 +241,9 @@ public interface ISaveService
 }
 
 // 매니저 상태를 저장에 모으고 되돌리는 계약 (이슈 #203). SaveManager 가 구현하고
-// **런타임 소비처는 ManagerBootstrap·GameManager·SettingsPanelController 셋이다** —
+// **런타임 소비처는 ManagerBootstrap·GameManager·SettingsPanelController·BillManager다** —
 // 복원 1회는 조립 지점(ManagerBootstrap), 저장 시점과 새 회차 초기화는 GameManager,
-// 저장 초기화는 설정 패널(#196)이다.
+// 저장 초기화는 설정 패널(#196), 납부 후 흐름 체크포인트는 BillManager(#249, #255)다.
 // ISaveService 와 나눈 이유는 소비처가 다르기 때문이다. 메인 메뉴는 HasSave 와 표시용 Load() 만 쓴다.
 // IRunScoped 로 대신할 수 없다: 복원은 모든 BeginRun 보다 앞, 저장은 모든 EndRun 보다 뒤여야
 // 하는데 GameManager 는 두 경계에 같은 순서 배열을 쓴다.
@@ -287,11 +291,12 @@ public class Loan
 }
 
 public enum ResumePoint { MainMenu, Result, PerkSelection }
+public enum PostPaymentFlowState { None, PaidFeedback, PerkSelection, NewBillConfirmation, InvestmentMenu }
 
 [Serializable]
 public class SaveData
 {
-    public const int CurrentVersion = 4; // SaveManager도 이 상수를 참조한다. 숫자를 두 곳에 적지 않는다
+    public const int CurrentVersion = 5; // SaveManager도 이 상수를 참조한다. 숫자를 두 곳에 적지 않는다
     public int Version = CurrentVersion;
     public long TotalCoin;
     public string CoinRemainder = "0"; // decimal을 InvariantCulture 문자열로 저장
@@ -311,6 +316,7 @@ public class SaveData
     public bool WasBankrupt;
     public bool IsCompleted;
     public string[] OfferedPerkIds;    // 선택 화면을 다시 열어도 같은 후보
+    public PostPaymentFlowState PostPaymentFlowState; // 납부 후 화면 흐름 재개 지점 (#249, #255)
     public string[] PendingPerkIds;    // 결과 화면에서 선택한 다음 런 효과
     public long LegacyPoints;          // 파산을 넘어 남는다 (#175). v3 부터
     public int[] RingLevels;           // rings.csv sort_order 순. 파산해도 남는다 (#183). v3 부터
@@ -332,9 +338,11 @@ public class SaveData
   칸·활성 고지서·활성 대출·마지막 대출 상환일·퍼크 후보는 #221 이 수집·복원한다. 나머지는
   아래 면제 목록을 본다.
 - 메뉴/결과 화면에서 구매·납부·대출·상환·퍼크 선택을 완료한 직후와 런 시작 직전에 저장한다.
-  현재 배선은 **런 시작 직전**(`GameManager.ContinueRun`)과 **하루 종료 직후**(`NotifyEndRun`)
-  두 지점이다 (#203). 고지서 화면의 구매는 화면을 떠날 때 함께 저장되므로, 구매 직후에 앱이
-  강제 종료되는 경우에만 유실된다.
+  납부 후 흐름은 `PaidFeedback → PerkSelection → NewBillConfirmation → InvestmentMenu → None`으로
+  저장하며, 각 전환 직후 `BillManager`에 주입된 `IGamePersistence`를 통해 스냅샷을 갱신한다 (#249, #255).
+  기본 체크포인트는 **런 시작 직전**(`GameManager.ContinueRun`)과 **하루 종료 직후**(`NotifyEndRun`)이고,
+  납부 후 네 화면 전환은 `BillManager`가 추가로 저장한다 (#203, #249). 고지서 화면의 구매는
+  화면을 떠날 때 함께 저장되므로, 구매 직후 앱이 강제 종료되는 경우에만 유실된다.
 - **복원은 앱이 켜질 때 `ManagerBootstrap` 이 한 번만 한다.** 매니저는 `DontDestroyOnLoad` 라
   씬을 다시 로드해도 값을 들고 있어서, 씬 로드마다 복원하면 마지막 저장 이후의 변경이
   덮어써진다. 저장은 기록이지 살아 있는 값의 출처가 아니다 (#203).
@@ -367,7 +375,7 @@ public class SaveData
 
 ```json
 {
-  "Version": 4,
+  "Version": 5,
   "TotalCoin": 15420,
   "CoinRemainder": "0.37",
   "StageIndex": 2,
@@ -388,6 +396,7 @@ public class SaveData
   "WasBankrupt": false,
   "IsCompleted": false,
   "OfferedPerkIds": ["perk_pay_early", "perk_double_hit"],
+  "PostPaymentFlowState": 2,
   "PendingPerkIds": [],
   "BgmVolume": 0.8,
   "SfxVolume": 1.0,
@@ -422,7 +431,11 @@ GameManager만 `OnStaminaDepleted`와 `OnBankrupt`를 구독한다. **Running �
 다음 날 진입(ContinueRun) 시 미납 확정 시 파산 → 씬 전환 차단 및 파산 화면 표시 순이다. 마감 판정 전에 납부 기회를 제공한다.
 `OnDayEnded`는 날짜당 한 번만 발행한다. 다음 날 시작 때 날짜를 증가시키며,
 이미 발행한 고지서의 금액·마감은 단계 상승으로 소급 변경하지 않는다.
-고지서는 동시에 한 장이며, 납부 후 다음 고지서는 **다음 날 시작 시** 당시 단계값으로 발행한다.
+고지서는 동시에 한 장이다. 납부 성공 직후에는 기존 고지서를 `납부 완료`로 표시하고 퍼크 선택을
+완료할 때까지 다음 진행을 막는다. 퍼크 선택이 끝나면 당시 단계값으로 다음 고지서를 즉시 발행해
+메뉴에서 보여 주지만, `ContinueRun` 전에는 날짜와 납기 일수를 감소시키지 않는다 (#249).
+새 고지서의 `아직`은 스킬 트리 탭으로 이동하는 UI 명령이며 하루를 닫거나 런을 시작하지 않는다.
+탭 탐색 뒤 공통 `계속하기`가 `TryCloseDay`와 다음 런 진입의 유일한 경로다.
 게임 시작과 파산 재시작에도 첫 고지서를 발행한다.
 
 ## 3. 이벤트 버스

@@ -169,9 +169,12 @@ flowchart LR
 
 ## 알려진 한계
 
-- **고지서를 낼 방법이 게임에 없다.** `TryPay` 를 부르는 런타임 코드가 한 곳도 없어, 이 화면은
-  **정상 플레이로는 뜨지 않는다.** 계획 6.x 에 납부 UI 카드 자체가 없어 6.10([#181](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/181))으로 세웠다.
-  이 화면이 먼저 준비돼 있어야 그 카드가 붙는 즉시 동작한다
+- ~~**납부 이후 전체 화면 흐름은 아직 연결되지 않았다 (#249).**~~ — #249에서
+  납부 완료 표시 → 퍼크 선택 → 새 고지서 발행·확인 → 아직 → 스킬 트리 안내 → 계속하기 전체 흐름을
+  연결하고 4단계 저장/복원 검증(`FlowPersistenceChecks`)까지 통과했다.
+
+- ~~**고지서를 낼 방법이 게임에 없다.**~~ — 6.10([#181](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/181))에서
+  고지서 패널의 납부 버튼이 `TryPay`에 연결되어 정상 플레이로 퍼크 선택 화면을 열 수 있게 됐다.
 - **연출이 없다.** 카드가 정적으로 뜨고 사라진다. 등장·선택 애니메이션은 이슈가 범위 밖으로 뒀다
 - **키보드·게임패드로 고를 수 없다.** 마우스 클릭만 받는다. 예비 `EventSystem` 에 `firstSelectedGameObject` 를 주지 않았다
 - **`Game.unity` 에 `EventSystem` 이 없는 것은 그대로다.** 패널이 예비를 들고 다니는 것은 임시방편이다 — 씬에 버튼이 하나라도 더 생기면(납부 UI, 6.1 HUD) 씬 소유자가 `EventSystem` 을 직접 넣는 편이 맞다. 그때 이 예비는 저절로 꺼지지만, 거두는 것을 잊지 말 것
@@ -191,3 +194,4 @@ flowchart LR
 |---|---|---|---|
 | 2026-09-18 | #92 | twins6375-art | 최초 작성. `PerkChoiceController`·`PerkCardView`·`PerkChoicePanel.prefab` 신설, `timeScale` 정지와 삼중 복원, `PerkChoiceUiChecks` 20건 |
 | 2026-09-22 | #184 | saltlake00 | 비주얼을 디자인 시스템 2차로 교체 — 반투명 막을 불투명 암전으로 바꿔 뒤 화면(고지서·HUD)이 비치지 않게 했고, 카드를 Surface 면 + 패널 선 + 호버 금색 테두리로. `PerkChoicePanelPrefabCreator` 신설, 목업 [퍽 선택 · 업그레이드 탭 목업](https://claude.ai/artifact/1VHLpgcfwdRH4YAqt76RhW). `PerkChoiceUiChecks` 통과, 런타임 로직 변경 없음 |
+| 2026-09-22 | #249 | saltlake00 | 납부 후 퍽 선택 및 새 고지서 발행 흐름 전체 연결. 퍽 선택 직후 새 고지서 발행 및 중복 선택 방지 검증 추가, 4단계 저장/복원 하네스 통과 |

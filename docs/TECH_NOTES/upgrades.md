@@ -304,6 +304,10 @@ stat 은 일부뿐이라(`max_stamina`·`fever_gauge_per_hit`·`coin_bonus_multi
 
 ## 알려진 한계
 
+- ~~**납부 후 스킬 트리 유도는 아직 없다 (#249).**~~ — #249에서
+  새 고지서 화면의 `아직` 버튼 클릭 시 스킬 트리 탭으로 즉시 이동하고, 최초 1회 남은 코인 투자 안내 팝업을
+  표시하도록 연결 완료.
+
 - ~~**효과가 대부분 게임에 반영되지 않는다.**~~ — #131 에서 소비처를 연결했다. 남은 것은
   `auto_hammer_*` 세 개(작업 3.2)와 조준 원 반경(#132)뿐이다
 - ~~**Play Mode 로 "사면 다음 런에 세진다"를 본 사람이 아직 없다.**~~ — #91 에서 구매 화면이
@@ -332,3 +336,4 @@ stat 은 일부뿐이라(`max_stamina`·`fever_gauge_per_hit`·`coin_bonus_multi
 | 2026-09-21 | #203 | twins6375-art | `IUpgradePersistence` 가 `SaveManager` 에 배선되어 구조 도식의 점선 하나가 실선이 됐다. 업그레이드 레벨이 앱을 껐다 켜도 남는다 |
 | 2026-09-22 | #184 | saltlake00 | 구매 화면 비주얼을 디자인 시스템 2차로 교체. `UpgradeShopPrefabCreator` 신설 → 프리팹 재생성(카드 2×2, Base 구매 버튼 + 호버 금색 테두리). 런타임 로직 변경 없음 |
 | 2026-09-22 | #250 | yahoo-afk | 업그레이드를 영구 층에서 **회차 층**으로 이관 (4.16, 팀장 결정). `BillManager.ResetRound` 가 `IUpgradePersistence.RestoreUpgradeLevels(null)` 로 비운다. 레거시 포인트·반지는 그대로 영구 층 |
+| 2026-09-22 | #249 | saltlake00 | 새 고지서의 `아직` 버튼을 스킬 트리 탭으로 연결하고 최초 1회 투자 안내 팝업 배선 완료 |
