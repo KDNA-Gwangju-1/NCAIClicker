@@ -58,7 +58,8 @@ flowchart LR
 |---|---|---|
 | `PerkChoiceController` | `Assets/Scripts/Runtime/UI/PerkChoiceController.cs` | 후보를 받아 패널을 띄우고 시간을 멈춘다. 선택을 `IBillService` 로 되돌린다 |
 | `PerkCardView` | `Assets/Scripts/Runtime/UI/PerkCardView.cs` | 카드 한 장. 이름·효과 문구를 채우고 클릭을 올린다 |
-| `PerkChoicePanel` | `Assets/Prefabs/UI/PerkChoicePanel.prefab` | 반투명 막 + 제목 + 카드 3장. `Canvas.sortingOrder = 100` 으로 HUD 위를 덮는다 |
+| `PerkChoicePanel` | `Assets/Prefabs/UI/PerkChoicePanel.prefab` | **불투명** 암전(`#0A0705`) + 제목 + 카드 3장. `Canvas.sortingOrder = 100` 으로 HUD 위를 덮는다. #184 부터 `PerkChoicePanelPrefabCreator`(`NCAI/UI/퍽 선택 패널 프리팹 생성`) 산출물이다 — 같은 경로에 덮어써 `Managers.prefab` 의 참조를 유지한다 |
+| `PerkChoicePanelPrefabCreator` | `Assets/Scripts/Editor/PerkChoicePanelPrefabCreator.cs` | 프리팹 생성기 (#184). 카드는 테두리 Image 가 `Button.targetGraphic` 이라 호버·눌림에서 테두리가 금색으로 바뀌고, 면은 3px 안쪽 `Fill` 자식이다. `NameLabel`·`EffectLabel` 은 `Fill` 아래에 있다 |
 | `FallbackEventSystem` | `PerkChoicePanel.prefab` 의 자식 (기본 꺼짐) | `EventSystem` + `InputSystemUIInputModule`. 씬에 활성 `EventSystem` 이 없을 때만 켜진다 |
 | `Managers` | `Assets/Prefabs/Resources/Managers.prefab` | `PerkChoiceController` 를 달고 `BalanceData`·패널 프리팹 참조를 넣어 준다 |
 
@@ -189,3 +190,4 @@ flowchart LR
 | 날짜 | 이슈 | 누가 | 무엇이 바뀌었나 |
 |---|---|---|---|
 | 2026-09-18 | #92 | twins6375-art | 최초 작성. `PerkChoiceController`·`PerkCardView`·`PerkChoicePanel.prefab` 신설, `timeScale` 정지와 삼중 복원, `PerkChoiceUiChecks` 20건 |
+| 2026-09-22 | #184 | saltlake00 | 비주얼을 디자인 시스템 2차로 교체 — 반투명 막을 불투명 암전으로 바꿔 뒤 화면(고지서·HUD)이 비치지 않게 했고, 카드를 Surface 면 + 패널 선 + 호버 금색 테두리로. `PerkChoicePanelPrefabCreator` 신설, 목업 [퍽 선택 · 업그레이드 탭 목업](https://claude.ai/artifact/1VHLpgcfwdRH4YAqt76RhW). `PerkChoiceUiChecks` 통과, 런타임 로직 변경 없음 |
