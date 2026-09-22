@@ -170,6 +170,7 @@ namespace NCAIClicker.EditorTools
                 var bill = bills.ActiveBill;
                 AssertCondition(bill != null, "고지서가 발행되지 않아 납부할 수 없습니다.");
                 AssertCondition(bills.TryPay(bill), "납부가 실패했습니다. FakeEconomy 설정을 확인하십시오.");
+                AssertCondition(bills.TryConfirmPaidFeedback(), "납부 완료 피드백 뒤 퍼크 선택 전환이 실패했습니다.");
 
                 var offered = bills.OfferedPerkIds;
                 AssertCondition(offered != null && offered.Length == 3,
@@ -234,11 +235,24 @@ namespace NCAIClicker.EditorTools
                 AssertCondition(bills.OfferedPerkIds.Length == 0, "고른 뒤에도 후보가 남아 있습니다.");
                 checkCount++;
 
+                // --- 퍽 선택 직후 다음 단계의 새 고지서가 즉시 발행된다 (이슈 #249)
+                var newBillAfterPerk = bills.ActiveBill;
+                AssertCondition(newBillAfterPerk != null, "퍽 선택 직후 새 고지서가 발행되어야 합니다 (#249).");
+                AssertCondition(!newBillAfterPerk.IsPaid, "새 고지서는 미납 상태여야 합니다.");
+                checkCount++;
+
+                // --- 퍽을 이미 고른 뒤에는 중복 선택이 거부되고 새 고지서가 두 번 발행되지 않는다 (#249)
+                var billIndexBefore = bills.CurrentBillIndex;
+                AssertCondition(!bills.TryChoosePerk(chosenId), "이미 고른 뒤의 중복 선택은 거부되어야 합니다.");
+                AssertCondition(bills.CurrentBillIndex == billIndexBefore, "중복 선택으로 새 고지서가 두 번 발행되면 안 됩니다.");
+                checkCount++;
+
                 // --- 고르지 않은 채 비활성화돼도 시간은 돌아온다 (게임이 영구 정지하는 것을 막는다)
                 bills.BeginRun();
                 var secondBill = bills.ActiveBill;
                 AssertCondition(secondBill != null, "두 번째 고지서가 없습니다.");
                 AssertCondition(bills.TryPay(secondBill), "두 번째 납부가 실패했습니다.");
+                AssertCondition(bills.TryConfirmPaidFeedback(), "두 번째 납부의 퍼크 선택 전환이 실패했습니다.");
                 AssertNear(Time.timeScale, 0f, "두 번째 제시에서 시간이 멈추지 않았습니다.");
 
                 InvokeLifecycle(controller, "OnDisable");

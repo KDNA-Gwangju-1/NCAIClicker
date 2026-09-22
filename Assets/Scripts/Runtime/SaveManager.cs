@@ -105,6 +105,7 @@ namespace NCAIClicker
                 data.ActiveLoan = _bill.CurrentLoan;
                 data.LastLoanRepaidDay = _bill.LastLoanRepaidDay;
                 data.OfferedPerkIds = _bill.OfferedPerkIds;
+                data.PostPaymentFlowState = _bill.PaymentFlowState;
                 data.CycleIndex = _bill.CurrentCycle;
             }
 
@@ -144,7 +145,8 @@ namespace NCAIClicker
             if (_bill != null)
             {
                 _bill.RestoreBillState(data.CurrentDay, data.BillIndex, data.ActiveBill,
-                                       data.ActiveLoan, data.LastLoanRepaidDay, data.OfferedPerkIds);
+                                       data.ActiveLoan, data.LastLoanRepaidDay, data.OfferedPerkIds,
+                                       data.PostPaymentFlowState);
                 _bill.RestoreCycle(data.CycleIndex);
             }
         }
@@ -262,6 +264,9 @@ namespace NCAIClicker
                 case 3:
                     // v3에는 설정 값(볼륨·창모드·화면 흔들림)이 없었다. v1과 같은 이유로
                     // 필드 이니셜라이저 기본값(모두 켬/최대 볼륨)이 이미 채워진다 (이슈 #196).
+                    break;
+                case 4:
+                    // v4에는 납부 후 화면 흐름 상태가 없었다. 기본값 None으로 복원한다.
                     break;
                 case SaveData.CurrentVersion:
                     break;

@@ -2,6 +2,7 @@ using NCAIClicker.Data;
 using NCAIClicker.Economy;
 using NCAIClicker.Events;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.EventSystems;
 
 namespace NCAIClicker.UI
@@ -48,6 +49,7 @@ namespace NCAIClicker.UI
         private void OnEnable()
         {
             GameEvents.OnPerkOffered += HandlePerkOffered;
+            SceneManager.sceneLoaded += HandleSceneLoaded;
 
             // 구독만으로는 **이미 나와 있는 후보를 놓친다.** 발행은 한 번뿐이라 그 시점에
             // 꺼져 있었으면 영영 못 받는다 — 저장에서 복원된 선택 대기 상태(SaveData.OfferedPerkIds)가
@@ -62,10 +64,25 @@ namespace NCAIClicker.UI
         private void OnDisable()
         {
             GameEvents.OnPerkOffered -= HandlePerkOffered;
+            SceneManager.sceneLoaded -= HandleSceneLoaded;
 
             // 패널이 열린 채로 비활성화되면 게임이 영구 정지한다. 시간은 무슨 일이 있어도 되돌린다.
             ResumeTime();
             HidePanel();
+        }
+
+        private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (scene.name != "Game")
+            {
+                return;
+            }
+
+            var pending = BillManager.Instance?.OfferedPerkIds;
+            if (pending != null && pending.Length > 0)
+            {
+                HandlePerkOffered(pending);
+            }
         }
 
         private void OnDestroy()

@@ -104,6 +104,10 @@ namespace NCAIClicker.EditorTools
 
                 // 다음 날 새 고지서가 나오고, 그 고지서는 아직 기한이 남아 파산하지 않는다.
                 // 여기서 여러 날을 한꺼번에 밀면 **그 새 고지서**가 연체돼 파산한다 — 그건 정상 동작이다.
+                AssertCondition(manager.TryConfirmPaidFeedback(), "납부 완료 확인 전환이 실패했습니다.");
+                AssertCondition(manager.TryChoosePerk(manager.OfferedPerkIds[0]), "퍽 선택이 실패했습니다.");
+                AssertCondition(manager.TryEnterInvestmentMenu(), "투자 메뉴 진입이 실패했습니다.");
+                AssertCondition(manager.TryCompletePostPaymentFlow(), "계속하기 전환이 실패했습니다.");
                 manager.BeginRun();
                 AssertCondition(manager.ActiveBill != null, "납부 다음 날 고지서가 발행되지 않았습니다.");
                 manager.EndRun();

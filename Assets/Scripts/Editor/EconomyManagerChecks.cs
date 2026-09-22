@@ -171,10 +171,14 @@ namespace NCAIClicker.EditorTools
             public float LoanDailyCut { get; set; }
             public Bill ActiveBill => null;
             public string[] OfferedPerkIds => Array.Empty<string>();
+            public PostPaymentFlowState PaymentFlowState => PostPaymentFlowState.None;
             public bool TryPay(Bill bill) => false;
             public bool TryTakeLoan(long amount) => false;
             public bool TryRepayLoan() => false;
             public bool TryChoosePerk(string perkId) => false;
+            public bool TryConfirmPaidFeedback() => false;
+            public bool TryEnterInvestmentMenu() => false;
+            public bool TryCompletePostPaymentFlow() => true;
             public bool TryCloseDay() => false;
             public void RestoreCycle(int cycle) { CurrentCycle = cycle; }
 

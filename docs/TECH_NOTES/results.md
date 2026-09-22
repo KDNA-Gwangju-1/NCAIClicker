@@ -108,7 +108,7 @@ flowchart LR
 컨트롤러끼리 서로를 찾지 않는다. `InGameUIFallbackLoader` 가 두 프리팹을 띄우고 이어 준다.
 
 ```text
-BillPanel 생성 → SetServices(billService)
+BillPanel 생성 → SetServices(billService, economyService, legacyService, gameFlowService)
 ResultUI 생성  → SetServices(경제·고지서·단계) + SetBillPanel(billPanel)
 ```
 
@@ -148,6 +148,9 @@ EditMode 검증(ResultUIChecks) 및 Unity MCP 런타임 환경에서 확인했�
 
 ## 알려진 한계 및 후속 과제
 
+* ~~**납부 완료 뒤 퍼크 선택과 다음 날 준비 화면이 하나의 흐름으로 이어지지 않았다 (#249).**~~ — #249에서
+  납부 완료를 실제 한 프레임 표시한 뒤 퍼크 선택 → 새 고지서 확인 → 스킬 트리 투자 메뉴 → 계속하기로 연결했다.
+  각 구간은 `PostPaymentFlowState`로 저장되어 재실행해도 같은 화면에서 재개한다 (#255).
 * Game.unity 씬에 프리팹을 실제 캔버스 하위로 영구 배치하는 작업은 씬 소유권 규칙에 따라 코어 플레이 담당이 진행한다.
 * InGameUIFallbackLoader 는 6.1 정식 HUD가 유입되면 완전히 제거해야 할 임시 기술 부채다.
 * 원작 정산 화면의 상세 요소는 **레이아웃만** 이식했다. 토니의 몫 10% 차감, 격파 저금통 집계, 해금 진행도는 조회 계약이 없어 값을 채우지 못하며 `ResultUIController.UnwiredPlaceholder`(`—`)로 표시한다. 0 을 넣지 않는 이유는 "정말 0"과 "배선 누락"이 구분되지 않기 때문이다. **코인 종류별(액면별) 환산은 #178 에서 해결** — `RunCoinBreakdown` 이 생기면서 자리표시자가 아니라 실제 개수를 표시한다.
@@ -166,4 +169,5 @@ EditMode 검증(ResultUIChecks) 및 Unity MCP 런타임 환경에서 확인했�
   <tr><td>2026.09.21</td><td>#178</td><td>yahoo-afk</td><td>코인 개수 칸을 `RunCoin`(금액) 대신 `RunCoinBreakdown`(액면별 개수 합)으로 교체 — 개수와 금액이 항상 같던 버그 수정. 액면별 개수 표시 배선(`UpdateDenomCounts`) 추가, 플레이스홀더였던 코인 종류별 환산 항목 해소. 프리팹은 이미 4개 액면 슬롯이 있어 변경 없음</td></tr>
   <tr><td>2026.09.22</td><td>#184</td><td>saltlake00</td><td>정산창 고지서 정보를 한 줄로 통합 — 부제 두 조각("고지서 마감: N일 남음 (N원)" / "N단계 고지서 $N 미납")을 <code>N단계 고지서 $N · 마감 N일 남음</code> 하나로 합치고 <code>_stageGoalText</code> 는 비워 둔다(프리팹 호환용으로 필드 유지). 버튼 3종(업그레이드·납부·계속)을 Base 톤으로 통일하고, <code>ResultUIPrefabCreator.CreateButton</code> 을 테두리 Image(targetGraphic)+면(Fill) 구조로 바꿔 호버·눌림에서 테두리가 금색으로 바뀌게 했다 — 전에는 어두운 면에 흰색 틴트라 호버가 보이지 않아 눌리지 않는 것처럼 읽혔다. <code>ResultUIChecks</code>·<code>UiGuidelineChecks</code> 통과</td></tr>
   <tr><td>2026.09.21</td><td>#222</td><td>Claude</td><td>정산창 잠긴 버튼 2종 처분 확정. 코드 변경 없음 — 현장 납부(PayButton)가 이미 배선돼 있었고 더블 오어 낫싱(GambleButton)은 애초에 없었음을 Play Mode 실측으로 확인하고 알려진 한계·왜 이 방법인가 표에 근거 기록</td></tr>
+  <tr><td>2026.09.22</td><td>#249</td><td>saltlake00</td><td>납부 후 퍽 선택 및 스킬 트리 안내 흐름 전체 연결 완료</td></tr>
 </table>

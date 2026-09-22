@@ -32,6 +32,8 @@ namespace NCAIClicker.Economy
         private bool _hasBegun;
         private Bill _activeBill;
         private string[] _offeredPerkIds = Array.Empty<string>();
+        private PostPaymentFlowState _postPaymentFlowState;
+        private IGamePersistence _persistence;
 
         /// <summary>진행 중인 대출. 없으면 null 이다 (ARCHITECTURE.md "메모리상에서는 null 로 둔다").</summary>
         private Loan _activeLoan;
@@ -83,6 +85,7 @@ namespace NCAIClicker.Economy
         public Bill ActiveBill => _activeBill;
 
         public string[] OfferedPerkIds => _offeredPerkIds;
+        public PostPaymentFlowState PaymentFlowState => _postPaymentFlowState;
 
         public int CurrentBillIndex => _billIndex;
 
@@ -92,7 +95,8 @@ namespace NCAIClicker.Economy
 
         /// <summary>SaveManager 가 로드 직후 한 번 호출한다 (IBillPersistence, 이슈 #221). 저장된 날짜·고지서·대출을 그대로 되돌린다.</summary>
         public void RestoreBillState(int currentDay, int billIndex, Bill activeBill,
-                                      Loan activeLoan, int lastLoanRepaidDay, string[] offeredPerkIds)
+                                      Loan activeLoan, int lastLoanRepaidDay, string[] offeredPerkIds,
+                                      PostPaymentFlowState postPaymentFlowState = PostPaymentFlowState.None)
         {
             _currentDay = currentDay;
             _billIndex = billIndex;
@@ -100,6 +104,7 @@ namespace NCAIClicker.Economy
             _activeLoan = activeLoan;
             _lastLoanRepaidDay = lastLoanRepaidDay;
             _offeredPerkIds = offeredPerkIds ?? Array.Empty<string>();
+            _postPaymentFlowState = postPaymentFlowState;
             _hasBegun = true;
         }
 
@@ -146,6 +151,11 @@ namespace NCAIClicker.Economy
             _stageService = stageService;
         }
 
+        public void SetPersistence(IGamePersistence persistence)
+        {
+            _persistence = persistence;
+        }
+
         /// <summary>
         /// 하루(런)를 시작한다. 첫 호출은 1일차를 그대로 쓰고, 이후 호출마다 날짜를 하루 올린다.
         /// 활성 고지서가 없을 때만 새 고지서를 발행한다 — 게임 시작·파산 재시작에도 첫 고지서가 나간다.
@@ -155,13 +165,18 @@ namespace NCAIClicker.Economy
         /// </summary>
         public void BeginRun()
         {
+            if (_postPaymentFlowState != PostPaymentFlowState.None)
+            {
+                return;
+            }
+
             if (_hasBegun)
             {
                 _currentDay++;
             }
             _hasBegun = true;
 
-            if (_activeBill == null)
+            if (_activeBill == null || _activeBill.IsPaid)
             {
                 IssueBill();
             }
@@ -265,6 +280,7 @@ namespace NCAIClicker.Economy
             _activeLoan = null;
             _lastLoanRepaidDay = -1;
             _offeredPerkIds = Array.Empty<string>();
+            _postPaymentFlowState = PostPaymentFlowState.None;
 
             // 단계를 1단계로 되돌린다. 인덱스는 0부터라 0 이 1단계다.
             _stageService?.RestoreStage(0);
@@ -301,22 +317,67 @@ namespace NCAIClicker.Economy
             }
 
             bill.IsPaid = true;
-            _activeBill = null;
+            _activeBill = bill;
+            _postPaymentFlowState = PostPaymentFlowState.PaidFeedback;
             GameEvents.PublishBillPaid(bill);
+            _persistence?.CollectAndSave();
+            return true;
+        }
 
+        public bool TryConfirmPaidFeedback()
+        {
+            if (_postPaymentFlowState != PostPaymentFlowState.PaidFeedback)
+            {
+                return false;
+            }
+
+            _postPaymentFlowState = PostPaymentFlowState.PerkSelection;
             RollPerkOffer();
+            _persistence?.CollectAndSave();
             return true;
         }
 
         /// <summary>OfferedPerkIds 중 하나를 고른다. 실제 효과 적용은 각 시스템의 몫 — 여기서는 알리기만 한다.</summary>
         public bool TryChoosePerk(string perkId)
         {
-            if (_offeredPerkIds.Length == 0 || Array.IndexOf(_offeredPerkIds, perkId) < 0)
+            if (_postPaymentFlowState != PostPaymentFlowState.PerkSelection ||
+                _offeredPerkIds.Length == 0 || Array.IndexOf(_offeredPerkIds, perkId) < 0)
             {
                 return false;
             }
             _offeredPerkIds = Array.Empty<string>();
+            _postPaymentFlowState = PostPaymentFlowState.NewBillConfirmation;
             GameEvents.PublishPerkChosen(perkId);
+            IssueBill();
+            _persistence?.CollectAndSave();
+            return true;
+        }
+
+        public bool TryEnterInvestmentMenu()
+        {
+            if (_postPaymentFlowState != PostPaymentFlowState.NewBillConfirmation)
+            {
+                return false;
+            }
+
+            _postPaymentFlowState = PostPaymentFlowState.InvestmentMenu;
+            _persistence?.CollectAndSave();
+            return true;
+        }
+
+        public bool TryCompletePostPaymentFlow()
+        {
+            if (_postPaymentFlowState == PostPaymentFlowState.None)
+            {
+                return true;
+            }
+            if (_postPaymentFlowState != PostPaymentFlowState.InvestmentMenu)
+            {
+                return false;
+            }
+
+            _postPaymentFlowState = PostPaymentFlowState.None;
+            _persistence?.CollectAndSave();
             return true;
         }
 

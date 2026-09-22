@@ -115,6 +115,17 @@ namespace NCAIClicker.Core
                 return;
             }
 
+            // 정산 중 납부 후 흐름이 끝나지 않았으면 다음 런을 시작하지 않는다 (이슈 #249).
+            // BillManager.BeginRun 이 흐름 중에는 날짜·고지서를 건드리지 않아, 여기서 막지 않으면
+            // 납부 완료된 고지서를 든 채 다른 IRunScoped 만 시작되는 반쪽 런이 된다.
+            // 메인 메뉴에서 이어하기는 통과시킨다 — Game 씬의 고지서 화면이 저장된 흐름을 복원한다.
+            if (CurrentState == RunState.Result && _billService != null &&
+                _billService.PaymentFlowState != PostPaymentFlowState.None)
+            {
+                Debug.LogWarning($"[GameManager] 납부 후 흐름({_billService.PaymentFlowState}) 중에는 다음 런을 시작할 수 없다.");
+                return;
+            }
+
             CarryOverScenePerks();
             SaveManager.Persistence?.CollectAndSave();
             SceneManager.LoadScene(GameSceneName);
