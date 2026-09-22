@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using NCAIClicker.Data;
 using NCAIClicker.Events;
 using NCAIClicker.Interfaces;
@@ -47,6 +47,14 @@ namespace NCAIClicker.Core
         /// HammerSwingController 인스턴스에 WireSceneConsumers 에서 되돌려 준다 (#188 작업 중 발견).
         /// </summary>
         private float _pendingHammerPerkPowerPercent;
+
+        /// <summary>
+        /// ContinueRun 의 씬 재로드로 사라지기 전에 HammerSwingController 에서 옮겨 온 예약 판정
+        /// 범위 확대 퍼크(percent). 타격력 강화 퍼크와 같은 이유로 필요하다 — 판정 범위 확대
+        /// 퍼크를 CreatureManager/Target 에서 HammerSwingController 로 옮기며 추가했다
+        /// (팀장 승인, #188).
+        /// </summary>
+        private float _pendingHammerPerkHitRadiusPercent;
 
         private void Awake()
         {
@@ -133,6 +141,7 @@ namespace NCAIClicker.Core
                 if (_sceneRunScopedServices[i] is HammerSwingController hammer && hammer != null)
                 {
                     _pendingHammerPerkPowerPercent += hammer.PendingPerkPowerPercent + hammer.ActivePerkPowerPercent;
+                    _pendingHammerPerkHitRadiusPercent += hammer.PendingPerkHitRadiusPercent + hammer.ActivePerkHitRadiusPercent;
                 }
             }
         }
@@ -345,6 +354,12 @@ namespace NCAIClicker.Core
             {
                 hammer.AddPendingPerkPowerPercent(_pendingHammerPerkPowerPercent);
                 _pendingHammerPerkPowerPercent = 0f;
+            }
+
+            if (hammer != null && _pendingHammerPerkHitRadiusPercent > 0f)
+            {
+                hammer.AddPendingPerkHitRadiusPercent(_pendingHammerPerkHitRadiusPercent);
+                _pendingHammerPerkHitRadiusPercent = 0f;
             }
 
             var upgradeStats = GetComponentInChildren<IUpgradeStats>(true);

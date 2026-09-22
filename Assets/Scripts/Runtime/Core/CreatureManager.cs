@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using NCAIClicker.Data;
 using NCAIClicker.Events;
 using NCAIClicker.Interfaces;
@@ -45,14 +45,6 @@ namespace NCAIClicker.Core
         /// </summary>
         private IStageService _stageService;
 
-        /// <summary>
-        /// 피격 판정 확대 퍼크가 더하는 비율(percent). 파산 전까지 유지한다 — 업그레이드와 같은
-        /// 취급 (팀장 지시, #188 문서 수정 중 반영). Target 인스턴스가 여럿이라 여기서 한 번
-        /// 받아 스폰 때 넘긴다.
-        /// </summary>
-        private float _perkHitRadiusPercent;
-        private float _pendingPerkHitRadiusPercent;
-
         private bool _isRunning;
 
         private readonly List<GameObject> _activeCreatures = new List<GameObject>();
@@ -74,24 +66,19 @@ namespace NCAIClicker.Core
         private void OnEnable()
         {
             GameEvents.OnTargetBroken += HandleTargetBroken;
-            GameEvents.OnPerkChosen += HandlePerkChosen;
-            GameEvents.OnBankrupt += HandleBankrupt;
         }
 
         private void OnDisable()
         {
             GameEvents.OnTargetBroken -= HandleTargetBroken;
-            GameEvents.OnPerkChosen -= HandlePerkChosen;
-            GameEvents.OnBankrupt -= HandleBankrupt;
         }
 
         /// <summary>
-        /// 런을 시작한다. 예약해 둔 퍼크를 켜고 이번 단계의 크리처를 배치한다 (IRunScoped, #126·#140).
+        /// 런을 시작한다. 이번 단계의 크리처를 배치한다 (IRunScoped, #126·#140).
         /// GameManager 가 Managers 프리팹의 IRunScoped 를 모아 불러 준다.
         ///
-        /// 퍼크를 스폰보다 **먼저** 켠다 — SpawnRandomCreature 가 새 대상에
-        /// _perkHitRadiusPercent 를 그대로 물려주므로 순서가 뒤바뀌면 이번 런의 첫 크리처들이
-        /// 퍼크를 받지 못한다.
+        /// 피격 판정 확대 퍼크는 더 이상 여기서 다루지 않는다 — HammerSwingController 의 조준
+        /// 반경 쪽으로 옮겼다 (팀장 승인, #188).
         ///
         /// 초기 배치를 Start() 가 아니라 여기서 하는 이유는 DontDestroyOnLoad 다. Start 는 생애
         /// 한 번뿐이라 Game 씬에 두 번째로 들어갈 때 재초기화가 되지 않는다 (#140).
@@ -99,10 +86,6 @@ namespace NCAIClicker.Core
         public void BeginRun()
         {
             _isRunning = true;
-            // 파산 전까지 유지되므로(팀장 지시, #188) 지난 런에서 이어진 값 위에 예약분을
-            // 더한다 — 여기서 덮어쓰면 EndRun 에서 지우지 않은 값이 다음 런 시작에 사라진다.
-            ApplyPerkRadius(_perkHitRadiusPercent + _pendingPerkHitRadiusPercent);
-            _pendingPerkHitRadiusPercent = 0f;
             if (_stageService != null)
             {
                 _currentStageNumber = _stageService.CurrentStageNumber;
@@ -111,68 +94,13 @@ namespace NCAIClicker.Core
         }
 
         /// <summary>
-        /// 런을 끝낸다. 필드에 남은 크리처는 여기서 치우지만, 피격 판정 확대 퍼크는 더 이상
-        /// 사라지지 않는다 — 업그레이드처럼 파산 전까지 유지한다 (팀장 지시, #188). 파산 시
-        /// 정리는 HandleBankrupt 를 본다.
+        /// 런을 끝낸다. 필드에 남은 크리처를 치운다. 피격 판정 확대 퍼크는 더 이상 이 컴포넌트가
+        /// 다루지 않는다 (HammerSwingController 로 이관, 팀장 승인 #188).
         /// </summary>
         public void EndRun()
         {
             _isRunning = false;
             ClearAllCreatures();
-        }
-
-        /// <summary>
-        /// 파산하면 이번 런에서 쌓이거나 예약된 피격 판정 확대 퍼크를 모두 지운다. 업그레이드는
-        /// 파산으로 지워지지 않지만(GameManager.StartNewRun 주석 "파산은 성장을 지우지 않는다"),
-        /// 퍼크는 성장이 아니라 파산 전까지만 유지되는 별도 효과라 여기서 함께 정리한다 (#188).
-        /// </summary>
-        private void HandleBankrupt()
-        {
-            ApplyPerkRadius(0f);
-            _pendingPerkHitRadiusPercent = 0f;
-        }
-
-        /// <summary>
-        /// 피격 판정 확대 퍼크만 받는다. 런 도중이면 즉시, 밖이면 다음 런 시작에 켠다 (GDD 6절).
-        /// </summary>
-        private void HandlePerkChosen(string perkId)
-        {
-            if (_balanceData == null)
-            {
-                return;
-            }
-
-            var perk = _balanceData.GetPerk(perkId);
-            if (perk == null || perk.Type != PerkType.HitRadiusBoost)
-            {
-                return;
-            }
-
-            if (_isRunning)
-            {
-                ApplyPerkRadius(_perkHitRadiusPercent + perk.Value);
-                return;
-            }
-            _pendingPerkHitRadiusPercent += perk.Value;
-        }
-
-        /// <summary>이미 살아 있는 크리처에도 바로 반영한다. 런 도중에 고른 퍼크가 즉시 들어야 한다.</summary>
-        private void ApplyPerkRadius(float percent)
-        {
-            _perkHitRadiusPercent = percent;
-            for (var i = 0; i < _activeCreatures.Count; i++)
-            {
-                var creature = _activeCreatures[i];
-                if (creature == null)
-                {
-                    continue;
-                }
-                var target = creature.GetComponent<Target>();
-                if (target != null)
-                {
-                    target.SetPerkHitRadiusPercent(percent);
-                }
-            }
         }
 
         /// <summary>
@@ -333,7 +261,6 @@ namespace NCAIClicker.Core
                 // 판정 반경에 업그레이드를 반영하려면 Initialize 보다 먼저 넣어야 한다.
                 target.SetUpgradeStats(_upgradeStats);
                 target.Initialize();
-                target.SetPerkHitRadiusPercent(_perkHitRadiusPercent);
             }
 
             var movement = instance.GetComponent<CreatureMovement>();

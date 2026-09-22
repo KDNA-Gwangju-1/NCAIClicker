@@ -1,6 +1,6 @@
-﻿# 퍼크 효과
+# 퍼크 효과
 
-> 관련 이슈: #126, #92, #188 · 최종 수정: 2026-09-21
+> 관련 이슈: #126, #92, #188 · 최종 수정: 2026-09-22
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -21,14 +21,30 @@
 | 스태미나 회복 | `StaminaRestore` | `StaminaManager` | 스태미나 풀의 소유자 |
 | 코인 획득 강화 | `CoinGainBoost` | `EconomyManager` | **코인 배율은 여기서만** 적용한다 (AGENTS.md) |
 | 타격력 강화 | `HitPowerBoost` | `HammerSwingController` | 타격력 계산의 소유자 |
-| 피격 판정 확대 | `HitRadiusBoost` | `CreatureManager` → `Target` | 아래 참고 |
+| 판정 범위 확대 | `HitRadiusBoost` | `HammerSwingController` | 타격력 강화와 같은 이유 — 조준 반경(`HitRadius`)의 소유자. 원래는 `CreatureManager`→`Target` 이 대상 콜라이더를 키워 이 효과를 냈으나 2026-09-22(#188, 팀장 승인)에 옮겼다. 아래 "판정 범위 확대가 옮겨간 이유" 참고 |
 
-### `Target` 이 직접 구독하지 않는 이유
+### 판정 범위 확대가 `HammerSwingController` 로 옮겨간 이유 (2026-09-22, #188, 팀장 승인)
 
-`Target` 은 화면에 여러 개 떠 있는 **인스턴스**다. 직접 `OnPerkChosen` 을 구독하면 크리처
-수만큼 구독자가 생기고, 파괴될 때 해제를 한 번만 놓쳐도 정적 이벤트에 죽은 구독이 쌓인다.
-그래서 `CreatureManager` 가 한 번만 받아 들고 있다가 스폰할 때 넘기고, 런 도중에 고른
-퍼크는 이미 살아 있는 크리처에도 바로 발라 준다.
+원래 구조는 `CreatureManager` 가 퍼크 비율을 들고 있다가 스폰하는 `Target` 인스턴스마다
+`SetPerkHitRadiusPercent` 로 넘겨, 대상 쪽 `SphereCollider` 반경을 키우는 방식이었다. 값
+자체는 정확했다 — Play Mode 로 재보니 기준 0.25 → 퍼크 적용 0.29 로 CSV 계산과 정확히
+일치했고, 파산 전까지 유지되는 것도 맞았다.
+
+**문제는 체감이었다.** 대상 콜라이더는 `ASSET_PIPELINE.md` 1절의 원칙대로 메시와 분리돼
+있어서 원래도 눈에 보이지 않고, 화면의 유일한 시각 단서인 조준 원(`HammerSwingVisual` 이
+그리는 점선 원)은 `HammerSwingController.HitRadius`(퍼크와 무관한 고정값) 하나만 출처로
+삼는다. 그 결과 사용자가 "판정 범위 퍼크를 골라도 안 늘어나는 것 같다"고 보고했는데,
+실제로는 판정은 늘어나고 있었고 그걸 보여줄 원이 없었을 뿐이다.
+
+사용자가 직접 제안한 해법을 그대로 채택했다 — "망치 밑에 이미 점선으로 된 원이 있는데
+그 원 크기를 키우면 되지 않겠냐". 두 구체 사이의 겹침 판정(`Physics.OverlapSphereNonAlloc`)은
+두 반경의 **합**에만 좌우되므로, 대상 콜라이더를 ΔR 만큼 키우는 것과 조준 원 반경을 같은
+ΔR 만큼 키우는 것은 판정 결과가 완전히 같다 — 그래서 이 이동은 밸런스를 흔들지 않는
+순수한 소유권 이전이다. 옮긴 뒤로는 `HammerSwingController` 가 `_perkHitRadiusPercent`를
+`_baseReticleRadius`에 곱해 `HitRadius`를 갱신하고, `HammerSwingVisual` 이 매 프레임
+`HitRadius`를 읽어 다르면 레티클(베이스 링 + 12개 세그먼트)을 그 자리에서 다시 그린다.
+`Target`/`CreatureManager` 는 더 이상 이 퍼크를 몰라도 된다 — 업그레이드(완력 단련)가 주는
+`hit_radius_bonus` 비율만 대상 콜라이더에 남는다.
 
 ## 왜 이 방법인가
 
@@ -37,7 +53,7 @@
 | 각 소유자가 `OnPerkChosen` 을 구독해 스스로 적용 | ✅ | `BillManager` 가 #28 에서 그렇게 위임했고, 퍼크마다 값을 쓰는 곳이 달라 한곳에 모으면 그 한곳이 모든 매니저를 알게 된다 |
 | 퍼크 전담 매니저를 두고 각 시스템에 값을 밀어 넣는다 | ❌ | 시스템마다 통로(`SetXxx`)를 파야 하고, 그 통로가 늘수록 업그레이드가 쓰는 `IUpgradeStats` 와 반영 경로가 두 갈래가 된다. #131 에서 같은 이유로 `SetUpgradeOverrides` 를 걷어냈다 |
 | 퍼크를 `StatId` 로 흡수해 `IUpgradeStats` 에 얹는다 | ❌ | 업그레이드는 영구·레벨식이고 퍼크는 런 한정·기간제다. 같은 통로에 넣으면 "레벨 0 으로 되돌리기"와 "런 끝나면 사라지기"가 한 상태에 섞인다 |
-| 적용 시점을 호출측 책임으로 두기 | ❌ | 고르는 곳은 `BillManager` 하나인데 받는 곳이 넷이다. 시점 판단을 네 번 복제하게 된다 |
+| 적용 시점을 호출측 책임으로 두기 | ❌ | 고르는 곳은 `BillManager` 하나인데 받는 곳이 셋(스태미나·코인·망치)이다. 시점 판단을 세 번 복제하게 된다 |
 | 각 주체가 자기 런 상태를 보고 즉시/예약을 고른다 | ✅ | GDD 6절이 요구하는 분기가 주체마다 다르다 (회복은 "빈자리가 생길 때", 기간제는 "다음 런 시작부터") |
 
 ### 적용 시점 — GDD 6절이 까다롭다
@@ -53,7 +69,7 @@
 | 회복 | 빈자리가 있으면 즉시, 없으면 예약 | 예약 | **예약은 유지** (다음 런에서 쓴다) |
 | 코인 강화 | 즉시 시작 | 다음 런 시작부터 | 남은 시간 **버림** |
 | 타격력 | 즉시 | 다음 런부터 | **파산 전까지 유지** (팀장 지시, #188) |
-| 판정 확대 | 즉시 (살아 있는 크리처도 갱신) | 다음 런부터 | **파산 전까지 유지** (팀장 지시, #188) |
+| 판정 범위 확대 | 즉시 (조준 반경·레티클이 그 자리에서 커진다) | 다음 런부터 | **파산 전까지 유지** (팀장 지시, #188) |
 
 **회복 퍼크가 가장 까다롭다.** 만충일 때 그냥 쓰면 `Restore()` 가 0 을 돌려주고 퍼크는
 사라진다 — 검증에서 빈자리 확인을 빼 보니 정확히 그렇게 조용히 증발했다. 그래서 예약해 두고
@@ -63,7 +79,7 @@
 시간만 흘려 보내면 다음 런에 껍데기만 남기 때문이다. 결과 화면에서 **받은** 것은 예약이므로
 영향이 없다.
 
-타격력·판정 확대는 반대로 **파산 전까지 유지**한다 — 원래는 코인 강화와 같이 매 런 종료마다
+타격력·판정 범위 확대는 반대로 **파산 전까지 유지**한다 — 원래는 코인 강화와 같이 매 런 종료마다
 지웠는데, 팀장 지시로 4.11(#188) 문서 정리 중 고쳤다. 업그레이드·고지서·대출과 같은
 "회차" 층(GDD "파산" 절)에 놓인다고 보면 된다 — 하루가 끝나도 안 사라지고, 회차 자체가
 끝나는 파산에서만 초기화된다. percent 값이라 만료 시각을 셀 필요가 없어, 코인 강화처럼
@@ -79,13 +95,15 @@ flowchart LR
 
   subgraph Core["코어 플레이"]
     stamina["StaminaManager<br/>회복 예약·소모"]
-    hammer["HammerSwingController<br/>타격력"]
-    creatures["CreatureManager<br/>판정 반경 보유"]
-    target["Target<br/>콜라이더 반경"]
+    hammer["HammerSwingController<br/>타격력·판정 반경"]
   end
 
   subgraph Economy["경제"]
     econ["EconomyManager<br/>코인 배율·잔여 시간"]
+  end
+
+  subgraph Visual["연출"]
+    visual["HammerSwingVisual<br/>레티클(점선 원) 크기"]
   end
 
   subgraph Run["런 경계"]
@@ -97,30 +115,33 @@ flowchart LR
   bill == "OnPerkChosen 발행" ==> events
   events == "구독" ==> stamina
   events == "구독" ==> hammer
-  events == "구독" ==> creatures
   events == "구독" ==> econ
-  creatures -- "스폰 시 비율 전달" --> target
+  hammer -- "HitRadius 매 프레임 읽음" --> visual
   gm -. "IRunScoped" .-> stamina
   gm -. "IRunScoped" .-> econ
   gm -. "IRunScoped (씬)" .-> hammer
-  gm -. "IRunScoped (씬)" .-> creatures
 ```
 
 | 클래스 | 경로 | 이 기능에서 하는 일 |
 |---|---|---|
 | `StaminaManager` | `Assets/Scripts/Runtime/Core/StaminaManager.cs` | 회복 예약과 소모 |
 | `EconomyManager` | `Assets/Scripts/Runtime/Economy/EconomyManager.cs` | 코인 배율과 잔여 시간 |
-| `HammerSwingController` | `Assets/Scripts/Runtime/Core/HammerSwingController.cs` | 타격력 비율 |
-| `CreatureManager` | `Assets/Scripts/Runtime/Core/CreatureManager.cs` | 판정 반경 비율 보유·전달 |
-| `Target` | `Assets/Scripts/Runtime/Targets/Target.cs` | 콜라이더 반경에 합산 |
-| `PerkEffectChecks` | `Assets/Scripts/Editor/PerkEffectChecks.cs` | Edit Mode 검증 25건 |
+| `HammerSwingController` | `Assets/Scripts/Runtime/Core/HammerSwingController.cs` | 타격력 비율·판정 범위(조준 반경) 비율 |
+| `HammerSwingVisual` | `Assets/Scripts/Runtime/Core/HammerSwingVisual.cs` | 조준 원(레티클)을 `HitRadius` 에 맞춰 매 프레임 다시 그린다 (2026-09-22, #188 이전에는 시작할 때 한 번만 굳혔다) |
+| `PerkEffectChecks` | `Assets/Scripts/Editor/PerkEffectChecks.cs` | Edit Mode 검증 24건 |
+
+`Target`(`Assets/Scripts/Runtime/Targets/Target.cs`)과 `CreatureManager` 는 더 이상 이
+기능에 나오지 않는다 — 2026-09-22(#188)에 판정 범위 확대 퍼크가 `HammerSwingController` 로
+옮겨가면서, `Target` 의 콜라이더 반경에는 업그레이드(완력 단련, `hit_radius_bonus`)만
+남았다.
 
 ### 런 경계를 씬까지 넓혔다
 
-`HammerSwingController` 와 `CreatureManager` 는 **씬에 산다.** `GameManager` 가 런 경계를
-뿌리는 `GetComponentsInChildren<IRunScoped>` 는 `Managers` 프리팹 안만 훑으므로 이 둘은
-잡히지 않았다. 위 표의 "런 중인지"와 "런이 끝나면 사라짐"이 둘 다 런 경계를 요구해서,
-두 클래스가 `IRunScoped` 를 구현하고 `GameManager` 가 씬 구현체도 따로 모아 부른다.
+`HammerSwingController` 는 **씬에 산다.** `GameManager` 가 런 경계를 뿌리는
+`GetComponentsInChildren<IRunScoped>` 는 `Managers` 프리팹 안만 훑으므로 이 컴포넌트는
+잡히지 않는다. 위 표의 "런 중인지"와 "런이 끝나면 사라짐"이 둘 다 런 경계를 요구해서,
+`HammerSwingController` 가 `IRunScoped` 를 구현하고 `GameManager` 가 씬 구현체도 따로
+모아 부른다.
 
 **새 계약을 만들지 않았다.** 기존 `IRunScoped` 의 구현자가 늘었을 뿐이다. 씬 구현체는
 캐시하지 않고 런 시작마다 다시 찾는다 — 씬이 다시 로드되면 인스턴스가 새로 생긴다.
@@ -141,7 +162,7 @@ Result 화면(런 밖)에서 고른 퍼크는 씬 구현체의 `_pendingXxx` 필
 
 ### 위 수정이 놓친 절반 — 활성값도 옮겨야 했다 (#188, 파산 전까지 유지 작업 중 재발견)
 
-타격력 강화를 파산 전까지 유지하도록 고친 뒤(위 "갱신 이력" 참고), 사용자가 실제 플레이에서
+타격력 강화를 파산 전까지 유지하도록 고친 뒤(아래 "갱신 이력" 참고), 사용자가 실제 플레이에서
 "15% 강화가 파산도 안 했는데 없어진다"를 다시 보고했다. 원인은 바로 위 수정이 옮기던 것이
 `_pendingPerkPowerPercent`(아직 안 켠 예약분) 뿐이었기 때문이다. 이번 작업 전에는 `EndRun`
 이 매일 `_perkPowerPercent`(이미 켠 활성분)를 0으로 지웠으니 옮길 활성값이 애초에 없어서 이
@@ -153,11 +174,20 @@ Result 화면(런 밖)에서 고른 퍼크는 씬 구현체의 `_pendingXxx` 필
 가 `PendingPerkPowerPercent + ActivePerkPowerPercent` 를 합쳐서 옮기도록 고쳤다 — 새 인스턴스는
 합계를 예약값으로 받아 `BeginRun` 이 그대로 활성화한다.
 
+**판정 범위 확대를 옮겨올 때는 이 두 버그를 처음부터 피했다.** 2026-09-22(#188)에
+`hit_radius_boost` 를 `HammerSwingController` 로 옮기면서, `_perkHitRadiusPercent`/
+`_pendingPerkHitRadiusPercent`/`ActivePerkHitRadiusPercent`/`PendingPerkHitRadiusPercent`/
+`AddPendingPerkHitRadiusPercent` 를 타격력 쪽과 완전히 같은 모양으로 처음부터 만들었고,
+`GameManager.CarryOverScenePerks`/`WireSceneConsumers` 도 씬 재로드 시 활성·예약 둘 다
+같은 호출에서 함께 옮기도록 처음부터 넣었다 — 위에서 겪은 "예약분만 옮기고 활성분을
+빠뜨리는" 순서를 다시 밟지 않기 위해서다.
+
 ### 이벤트
 
 | 이벤트 | 발행/구독 | 언제 |
 |---|---|---|
-| `GameEvents.OnPerkChosen` | **구독** (4곳) | 자기 종류의 퍼크만 처리하고 나머지는 무시한다 |
+| `GameEvents.OnPerkChosen` | **구독** (3곳: `StaminaManager`·`EconomyManager`·`HammerSwingController`) | 자기 종류의 퍼크만 처리하고 나머지는 무시한다. `HammerSwingController` 는 한 핸들러가 `HitPowerBoost`·`HitRadiusBoost` 둘 다 받는다 |
+| `GameEvents.OnBankrupt` | **구독** (1곳: `HammerSwingController`) | 타격력·판정 범위 확대 퍼크를 활성·예약 모두 지운다 (파산 전까지 유지, #188) |
 | `GameEvents.OnStaminaRestored` | 발행 | 회복 퍼크가 **실제로 들어갔을 때만** |
 
 퍼크 전용 이벤트는 만들지 않았다. UI 가 "퍼크가 걸렸다"를 알아야 하면 그때 정한다 (6.9).
@@ -175,7 +205,7 @@ Result 화면(런 밖)에서 고른 퍼크는 씬 구현체의 `_pendingXxx` 필
 
 ## 검증
 
-Edit Mode 에서 `PerkEffectChecks.RunBatch()` 로 확인했다 (**25건 PASS**). 3회 연속 실행 후
+Edit Mode 에서 `PerkEffectChecks.RunBatch()` 로 확인했다 (**24건 PASS**). 3회 연속 실행 후
 `GameEvents` 구독자 수가 전부 0인 것도 확인했다 — 구독이 새면 퍼크가 두 번 적용된다.
 기대값은 코드에 적지 않고 생성된 `BalanceData.asset` 에서 읽는다.
 
@@ -187,10 +217,9 @@ Edit Mode 에서 `PerkEffectChecks.RunBatch()` 로 확인했다 (**25건 PASS**)
 - [x] 런이 끊기면 남은 코인 강화가 사라진다
 - [x] 런 밖에서 고른 코인 강화는 **다음 런 시작부터** 시간을 센다
 - [x] 타격력 퍼크가 걸리고, 런이 끝나도 사라지지 않으며(파산 전까지 유지, #188), 런 밖에서 고르면 다음 런부터 걸린다
-- [x] 타격력·판정 확대 퍼크는 파산해야 지워진다 — 활성분과 (런 밖에서 고른) 예약분 둘 다 (#188)
-- [x] 판정 반경 퍼크가 기준 비율에 **더해진다** (업그레이드 비율과 합산)
-- [x] 재초기화(풀 재사용)에서 퍼크 반경이 유지된다
-- [x] `CreatureManager` 가 런 경계에 맞춰 비율을 켜고 끈다
+- [x] 판정 범위 확대 퍼크가 `HammerSwingController.HitRadius` 에 걸리고, 런이 끝나도 사라지지 않으며(파산 전까지 유지, #188), 런 밖에서 고르면 다음 런부터 걸린다
+- [x] 타격력·판정 범위 확대 퍼크는 파산해야 지워진다 — 활성분과 (런 밖에서 고른) 예약분 둘 다 (#188)
+- [x] `Target` 의 기준 반경(업그레이드 비율 포함)은 재초기화해도 흔들리지 않는다 — 퍼크가 더 이상 이 값에 관여하지 않는다 (2026-09-22, #188)
 - [x] 구독을 해제하면 퍼크에 반응하지 않는다
 - [x] `BalanceData` 가 dirty 되지 않는다
 
@@ -205,9 +234,9 @@ Edit Mode 에서 `PerkEffectChecks.RunBatch()` 로 확인했다 (**25건 PASS**)
 그 버그를 고친 뒤 같은 경로로 다시 재현해 새 인스턴스의 `_perkPowerPercent=15`,
 `_runHitPower=1.15` 승격을 확인했다. 나머지 세 퍼크(`stamina_restore`·`coin_gain_boost`·
 `hit_radius_boost`)는 여전히 Play Mode 로 직접 검증하지 못했다 — `EconomyManager`·
-`StaminaManager`·`CreatureManager` 가 전부 `Managers` 프리팹(`DontDestroyOnLoad`) 소속이라
-씬 재로드 문제는 소스 분석으로는 없다고 보이지만, 적용 값 자체를 플레이로 확인한 것은 아니다.
-타격력·판정 확대의 "파산 전까지 유지" 규칙(#188)은 처음엔 `PerkEffectChecks` 로만
+`StaminaManager` 가 `Managers` 프리팹(`DontDestroyOnLoad`) 소속이라 씬 재로드 문제는
+소스 분석으로는 없다고 보이지만, 적용 값 자체를 플레이로 확인한 것은 아니다.
+타격력·판정 범위 확대의 "파산 전까지 유지" 규칙(#188)은 처음엔 `PerkEffectChecks` 로만
 확인했었다 — `GameEvents.PublishBankrupt()` 를 직접 발행해 활성·예약 값이 지워지는지 Edit
 Mode 에서 봤을 뿐이었다. 그런데 Edit Mode 검증은 씬 재로드를 흉내 내지 않아 "며칠째 유지되던
 활성값이 매일 씬 재로드로 사라지는" 위 회귀를 못 잡았고, 사용자가 실제 플레이에서 먼저
@@ -215,13 +244,14 @@ Mode 에서 봤을 뿐이었다. 그런데 Edit Mode 검증은 씬 재로드를 
 `hit_power_boost` 선택(예약 15) → `ContinueRun`(2일차, 새 인스턴스에서 활성 15·`_runHitPower`
 1.15 승격 확인) → 정상 종료 → `ContinueRun`(3일차, **또 새 인스턴스인데** 활성 15 유지 확인 —
 이게 회귀가 있었다면 0 으로 돌아갔을 지점이다) → `GameEvents.PublishBankrupt()` 발행 →
-활성·예약 모두 0, `_runHitPower` 1.0 복귀 확인. 나머지 세 퍼크(`stamina_restore`·
-`coin_gain_boost`·`hit_radius_boost`)는 여전히 Play Mode 로 직접 검증하지 못했다 —
-`EconomyManager`·`StaminaManager`·`CreatureManager` 가 전부 `Managers` 프리팹
-(`DontDestroyOnLoad`) 소속이라 씬 재로드 문제는 소스 분석으로는 없다고 보이지만(그래서 이번
-회귀도 `HammerSwingController` 하나에서만 났다), 적용 값 자체를 플레이로 확인한 것은 아니다.
-실제 고지서 미납으로 파산까지 이어지는 Play Mode 경로(`PublishBankrupt` 를 직접 발행하는 것이
-아니라 `BillManager.TryCloseDay` 가 발행하게 하는 경로)도 아직 재현하지 않았다.
+활성·예약 모두 0, `_runHitPower` 1.0 복귀 확인.
+
+`hit_radius_boost` 는 2026-09-22(#188)에 옮긴 뒤 Play Mode 로 직접 재확인했다 — 옮기기 전
+구조(`CreatureManager`→`Target`)에서도 기준 0.25 → 퍼크 적용 0.29 로 CSV 계산과 정확히
+일치하는 것을 먼저 확인했고(수치 자체는 버그가 아니었다는 근거), 옮긴 뒤에는
+`HammerSwingController.HitRadius` 와 화면의 점선 레티클이 퍼크 선택 즉시 함께 커지고,
+`EndRun`/다음 `BeginRun` 을 거쳐도 유지되며, `GameEvents.PublishBankrupt()` 발행 시에만
+기준값으로 되돌아가는 것을 확인했다 (자세한 절차는 아래 갱신 이력 참고).
 
 ## 알려진 한계
 
@@ -235,8 +265,9 @@ Mode 에서 봤을 뿐이었다. 그런데 Edit Mode 검증은 씬 재로드를 
 - ~~**선택 중 시간 정지가 없다.**~~ — #92 에서 붙였다. 선택 화면이 `Time.timeScale` 을 0 으로
   내려 GDD 6절이 말하는 다섯(스태미나·스윙·스폰·피버·기간제 효과)이 함께 멈춘다
   ([퍼크 3장 선택 화면](perk-choice-ui.md))
-- **빌드에서는 판정 반경 퍼크가 먹지 않는다.** `CreatureManager` 자체가 빌드에 없기 때문이다
-  ([#140](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/140))
+- ~~**빌드에서는 판정 반경 퍼크가 먹지 않는다.**~~ — 2026-09-22(#188)에 판정 범위 확대 퍼크가
+  `CreatureManager`(당시 빌드 제외 대상, #140)에서 `HammerSwingController`(항상 빌드 포함)로
+  옮겨가면서 이 한계 자체가 사라졌다
 - **퍼크 수치를 Play Mode 로 실측하지 않았다.** `perks.csv` 의 `value`·`duration_sec` 는
   4.11(#188, 2026-09-21)에서 스태미나 7.0 기준으로 다시 잡았지만, 근거는 모델 계산(드레인률·
   스윙 간격·`fever.csv` 대비 규모)이고 `simulate_balance.py` 는 퍼크를 모델링하지 않는다.
@@ -252,3 +283,4 @@ Mode 에서 봤을 뿐이었다. 그런데 Edit Mode 검증은 씬 재로드를 
 | 2026-09-21 | #188 | yahoo-afk | `ContinueRun` 의 씬 재로드로 `HammerSwingController` 의 예약 퍼크(`hit_power_boost`)가 다음 런에서 사라지던 버그를 발견·수정 — `GameManager` 가 씬 재로드 전후로 값을 옮겨 준다. Play Mode 리플렉션으로 즉시 적용·예약 승격 모두 확인 |
 | 2026-09-21 | #188 | yahoo-afk | 팀장 지시로 타격력 강화·피격 판정 확대 퍼크의 적용 시점 규칙을 바꿨다 — 매 런 종료(`EndRun`)마다 지우던 것을 그만두고, `GameEvents.OnBankrupt` 구독으로 파산할 때만 지운다(활성분·예약분 모두). `BeginRun` 도 예약분으로 덮어쓰던 것을 기존 값에 더하는 것으로 고쳐야 했다 — 안 그러면 다음 런 시작에 이어온 값이 지워진다(`PerkEffectChecks` 가 먼저 잡았다). 코인 획득 강화는 1회성 기간제라 그대로 뒀다. `PerkEffectChecks` 에 파산 케이스를 추가(21→25건), `GDD.md` "파산" 절의 층 표에 이 두 퍼크를 회차 층으로 추가 |
 | 2026-09-21 | #188 | yahoo-afk | 위 수정이 놓친 절반을 사용자가 실제 플레이에서 잡아냈다 — "파산 전까지 유지"로 고친 뒤에도 타격력 강화가 다음 날 조용히 사라졌다. 원인은 `GameManager.CarryOverScenePerks` 가 씬 재로드 때 예약분(`PendingPerkPowerPercent`)만 옮기고, 매일 쌓이는 활성분(`_perkPowerPercent`, 이제는 `EndRun` 이 안 지운다)은 옮기지 않아서였다. `HammerSwingController` 에 `ActivePerkPowerPercent` 를 추가하고 `CarryOverScenePerks` 가 둘을 합쳐 옮기도록 고쳤다. Play Mode 로 1→2→3일차 연속 전환에서 활성값이 유지되고, 파산에서만 지워지는 것을 재확인 |
+| 2026-09-22 | #188 | yahoo-afk | 사용자가 "판정 범위가 안 늘어나는 것 같다"고 보고 — Play Mode 로 재보니 실제로는 기준 0.25→퍼크 적용 0.29 로 산수는 맞았지만, 체감 단서(조준 원)가 이 퍼크와 무관해 눈에 안 보였을 뿐이었다. 팀장 승인을 받아, 사용자가 제안한 대로 판정 범위 확대 퍼크를 `CreatureManager`/`Target`(대상 콜라이더 확대, 비가시)에서 `HammerSwingController`/`HammerSwingVisual`(조준 반경·레티클 확대, 가시)로 옮겼다 — 두 구체의 겹침 판정은 반경의 합에만 좌우되므로 판정 결과는 그대로다. `HammerSwingController` 에 타격력 강화와 같은 모양의 활성/예약 필드·`GameManager` 씬 재로드 이관을 처음부터 대칭으로 넣어 위 두 회귀를 되풀이하지 않았다. `HammerSwingVisual` 은 시작할 때 한 번만 굳히던 레티클 크기를 매 프레임 `HitRadius` 와 비교해 다시 그리도록 고쳤다. `PerkEffectChecks` 를 `HammerSwingController` 기준으로 다시 써서 24건 PASS(기존 25건에서 `RunCreatureManagerPerkChecks` 제거·`RunHammerRadiusPerkChecks` 추가로 순감 1건), Play Mode 로 레티클이 퍼크 선택 즉시 커지고 파산에서만 되돌아가는 것을 확인. `GDD.md` 4.2 절과 "파산" 층 표의 문구도 "판정 범위 확대"로 다듬었다 |

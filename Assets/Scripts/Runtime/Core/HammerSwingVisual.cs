@@ -27,6 +27,14 @@ namespace NCAIClicker.Core
         private Transform _reticleRoot;
         private Transform _hammerPivot;
         private Renderer[] _segmentRenderers;
+        private Transform _baseQuadTransform;
+
+        /// <summary>
+        /// 조준 반경 출처. 판정 범위 확대 퍼크(hit_radius_boost)로 HitRadius 가 바뀌면 Update 에서
+        /// 매 프레임 비교해 레티클을 다시 그린다 (팀장 승인, #188) — BuildVisuals 는 시작할 때
+        /// 한 번만 크기를 굳히므로 그것만으로는 퍼크로 인한 변화가 반영되지 않는다.
+        /// </summary>
+        private HammerSwingController _controller;
 
         /// <summary>
         /// 조준 판정 반경. 출처는 HammerSwingController 하나뿐이다 — 여기서 따로 정하면
@@ -62,6 +70,7 @@ namespace NCAIClicker.Core
             }
             else
             {
+                _controller = controller;
                 _hitRadius = controller.HitRadius;
                 _swingInterval = controller.SwingIntervalSec;
             }
@@ -118,6 +127,7 @@ namespace NCAIClicker.Core
             baseQuad.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
             baseQuad.transform.localScale = new Vector3(baseQuadScale, baseQuadScale, 1f);
             baseQuad.transform.localPosition = new Vector3(0f, 0.012f, 0f);
+            _baseQuadTransform = baseQuad.transform;
             Destroy(baseQuad.GetComponent<Collider>());
 
             var baseRenderer = baseQuad.GetComponent<Renderer>();
@@ -282,8 +292,55 @@ namespace NCAIClicker.Core
             }
         }
 
+        /// <summary>
+        /// 판정 범위 확대 퍼크(hit_radius_boost)로 조준 반경이 바뀌면 레티클도 함께 다시 그려야
+        /// 체감이 된다 (팀장 승인, #188). BuildVisuals 는 시작할 때 한 번만 크기를 굳히므로,
+        /// 반경이 바뀔 때마다 Update 가 이 메서드를 불러 베이스 링과 세그먼트 위치를 갱신한다.
+        /// </summary>
+        private void RebuildReticleScale()
+        {
+            if (_baseQuadTransform != null)
+            {
+                var baseQuadScale = _hitRadius * 2f / RingTextureRadiusRatio;
+                _baseQuadTransform.localScale = new Vector3(baseQuadScale, baseQuadScale, 1f);
+            }
+
+            if (_segmentRenderers == null)
+            {
+                return;
+            }
+
+            var segmentRingRadius = _hitRadius * SegmentRingRatio;
+            for (var i = 0; i < SegmentCount; i++)
+            {
+                var r = _segmentRenderers[i];
+                if (r == null)
+                {
+                    continue;
+                }
+
+                var angleDeg = (i / (float)SegmentCount) * 360f;
+                var angleRad = (90f - angleDeg) * Mathf.Deg2Rad;
+                var posX = Mathf.Cos(angleRad) * segmentRingRadius;
+                var posZ = Mathf.Sin(angleRad) * segmentRingRadius;
+                var segTransform = r.transform;
+                var pos = segTransform.localPosition;
+                segTransform.localPosition = new Vector3(posX, pos.y, posZ);
+            }
+        }
+
         private void Update()
         {
+            if (_controller != null)
+            {
+                var currentRadius = _controller.HitRadius;
+                if (!Mathf.Approximately(currentRadius, _hitRadius))
+                {
+                    _hitRadius = currentRadius;
+                    RebuildReticleScale();
+                }
+            }
+
             if (!_isVisible)
             {
                 return;

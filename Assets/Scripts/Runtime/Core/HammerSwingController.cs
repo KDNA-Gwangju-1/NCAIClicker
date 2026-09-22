@@ -1,4 +1,4 @@
-﻿using NCAIClicker.Data;
+using NCAIClicker.Data;
 using NCAIClicker.Events;
 using NCAIClicker.Interfaces;
 using UnityEngine;
@@ -34,6 +34,7 @@ namespace NCAIClicker.Core
         private bool _hasWarnedBufferFull;
 
         /// <summary>조준 판정 반경. 원본은 economy.csv 의 reticle_radius 다 (AGENTS.md 데이터 규칙).</summary>
+        private float _baseReticleRadius;
         private float _hitRadius;
 
         /// <summary>
@@ -54,6 +55,15 @@ namespace NCAIClicker.Core
         private float _perkPowerPercent;
         private float _pendingPerkPowerPercent;
 
+        /// <summary>
+        /// 판정 범위 확대 퍼크가 더하는 비율(percent). 파산 전까지 유지한다 — 타격력 강화 퍼크와
+        /// 같은 규칙 (팀장 지시, #188). 기존에는 CreatureManager/Target 이 대상 콜라이더를 키워
+        /// 이 효과를 냈으나, 조준 원(HammerSwingVisual)이 커지지 않아 체감되지 않는다는 지적에
+        /// 따라 망치의 판정/연출 반경 쪽으로 옮겼다 (팀장 승인, #188).
+        /// </summary>
+        private float _perkHitRadiusPercent;
+        private float _pendingPerkHitRadiusPercent;
+
         private bool _isRunning;
 
         /// <summary>가장 최근 스윙에서 계산된 커서의 책상 평면 위 월드 좌표.</summary>
@@ -64,6 +74,8 @@ namespace NCAIClicker.Core
         /// 둘이 갈라지면 "보이는 원 밖인데 맞는다"가 된다 (이슈 #109).
         ///
         /// 업그레이드 hit_radius 는 여기가 아니라 대상 콜라이더를 넓힌다 (BALANCE 6절, #131).
+        /// 판정 범위 확대 퍼크(hit_radius_boost)는 반대로 이 반경에 곱해진다 — 조준 원이 함께
+        /// 커져야 체감이 되기 때문이다 (팀장 승인, #188).
         /// </summary>
         public float HitRadius => _hitRadius;
 
@@ -86,7 +98,7 @@ namespace NCAIClicker.Core
             _deskPlane = new Plane(Vector3.up, new Vector3(0f, _deskPlaneY, 0f));
             if (_balanceData != null)
             {
-                _hitRadius = _balanceData.Economy.ReticleRadius;
+                _baseReticleRadius = _balanceData.Economy.ReticleRadius;
             }
             CacheUpgradedStats();
         }
@@ -141,6 +153,8 @@ namespace NCAIClicker.Core
             // 더한다 — 여기서 덮어쓰면 EndRun 에서 지우지 않은 값이 다음 런 시작에 사라진다.
             _perkPowerPercent += _pendingPerkPowerPercent;
             _pendingPerkPowerPercent = 0f;
+            _perkHitRadiusPercent += _pendingPerkHitRadiusPercent;
+            _pendingPerkHitRadiusPercent = 0f;
             CacheUpgradedStats();
             SetVisualActive(true);
         }
@@ -165,6 +179,8 @@ namespace NCAIClicker.Core
         {
             _perkPowerPercent = 0f;
             _pendingPerkPowerPercent = 0f;
+            _perkHitRadiusPercent = 0f;
+            _pendingPerkHitRadiusPercent = 0f;
             CacheUpgradedStats();
         }
 
@@ -195,6 +211,28 @@ namespace NCAIClicker.Core
             _pendingPerkPowerPercent += percent;
         }
 
+        /// <summary>
+        /// 지금 예약되어 있는(아직 BeginRun 으로 승격되지 않은) 판정 범위 확대 퍼크 비율(percent).
+        /// 타격력 강화 퍼크와 같은 이유로 GameManager 가 씬 재로드 직전에 ActivePerkHitRadiusPercent
+        /// 와 함께 읽어 간다 (#188).
+        /// </summary>
+        public float PendingPerkHitRadiusPercent => _pendingPerkHitRadiusPercent;
+
+        /// <summary>
+        /// 지금 활성 상태로 이미 적용돼 있는 판정 범위 확대 퍼크 비율(percent). 파산 전까지
+        /// 유지되므로(팀장 지시, #188) 씬 재로드로 인스턴스가 바뀐다고 사라지면 안 된다.
+        /// </summary>
+        public float ActivePerkHitRadiusPercent => _perkHitRadiusPercent;
+
+        /// <summary>
+        /// 씬 재로드로 사라지기 전 인스턴스에서 넘어온 판정 범위 확대 퍼크(예약분 + 활성분 합계)를
+        /// 더한다. GameManager 가 WireSceneConsumers 에서, 새로 찾은 인스턴스에 한 번만 불러 준다.
+        /// </summary>
+        public void AddPendingPerkHitRadiusPercent(float percent)
+        {
+            _pendingPerkHitRadiusPercent += percent;
+        }
+
 
         /// <summary>
         /// 타격력 강화 퍼크만 받는다. 런 도중이면 즉시, 밖이면 다음 런 시작에 켠다 (GDD 6절).
@@ -208,18 +246,33 @@ namespace NCAIClicker.Core
             }
 
             var perk = _balanceData.GetPerk(perkId);
-            if (perk == null || perk.Type != PerkType.HitPowerBoost)
+            if (perk == null)
             {
                 return;
             }
 
-            if (_isRunning)
+            if (perk.Type == PerkType.HitPowerBoost)
             {
-                _perkPowerPercent += perk.Value;
-                CacheUpgradedStats();
+                if (_isRunning)
+                {
+                    _perkPowerPercent += perk.Value;
+                    CacheUpgradedStats();
+                    return;
+                }
+                _pendingPerkPowerPercent += perk.Value;
                 return;
             }
-            _pendingPerkPowerPercent += perk.Value;
+
+            if (perk.Type == PerkType.HitRadiusBoost)
+            {
+                if (_isRunning)
+                {
+                    _perkHitRadiusPercent += perk.Value;
+                    CacheUpgradedStats();
+                    return;
+                }
+                _pendingPerkHitRadiusPercent += perk.Value;
+            }
         }
 
         /// <summary>
@@ -245,6 +298,10 @@ namespace NCAIClicker.Core
 
             // 퍼크는 업그레이드가 적용된 값 위에 비율로 얹는다 (BALANCE 6절의 percent 와 같은 순서).
             _runHitPower = upgraded * (1f + _perkPowerPercent / 100f);
+
+            // 판정 범위 확대 퍼크는 조준 반경(_hitRadius)에 곱해진다 — 업그레이드 hit_radius 는
+            // 대상 콜라이더 쪽이라 여기 관여하지 않는다 (BALANCE 6절, #131 대비 #188).
+            _hitRadius = _baseReticleRadius * (1f + _perkHitRadiusPercent / 100f);
         }
 
         private void Update()
