@@ -1,8 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
+using UnityEditor;
 using UnityEngine;
 using NCAIClicker.Core;
+using NCAIClicker.Economy;
 using NCAIClicker.Data;
 using NCAIClicker.Events;
 using NCAIClicker.Interfaces;
@@ -20,6 +22,7 @@ namespace NCAIClicker.EditorTools
             VerifyDataStructures();
             VerifyRunScopedContracts();
             VerifyGameManagerLifecycle();
+            VerifyPostPaymentFlowBlocksRunStart();
             Debug.Log("[ContractsValidationChecks] All contract checks passed successfully.");
         }
 
@@ -155,6 +158,88 @@ namespace NCAIClicker.EditorTools
             {
                 throw new InvalidOperationException("EconomyManager must implement IRunScoped");
             }
+        }
+
+        /// <summary>
+        /// 납부 후 흐름이 남은 채 Game 씬이 로드되면 런을 시작하지 않는다 (이슈 #265).
+        ///
+        /// 메인 메뉴의 이어하기는 Game 씬을 로드하므로 씬 이름만 보면 Running 이다. 그대로 두면
+        /// HUD·크리처가 뜬 위에 BillPanel 이 복원돼 두 화면이 겹쳤다. 씬을 실제로 로드하지 않고
+        /// 판정 메서드만 불러 본다.
+        /// </summary>
+        private static void VerifyPostPaymentFlowBlocksRunStart()
+        {
+            var host = new GameObject("PostPaymentFlowCheckHost") { hideFlags = HideFlags.HideAndDontSave };
+            host.SetActive(false);
+
+            // Awake 가 static Instance 를 덮어쓴다. Edit Mode 는 OnDestroy 를 부르지 않으므로
+            // 되돌려 두지 않으면 파괴된 오브젝트를 가리키는 Instance 가 남는다.
+            var previousInstance = GameManager.Instance;
+
+            try
+            {
+                var gm = host.AddComponent<GameManager>();
+                var bill = host.AddComponent<BillManager>();
+                var balance = AssetDatabase.LoadAssetAtPath<BalanceData>("Assets/GameData/Generated/BalanceData.asset");
+                SetPrivate(bill, "_balanceData", balance);
+                host.SetActive(true);
+
+                var awake = typeof(GameManager).GetMethod("Awake", BindingFlags.NonPublic | BindingFlags.Instance);
+                var resolve = typeof(GameManager).GetMethod("ResolveStateForLoad", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (awake == null || resolve == null)
+                {
+                    throw new InvalidOperationException("GameManager.Awake / ResolveStateForLoad 를 찾지 못했습니다.");
+                }
+
+                awake.Invoke(gm, null);
+
+                var gameScene = (string)typeof(GameManager)
+                    .GetField("GameSceneName", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy)
+                    .GetValue(null);
+
+                // 흐름이 없으면 평소대로 런이 시작된다.
+                SetPrivate(bill, "_postPaymentFlowState", PostPaymentFlowState.None);
+                var none = (RunState?)resolve.Invoke(gm, new object[] { gameScene });
+                if (none != RunState.Running)
+                {
+                    throw new InvalidOperationException("흐름이 없는데 Game 씬이 Running 으로 가지 않습니다: " + none);
+                }
+
+                // 흐름이 남아 있으면 어느 단계든 Result 다 — 런을 시작하지 않는다.
+                foreach (PostPaymentFlowState flow in Enum.GetValues(typeof(PostPaymentFlowState)))
+                {
+                    if (flow == PostPaymentFlowState.None)
+                    {
+                        continue;
+                    }
+
+                    SetPrivate(bill, "_postPaymentFlowState", flow);
+                    var actual = (RunState?)resolve.Invoke(gm, new object[] { gameScene });
+                    if (actual != RunState.Result)
+                    {
+                        throw new InvalidOperationException(
+                            "납부 후 흐름(" + flow + ") 중인데 런이 시작됩니다: " + actual +
+                            " — HUD 와 고지서 패널이 겹칩니다 (이슈 #265).");
+                    }
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(host);
+                typeof(GameManager)
+                    .GetProperty("Instance", BindingFlags.Public | BindingFlags.Static)
+                    .SetValue(null, previousInstance);
+            }
+        }
+
+        private static void SetPrivate(Component target, string fieldName, object value)
+        {
+            var field = target.GetType().GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance);
+            if (field == null)
+            {
+                throw new InvalidOperationException(target.GetType().Name + " 의 " + fieldName + " 필드를 찾지 못했습니다.");
+            }
+            field.SetValue(target, value);
         }
 
         private static void VerifyGameManagerLifecycle()
