@@ -148,11 +148,20 @@ namespace NCAIClicker.EditorTools
                 var service = new FakeBillService { DaysLeft = 3 };
                 service.ActiveBill = new Bill { Amount = 5800, IssuedDay = 1, DueDay = 4, IsPaid = false };
                 controller.SetServices(service);
+                InvokeLifecycle(controller, "OnEnable");
 
                 controller.ShowAsModal();
                 Assert(parts.LaterButton.activeSelf, "기한이 남았으면 [아직] 이 보여야 합니다.");
                 Assert(parts.DueValue.text.Contains("3"), "남은 일수가 표시돼야 합니다: " + parts.DueValue.text);
                 checkCount++;
+
+                // 평소 모달 상태에서도 [아직] 클릭 시 탭 모드 및 스킬 트리 탭으로 정상 전환되어야 합니다
+                var normalLaterBtn = parts.LaterButton.GetComponent<Button>();
+                normalLaterBtn.onClick.Invoke();
+                Assert(controller.CurrentMode == BillPanelController.Mode.Tab, "평소 모달에서 아직 클릭 시 탭 모드로 전환되어야 합니다.");
+                Assert(controller.CurrentTab == BillPanelController.Tab.Upgrade, "평소 모달에서 아직 클릭 시 업그레이드 탭이어야 합니다.");
+                checkCount++;
+                controller.ShowAsModal();
 
                 // 기한이 남았을 때 납부 실패는 부족액 캡션을 띄우고 [아직] 버튼을 유지한다.
                 service.ShouldFailPay = true;
@@ -253,6 +262,7 @@ namespace NCAIClicker.EditorTools
                 // 2. 새 고지서가 발행되면 모달 상태로 새 고지서가 표시된다
                 var newBill = new Bill { Amount = 2500, IssuedDay = 1, DueDay = 4, IsPaid = false };
                 service.ActiveBill = newBill;
+                service.PaymentFlowState = PostPaymentFlowState.NewBillConfirmation;
                 NCAIClicker.Events.GameEvents.PublishBillIssued(newBill);
 
                 Assert(controller.CurrentMode == BillPanelController.Mode.Modal, "새 고지서 발행 시 모달 모드여야 합니다.");
@@ -263,6 +273,7 @@ namespace NCAIClicker.EditorTools
                 var laterButton = parts.LaterButton.GetComponent<Button>();
                 laterButton.onClick.Invoke();
 
+                Assert(service.PaymentFlowState == PostPaymentFlowState.InvestmentMenu, "아직 클릭 시 InvestmentMenu 상태로 전이되어야 합니다 (#249).");
                 Assert(controller.CurrentMode == BillPanelController.Mode.Tab, "아직 클릭 후 탭 모드여야 합니다.");
                 Assert(controller.CurrentTab == BillPanelController.Tab.Upgrade, "아직 클릭 시 스킬 트리 탭이 선택되어야 합니다 (#249).");
                 Assert(parts.SkillTreeNoticePanel != null && parts.SkillTreeNoticePanel.activeSelf,
@@ -455,6 +466,10 @@ namespace NCAIClicker.EditorTools
             public bool TryConfirmPaidFeedback() => true;
             public bool TryEnterInvestmentMenu()
             {
+                if (PaymentFlowState != PostPaymentFlowState.NewBillConfirmation)
+                {
+                    return false;
+                }
                 PaymentFlowState = PostPaymentFlowState.InvestmentMenu;
                 return true;
             }

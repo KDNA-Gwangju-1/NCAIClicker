@@ -181,6 +181,7 @@ namespace NCAIClicker.UI
             {
                 StopCoroutine(_paidFeedbackRoutine);
                 _paidFeedbackRoutine = null;
+                ResetPaidFeedbackVisuals();
             }
 
             if (_payButton != null)
@@ -511,9 +512,14 @@ namespace NCAIClicker.UI
             }
             if (_dueValueText != null)
             {
-                _dueValueText.text = bill == null || bill.IsPaid
+                var isPaid = bill == null || bill.IsPaid;
+                _dueValueText.text = isPaid
                     ? "납부 완료"
                     : isDueToday ? "지금 납부!" : $"{daysLeft}일";
+                if (!isPaid)
+                {
+                    _dueValueText.color = new Color(0.141f, 0.102f, 0.071f, 1f);
+                }
             }
         }
 
@@ -611,11 +617,13 @@ namespace NCAIClicker.UI
 
         private void HandleLaterClicked()
         {
-            // 새 고지서 화면의 "아직" 버튼을 누르면 스킬 트리 탭이 선택된다 (이슈 #249).
-            if (_billService == null || !_billService.TryEnterInvestmentMenu())
+            // 새 고지서 확인 흐름 상태인 경우 투자 메뉴 상태로 전이합니다 (이슈 #249).
+            if (_billService != null && _billService.PaymentFlowState == PostPaymentFlowState.NewBillConfirmation)
             {
-                return;
+                _billService.TryEnterInvestmentMenu();
             }
+
+            // 고지서 모달에서 아직 버튼을 누르면 스킬 트리 탭으로 화면을 전환합니다.
             ShowUpgradeTab();
             ShowSkillTreeNoticeIfNeeded();
         }
@@ -653,10 +661,124 @@ namespace NCAIClicker.UI
             }
         }
 
+        private void ResetPaidFeedbackVisuals()
+        {
+            if (_dueValueText != null)
+            {
+                _dueValueText.rectTransform.localScale = Vector3.one;
+                _dueValueText.rectTransform.localRotation = Quaternion.identity;
+                var paperRect = _dueValueText.transform.parent as RectTransform;
+                if (paperRect != null)
+                {
+                    var canvasGroup = paperRect.GetComponent<CanvasGroup>();
+                    if (canvasGroup != null)
+                    {
+                        canvasGroup.alpha = 1f;
+                    }
+                }
+            }
+        }
+
         private IEnumerator ShowPerksAfterPaidFeedback()
         {
-            // 클릭 프레임을 끝까지 렌더링해 고지서의 "납부 완료"를 실제로 보여준 뒤 퍽 창을 연다.
-            yield return null;
+            if (!Application.isPlaying)
+            {
+                _paidFeedbackRoutine = null;
+                _billService?.TryConfirmPaidFeedback();
+                yield break;
+            }
+
+            var originalScale = Vector3.one;
+            var originalRotation = Quaternion.identity;
+            RectTransform paperRect = null;
+            CanvasGroup paperCanvasGroup = null;
+            var originalPaperPos = Vector2.zero;
+            var originalPaperScale = Vector3.one;
+
+            if (_dueValueText != null)
+            {
+                originalScale = _dueValueText.rectTransform.localScale;
+                originalRotation = _dueValueText.rectTransform.localRotation;
+                _dueValueText.text = "납부 완료";
+                _dueValueText.color = new Color(0.85f, 0.16f, 0.14f, 1f);
+
+                paperRect = _dueValueText.transform.parent as RectTransform;
+                if (paperRect != null)
+                {
+                    originalPaperPos = paperRect.anchoredPosition;
+                    originalPaperScale = paperRect.localScale;
+                    paperCanvasGroup = paperRect.GetComponent<CanvasGroup>();
+                    if (paperCanvasGroup == null)
+                    {
+                        paperCanvasGroup = paperRect.gameObject.AddComponent<CanvasGroup>();
+                    }
+                    paperCanvasGroup.alpha = 1f;
+                }
+            }
+
+            // 1단계: 도장 쾅 찍히는 펀치 스케일 연출 (0.15초)
+            var stampDuration = 0.15f;
+            var elapsed = 0f;
+            while (elapsed < stampDuration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                var t = Mathf.Clamp01(elapsed / stampDuration);
+                var smoothT = Mathf.SmoothStep(0f, 1f, t);
+
+                if (_dueValueText != null)
+                {
+                    _dueValueText.rectTransform.localScale = Vector3.LerpUnclamped(Vector3.one * 1.45f, Vector3.one, smoothT);
+                    _dueValueText.rectTransform.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(8f, -3f, smoothT));
+                }
+                yield return null;
+            }
+
+            if (_dueValueText != null)
+            {
+                _dueValueText.rectTransform.localScale = Vector3.one;
+                _dueValueText.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -3f);
+            }
+
+            // 2단계: 납부 완료 상태 인지 대기 (약 0.45초 유지)
+            yield return new WaitForSecondsRealtime(0.45f);
+
+            // 3단계: 고지서 종이 퇴장 및 부드러운 전환 연출 (0.25초)
+            var exitDuration = 0.25f;
+            elapsed = 0f;
+            while (elapsed < exitDuration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                var t = Mathf.Clamp01(elapsed / exitDuration);
+                var smoothT = Mathf.SmoothStep(0f, 1f, t);
+
+                if (paperRect != null)
+                {
+                    paperRect.anchoredPosition = originalPaperPos + new Vector2(0f, -80f * smoothT);
+                    paperRect.localScale = Vector3.Lerp(originalPaperScale, originalPaperScale * 0.94f, smoothT);
+                    if (paperCanvasGroup != null)
+                    {
+                        paperCanvasGroup.alpha = Mathf.Lerp(1f, 0f, smoothT);
+                    }
+                }
+                yield return null;
+            }
+
+            // 원상 복구 후 퍽 선택 화면으로 전이
+            if (paperRect != null)
+            {
+                paperRect.anchoredPosition = originalPaperPos;
+                paperRect.localScale = originalPaperScale;
+                if (paperCanvasGroup != null)
+                {
+                    paperCanvasGroup.alpha = 1f;
+                }
+            }
+            if (_dueValueText != null)
+            {
+                _dueValueText.rectTransform.localScale = originalScale;
+                _dueValueText.rectTransform.localRotation = originalRotation;
+            }
+
             _paidFeedbackRoutine = null;
             _billService?.TryConfirmPaidFeedback();
         }
