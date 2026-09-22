@@ -1,6 +1,6 @@
 # 메인 메뉴
 
-> 관련 이슈: #90, #139, #142, #203 · 최종 수정: 2026-09-21
+> 관련 이슈: #90, #139, #142, #203, #184 · 최종 수정: 2026-09-22
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
 ## 무엇을 하는가
@@ -21,6 +21,10 @@
 | `ISaveService`에 `bool HasSave` 추가 | ✅ | [contracts.md](contracts.md) #139 항목 참고. `Load()`는 파일이 없어도 기본값 `SaveData`를 반환해 "저장 없음"과 구분이 안 된다 |
 | 이어하기 클릭 시 `SaveManager.Load()` → `EconomyManager.RestoreWallet()` 등 실제 데이터 복원까지 배선 | ❌ | 이슈 #90 완료 기준은 "Game 씬으로 넘어간다"까지이고, 복원 배선은 그 자체로 별도 계약 변경이 필요한 큰 작업이라 범위에 넣지 않았다. **#203 에서 별도 이슈로 붙였다** — 다만 복원 시점은 이어하기 클릭이 아니라 앱 시작 1회다 ([save-load.md](save-load.md)) |
 | 덮어쓰기 확인을 별도 씬(팝업 씬)으로 분리 | ❌ | ARCHITECTURE.md 0절이 씬을 MainMenu/Game 둘로 고정했고, 결과 화면도 "같은 씬의 UI 패널"로 처리하는 것과 같은 이유로 비활성 패널(`OverwriteConfirmPanel`) 토글로 처리했다 |
+| 메뉴 UI를 씬 안에 손으로 만든 오브젝트로 유지 | ❌ | #184 에서 폐기. `UiGuidelineChecks` 는 `Assets/Prefabs` 만 검사해 씬 안의 UI는 규격 점검을 받지 못했고, 흰 버튼·알파 0.75 스크림이 그대로 남아 있었다 |
+| `MainMenuPrefabCreator` 가 `MainMenuPanel.prefab` 을 생성하고 씬에 배치 | ✅ | PausePanel·ResultUI 와 같은 방식. 팔레트·치수는 통합 목업(MainMenu · OverwriteConfirm 보드)과 디자인 시스템 2차(2026-09-22)를 따른다 — 버튼은 Primary 하나(새 회차 시작)와 Base 셋, 암전은 불투명 `#0A0705`. 씬에는 프리팹 인스턴스만 남아 `UiGuidelineChecks` 대상이 된다 |
+| 디스플레이 폰트를 목업의 Black Han Sans 로 | ❌ | 폰트 파일 추가(ThirdParty + THIRD_PARTY.md)가 필요해 범위를 넘는다. 이미 있는 `NanumSquareBoldSDF` 로 대체했다 |
+| 이어하기 라벨·우하단 캡션·덮어쓰기 부제에 "N일차 · 레거시 N LP" 표시 | ✅ | 목업이 그렇게 그렸고, 값은 `ISaveService.Load()` 의 `CurrentDay`·`LegacyPoints` 에서 온다. 표시용 읽기라 매니저를 거치지 않는다 |
 | EventSystem에 `InputSystemUIInputModule` 부착 | ✅ | `ProjectSettings.asset`의 `activeInputHandler: 1`(새 Input System 전용)이라 레거시 `StandaloneInputModule`(레거시 `Input` 클래스 사용)은 이 설정에서 동작하지 않는다 |
 
 ## 구조
@@ -48,7 +52,8 @@ flowchart LR
 
 | 클래스 | 경로 | 하는 일 |
 |---|---|---|
-| `MainMenuController` | `Assets/Scripts/Runtime/UI/MainMenuController.cs` | 버튼 3개와 덮어쓰기 확인 다이얼로그를 관리. `SaveManager.Instance.HasSave`로 이어하기 활성/비활성과 확인 다이얼로그 노출 여부를 결정하고, `GameManager.Instance`(`IGameFlowService`)의 세 메서드로 위임 |
+| `MainMenuController` | `Assets/Scripts/Runtime/UI/MainMenuController.cs` | 버튼 4개와 덮어쓰기 확인 다이얼로그를 관리. `SaveManager.Instance.HasSave`로 이어하기 활성/비활성과 확인 다이얼로그 노출 여부를 결정하고, `GameManager.Instance`(`IGameFlowService`)의 세 메서드로 위임. 저장이 있으면 `Load()` 로 일차·레거시 포인트를 읽어 라벨에 표시하고, 확인 다이얼로그가 떠 있을 때 ESC 는 취소다 (#184) |
+| `MainMenuPrefabCreator` | `Assets/Scripts/Editor/MainMenuPrefabCreator.cs` | 메뉴 `NCAI/UI/메인 메뉴 프리팹 생성` 이 `Assets/Prefabs/UI/MainMenuPanel.prefab` 을 만들고, `NCAI/UI/메인 메뉴 씬에 배치` 가 `MainMenu.unity` 의 기존 `Canvas` 를 프리팹 인스턴스로 바꿔 저장한다. 비주얼을 고칠 때는 이 파일을 고치고 두 메뉴를 다시 실행한다 (#184) |
 | `IGameFlowService` | `Assets/Scripts/Runtime/Interfaces/IGameFlowService.cs` | `StartNewRun`/`ContinueRun`/`QuitGame` 계약. `GameManager` 구현(이슈 #142). 상세는 [contracts.md](contracts.md) |
 | `GameManager` | `Assets/Scripts/Runtime/Core/GameManager.cs` | `StartNewRun()`/`ContinueRun()`/`QuitGame()` 추가(이슈 #90), `Instance`를 `IGameFlowService` 타입으로 노출(이슈 #142). 나머지 런 상태 머신 로직은 [run-state.md](run-state.md) 참고 |
 | `ISaveService` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | `HasSave` 추가(이슈 #139). 상세는 [contracts.md](contracts.md) |
@@ -70,13 +75,20 @@ flowchart LR
 
 - `Main Camera` (`Camera`, `AudioListener`, `UniversalAdditionalCameraData`) — `Game` 씬과 같은 구성
 - `EventSystem` (`EventSystem`, `InputSystemUIInputModule`)
-- `Canvas` (`RenderMode.ScreenSpaceOverlay`, `CanvasScaler` 1920×1080 기준 `ScaleWithScreenSize`,
-  `matchWidthOrHeight 0.5`) — `MainMenuController` 부착
-  * `Title` (TextMeshProUGUI, "NCAI Clicker")
-  * `NewRunButton` (Y = 60) / `ContinueButton` (Y = -50) / `SettingsButton` (Y = -160) / `QuitButton` (Y = -270)
-  * `OverwriteConfirmPanel` (기본 비활성, 전체 화면 반투명 배경, 활성화 시 SetAsLastSibling 호출로 최상단 렌더링)
-    * `DialogBox` → `ConfirmText`, `YesButton`, `NoButton`
-  * `SettingsPanel` (기본 비활성, 설정 버튼 클릭 시 활성화 및 SetAsLastSibling 호출로 최상단 렌더링)
+- `MainMenuPanel` — `Assets/Prefabs/UI/MainMenuPanel.prefab` 인스턴스 (#184). `Canvas`
+  (`ScreenSpaceOverlay`, `CanvasScaler` 1920×1080 `ScaleWithScreenSize`, `matchWidthOrHeight 0.5`) +
+  `MainMenuController`. 치수는 목업 1280×720 의 1.5배, 4배수 그리드.
+  * `Background` — 전체 화면 불투명 `#0A0705`
+  * `TitleBlock` (좌 144 · 상 156) → `EyebrowText` "NCAI CLICKER" 금색 28 / `TitleText` "고지서는 내야 한다"
+    NanumSquareBold 112 / `TaglineText` 28
+  * `ButtonColumn` (좌 144 · 상 558 · 폭 600, 간격 24) → `NewRunButton` Primary 96h /
+    `ContinueButton` Base 84h (라벨에 "· N일차" 리치 텍스트) / `SettingsButton` / `QuitButton`
+  * `FooterText` (우 144 · 하 84) — "저장됨 · N일차 · 레거시 N LP / v0.1 · NCAI Team Two"
+  * `OverwriteConfirmPanel` (기본 비활성, 불투명 암전, 활성화 시 SetAsLastSibling)
+    * `DialogBox` (폭 750, 세로 ContentSizeFitter) → `Header`(`ConfirmTitleText`·`ConfirmSubtitleText`),
+      `Divider`, `WarningBox`(`WarningText`), `ButtonRow`(`NoButton` 취소 · `YesButton` 덮어쓰기 — 둘 다 Base),
+      `EscHintText`
+  * `SettingsPanel` — `SettingsPanel.prefab` 중첩 인스턴스 (기본 비활성, 설정 버튼 클릭 시 SetAsLastSibling)
 
 ## 검증
 
@@ -96,6 +108,15 @@ Unity 6000.3.21f1 에디터, UnityMCP `execute_code`/`manage_camera(screenshot)`
 - [x] `GameManager.Instance`를 `IGameFlowService`로 재노출한 뒤(#142) 재컴파일 오류·경고 0건, 저장 있는 상태에서 새 회차 시작 클릭 → 확인 다이얼로그 정상 노출 재확인(회귀 없음)
 - [ ] **빌드된 실행 파일에서의 검증은 하지 않았다** — 에디터 Play Mode에서만 확인
 
+#184 (2026-09-22, UnityMCP 로 Play Mode 실행·스크린샷):
+
+- [x] `NCAI/UI/메인 메뉴 프리팹 생성` → `MainMenuPanel.prefab` 생성, `메인 메뉴 씬에 배치` → 씬 루트가 `EventSystem`·`Main Camera`·`MainMenuPanel` 셋뿐임을 하이어라키로 확인
+- [x] Play Mode 스크린샷을 통합 목업 MainMenu 보드와 대조 — 타이틀 블록·버튼 4개(금색 1개)·우하단 캡션 위치와 톤 일치
+- [x] 저장 있는 상태에서 새 회차 시작 → 확인 다이얼로그 노출, 부제 "저장된 회차가 있다 · 1일차", 취소 → 닫힘
+- [x] 설정 버튼 → `SettingsPanel` 이 메뉴 위에 열림
+- [x] `UiGuidelineChecks.RunBatch()` — `MainMenuPanel` 자체 요소 경고 0건. 잡힌 2건은 중첩된 `SettingsPanel` 의 `ResetConfirmPanel` 버튼(160×30)이며 `SettingsPanel`·`PausePanel` 에도 같은 경고가 있다 (6.15 소관)
+- [x] `convention-checker` 위반 0건
+
 ## 알려진 한계
 
 - ~~**이어하기를 눌러도 실제 저장 데이터가 복원되지 않는다.**~~ — #203 이 배선을 붙였다.
@@ -103,8 +124,11 @@ Unity 6000.3.21f1 에디터, UnityMCP `execute_code`/`manage_camera(screenshot)`
   **새 회차 시작과 이어하기가 이제 실제로 다르게 동작한다** — `StartNewRun` 은 빈 저장을
   분배해 성장을 지우고, `ContinueRun` 은 지우지 않는다.
 - ~~**날짜·고지서·대출은 여전히 복원되지 않는다.**~~ — #221 이 `IBillPersistence` 로 그 통로를 열었다. 이어하기로 들어가면 날짜·고지서·대출·퍼크 후보도 앱을 켤 때 함께 복원된다 ([save-load.md](save-load.md)).
-- 확인 다이얼로그·버튼은 그레이박스 수준 UI(흰 배경 버튼, 기본 폰트 크기)다. 실제 비주얼은
-  범위 밖(설정·크레딧·타이틀 연출과 같은 급)이다 — **#184(6.12)** 에 추가 범위로 묶였다.
+- ~~확인 다이얼로그·버튼은 그레이박스 수준 UI(흰 배경 버튼, 기본 폰트 크기)다.~~ — #184 가
+  `MainMenuPanel.prefab` 으로 걷어냈다. 목업의 배경 실루엣(책상·저금통 어두운 사각형)은 넣지 않았고,
+  디스플레이 폰트는 Black Han Sans 대신 `NanumSquareBoldSDF` 다.
+- 이어하기 비활성 상태는 `Button.disabledColor` 틴트(0.6)만 적용되고 라벨 색은 그대로다 — 디자인
+  시스템의 Disabled 토큰(`#221C17` / `#7D7364`)을 따로 칠하지 않았다.
 - 최고 기록·통계 표시는 추가 목표로 이번 이슈 범위 밖이라 구현하지 않았다.
 - `Application.Quit()`의 실제 빌드 동작(창 종료)은 에디터에서 검증할 수 없어 코드 리뷰로만 확인했다.
 - TMP 한글 폰트 아틀라스(`Assets/Materials/Fonts/NanumGothicSDF.asset`)가 이번 작업에서 쓴 글자들로
@@ -122,3 +146,4 @@ Unity 6000.3.21f1 에디터, UnityMCP `execute_code`/`manage_camera(screenshot)`
 | 2026-09-21 | #203 | twins6375-art | 저장 복원 배선이 붙어 "이어하기를 눌러도 복원되지 않는다" 한계를 닫았다. 새 회차 시작과 이어하기가 실제로 달라졌고, 날짜·고지서·대출은 여전히 복원되지 않음을 별도 한계로 남김 |
 | 2026-09-21 | #221 | Yang | `IBillPersistence` 로 날짜·고지서·대출·퍼크 후보 복원 통로가 붙어 "날짜·고지서·대출은 여전히 복원되지 않는다" 한계를 닫음 |
 | 2026-09-21 | #203 | twins6375-art | `StartNewRun` 의 `Save(new SaveData())` 를 `ResetAndDistribute()` 로 교체. 설정을 지우지 않고 메모리까지 비운다 |
+| 2026-09-22 | #184 | saltlake00 | 그레이박스 걷어냄. `MainMenuPrefabCreator` 신규 → `MainMenuPanel.prefab` 생성·씬 배치, 디자인 시스템 2차 팔레트(Primary 1·Base 3, 불투명 암전) 적용. `MainMenuController` 에 일차·레거시 포인트 표시와 다이얼로그 ESC 취소 추가 |

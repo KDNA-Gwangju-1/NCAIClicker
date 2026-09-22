@@ -1,5 +1,7 @@
 using NCAIClicker.Core;
+using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace NCAIClicker.UI
@@ -8,6 +10,7 @@ namespace NCAIClicker.UI
     /// MainMenu 씬의 새 회차 시작/이어하기/종료 버튼을 GameManager로 위임한다.
     /// 씬 전환은 GameManager가 조정하며 이 컨트롤러는 SceneManager를 직접 부르지 않는다 (이슈 #90).
     /// 저장 존재 여부는 SaveManager.Instance.HasSave(이슈 #139)로 판정한다.
+    /// 이어하기 라벨·우하단 캡션·덮어쓰기 부제의 "N일차 · 레거시 N LP" 는 저장을 읽어 채운다 (이슈 #184).
     /// </summary>
     public class MainMenuController : MonoBehaviour
     {
@@ -21,6 +24,14 @@ namespace NCAIClicker.UI
         [Header("설정 (이슈 #196)")]
         [SerializeField] private Button _settingsButton;
         [SerializeField] private SettingsPanelController _settingsPanel;
+
+        [Header("저장 상태 표시 (이슈 #184)")]
+        [SerializeField] private TMP_Text _continueLabel;
+        [SerializeField] private TMP_Text _saveStatusText;
+        [SerializeField] private TMP_Text _overwriteConfirmSubtitle;
+
+        private const string ContinueLabelBase = "이어하기";
+        private const string VersionLine = "v0.1 · NCAI Team Two";
 
         private void Awake()
         {
@@ -52,10 +63,48 @@ namespace NCAIClicker.UI
             _settingsButton.onClick.RemoveListener(HandleSettingsClicked);
         }
 
+        // 덮어쓰기 확인이 떠 있을 때 ESC 는 취소다 — 다이얼로그의 "ESC — 취소" 안내와 맞춘다 (이슈 #184)
+        private void Update()
+        {
+            if (_overwriteConfirmPanel == null || !_overwriteConfirmPanel.activeSelf)
+            {
+                return;
+            }
+
+            var keyboard = Keyboard.current;
+            if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
+            {
+                HandleOverwriteCanceled();
+            }
+        }
+
         private void RefreshContinueButton()
         {
             var saveService = SaveManager.Instance;
-            _continueButton.interactable = saveService != null && saveService.HasSave;
+            var hasSave = saveService != null && saveService.HasSave;
+            _continueButton.interactable = hasSave;
+
+            if (!hasSave)
+            {
+                SetText(_continueLabel, ContinueLabelBase);
+                SetText(_saveStatusText, $"저장 없음\n{VersionLine}");
+                SetText(_overwriteConfirmSubtitle, "저장된 회차가 있다");
+                return;
+            }
+
+            var save = saveService.Load();
+            var dayText = $"{save.CurrentDay}일차";
+            SetText(_continueLabel, $"{ContinueLabelBase} <size=75%><color=#C8B79A>· {dayText}</color></size>");
+            SetText(_saveStatusText, $"저장됨 · {dayText} · 레거시 {save.LegacyPoints} LP\n{VersionLine}");
+            SetText(_overwriteConfirmSubtitle, $"저장된 회차가 있다 · {dayText}");
+        }
+
+        private static void SetText(TMP_Text target, string value)
+        {
+            if (target != null)
+            {
+                target.text = value;
+            }
         }
 
         private void HandleNewRunClicked()
