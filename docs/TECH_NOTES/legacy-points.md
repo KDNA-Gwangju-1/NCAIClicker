@@ -74,7 +74,8 @@ flowchart LR
 | `RingState` | `Runtime/Economy/RingState.cs` | 반지 레벨 보관과 계산 |
 | `RingShopPanel` / `RingShopEntry` | `Runtime/UI/` | 반지 상점(보석함) 화면 및 슬롯 |
 | `RingTooltip` | `Runtime/UI/RingTooltip.cs` | 마우스 오버 시 표시되는 상세 정보 툴팁 |
-| `RingShopPrefabCreator` | `Editor/RingShopPrefabCreator.cs` | 보석함 8종 슬롯 및 툴팁 프리팹 생성 도구 |
+| `RingShopPrefabCreator` | `Editor/RingShopPrefabCreator.cs` | 보석함 8종 슬롯 및 툴팁 프리팹 생성 도구. #184: 제목을 탭 이름과 맞춰 "반지 — 영구 성장", 우상단 포인트를 `PointBox`(Surface 면 + 금색 선, "LP" 접두) 로 감싸고 그 아래 `PointHintPanel` 을 둔다 |
+| `LegacyPointHint` | `Runtime/UI/LegacyPointHint.cs` | `PointBox` 에 마우스를 올리는 동안 규칙을 설명한다 (#184). `고지서 납부액 $N당 1 LP` 의 N 은 `BalanceData.Economy.LegacyPointPerAmount`(economy.csv) 에서 읽고, `RingShopPanel` 이 `OnEnable` 에서 `Bind` 로 넣어 준다. 표시만 하며 매니저를 부르지 않는다 |
 
 ### 이벤트
 
@@ -199,3 +200,4 @@ flowchart LR
 | 2026-09-21 | #203 | twins6375-art | 저장 배선이 붙어 "저장되지 않는다" 한계를 닫았다. 구조 도식의 점선을 실선으로 바꾸고, 시점(앱 시작 1회 복원 / 고지서 화면을 떠날 때·하루 종료 시 저장)을 명시 |
 | 2026-09-21 | #211 | saltlake00 | 파산 판정 시점 분리 및 파산 확정 후 프레스티지(반지 상점) 탭 직행 배선 (#211) |
 | 2026-09-21 | #211 | saltlake00 | 파산 전용 보석함 단일 화면(PrestigeOnly, 100% 불투명 배경) 전환, 사이클 번호 추적 및 [사이클 N 시작] 버튼 연동, 반지 8종 확장 및 마우스 오버 툴팁 시스템(RingTooltip) 구현 |
+| 2026-09-22 | #184 | saltlake00 | 패널 제목을 "반지 — 영구 성장" 으로(탭 이름과 통일). 우상단 포인트에 배경 박스(`PointBox`) 와 호버 힌트(`LegacyPointHint` 신규) 추가 — 납부액당 포인트 규칙을 CSV 값으로 설명한다. 프리팹 재생성 |
