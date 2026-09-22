@@ -82,7 +82,12 @@ namespace NCAIClicker.Data
         public float HoverSwingIntervalSec;
         public int AutoHammerCountInit;
         public float AutoHammerPower;
-        public float AutoHammerHitsPerSec;
+
+        /// <summary>호버 적중 1회당 자동 망치 발동 확률(%). 퍼크가 올린다 (3.13).</summary>
+        public float AutoHammerProcChancePercent;
+
+        /// <summary>자동 망치 한 사이클(장전·강타·반동) 길이(초). 타이머 주기가 아니라 연출 길이다.</summary>
+        public float AutoHammerSwingSec;
         public float HitRadiusBonusPercent;
 
         /// <summary>호버 망치 조준 판정 반경. 대상 콜라이더를 넓히는 HitRadiusBonusPercent 와는 다른 축이다.</summary>
@@ -192,7 +197,8 @@ namespace NCAIClicker.Data
         HitRadius,
         AutoHammerCount,
         AutoHammerPower,
-        AutoHammerHitsPerSec,
+        AutoHammerProcChance,
+        AutoHammerSwingSec,
         FeverDuration,
         FeverMultiplier,
         FeverGaugePerHit,

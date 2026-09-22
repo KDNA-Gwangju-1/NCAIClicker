@@ -38,6 +38,7 @@ namespace NCAIClicker.EditorTools
             checkCount += RunTargetChecks(balance);
             checkCount += RunEconomyChecks(balance);
             checkCount += RunAutoHammerChecks(balance);
+            checkCount += RunAutoHammerProcChecks(balance);
             checkCount += RunNextRunRuleChecks(balance);
             checkCount += RunBootstrapWiringCheck();
             AssertCondition(!EditorUtility.IsDirty(balance), "BalanceData 가 수정됐습니다.");
@@ -333,6 +334,53 @@ namespace NCAIClicker.EditorTools
                 manager.BeginRun();
                 AssertCondition(manager.AutoHammerCount == baseCount + StubBonusCount * 2,
                                 "다음 런에서 자동 망치 수가 갱신되지 않았습니다.");
+                checkCount++;
+            }
+            finally
+            {
+                TearDown(manager, host);
+            }
+
+            return checkCount;
+        }
+
+        /// <summary>
+        /// 자동 망치 발동 확률이 GetStat 을 거치는지 본다 (이슈 #268, 3.13).
+        ///
+        /// 퍼크가 확률을 올리려면 이 통로를 타야 한다. 여기가 끊기면 퍼크를 붙여도 확률이
+        /// CSV 기준값에서 움직이지 않는데, 발동이 8런에 한 번이라 플레이로는 알아채기 어렵다
+        /// — 자동 망치가 #258 전까지 아무도 모르게 죽어 있던 것과 같은 종류의 사고다.
+        /// </summary>
+        private static int RunAutoHammerProcChecks(BalanceData balance)
+        {
+            var checkCount = 0;
+            var baseChance = balance.Economy.AutoHammerProcChancePercent;
+
+            AutoHammerController manager = null;
+            GameObject host = null;
+
+            try
+            {
+                manager = CreateManager<AutoHammerController>(balance, "UpgradeConsumerProcChance", out host);
+                var resolve = typeof(AutoHammerController).GetMethod("ResolveProcChancePercent",
+                    BindingFlags.NonPublic | BindingFlags.Instance);
+                AssertCondition(resolve != null, "AutoHammerController 의 ResolveProcChancePercent 를 찾지 못했습니다.");
+
+                // 주입이 없으면 CSV 기준값 그대로다.
+                AssertNear((float)resolve.Invoke(manager, null), baseChance,
+                           "주입 없이 발동 확률이 기준값과 다릅니다.");
+                checkCount++;
+
+                // 퍼크가 올린 값이 반영된다.
+                manager.SetUpgradeStats(new AddUpgradeStats(StatId.AutoHammerProcChance, StubBonusCount));
+                AssertNear((float)resolve.Invoke(manager, null), baseChance + StubBonusCount,
+                           "발동 확률이 GetStat 을 거치지 않습니다.");
+                checkCount++;
+
+                // 100 을 넘기지 않는다 — 확률이라 넘으면 의미가 없고, 퍼크가 겹치면 넘을 수 있다.
+                manager.SetUpgradeStats(new AddUpgradeStats(StatId.AutoHammerProcChance, 500f));
+                AssertNear((float)resolve.Invoke(manager, null), 100f,
+                           "발동 확률이 100 을 넘었습니다.");
                 checkCount++;
             }
             finally

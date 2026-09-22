@@ -23,7 +23,17 @@ namespace NCAIClicker.Economy
     {
         [SerializeField] private BalanceData _balanceData;
 
-        private float _tickTimer;
+        /// <summary>HammerRig 의 스윙 곡선에서 망치가 바닥에 닿기 시작하는 지점. 여기서 때린다.</summary>
+        private const float StrikeProgress = 0.8f;
+
+        /// <summary>발동 사이클 경과 시간(초).</summary>
+        private float _swingTimer;
+
+        /// <summary>발동 중인가. 겹쳐 터지지 않도록 진행 중에는 확률을 굴리지 않는다.</summary>
+        private bool _isSwinging;
+
+        /// <summary>이번 사이클에서 이미 때렸는가. 강타 시점을 한 번만 지나게 한다.</summary>
+        private bool _hasStruck;
         private bool _isRunning;
 
         /// <summary>업그레이드 실효값 조회 통로. ManagerBootstrap 이 넣어 준다 (이슈 #258).</summary>
@@ -62,25 +72,21 @@ namespace NCAIClicker.Economy
         private HammerSwingController _hammerSwing;
 
         /// <summary>
-        /// 이번 틱의 진행도 0~1. 연출이 장전·강타·반동 구간을 나누는 데 쓴다.
-        /// 런이 돌지 않거나 주기를 알 수 없으면 0 이다.
+        /// 발동 사이클의 진행도 0~1. 연출이 장전·강타·반동 구간을 나누는 데 쓴다.
+        /// 발동 중이 아니면 0 이다.
         /// </summary>
-        public float TickProgress
-        {
-            get
-            {
-                var interval = TickInterval;
-                return interval <= 0f ? 0f : Mathf.Clamp01(_tickTimer / interval);
-            }
-        }
+        public float TickProgress => _isSwinging ? Mathf.Clamp01(_swingTimer / SwingSec) : 0f;
 
-        /// <summary>연출이 세울 망치 수. 이번 틱에 실제로 목표를 가진 망치만 센다.</summary>
-        public int PendingTargetCount => _pendingTargets.Count;
+        /// <summary>발동 중인가. 연출은 이때만 망치를 보여 준다.</summary>
+        public bool IsSwinging => _isSwinging;
 
-        /// <summary>index 번째 망치가 이번 틱에 때릴 대상의 위치. 대상이 없으면 false 다.</summary>
+        /// <summary>연출이 세울 망치 수. 이번 발동에 실제로 목표를 가진 망치만 센다.</summary>
+        public int PendingTargetCount => _isSwinging ? _pendingTargets.Count : 0;
+
+        /// <summary>index 번째 망치가 이번 발동에 때릴 대상의 위치. 대상이 없으면 false 다.</summary>
         public bool TryGetPendingTargetPosition(int index, out Vector3 position)
         {
-            if (index >= 0 && index < _pendingTargets.Count)
+            if (_isSwinging && index >= 0 && index < _pendingTargets.Count)
             {
                 var target = _pendingTargets[index];
                 if (target != null && target.IsAlive)
@@ -94,15 +100,8 @@ namespace NCAIClicker.Economy
             return false;
         }
 
-        /// <summary>틱 주기(초). hits_per_sec 가 0 이하면 0 이다 — 그때는 타이머가 돌지 않는다.</summary>
-        private float TickInterval
-        {
-            get
-            {
-                var hitsPerSec = _balanceData != null ? _balanceData.Economy.AutoHammerHitsPerSec : 0f;
-                return hitsPerSec <= 0f ? 0f : 1f / hitsPerSec;
-            }
-        }
+        /// <summary>한 사이클 길이(초). 0 이하면 연출도 타격도 돌지 않는다.</summary>
+        private float SwingSec => _balanceData != null ? _balanceData.Economy.AutoHammerSwingSec : 0f;
 
         private void Awake()
         {
@@ -118,11 +117,11 @@ namespace NCAIClicker.Economy
 
         /// <summary>
         /// 런을 시작한다. GameManager 가 런 시작 직전에 부른다 (IRunScoped, 이슈 #71).
-        /// 이걸 부르기 전에는 틱이 돌지 않는다 — MainMenu 에서 대상 없이 헛돌지 않게 막는다.
+        /// 이걸 부르기 전에는 발동하지 않는다 — MainMenu 에서 헛돌지 않게 막는다.
         /// </summary>
         public void BeginRun()
         {
-            _tickTimer = 0f;
+            CancelSwing();
             _cachedCount = ResolveCount();
             _isRunning = true;
 
@@ -151,7 +150,7 @@ namespace NCAIClicker.Economy
         /// 게임이 멈추는 것보다 업그레이드만 안 먹는 편이 낫다 (docs/TECH_NOTES/upgrades.md).
         ///
         /// GetStat 은 float 를 돌려주지만 보유 수는 개수라 반올림한다. 음수는 0 으로 막는다 —
-        /// CSV 가 손으로 고쳐질 수 있고, 음수 개수는 ResolveTick 의 가드와 의미가 겹친다.
+        /// CSV 가 손으로 고쳐질 수 있고, 음수 개수는 강타 판정의 가드와 의미가 겹친다.
         /// </summary>
         private int ResolveCount()
         {
@@ -168,6 +167,15 @@ namespace NCAIClicker.Economy
         public void EndRun()
         {
             _isRunning = false;
+            CancelSwing();
+        }
+
+        /// <summary>진행 중인 발동을 접는다. 연출도 같이 사라진다.</summary>
+        private void CancelSwing()
+        {
+            _isSwinging = false;
+            _hasStruck = false;
+            _swingTimer = 0f;
             _pendingTargets.Clear();
         }
 
@@ -184,32 +192,109 @@ namespace NCAIClicker.Economy
             _upgradeStats = upgradeStats;
         }
 
-        private void Update()
+        // 정적 이벤트는 구독과 해제를 쌍으로 맞춘다 (AGENTS.md).
+        private void OnEnable()
         {
-            if (!_isRunning || _balanceData == null)
+            GameEvents.OnSwingResolved += HandleSwingResolved;
+        }
+
+        private void OnDisable()
+        {
+            GameEvents.OnSwingResolved -= HandleSwingResolved;
+        }
+
+        /// <summary>
+        /// 호버 망치가 맞힐 때마다 발동 확률을 굴린다 (3.13, 팀장 지시).
+        ///
+        /// 글로벌 타이머로 상시 도는 방식을 대신한다 — 자동 망치가 이제 플레이어의 타격에
+        /// 얹히는 보너스이지, 가만히 둬도 돌아가는 수입이 아니다.
+        ///
+        /// **발동 중에는 굴리지 않는다.** 사이클(기본 1초)보다 호버 적중이 잦아서(평균 1.4초
+        /// 간격이지만 퍼크로 확률이 오르면 더 잦아진다) 겹칠 수 있는데, 진행도를 되돌리면
+        /// 망치가 장전만 반복하고 강타 지점에 영영 닿지 않는다.
+        ///
+        /// 헛스윙(isHit=false)과 자동 망치 자신의 적중은 세지 않는다. 후자를 세면 한 번 터진
+        /// 발동이 다음 발동을 부르는 고리가 생긴다.
+        /// </summary>
+        private void HandleSwingResolved(HitSource source, bool isHit)
+        {
+            if (!_isRunning || !isHit || source != HitSource.Hover || _isSwinging)
             {
                 return;
             }
 
-            var interval = TickInterval;
-            if (interval <= 0f)
+            if (AutoHammerCount <= 0 || SwingSec <= 0f)
             {
                 return;
             }
 
-            // 대상을 미리 골라 두어야 연출이 장전 구간부터 그쪽으로 이동할 수 있다.
+            var chance = ResolveProcChancePercent();
+            if (chance <= 0f || Random.Range(0f, 100f) >= chance)
+            {
+                return;
+            }
+
+            BeginSwing();
+        }
+
+        /// <summary>
+        /// 발동 확률(%). 퍼크가 올릴 수 있도록 IUpgradeStats 를 거친다 — 그 통로 밖에서 더하면
+        /// 반영 경로가 두 갈래가 되고, #131 이 걷어낸 push 방식을 다시 만드는 셈이다.
+        /// </summary>
+        private float ResolveProcChancePercent()
+        {
+            var baseChance = _balanceData.Economy.AutoHammerProcChancePercent;
+            var chance = _upgradeStats == null
+                ? baseChance
+                : _upgradeStats.GetStat(StatId.AutoHammerProcChance, baseChance);
+            return Mathf.Clamp(chance, 0f, 100f);
+        }
+
+        /// <summary>발동을 시작한다. 이번 사이클에 때릴 대상을 지금 정해 두어야 연출이 장전부터 그쪽에 선다.</summary>
+        private void BeginSwing()
+        {
+            _isSwinging = true;
+            _hasStruck = false;
+            _swingTimer = 0f;
+            _pendingTargets.Clear();
             EnsurePendingTargets();
 
-            // 프레임이 밀려도 타격 박자가 어긋나지 않도록 나머지 시간을 이월한다 (0으로 리셋하지 않는다).
-            _tickTimer += Time.deltaTime;
-            while (_tickTimer >= interval)
+            // 때릴 대상이 하나도 없으면 발동을 접는다 — 허공에 망치만 뜨지 않게.
+            if (_pendingTargets.Count == 0)
             {
-                _tickTimer -= interval;
-                ResolveTick();
+                CancelSwing();
+            }
+        }
 
-                // 다음 틱의 목표를 곧바로 정한다 — 장전이 이미 시작된 셈이기 때문이다.
-                _pendingTargets.Clear();
-                EnsurePendingTargets();
+        /// <summary>
+        /// 발동 사이클을 진행시킨다. 강타 시점(HammerRig 의 0.8~0.92 구간 시작)에 한 번 때리고,
+        /// 사이클이 끝나면 망치가 사라진다.
+        /// </summary>
+        private void Update()
+        {
+            if (!_isRunning || !_isSwinging || _balanceData == null)
+            {
+                return;
+            }
+
+            var swingSec = SwingSec;
+            if (swingSec <= 0f)
+            {
+                CancelSwing();
+                return;
+            }
+
+            _swingTimer += Time.deltaTime;
+
+            if (!_hasStruck && _swingTimer >= swingSec * StrikeProgress)
+            {
+                _hasStruck = true;
+                ResolveStrike();
+            }
+
+            if (_swingTimer >= swingSec)
+            {
+                CancelSwing();
             }
         }
 
@@ -304,15 +389,15 @@ namespace NCAIClicker.Economy
         }
 
         /// <summary>
-        /// 틱 한 번을 판정한다. **망치마다 따로 때린다** (팀장 결정 2026-09-22, #258).
+        /// 강타 한 번을 판정한다. **망치마다 따로 때린다** (팀장 결정 2026-09-22, #258).
         ///
-        /// 틱당 총 피해는 여전히 보유 수 × 파워라 GDD 4절 공식은 그대로다 — 맞는 대상만 흩어진다.
-        /// 그래서 단일 대상 폭딜이 아니라 여러 대상을 동시에 깎는 쪽이 됐고, 코인이 들어오는
-        /// 타이밍이 달라진다 (7.2 실측 항목).
+        /// 발동 한 번의 총 피해는 보유 수 × 파워이고, 맞는 대상은 흩어진다. 상시 타이머가 아니라
+        /// 호버 적중에 얹히는 보너스라 런당 기여는 `호버 적중 수 × 발동 확률 × 보유 수 × 파워`
+        /// 다 (GDD 4절 갱신, 3.13).
         ///
         /// 대상이 없으면 미스 개념 없이 조용히 넘어간다.
         /// </summary>
-        private void ResolveTick()
+        private void ResolveStrike()
         {
             if (AutoHammerCount <= 0 || _pendingTargets.Count == 0)
             {

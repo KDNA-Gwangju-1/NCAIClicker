@@ -59,7 +59,8 @@ namespace NCAIClicker.EditorTools
                     HoverSwingIntervalSec = Req(economy, "hover_swing_interval_sec"),
                     AutoHammerCountInit = ReqInt(economy, "auto_hammer_count_init"),
                     AutoHammerPower = Req(economy, "auto_hammer_power"),
-                    AutoHammerHitsPerSec = Req(economy, "auto_hammer_hits_per_sec"),
+                    AutoHammerProcChancePercent = Req(economy, "auto_hammer_proc_chance"),
+                    AutoHammerSwingSec = Req(economy, "auto_hammer_swing_sec"),
                     HitRadiusBonusPercent = Req(economy, "hit_radius_bonus"),
                     ReticleRadius = Req(economy, "reticle_radius"),
                     CoinBonusMultiplier = Req(economy, "coin_bonus_multiplier"),
@@ -451,7 +452,8 @@ namespace NCAIClicker.EditorTools
 
             if (d.Economy.BaseHitPower <= 0 || d.Economy.HoverSwingIntervalSec <= 0 ||
                 d.Economy.AutoHammerCountInit < 0 || d.Economy.AutoHammerPower <= 0 ||
-                d.Economy.AutoHammerHitsPerSec <= 0 || d.Economy.SpawnIntervalSec < 0 ||
+                d.Economy.AutoHammerSwingSec <= 0 || d.Economy.AutoHammerProcChancePercent < 0 ||
+                d.Economy.SpawnIntervalSec < 0 ||
                 d.Economy.ExtraSpawnChanceOnDestroy < 0 || d.Economy.ExtraSpawnChanceOnDestroy > 100 ||
                 d.Economy.HitRadiusBonusPercent < 0 || d.Economy.CoinBonusMultiplier <= 0 ||
                 d.Economy.UpgradeCostGrowth < 1 || d.Economy.StageGoalGrowth < 1)

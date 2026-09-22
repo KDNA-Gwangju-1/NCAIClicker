@@ -38,7 +38,9 @@ namespace NCAIClicker.Core
                 return;
             }
 
-            var needed = _controller.PendingTargetCount;
+            // 발동 중이 아니면 망치는 화면에 없다 (3.13). 상시 틱이 아니라 호버 적중에 얹히는
+            // 한 번짜리 사이클이라, 끝나면 사라지는 것이 정상이다.
+            var needed = _controller.IsSwinging ? _controller.PendingTargetCount : 0;
             EnsurePivots(needed);
 
             if (needed == 0)
