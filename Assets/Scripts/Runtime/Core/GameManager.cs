@@ -41,6 +41,21 @@ namespace NCAIClicker.Core
 
         private bool _isRunActive;
 
+        /// <summary>
+        /// ContinueRun 의 씬 재로드로 사라지기 전에 HammerSwingController 에서 옮겨 온 예약 퍼크(percent).
+        /// GameManager 는 DontDestroyOnLoad 라 씬이 바뀌어도 값을 들고 있다가, 새로 생긴
+        /// HammerSwingController 인스턴스에 WireSceneConsumers 에서 되돌려 준다 (#188 작업 중 발견).
+        /// </summary>
+        private float _pendingHammerPerkPowerPercent;
+
+        /// <summary>
+        /// ContinueRun 의 씬 재로드로 사라지기 전에 HammerSwingController 에서 옮겨 온 예약 판정
+        /// 범위 확대 퍼크(percent). 타격력 강화 퍼크와 같은 이유로 필요하다 — 판정 범위 확대
+        /// 퍼크를 CreatureManager/Target 에서 HammerSwingController 로 옮기며 추가했다
+        /// (팀장 승인, #188).
+        /// </summary>
+        private float _pendingHammerPerkHitRadiusPercent;
+
         private void Awake()
         {
             Instance = this;
@@ -83,16 +98,52 @@ namespace NCAIClicker.Core
         /// **떠나기 전에 저장한다** (이슈 #203). 업그레이드·반지 상점이 이 버튼 바로 앞의
         /// 고지서 화면에 있어서, 여기서 저장하지 않으면 사 놓고 게임을 끈 플레이어가 산 것을
         /// 잃는다. ARCHITECTURE 저장 경계의 "런 시작 직전" 이 이 지점이다.
+        ///
+        /// **씬 재로드 전에 예약 퍼크부터 옮겨 둔다** (#188 작업 중 발견). HammerSwingController 는
+        /// Managers 프리팹 밖이라 아래 LoadScene 이 인스턴스를 통째로 파괴한다 — 고지서 화면에서
+        /// 고른 타격력 강화 퍼크가 이 시점에 옮겨지지 않으면 다음 런에서 조용히 사라진다.
         /// </summary>
         public void ContinueRun()
         {
             if (CurrentState == RunState.Result && _billService?.TryCloseDay() == true)
             {
+                // 파산 확정 (#211). 이 경로는 씬을 다시 로드하지 않으므로 예약 퍼크를 옮길
+                // 다음 런 자체가 없다 — TryCloseDay 가 발행한 OnBankrupt 를 HammerSwingController/
+                // CreatureManager 가 직접 구독해 지운다 (#188).
                 return;
             }
 
+            CarryOverScenePerks();
             SaveManager.Persistence?.CollectAndSave();
             SceneManager.LoadScene(GameSceneName);
+        }
+
+        /// <summary>
+        /// 씬 재로드로 사라질 씬 소비처(HammerSwingController)의 퍼크를 다음 런으로 넘긴다
+        /// (#188 작업 중 발견). CreatureManager 등 Managers 프리팹 소속 매니저는 DontDestroyOnLoad 라
+        /// 이 작업이 필요 없다 — 씬 밖에 사는 소비처만 옮기면 된다.
+        ///
+        /// **예약분만으로는 부족하다.** 타격력 강화는 파산 전까지 유지되는데(팀장 지시, #188)
+        /// HammerSwingController 는 하루(런)마다 ContinueRun 의 씬 재로드로 인스턴스째 새로 생긴다.
+        /// PendingPerkPowerPercent(아직 안 켠 예약분)만 옮기면 이미 켜져 있던 ActivePerkPowerPercent
+        /// (지난 며칠간 쌓인 값)가 새 인스턴스에서 누락돼, 파산도 안 했는데 다음 날 15% 강화가
+        /// 조용히 사라진다 — 실제로 사용자가 플레이 중에 겪은 증상이다. 그래서 둘을 합쳐서 옮긴다.
+        /// </summary>
+        private void CarryOverScenePerks()
+        {
+            if (_sceneRunScopedServices == null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < _sceneRunScopedServices.Length; i++)
+            {
+                if (_sceneRunScopedServices[i] is HammerSwingController hammer && hammer != null)
+                {
+                    _pendingHammerPerkPowerPercent += hammer.PendingPerkPowerPercent + hammer.ActivePerkPowerPercent;
+                    _pendingHammerPerkHitRadiusPercent += hammer.PendingPerkHitRadiusPercent + hammer.ActivePerkHitRadiusPercent;
+                }
+            }
         }
 
         /// <summary>종료. 버튼이 SceneManager/Application API를 직접 부르지 않도록 GameManager가 대신한다.</summary>
@@ -290,10 +341,26 @@ namespace NCAIClicker.Core
         /// 업그레이드 주입은 ManagerBootstrap 이, 런 경계는 EnsureRunScopedServices 가 맡는다.
         /// 여기에 다시 넣으면 BeginRun() 이 두 경로로 각각 불려 두 번 실행되고, 두 번째 호출이
         /// 방금 켠 퍼크 반경을 지운다 (#126 회귀).
+        ///
+        /// **새 인스턴스를 찾은 직후 예약 퍼크부터 되돌려 준다** (#188 작업 중 발견). ContinueRun 의
+        /// CarryOverScenePerks 가 이전 인스턴스에서 옮겨 둔 값을, BeginRun 이 pending→active 로
+        /// 승격하기 전에 여기서 새 인스턴스에 넣어야 한다.
         /// </summary>
         private void WireSceneConsumers()
         {
             var hammer = FindFirstObjectByType<HammerSwingController>(FindObjectsInactive.Include);
+
+            if (hammer != null && _pendingHammerPerkPowerPercent > 0f)
+            {
+                hammer.AddPendingPerkPowerPercent(_pendingHammerPerkPowerPercent);
+                _pendingHammerPerkPowerPercent = 0f;
+            }
+
+            if (hammer != null && _pendingHammerPerkHitRadiusPercent > 0f)
+            {
+                hammer.AddPendingPerkHitRadiusPercent(_pendingHammerPerkHitRadiusPercent);
+                _pendingHammerPerkHitRadiusPercent = 0f;
+            }
 
             var upgradeStats = GetComponentInChildren<IUpgradeStats>(true);
             if (upgradeStats != null && hammer != null)

@@ -41,12 +41,6 @@ namespace NCAIClicker.Targets
         /// </summary>
         private IUpgradeStats _upgradeStats;
 
-        /// <summary>
-        /// 피격 판정 확대 퍼크가 더하는 비율(percent). 스폰하는 쪽이 넣어 준다 (#126).
-        /// 이 컴포넌트가 OnPerkChosen 을 직접 구독하지 않는 이유는 인스턴스가 여럿이기 때문이다 —
-        /// 화면의 크리처 수만큼 구독자가 생기고, 해제를 한 번만 놓쳐도 누수가 된다.
-        /// </summary>
-        private float _perkHitRadiusPercent;
         private float _currentHp;
         private float _staminaRestore;
         private bool _isAlive;
@@ -95,16 +89,6 @@ namespace NCAIClicker.Targets
         }
 
         /// <summary>
-        /// 퍼크로 늘어난 판정 반경 비율을 넣는다. 즉시 반경에 반영하므로 이미 살아 있는
-        /// 크리처에도 런 도중 적용할 수 있다 (#126).
-        /// </summary>
-        public void SetPerkHitRadiusPercent(float percent)
-        {
-            _perkHitRadiusPercent = percent;
-            ApplyHitRadius();
-        }
-
-        /// <summary>
         /// targets.csv 값으로 되돌린다. 스폰과 오브젝트 풀 재사용에서 다시 부를 수 있도록 공개한다.
         /// Awake 가 돌았는지에 기대지 않는다 — 풀에서 꺼내 쓰는 쪽이 이 메서드만 불러도 온전해야 한다.
         /// </summary>
@@ -145,6 +129,10 @@ namespace NCAIClicker.Targets
         /// 피격 반경을 기준 반경보다 넓힌다. 확대 비율은 economy.csv 의 hit_radius_bonus 이고,
         /// 업그레이드(완력 단련)가 그 비율을 더 올린다 (BALANCE 6절 hit_radius, #131).
         /// 메시를 참조하지 않으므로 작업 6.6 에서 모델을 갈아끼워도 판정 크기가 변하지 않는다.
+        ///
+        /// 판정 범위 확대 퍼크(hit_radius_boost)는 더 이상 여기서 다루지 않는다 — 대상 콜라이더가
+        /// 아니라 망치의 조준 반경(HammerSwingController.HitRadius)을 키우는 쪽으로 옮겼다
+        /// (팀장 승인, #188).
         /// </summary>
         private void ApplyHitRadius()
         {
@@ -162,8 +150,7 @@ namespace NCAIClicker.Targets
             var percent = _upgradeStats == null
                 ? basePercent
                 : _upgradeStats.GetStat(StatId.HitRadius, basePercent);
-            // 업그레이드와 퍼크는 같은 stat 을 건드리므로 비율끼리 더한다 (BALANCE 6절 percent 합산과 같은 규칙).
-            _hitCollider.radius = _baseHitRadius * (1f + (percent + _perkHitRadiusPercent) / 100f);
+            _hitCollider.radius = _baseHitRadius * (1f + percent / 100f);
         }
 
         /// <summary>피격을 외부(FSM 등)에 알리는 이벤트.</summary>

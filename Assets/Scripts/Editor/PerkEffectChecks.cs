@@ -241,16 +241,29 @@ namespace NCAIClicker.EditorTools
                 AssertNear(GetHitPower(hammer), expected, "타격력 퍼크가 반영되지 않았습니다.");
                 checkCount++;
 
-                // "이번 런" 퍼크라 런이 끝나면 사라진다.
+                // 파산 전까지 유지된다 — 런이 끝나도 사라지지 않는다 (팀장 지시, #188).
                 hammer.EndRun();
-                AssertNear(GetHitPower(hammer), basePower, "런이 끝났는데 타격력 퍼크가 남았습니다.");
+                AssertNear(GetHitPower(hammer), expected, "런이 끝났는데 타격력 퍼크가 사라졌습니다.");
                 checkCount++;
 
-                // 런 밖에서 고르면 다음 런부터 걸린다.
+                // 다음 런에도 그대로 이어진다.
+                hammer.BeginRun();
+                AssertNear(GetHitPower(hammer), expected, "다음 런에서 타격력 퍼크가 사라졌습니다.");
+                checkCount++;
+
+                // 파산하면 그제서야 지워진다.
+                GameEvents.PublishBankrupt();
+                AssertNear(GetHitPower(hammer), basePower, "파산했는데 타격력 퍼크가 남았습니다.");
+                checkCount++;
+
+                hammer.EndRun();
+
+                // 런 밖에서 고른 예약분도 파산하면 함께 지워진다.
                 GameEvents.PublishPerkChosen(perk.Id);
                 AssertNear(GetHitPower(hammer), basePower, "런 밖인데 타격력 퍼크가 즉시 걸렸습니다.");
+                GameEvents.PublishBankrupt();
                 hammer.BeginRun();
-                AssertNear(GetHitPower(hammer), expected, "예약한 타격력 퍼크가 다음 런에 걸리지 않았습니다.");
+                AssertNear(GetHitPower(hammer), basePower, "파산으로 지워졌어야 할 예약 퍼크가 다음 런에 걸렸습니다.");
                 checkCount++;
             }
             finally
@@ -268,18 +281,24 @@ namespace NCAIClicker.EditorTools
 
         // ---------------------------------------------------------------- 피격 판정 확대
 
+        /// <summary>
+        /// 피격 판정 확대 퍼크는 더 이상 Target/CreatureManager 를 거치지 않는다 — 조준 원이
+        /// 커지지 않아 체감되지 않는다는 지적에 따라 HammerSwingController 의 조준 반경(HitRadius)
+        /// 쪽으로 옮겼다 (팀장 승인, #188). RunTargetRadiusChecks 는 이제 기준값+업그레이드
+        /// 산수만 보고, 퍼크 검증은 RunHammerRadiusPerkChecks 가 맡는다.
+        /// </summary>
         private static int RunHitRadiusPerkChecks(BalanceData balance)
         {
             var perk = FindPerk(balance, PerkType.HitRadiusBoost);
             var checkCount = 0;
 
-            checkCount += RunTargetRadiusChecks(balance, perk);
-            checkCount += RunCreatureManagerPerkChecks(balance, perk);
+            checkCount += RunTargetRadiusChecks(balance);
+            checkCount += RunHammerRadiusPerkChecks(balance, perk);
             return checkCount;
         }
 
-        /// <summary>Target 쪽 산수. 업그레이드 비율과 퍼크 비율이 더해지는지 본다.</summary>
-        private static int RunTargetRadiusChecks(BalanceData balance, PerkDef perk)
+        /// <summary>Target 쪽 산수. 기준 반경에 업그레이드 비율만 반영되는지 본다 (퍼크는 더 이상 여기 없다).</summary>
+        private static int RunTargetRadiusChecks(BalanceData balance)
         {
             var checkCount = 0;
             GameObject host = null;
@@ -301,18 +320,14 @@ namespace NCAIClicker.EditorTools
 
                 target.Initialize();
                 AssertNear(collider.radius, baseRadius * (1f + basePercent / 100f),
-                           "퍼크 전 반경이 기준값과 다릅니다.");
+                           "기준값(업그레이드 전) 반경이 다릅니다.");
                 checkCount++;
 
-                target.SetPerkHitRadiusPercent(perk.Value);
-                AssertNear(collider.radius, baseRadius * (1f + (basePercent + perk.Value) / 100f),
-                           "퍼크 반경이 기준 비율에 더해지지 않았습니다: " + collider.radius);
-                checkCount++;
-
-                // 다시 Initialize 해도 퍼크가 유지된다 — 풀에서 꺼내 쓰는 경로를 위해서다.
+                // 재초기화해도 기준값 그대로다 — 판정 범위 확대 퍼크는 더 이상 Target 을 거치지
+                // 않으므로 여기서는 흔들릴 값이 없다 (HammerSwingController 로 이관, #188).
                 target.Initialize();
-                AssertNear(collider.radius, baseRadius * (1f + (basePercent + perk.Value) / 100f),
-                           "재초기화에서 퍼크 반경이 사라졌습니다.");
+                AssertNear(collider.radius, baseRadius * (1f + basePercent / 100f),
+                           "재초기화에서 기준 반경이 흔들렸습니다.");
                 checkCount++;
             }
             finally
@@ -326,48 +341,64 @@ namespace NCAIClicker.EditorTools
             return checkCount;
         }
 
-        /// <summary>CreatureManager 가 퍼크를 받아 들고 있는지. 스폰 전달은 프리팹이 필요해 보지 않는다.</summary>
-        private static int RunCreatureManagerPerkChecks(BalanceData balance, PerkDef perk)
+        /// <summary>
+        /// HammerSwingController 쪽 퍼크 검증. RunHitPowerPerkChecks 와 같은 구조로,
+        /// 파산 전까지 유지되고 파산으로만 지워지는지 본다 (팀장 지시, #188).
+        /// </summary>
+        private static int RunHammerRadiusPerkChecks(BalanceData balance, PerkDef perk)
         {
             var checkCount = 0;
-            CreatureManager manager = null;
+            var baseRadius = balance.Economy.ReticleRadius;
+            var expected = baseRadius * (1f + perk.Value / 100f);
+            AssertCondition(expected > baseRadius, "판정 범위 확대 퍼크가 값을 올리지 않습니다.");
+
+            HammerSwingController hammer = null;
             GameObject host = null;
 
             try
             {
-                manager = CreateManager<CreatureManager>(balance, "PerkCheckCreatures", out host);
-                InvokeLifecycle(manager, "Awake");
-                InvokeLifecycle(manager, "OnEnable");
+                hammer = CreateManager<HammerSwingController>(balance, "PerkCheckHammerRadius", out host);
+                InvokeLifecycle(hammer, "Awake");
+                InvokeLifecycle(hammer, "OnEnable");
 
-                manager.BeginRun();
-                AssertNear(GetPerkRadius(manager), 0f, "런 시작인데 퍼크 비율이 남아 있습니다.");
+                hammer.BeginRun();
+                AssertNear(hammer.HitRadius, baseRadius, "퍼크 전 판정 반경이 기준값과 다릅니다.");
 
                 GameEvents.PublishPerkChosen(perk.Id);
-                AssertNear(GetPerkRadius(manager), perk.Value, "퍼크 비율을 받지 못했습니다.");
+                AssertNear(hammer.HitRadius, expected, "판정 범위 확대 퍼크가 반영되지 않았습니다.");
                 checkCount++;
 
-                manager.EndRun();
-                AssertNear(GetPerkRadius(manager), 0f, "런이 끝났는데 퍼크 비율이 남았습니다.");
+                // 파산 전까지 유지된다 — 런이 끝나도 사라지지 않는다 (팀장 지시, #188).
+                hammer.EndRun();
+                AssertNear(hammer.HitRadius, expected, "런이 끝났는데 판정 범위 퍼크가 사라졌습니다.");
                 checkCount++;
 
-                // 런 밖에서 고르면 다음 런부터다.
+                // 다음 런에도 그대로 이어진다.
+                hammer.BeginRun();
+                AssertNear(hammer.HitRadius, expected, "다음 런에서 판정 범위 퍼크가 사라졌습니다.");
+                checkCount++;
+
+                // 파산하면 그제서야 지워진다.
+                GameEvents.PublishBankrupt();
+                AssertNear(hammer.HitRadius, baseRadius, "파산했는데 판정 범위 퍼크가 남았습니다.");
+                checkCount++;
+
+                hammer.EndRun();
+
+                // 런 밖에서 고른 예약분도 파산하면 함께 지워진다.
                 GameEvents.PublishPerkChosen(perk.Id);
-                AssertNear(GetPerkRadius(manager), 0f, "런 밖인데 퍼크 비율이 즉시 걸렸습니다.");
-                manager.BeginRun();
-                AssertNear(GetPerkRadius(manager), perk.Value, "예약한 퍼크가 다음 런에 걸리지 않았습니다.");
+                AssertNear(hammer.HitRadius, baseRadius, "런 밖인데 판정 범위 퍼크가 즉시 걸렸습니다.");
+                GameEvents.PublishBankrupt();
+                hammer.BeginRun();
+                AssertNear(hammer.HitRadius, baseRadius, "파산으로 지워졌어야 할 예약 퍼크가 다음 런에 걸렸습니다.");
                 checkCount++;
             }
             finally
             {
-                TearDown(manager, host);
+                TearDown(hammer, host);
             }
 
             return checkCount;
-        }
-
-        private static float GetPerkRadius(CreatureManager manager)
-        {
-            return (float)GetPrivateField(manager, "_perkHitRadiusPercent");
         }
 
         // ---------------------------------------------------------------- 보조
