@@ -87,10 +87,13 @@ namespace NCAIClicker.UI
             GameEvents.OnBillPaid -= HandleBillPaid;
         }
 
-        /// <summary>적중만 재생한다 — 헛스윙까지 울리면 상시 스윙 중 소음이 끊이지 않는다 (GDD 4절).</summary>
+        /// <summary>
+        /// 호버 적중만 재생한다. 헛스윙까지 울리면 상시 스윙 중 소음이 끊이지 않고 (GDD 4절),
+        /// 자동 망치까지 울리면 보유 수와 무관하게 초당 1회 타격음이 겹쳐 같은 문제가 난다.
+        /// </summary>
         private void HandleSwingResolved(HitSource source, bool isHit)
         {
-            if (isHit)
+            if (isHit && source == HitSource.Hover)
             {
                 Play(_hitClip);
             }

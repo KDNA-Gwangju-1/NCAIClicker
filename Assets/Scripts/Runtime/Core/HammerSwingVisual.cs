@@ -173,44 +173,8 @@ namespace NCAIClicker.Core
         /// <summary>허공의 스윙 망치. 조준 반경과 무관하므로 레티클을 못 그릴 때도 만든다.</summary>
         private void BuildHammer()
         {
-            var litShader = FindRequiredShader("Universal Render Pipeline/Lit");
-            if (litShader == null)
-            {
-                return;
-            }
-
-            // 4. 허공의 스윙 망치 피벗 및 모델 생성 (원작 배색: 빨간 손잡이 바 + 짙은 네이비 헤드)
-            var pivotGo = new GameObject("HammerPivot");
-            pivotGo.transform.SetParent(transform);
-            _hammerPivot = pivotGo.transform;
-
-            // 손잡이 막대
-            var handleGo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            handleGo.name = "HammerHandle";
-            handleGo.transform.SetParent(_hammerPivot);
-            handleGo.transform.localPosition = new Vector3(0.22f, 0.35f, -0.18f);
-            handleGo.transform.localRotation = Quaternion.Euler(38f, -18f, 0f);
-            handleGo.transform.localScale = new Vector3(0.06f, 0.35f, 0.06f);
-            Destroy(handleGo.GetComponent<Collider>());
-
-            var handleRenderer = handleGo.GetComponent<Renderer>();
-            var handleMat = new Material(litShader);
-            handleMat.color = new Color(0.82f, 0.22f, 0.16f);
-            handleRenderer.material = handleMat;
-
-            // 망치 머리
-            var headGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            headGo.name = "HammerHead";
-            headGo.transform.SetParent(_hammerPivot);
-            headGo.transform.localPosition = new Vector3(0.22f, 0.6f, 0.03f);
-            headGo.transform.localRotation = Quaternion.Euler(38f, -18f, 0f);
-            headGo.transform.localScale = new Vector3(0.18f, 0.16f, 0.32f);
-            Destroy(headGo.GetComponent<Collider>());
-
-            var headRenderer = headGo.GetComponent<Renderer>();
-            var headMat = new Material(litShader);
-            headMat.color = new Color(0.18f, 0.22f, 0.28f);
-            headRenderer.material = headMat;
+            // 모델·배색·치수는 HammerRig 가 단일 출처다. 자동 망치(AutoHammerVisual)도 같은 것을 쓴다.
+            _hammerPivot = HammerRig.Build(transform, "HammerPivot");
             SetVisible(_isVisible);
         }
 
@@ -439,31 +403,8 @@ namespace NCAIClicker.Core
                 return;
             }
 
-            // progress:
-            // 0.0 ~ 0.8: 게이지가 차오르는 동안 망치가 서서히 뒤로 높이 들려올려짐 (Wind up 장전)
-            // 0.8 ~ 0.92: 게이지 완충 시점에 바닥을 향해 맹렬하게 쾅! 내리찍음 (Strike 강타)
-            // 0.92 ~ 1.0: 타격 반동으로 살짝 튕겨 올라오며 복귀
-            float angleX;
-            float heightY;
-
-            if (progress < 0.8f)
-            {
-                var t = progress / 0.8f;
-                angleX = Mathf.Lerp(15f, 65f, t);
-                heightY = Mathf.Lerp(0.2f, 0.75f, t);
-            }
-            else if (progress < 0.92f)
-            {
-                var t = (progress - 0.8f) / 0.12f;
-                angleX = Mathf.Lerp(65f, -22f, t);
-                heightY = Mathf.Lerp(0.75f, 0.02f, t);
-            }
-            else
-            {
-                var t = (progress - 0.92f) / 0.08f;
-                angleX = Mathf.Lerp(-22f, 15f, t);
-                heightY = Mathf.Lerp(0.02f, 0.2f, t);
-            }
+            // 장전·강타·반동 구간 계산은 HammerRig 가 단일 출처다 — 자동 망치와 같은 박자를 쓴다.
+            HammerRig.EvaluateSwing(progress, out var angleX, out var heightY);
 
             _hammerPivot.localRotation = Quaternion.Euler(angleX, -15f, 0f);
             var pos = _hammerPivot.position;
