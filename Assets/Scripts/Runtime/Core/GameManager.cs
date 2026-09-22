@@ -186,12 +186,6 @@ namespace NCAIClicker.Core
 
         private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            var next = ResolveState(scene.name);
-            if (!next.HasValue)
-            {
-                return;
-            }
-
             // **여기서 복원하지 않는다** (이슈 #203). 매니저는 DontDestroyOnLoad 라 씬을 다시
             // 로드해도 값을 그대로 들고 있다 — 씬 로드마다 저장을 덮어씌우면 마지막 저장 이후에
             // 생긴 변경이 사라진다. 실제로 고지서 화면에서 반지를 사고 "다음 날"을 누르면
@@ -199,7 +193,45 @@ namespace NCAIClicker.Core
             //
             // 복원은 앱이 켜질 때 ManagerBootstrap 이 한 번만 한다. 그 뒤로 저장은 기록일 뿐,
             // 살아 있는 값의 출처가 아니다.
+            var next = ResolveStateForLoad(scene.name);
+            if (!next.HasValue)
+            {
+                return;
+            }
+
             SetState(next.Value);
+        }
+
+        /// <summary>
+        /// 씬 로드가 어떤 상태로 이어지는지 정한다.
+        ///
+        /// **납부 후 흐름이 남아 있으면 Game 씬이어도 Result 다** (이슈 #265). 메인 메뉴의
+        /// 이어하기는 Game 씬을 로드하는데, 씬 이름만 보면 Running 이라 그대로 두면 HUD 와
+        /// 크리처가 뜬 위에 BillPanel 이 복원돼 두 화면이 겹친다. 저장된 흐름은 정산 뒤 화면이므로
+        /// Result 가 맞는 상태이고, 거기서 BillPanelController 가 저장된 단계(퍽 선택·새 고지서·
+        /// 투자 메뉴)를 복원한다. 다음 런은 플레이어가 계속하기를 눌러야 시작된다.
+        ///
+        /// NotifyEndRun 은 런이 시작된 적 없으면 그대로 빠져나가므로(_isRunActive) 이 경로에서
+        /// OnDayEnded 가 잘못 발행되지는 않는다.
+        ///
+        /// 씬 이름과 분리해 둔 이유는 Edit Mode 검증이 씬을 로드하지 않고도 이 판정을 볼 수
+        /// 있게 하기 위해서다.
+        /// </summary>
+        private RunState? ResolveStateForLoad(string sceneName)
+        {
+            var next = ResolveState(sceneName);
+            if (!next.HasValue)
+            {
+                return null;
+            }
+
+            if (next.Value == RunState.Running && _billService != null &&
+                _billService.PaymentFlowState != PostPaymentFlowState.None)
+            {
+                return RunState.Result;
+            }
+
+            return next;
         }
 
         /// <summary>Running 중에만 Result 로 전이한다. 스태미나 소진과 파산 둘 다 같은 전이를 부른다.</summary>
