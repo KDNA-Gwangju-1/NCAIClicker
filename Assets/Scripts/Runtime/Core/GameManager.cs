@@ -61,6 +61,9 @@ namespace NCAIClicker.Core
             Instance = this;
             CurrentState = ResolveState(SceneManager.GetActiveScene().name) ?? RunState.MainMenu;
             _billService = GetComponentInChildren<IBillService>(true);
+
+            // VSync가 꺼져 있어(#288) 상한이 없으면 GPU가 무제한으로 렌더링해 발열이 심해진다.
+            Application.targetFrameRate = 60;
         }
 
         private void Start()
