@@ -348,7 +348,9 @@ namespace NCAIClicker.Economy
             _offeredPerkIds = Array.Empty<string>();
             _postPaymentFlowState = PostPaymentFlowState.NewBillConfirmation;
             GameEvents.PublishPerkChosen(perkId);
-            IssueBill();
+            // 정산 중(계속하기 전)이라 _currentDay 는 아직 끝난 날이다. 다음 런의 날짜(_currentDay + 1)를
+            // 발행일로 넘긴다 — 그대로 쓰면 마감까지 due_days 보다 하루 짧아진다 (#270).
+            IssueBill(_currentDay + 1);
             _persistence?.CollectAndSave();
             return true;
         }
@@ -514,8 +516,15 @@ namespace NCAIClicker.Economy
         /// stages.csv 의 단계값으로 고지서를 만든다. 마감일 = 발행일 + 기한 - 1 (Bill.DueDay 계약).
         /// 단계는 단일 출처(_stageService)의 현재 단계를 따르고, 없으면 1단계로 폴백한다 (이슈 #150).
         /// _billIndex 는 대출 해금 등에서 쓸 누적 고지서 순번으로 유지한다.
+        /// BeginRun 은 이미 다음 날로 넘어간 뒤 부르므로 _currentDay 를 그대로 쓴다.
         /// </summary>
         private void IssueBill()
+        {
+            IssueBill(_currentDay);
+        }
+
+        /// <summary>정산 중(TryChoosePerk)처럼 아직 날짜가 넘어가지 않은 시점에서 발행일을 명시해 부른다 (#270).</summary>
+        private void IssueBill(int issuedDay)
         {
             if (_balanceData == null || _balanceData.Stages.Count == 0)
             {
@@ -537,8 +546,8 @@ namespace NCAIClicker.Economy
             _activeBill = new Bill
             {
                 Amount = stage.BillAmount,
-                IssuedDay = _currentDay,
-                DueDay = _currentDay + stage.DueDays - 1,
+                IssuedDay = issuedDay,
+                DueDay = issuedDay + stage.DueDays - 1,
                 IsPaid = false,
             };
             _billIndex++;

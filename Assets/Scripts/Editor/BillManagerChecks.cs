@@ -231,6 +231,16 @@ namespace NCAIClicker.EditorTools
                     AssertCondition(manager.ActiveBill != null && !manager.ActiveBill.IsPaid, "퍼크 선택 직후 새 고지서가 발행되어야 합니다 (#249).");
                     checkCount++;
 
+                    // 퍼크 선택 시점엔 아직 계속하기 전이라 CurrentDay 가 정산 중인 날 그대로다.
+                    // 새 고지서의 발행일은 다음 런의 날짜(CurrentDay + 1)여야 due_days 만큼 온전히 돈다 (#270).
+                    var expectedIssuedDay = manager.CurrentDay + 1;
+                    AssertCondition(manager.ActiveBill.IssuedDay == expectedIssuedDay,
+                        "퍼크 선택 후 발행된 고지서의 발행일이 다음 날이 아닙니다: " + manager.ActiveBill.IssuedDay
+                        + " (기대 " + expectedIssuedDay + ")");
+                    AssertCondition(manager.ActiveBill.DueDay == expectedIssuedDay + stage1.DueDays - 1,
+                        "퍼크 선택 후 발행된 고지서의 마감일이 due_days 만큼 돌지 않습니다: " + manager.ActiveBill.DueDay);
+                    checkCount++;
+
                     // 이미 고른 뒤에는 같은 id 라도 다시 고를 수 없다.
                     AssertCondition(manager.TryChoosePerk(picked) == false, "이미 고른 뒤에 다시 TryChoosePerk 가 성공했습니다.");
                     AssertCondition(chosenCount == 1, "재선택이 실패했는데 OnPerkChosen 이 다시 발행됐습니다.");

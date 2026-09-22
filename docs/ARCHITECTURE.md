@@ -277,7 +277,7 @@ public interface IStageService
 public class Bill
 {
     public long Amount;
-    public int IssuedDay;
+    public int IssuedDay;              // 정산 중(퍽 선택) 발행분은 정산일이 아니라 다음 런의 날짜다 (#270)
     public int DueDay;                 // IssuedDay + 기한 - 1, 이 날 종료 전에 납부
     public bool IsPaid;
 }
