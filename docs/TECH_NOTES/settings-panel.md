@@ -173,7 +173,11 @@ Edit Mode 검사는 **씬 전환 직전까지**만 본다. `SceneManager.LoadSce
 
 - [x] 확인창이 3줄이 되며 텍스트 칸(100)을 11px 넘기던 것을 칸 120·상자 300 으로 고쳤다.
       `overflowMode` 가 `Overflow` 라 잘리지 않고 **아래 버튼과 겹치는** 형태였다
-- [x] 전체 검증 회귀: `ValidationRunner.RunAll()` 전 스위트 통과
+- [x] 전체 검증 회귀: `ValidationRunner.RunAll()` — **통과 24 / 실패 1 (전체 25)**.
+      실패는 `TargetChecks` 의 `TargetNormal: Visual 아래 Mesh 자식이 없습니다` 하나이고
+      **이 작업과 무관하다** — `Assets/Prefabs/Targets/TargetNormal.prefab` 은 `Develop` 과
+      바이트 단위로 같고 이 브랜치가 건드리지 않았다. 6.6(#37) 에셋 교체에서 들어온 것으로
+      보인다. `PASS` 줄만 읽으면 이 실패가 보이지 않으니 **요약 줄을 확인할 것**
 - [ ] **빌드된 실행 파일에서는 미검증** — 에디터 Play Mode 까지다
 
 ## 알려진 한계
