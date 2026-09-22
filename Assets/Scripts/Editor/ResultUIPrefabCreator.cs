@@ -38,6 +38,12 @@ namespace NCAIClicker.EditorTools
         // 기준: 본문 4.5:1, 행 구분 같은 비텍스트 요소 3:1 (WCAG 1.4.3 / 1.4.11).
         private static readonly Color RowFill = new Color(0.102f, 0.082f, 0.071f);
         private static readonly Color LossRowFill = new Color(0.216f, 0.063f, 0.055f);
+        // 버튼 (디자인 시스템 2차, #184): Base 면 #16130F · 선 #8C7F6A · 호버 #E8B04B · 눌림 #F0C672 · 비활성 #4A4239
+        private static readonly Color BaseFill = new Color(0.086f, 0.075f, 0.059f);
+        private static readonly Color BaseLine = new Color(0.549f, 0.498f, 0.416f);
+        private static readonly Color HoverLine = new Color(0.910f, 0.690f, 0.294f);
+        private static readonly Color PressLine = new Color(0.941f, 0.776f, 0.447f);
+        private static readonly Color DisabledLine = new Color(0.290f, 0.259f, 0.224f);
         private static readonly Color NetRowFill = new Color(0.208f, 0.157f, 0.071f);
 
         [MenuItem("NCAI/UI/결과 화면 프리팹 생성")]
@@ -133,8 +139,11 @@ namespace NCAIClicker.EditorTools
             var meta = CreateHorizontal("MetaRow", header, 18f);
             SetPreferredHeight(meta, 30f);
             bound["_dayText"] = CreateLabel("DayText", meta, font, 24, Cream, TextAlignmentOptions.Center, "DAY 1");
-            bound["_billStatusText"] = CreateLabel("BillStatusText", meta, font, 24, Muted, TextAlignmentOptions.Center, "고지서: 납부 완료");
-            bound["_stageGoalText"] = CreateLabel("StageGoalText", meta, font, 24, Muted, TextAlignmentOptions.Center, "단계 목표: 미달성");
+            // 고지서 정보는 한 줄 (#184). StageGoalText 는 컨트롤러가 비워 두며 호환용으로만 남긴다.
+            bound["_billStatusText"] = CreateLabel("BillStatusText", meta, font, 24, Muted, TextAlignmentOptions.Center, "1단계 고지서 $0 · 마감 0일 남음");
+            var stageGoalLabel = CreateLabel("StageGoalText", meta, font, 24, Muted, TextAlignmentOptions.Center, string.Empty);
+            stageGoalLabel.gameObject.SetActive(false);
+            bound["_stageGoalText"] = stageGoalLabel;
 
             // 본문 두 컬럼.
             var columns = CreateHorizontal("ColumnsRow", settlement, 28f);
@@ -186,8 +195,9 @@ namespace NCAIClicker.EditorTools
             // 남는 폭이 이쪽으로 몰려 버튼 하나만 배너처럼 늘어난다.
             // 원작 정산창은 버튼이 넷이다 — 업그레이드 / 고지서 / 계속 / 도박.
             // 정산창이 하루의 끝이자 다음 하루의 관문이라 여기서 갈라진다. 도박만 MVP 밖이다.
+            // 버튼 셋은 전부 Base 톤이다 (디자인 시스템 2차: 금색은 수치에만, 위험은 색이 아니라 확인창).
             var upgradeButton = CreateButton("UpgradeButton", actions, font, new Vector2(300f, 104f), "업그레이드",
-                new Color(0.08f, 0.06f, 0.05f), new Color(0.36f, 0.27f, 0.15f), Gold, 30);
+                BaseFill, BaseLine, Cream, 30);
             SetFlexibleWidth(upgradeButton.gameObject, 0f);
             bound["_upgradeButton"] = upgradeButton;
 
@@ -197,11 +207,11 @@ namespace NCAIClicker.EditorTools
             // 동작이 없는 버튼은 프리팹 단계에서 잠근다. 런타임에 끄면 첫 프레임에 눌릴 수 있다.
             // 버튼 안에 두 줄이 들어간다 — 금액이 크게, 남은 일수가 그 아래 작게 (원작).
             var payButton = CreateButton("PayButton", payColumn, font, new Vector2(340f, 104f), string.Empty,
-                new Color(0.49f, 0.12f, 0.1f), new Color(0.7f, 0.25f, 0.21f), new Color(1f, 0.86f, 0.83f), 34);
+                BaseFill, BaseLine, Cream, 34);
             payButton.interactable = false;
             bound["_payButton"] = payButton;
 
-            var payTextRoot = CreateVertical("PayLabels", payButton.gameObject, 0f);
+            var payTextRoot = CreateVertical("PayLabels", payButton.transform.Find("Fill").gameObject, 0f);
             var payTextRect = payTextRoot.GetComponent<RectTransform>();
             payTextRect.anchorMin = Vector2.zero;
             payTextRect.anchorMax = Vector2.one;
@@ -210,13 +220,13 @@ namespace NCAIClicker.EditorTools
             payTextRoot.GetComponent<VerticalLayoutGroup>().childAlignment = TextAnchor.MiddleCenter;
 
             bound["_payButtonLabel"] = CreateLabel("PayAmountText", payTextRoot, font, 38,
-                new Color(1f, 0.86f, 0.83f), TextAlignmentOptions.Center, "$0");
+                Gold, TextAlignmentOptions.Center, "$0");
             bound["_payDaysLeftText"] = CreateLabel("PayDaysLeftText", payTextRoot, font, 24,
-                new Color(0.85f, 0.62f, 0.55f), TextAlignmentOptions.Center, "");
+                Muted, TextAlignmentOptions.Center, "");
             bound["_payCaptionText"] = CreateLabel("PayCaptionText", payColumn, font, 22, Muted, TextAlignmentOptions.Center, "준비 중");
 
             var continueButton = CreateButton("ContinueButton", actions, font, new Vector2(300f, 104f), "계속",
-                new Color(0.11f, 0.31f, 0.45f), new Color(0.24f, 0.51f, 0.71f), new Color(0.9f, 0.95f, 0.98f), 32);
+                BaseFill, BaseLine, Cream, 32);
             SetFlexibleWidth(continueButton.gameObject, 0f);
             bound["_continueButton"] = continueButton;
 
@@ -379,24 +389,45 @@ namespace NCAIClicker.EditorTools
             return label;
         }
 
+        /// <summary>
+        /// 버튼. 루트 Image 가 테두리이자 Button 의 targetGraphic 이라 **틴트가 곧 테두리 색**이다 —
+        /// 기본 <paramref name="line"/>, 호버 금색, 눌림 밝은 금색, 비활성 흐린 선. 면은 2px 안쪽 자식이다.
+        /// 예전처럼 면에 흰색 틴트를 걸면 어두운 면에서는 호버가 보이지 않아 눌리지 않는 것처럼 읽혔다 (#184).
+        /// </summary>
         private static Button CreateButton(string name, GameObject parent, TMP_FontAsset font, Vector2 size, string label, Color fill, Color line, Color textColor, int fontSize)
         {
             var go = CreateObject(name, parent);
             var rect = go.GetComponent<RectTransform>();
             rect.sizeDelta = size;
 
-            var image = go.AddComponent<Image>();
-            image.color = fill;
-
-            var outline = go.AddComponent<Outline>();
-            outline.effectColor = line;
-            outline.effectDistance = new Vector2(2f, -2f);
+            var frame = go.AddComponent<Image>();
+            frame.color = Color.white;
 
             var button = go.AddComponent<Button>();
+            button.targetGraphic = frame;
+            var colors = button.colors;
+            colors.normalColor = line;
+            colors.highlightedColor = HoverLine;
+            colors.pressedColor = PressLine;
+            colors.selectedColor = line;
+            colors.disabledColor = DisabledLine;
+            colors.fadeDuration = 0.08f;
+            button.colors = colors;
             SetPreferredWidth(go, size.x);
             SetPreferredHeight(go, size.y);
 
-            var text = CreateLabel("Text", go, font, fontSize, textColor, TextAlignmentOptions.Center, label);
+            var fillGo = CreateObject("Fill", go);
+            var fillRect = fillGo.GetComponent<RectTransform>();
+            fillRect.anchorMin = Vector2.zero;
+            fillRect.anchorMax = Vector2.one;
+            fillRect.offsetMin = new Vector2(2f, 2f);
+            fillRect.offsetMax = new Vector2(-2f, -2f);
+            var fillImage = fillGo.AddComponent<Image>();
+            fillImage.color = fill;
+            fillImage.raycastTarget = false;
+
+            // 글자는 면(Fill) 의 자식이다 — 대비 검사기가 배경을 가장 가까운 Image 로 잡기 때문이다.
+            var text = CreateLabel("Text", fillGo, font, fontSize, textColor, TextAlignmentOptions.Center, label);
             var textRect = text.GetComponent<RectTransform>();
             textRect.anchorMin = Vector2.zero;
             textRect.anchorMax = Vector2.one;

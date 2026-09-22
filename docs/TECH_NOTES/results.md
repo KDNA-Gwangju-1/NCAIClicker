@@ -164,5 +164,6 @@ EditMode 검증(ResultUIChecks) 및 Unity MCP 런타임 환경에서 확인했�
   <tr><td>2026.09.18</td><td>#34</td><td>saltlake00</td><td>StaminaHud 구현, StaminaHud.prefab 생성, 검증 하네스 11개로 확장 및 통과</td></tr>
   <tr><td>2026.09.18</td><td>#34</td><td>saltlake00</td><td>프리팹 중복 제거(Resources 단일화), 매니저 구현체 직접 참조 제거 및 인터페이스 조회 전환, HammerSwingVisual 초기 가시성 동기화, stamina.csv 6.5 반영</td></tr>
   <tr><td>2026.09.21</td><td>#178</td><td>yahoo-afk</td><td>코인 개수 칸을 `RunCoin`(금액) 대신 `RunCoinBreakdown`(액면별 개수 합)으로 교체 — 개수와 금액이 항상 같던 버그 수정. 액면별 개수 표시 배선(`UpdateDenomCounts`) 추가, 플레이스홀더였던 코인 종류별 환산 항목 해소. 프리팹은 이미 4개 액면 슬롯이 있어 변경 없음</td></tr>
+  <tr><td>2026.09.22</td><td>#184</td><td>saltlake00</td><td>정산창 고지서 정보를 한 줄로 통합 — 부제 두 조각("고지서 마감: N일 남음 (N원)" / "N단계 고지서 $N 미납")을 <code>N단계 고지서 $N · 마감 N일 남음</code> 하나로 합치고 <code>_stageGoalText</code> 는 비워 둔다(프리팹 호환용으로 필드 유지). 버튼 3종(업그레이드·납부·계속)을 Base 톤으로 통일하고, <code>ResultUIPrefabCreator.CreateButton</code> 을 테두리 Image(targetGraphic)+면(Fill) 구조로 바꿔 호버·눌림에서 테두리가 금색으로 바뀌게 했다 — 전에는 어두운 면에 흰색 틴트라 호버가 보이지 않아 눌리지 않는 것처럼 읽혔다. <code>ResultUIChecks</code>·<code>UiGuidelineChecks</code> 통과</td></tr>
   <tr><td>2026.09.21</td><td>#222</td><td>Claude</td><td>정산창 잠긴 버튼 2종 처분 확정. 코드 변경 없음 — 현장 납부(PayButton)가 이미 배선돼 있었고 더블 오어 낫싱(GambleButton)은 애초에 없었음을 Play Mode 실측으로 확인하고 알려진 한계·왜 이 방법인가 표에 근거 기록</td></tr>
 </table>

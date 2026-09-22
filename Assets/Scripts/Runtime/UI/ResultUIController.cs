@@ -426,32 +426,23 @@ namespace NCAIClicker.UI
 
             UpdateUnwiredView();
 
+            // 고지서 정보는 한 줄에 모은다 (#184) — 원작은 DAY 옆 메타 한 줄이 전부이고, 금액·남은
+            // 일수는 납부 버튼이 다시 말한다. 같은 사실을 세 곳에 흩어 놓지 않는다.
+            // _billStatusText 가 그 한 줄이고 _stageGoalText 는 비운다 (프리팹 호환을 위해 필드는 남긴다).
+            var stageNumber = _stageService != null ? _stageService.CurrentStageNumber : 1;
+            var bill = _billService?.ActiveBill;
+            var billLine = bill == null || bill.IsPaid
+                ? $"{stageNumber}단계 고지서 납부 완료"
+                : $"{stageNumber}단계 고지서 ${bill.Amount:N0} · 마감 {_billService.DaysLeft}일 남음";
+
             if (_billStatusText != null)
             {
-                if (_billService != null && _billService.ActiveBill != null && !_billService.ActiveBill.IsPaid)
-                {
-                    _billStatusText.text = $"고지서 마감: {_billService.DaysLeft}일 남음 ({_billService.ActiveBill.Amount:N0}원)";
-                }
-                else
-                {
-                    _billStatusText.text = "고지서: 납부 완료";
-                }
+                _billStatusText.text = billLine;
             }
 
             if (_stageGoalText != null)
             {
-                // 단계 클리어는 고지서 납부다 (GDD 5절). 따로 목표 코인을 두지 않는다.
-                var stageNumber = _stageService != null ? _stageService.CurrentStageNumber : 1;
-                var bill = _billService?.ActiveBill;
-
-                if (bill == null || bill.IsPaid)
-                {
-                    _stageGoalText.text = $"{stageNumber}단계 고지서 납부 완료";
-                }
-                else
-                {
-                    _stageGoalText.text = $"{stageNumber}단계 고지서 ${bill.Amount:N0} 미납";
-                }
+                _stageGoalText.text = string.Empty;
             }
         }
 
