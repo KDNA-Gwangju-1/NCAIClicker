@@ -52,8 +52,6 @@ MonoBehaviour:
   - Id: normal
     DisplayName: "\uC77C\uBC18\uD615"
     Hp: 3
-    CoinMult: 1
-    BreakBonus: 1
     StaminaRestore: 0
     MoveSpeed: 0.5
     TurnIntervalSec: 4
@@ -62,8 +60,6 @@ MonoBehaviour:
   - Id: anchor
     DisplayName: "\uAC70\uCE58\uD615"
     Hp: 12
-    CoinMult: 1.6
-    BreakBonus: 10
     StaminaRestore: 0
     MoveSpeed: 0.05
     TurnIntervalSec: 6
@@ -72,8 +68,6 @@ MonoBehaviour:
   - Id: runner
     DisplayName: "\uACE0\uC18D\uD615"
     Hp: 1
-    CoinMult: 0.6
-    BreakBonus: 0
     StaminaRestore: 0
     MoveSpeed: 1.25
     TurnIntervalSec: 1.5
@@ -82,8 +76,6 @@ MonoBehaviour:
   - Id: tourist
     DisplayName: "\uD68C\uBCF5\uD615"
     Hp: 10
-    CoinMult: 0.2
-    BreakBonus: 0
     StaminaRestore: 2
     MoveSpeed: 0.2
     TurnIntervalSec: 5
@@ -243,7 +235,8 @@ MonoBehaviour:
   - Id: power_ring
     DisplayName: "\uD798\uC758 \uBC18\uC9C0"
     Description: "\uC950\uB294 \uD798\uC774 \uC601\uAD6C\uD788 \uB0A8\uB294\uB2E4.
-      \uD30C\uC0B0\uD574\uB3C4 \uC190\uAC00\uB77D\uC5D0\uC11C \uBE60\uC9C0\uC9C0 \uC54A\uB294\uB2E4"
+      \uD30C\uC0B0\uD574\uB3C4 \uC190\uAC00\uB77D\uC5D0\uC11C \uBE60\uC9C0\uC9C0
+      \uC54A\uB294\uB2E4"
     InitCost: 3
     CostGrowth: 1.5
     MaxLevel: 5
@@ -255,7 +248,8 @@ MonoBehaviour:
   - Id: vigor_ring
     DisplayName: "\uD65C\uB825\uC758 \uBC18\uC9C0"
     Description: "\uD558\uB8E8\uB97C \uC870\uAE08 \uB354 \uC624\uB798 \uBC84\uD2F4\uB2E4.
-      \uD30C\uC0B0\uD574\uB3C4 \uC190\uAC00\uB77D\uC5D0\uC11C \uBE60\uC9C0\uC9C0 \uC54A\uB294\uB2E4"
+      \uD30C\uC0B0\uD574\uB3C4 \uC190\uAC00\uB77D\uC5D0\uC11C \uBE60\uC9C0\uC9C0
+      \uC54A\uB294\uB2E4"
     InitCost: 3
     CostGrowth: 1.5
     MaxLevel: 5
