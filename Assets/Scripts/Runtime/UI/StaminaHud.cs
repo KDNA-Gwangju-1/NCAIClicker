@@ -22,6 +22,14 @@ namespace NCAIClicker.UI
         [Tooltip("'75/120' 형태로 숫자를 병기할 라벨.")]
         [SerializeField] private TextMeshProUGUI _label;
 
+        [Tooltip("이 비율(현재/최대) 이하로 떨어지면 경고색으로 바뀐다.")]
+        [SerializeField] private float _lowStaminaThreshold01 = 0.2f;
+
+        [SerializeField] private Color _normalColor = new Color(0.42f, 0.8f, 0.42f);
+
+        [Tooltip("저잔량 경고색.")]
+        [SerializeField] private Color _warningColor = new Color(0.95f, 0.25f, 0.25f);
+
         private float _current;
         private float _max;
 
@@ -49,7 +57,9 @@ namespace NCAIClicker.UI
         {
             if (_fill != null)
             {
-                _fill.fillAmount = _max > 0f ? Mathf.Clamp01(_current / _max) : 0f;
+                var ratio = _max > 0f ? Mathf.Clamp01(_current / _max) : 0f;
+                _fill.fillAmount = ratio;
+                _fill.color = ratio <= _lowStaminaThreshold01 ? _warningColor : _normalColor;
             }
 
             if (_label == null)
