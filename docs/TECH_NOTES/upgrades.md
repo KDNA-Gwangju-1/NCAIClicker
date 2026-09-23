@@ -123,11 +123,14 @@ flowchart LR
 
 ```
 UpgradeShopPanel      서비스 조립 · 전체 갱신 (제목·잔고·닫기는 없다 — 탭 이름과 우상단 잔고가 그 역할)
-└ Entries              (GridLayoutGroup 2열, 534×328)
-  └ Card_<id> × 4      UpgradeShopEntry — 카드 한 장. Surface #16130F + 패널 선
-    ├ Head → NameLabel / LevelLabel
-    ├ DescriptionLabel / EffectLabel
-    └ BuyRow → ReasonLabel · PurchaseButton(Base: 테두리 이미지가 targetGraphic, 호버 금색) → Fill → Dollar · CostLabel
+└ Entries              ScrollRect (세로만, 휠) — #311 부터 행 목록
+  ├ Viewport           RectMask2D
+  │ └ Content          VerticalLayoutGroup(패딩 4, 간격 8) + ContentSizeFitter
+  │   └ Card_<id> × N  UpgradeShopEntry — 한 행 1084×128. Surface #16130F + 패널 선
+  │     ├ Head (240)   NameLabel 32 / LevelLabel 24
+  │     ├ Body (남는 폭) DescriptionLabel 24 (2줄) / EffectLabel 24
+  │     └ BuyRow (200) ReasonLabel 20 · PurchaseButton(Base: 테두리 이미지가 targetGraphic, 호버 금색) → Fill → Dollar · CostLabel
+  └ Scrollbar          폭 16, 넘칠 때만 보인다 (AutoHideAndExpandViewport)
 ```
 
 비주얼은 디자인 시스템 2차(2026-09-22)를 따른다 — 파란 버튼·`#262B3A` 카드 폐기, 구매 버튼은 Base 톤에
@@ -341,6 +344,39 @@ stat 은 일부뿐이라(`max_stamina`·`fever_gauge_per_hit`·`coin_bonus_multi
 * **개선 예정 (PM):** 좁아진 카드에서 설명이 빡빡하다 — [#311](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/311)
 * [x] `NCAI > 전체 검증 실행` 29/29 (UI 가이드라인 포함)
 
+### #311 카드 격자 → 행 목록 + 스크롤 (2026-09-23)
+
+3열 격자는 카드가 늘 때마다 칸이 좁아진다. 5장에서 이미 설명·효과가 20px 로 줄고 이름·부족 사유가 꺾였다.
+시안 셋을 1100×760 단위로 비교해 **B안(가로 행 목록 + 세로 스크롤)** 을 골랐다.
+
+| 안 | 버린 이유 / 고른 이유 |
+|---|---|
+| A 현재 격자 | 7장부터 3행이 되어 칸을 넘친다. 글자를 더 줄일 곳이 없다 (UI_GUIDE 캡션 하한 20px) |
+| **B 행 목록** | 한 행 폭이 1084 라 설명·효과를 본문 24px 로 올릴 수 있다. 몇 장이 되든 스크롤이 받는다 |
+| C 목록 + 상세 | 한 번에 한 장만 자세히 보인다 — 업그레이드끼리 가격·효과를 나란히 비교하지 못한다 |
+
+- **5장은 스크롤 없이 한 화면에 든다**: 패딩 4 + 128×5 + 간격 8×4 + 4 = 680 = 뷰포트 높이. 6장부터 스크롤바가 생긴다
+- 자르는 건 `RectMask2D` 다. `Mask` 는 스텐실용 Image 가 필요하다
+- **함정 1 — 가운데 칸의 선호 폭**: `VerticalLayoutGroup` 칸은 자식 글자의 한 줄 길이를 선호 폭으로 보고한다.
+  설명이 길면 세 칸의 선호 폭 합이 행 폭을 넘고, 부모는 **좌우 고정 칸까지** 비율로 줄인다 (카드마다 이름 칸이 204~264 로 흔들렸다).
+  가운데 칸 `LayoutElement.preferredWidth = 0` 으로 끊었다
+- **함정 2 — 칸의 유연폭**: 칸 안 `childForceExpandWidth = true` 때문에 그룹이 유연폭 1 을 보고해 고정 칸도 남는 폭을 나눠 가진다
+  (420 / 180 / 380 으로 갈렸다). `CreateColumn` 이 `flexibleWidth = 0` 으로 막는다
+- **함정 3 — Outline 잘림**: 카드 테두리는 `Outline`(±2px) 이라 뷰포트 경계에서 잘린다. Content 패딩 4 가 그 몫이다
+- 에디터 Play 에서 처음 한 번 카드가 **청록색 사각형**으로 보일 수 있다. 에디터 비동기 셰이더 컴파일이
+  `RectMask2D` 용 클립 변형을 만드는 동안 쓰는 임시 색이고, 컴파일이 끝나면 정상으로 그려진다. 빌드에서는 생기지 않는다
+- 런타임 코드(`UpgradeShopPanel`·`UpgradeShopEntry`)는 고치지 않았다 — 라벨 참조만 쓰므로 배치가 바뀌어도 그대로다.
+  `BillPanel.prefab` 은 이 프리팹을 인스턴스로 심으므로 다시 만들 필요가 없다
+- 시안 HTML 은 README 규칙대로 지웠다
+
+**검증 (2026-09-23, 에디터 Play · Game 씬 · 1280×720)**
+
+| 확인한 것 | 결과 |
+|---|---|
+| 5장 | 뷰포트 1084×680 · 콘텐츠 680 · 스크롤바 꺼짐 · 세 칸 240/540/200 전 카드 동일 · TMP 넘침 0 · 설명 2줄(카페인 중독만 1줄) |
+| 카드 1장 런타임 복제(6장) | 콘텐츠 816 · 스크롤바 켜짐 · 핸들 0.83(=680/816) · 뷰포트 1084 → 1064 (폭 16 + 간격 4) |
+| `NCAI > 전체 검증 실행` | Checks 30줄 PASS, 에러 0. UI 가이드라인 권장 사항 32건 중 UpgradeShopPanel 항목 0건 |
+
 ## 갱신 이력
 
 | 날짜 | 이슈 | 누가 | 무엇이 바뀌었나 |
@@ -356,3 +392,4 @@ stat 은 일부뿐이라(`max_stamina`·`fever_gauge_per_hit`·`coin_bonus_multi
 | 2026-09-22 | #249 | saltlake00 | 새 고지서의 `아직` 버튼을 스킬 트리 탭으로 연결하고 최초 1회 투자 안내 팝업 배선 완료 |
 | 2026-09-22 | #258 | yahoo-afk | 자동 망치를 `IUpgradeStats` 로 연결 (3.12). push 통로 `SetBonusCount` 제거, `BeginRun` 이 보유 수를 굳힌다. `UpgradeConsumerChecks` 에 자동 망치 3건과 조립 지점 원문 확인 1건 추가 |
 | 2026-09-23 | #247 | saltlake00 | 부업 장부(`coin_bonus`) 추가, 단가 성장 1.3, 업그레이드 탭 3열×2행 배치 |
+| 2026-09-23 | #311 | soilrist | 업그레이드 탭을 3열 격자에서 행 목록 + 세로 스크롤로 교체 (B안). 설명·효과 20 → 24px. 레이아웃 함정 3가지와 Play 검증 기록 |
