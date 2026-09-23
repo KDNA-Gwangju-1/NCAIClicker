@@ -426,9 +426,23 @@ namespace NCAIClicker.EditorTools
             var image = row.AddComponent<Image>();
             image.color = RowFill;
 
-            var worths = new[] { "$1", "$5", "$25", "$100" };
-            var labels = new TextMeshProUGUI[worths.Length];
-            for (var i = 0; i < worths.Length; i++)
+            // 칸은 coins.csv 행 수만큼, 라벨은 그 값으로 만든다 (#326). 예전에는 "$1~$100" 네 칸을 박아 두어
+            // $1,000 이 나오면 개수 칸(코인 합)에는 잡히고 액면 칸에는 안 보여 합계가 내역으로 설명되지 않았다.
+            var balance = AssetDatabase.LoadAssetAtPath<NCAIClicker.Data.BalanceData>("Assets/GameData/Generated/BalanceData.asset");
+            var worths = new List<string>();
+            if (balance != null && balance.Coins != null)
+            {
+                foreach (var coin in balance.Coins)
+                {
+                    worths.Add("$" + coin.Value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture));
+                }
+            }
+            if (worths.Count == 0)
+            {
+                Debug.LogError("[ResultUIPrefabCreator] BalanceData 의 coins 를 읽지 못해 액면 칸을 만들지 못했다. 밸런스 CSV 를 먼저 임포트하라.");
+            }
+            var labels = new TextMeshProUGUI[worths.Count];
+            for (var i = 0; i < worths.Count; i++)
             {
                 var chip = CreateHorizontal($"DenomChip{i}", row, 8f);
                 chip.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleCenter;
