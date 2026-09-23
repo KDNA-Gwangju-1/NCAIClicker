@@ -175,6 +175,7 @@ namespace NCAIClicker.EditorTools
             public Bill ActiveBill => null;
             public string[] OfferedPerkIds => Array.Empty<string>();
             public PostPaymentFlowState PaymentFlowState => PostPaymentFlowState.None;
+            public bool IsPrestigeWindowOpen { get; set; }
             public bool TryPay(Bill bill) => false;
             public bool TryTakeLoan(long amount) => false;
             public bool TryRepayLoan() => false;

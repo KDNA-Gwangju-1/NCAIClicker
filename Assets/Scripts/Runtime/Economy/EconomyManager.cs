@@ -614,6 +614,16 @@ namespace NCAIClicker.Economy
         /// </summary>
         public bool TryPurchaseRing(string ringId)
         {
+            // 반지는 파산 후 프레스티지 구간에서만 산다 (이슈 #291). **UI 가 아니라 여기서 막는다** —
+            // 규칙이 화면에만 있으면 반지 상점이 다른 화면에 생길 때 다시 샌다.
+            //
+            // 고지서 서비스가 연결돼 있지 않아도 실패한다. 연결이 빠진 것을 "제한 없음"으로
+            // 읽으면 조립이 틀렸을 때 규칙이 조용히 사라진다.
+            if (_billService == null || !_billService.IsPrestigeWindowOpen)
+            {
+                return false;
+            }
+
             if (_rings == null || !_rings.TryGetNextCost(ringId, out var cost))
             {
                 return false;

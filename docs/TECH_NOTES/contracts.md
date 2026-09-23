@@ -1,6 +1,6 @@
 # 공용 계약 (인터페이스·이벤트·DTO)
 
-> 관련 이슈: #3, #71, #116, #24, #139, #142, #150, #171, #175, #183, #202, #203, #263 · 최종 수정: 2026-09-22
+> 관련 이슈: #3, #71, #116, #24, #139, #142, #150, #171, #175, #183, #202, #203, #263, #291 · 최종 수정: 2026-09-23
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -70,7 +70,7 @@ flowchart LR
 | `ResumePoint` | `Assets/Scripts/Runtime/Data/ResumePoint.cs` | 재개 지점(MainMenu, Result, PerkSelection) 열거형 |
 | `SaveData` | `Assets/Scripts/Runtime/Data/SaveData.cs` | 저장 DTO(Version 5 기준 전체 영속 필드). v3에서 `LegacyPoints`·`RingLevels` 추가(#175·#183), v4에서 설정 필드 추가(#202), v5에서 `PostPaymentFlowState` 추가(#249·#255). `CycleIndex`(파산 후 재시작 횟수, #211)는 `Version` 증가 없이 v4 구간에서 함께 추가됐다(#202 커밋 이후·v5 bump 이전) — ARCHITECTURE.md에 누락돼 있던 것을 #263에서 반영 |
 | `IHittable` | `Assets/Scripts/Runtime/Interfaces/IHittable.cs` | 타격 대상 피격(OnHit) 및 생존 여부(IsAlive) 인터페이스 |
-| `IBillService` | `Assets/Scripts/Runtime/Interfaces/IBillService.cs` | 고지서 납부 및 대출 서비스 인터페이스 |
+| `IBillService` | `Assets/Scripts/Runtime/Interfaces/IBillService.cs` | 고지서 납부 및 대출 서비스 인터페이스. `IsPrestigeWindowOpen` 으로 반지 구매 창을 알린다 (#291) |
 | `IEconomyService` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 코인 적립, 지출, 대출 원금 입금 인터페이스. `EconomyManager.Instance` 가 이 타입으로 노출 — UI 가 초기 잔액을 한 번 읽는 통로 (이슈 #171) |
 | `IRunScoped` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 런 경계(`BeginRun`·`EndRun`) 인터페이스. GameManager 전용 (이슈 #71, #111) |
 | `IWalletPersistence` | `Assets/Scripts/Runtime/Interfaces/IEconomyService.cs` | 지갑 저장 복원 인터페이스. SaveManager·BillManager 가 쓴다 — 후자는 파산 시 회차 초기화용 (이슈 #71, #158) |
@@ -164,3 +164,4 @@ flowchart LR
 | 2026-09-22 | #263 | Claude | ARCHITECTURE.md `SaveData` 블록에 누락돼 있던 `CycleIndex`(파산 후 재시작 횟수, #211에서 추가 — 이슈 본문의 #250 기재는 git 이력상 오귀속) 필드·주석 추가, `IsFullscreen` 기본값을 문서 `false`에서 코드(`true`)로 정정 — #202 행(위 30행)이 밝힌 "전부 켬" 원 설계 의도와 일치함을 근거로 코드 쪽이 맞다고 판단. 예시 JSON도 함께 갱신, 위 `SaveData` 행 설명 최신화 |
 | 2026-09-22 | #263 (정정) | Claude | 위 행에서 `CycleIndex`가 "v5 안에서" 추가됐다고 적은 것이 틀렸다. #227 빌드 검증 중 실제 save.json(Version 4에 `CycleIndex` 이미 존재)을 보고서야 발견 — 커밋 시각 대조 결과 v3→v4 bump(#202, `a7c9cd5` 09-21 10:16) 이후·v4→v5 bump(#249, `a68d1ed` 09-22 14:42) 이전인 09-21 17:13(`a1a3920`, #211)에 추가됐다. **v4 구간**이 맞다. 위 30행 `SaveData` 행도 이 표현으로 정정 — git 커밋 순서만으로 검증하고 파일 하나(save.json)는 대조하지 않아 생긴 오류 |
 | 2026-09-23 | #220 | twins6375-art | `IGamePersistence` 런타임 소비처를 셋에서 넷으로 정정 — #249 가 `BillManager` 에서 `CollectAndSave()` 를 부르기 시작했는데 이 표와 `ISaveService.cs` 주석이 따라오지 않았다. ARCHITECTURE 2절은 이미 넷이었다 |
+| 2026-09-23 | #291 | twins6375-art | `IBillService` 에 `bool IsPrestigeWindowOpen { get; }` 추가 (공용 계약 변경, #291 에서 방식 합의). 기존 시그니처는 그대로라 구현체는 속성 하나만 더하면 된다 — `BillManager` 와 가짜 셋(`BillPanelChecks`·`EconomyManagerChecks`·새로 만든 `LegacyPointChecks.RingWindowStub`). `EconomyManager.TryPurchaseRing` 이 소비한다. 저장 스키마는 바꾸지 않았다 |

@@ -31,6 +31,7 @@ namespace NCAIClicker.EditorTools
             var checkCount = RunDataChecks(balance);
             checkCount += RunAccrualChecks(balance);
             checkCount += RunRingShopChecks(balance);
+            checkCount += RunRingWindowGateChecks(balance);
             checkCount += RunSurvivalChecks(balance);
             checkCount += RunCompositionOrderChecks();
             Debug.Log("[LegacyPointChecks] PASS " + checkCount + " checks.");
@@ -143,6 +144,7 @@ namespace NCAIClicker.EditorTools
             try
             {
                 var economy = CreateEconomy(balance, out host);
+                OpenRingWindow(economy);
                 var legacy = (ILegacyService)economy;
                 var shop = (IRingShop)economy;
                 var ring = balance.Rings[0];
@@ -208,6 +210,7 @@ namespace NCAIClicker.EditorTools
             try
             {
                 var economy = CreateEconomy(balance, out host);
+                OpenRingWindow(economy);
                 var legacy = (ILegacyService)economy;
                 var shop = (IRingShop)economy;
                 var persistence = (ILegacyPersistence)economy;
@@ -298,6 +301,7 @@ namespace NCAIClicker.EditorTools
                 });
 
                 var economy = CreateEconomy(fake, out host);
+                OpenRingWindow(economy);
                 var legacy = (ILegacyService)economy;
 
                 // 업그레이드는 코인으로, 반지는 포인트로 산다 — 두 화폐를 각각 채운다.
@@ -329,6 +333,102 @@ namespace NCAIClicker.EditorTools
         }
 
         // ---------------------------------------------------------------- 도구
+
+        // ---------------------------------------------------------------- 구매 창
+
+        /// <summary>
+        /// 반지는 파산 후 프레스티지 구간에서만 산다 (이슈 #291). **규칙은 UI 가 아니라
+        /// EconomyManager 에 있다** — 화면이 늘어도 새지 않도록. 창이 닫혔을 때 구매가 실패하는 것만이
+        /// 아니라 **포인트가 그대로인지**도 본다. 실패했다면서 포인트를 먹으면 더 나쁜 버그다.
+        /// </summary>
+        private static int RunRingWindowGateChecks(BalanceData balance)
+        {
+            var checkCount = 0;
+            GameObject host = null;
+            var saved = SaveAccessors();
+
+            try
+            {
+                var economy = CreateEconomy(balance, out host);
+                var legacy = (ILegacyService)economy;
+                var shop = (IRingShop)economy;
+                var ring = balance.Rings[0];
+                legacy.AddLegacyPoints(10000L);
+                var points = legacy.CurrentLegacyPoints;
+
+                // 고지서 서비스가 연결돼 있지 않으면 막는다. 연결이 빠진 것을 "제한 없음"으로 읽으면
+                // 조립이 틀렸을 때 규칙이 조용히 사라진다.
+                AssertCondition(!shop.TryPurchaseRing(ring.Id), "고지서 서비스 없이 반지를 샀습니다.");
+                AssertCondition(legacy.CurrentLegacyPoints == points && shop.GetRingLevel(ring.Id) == 0,
+                                "실패한 구매가 포인트나 레벨을 바꿨습니다.");
+                checkCount++;
+
+                var window = new RingWindowStub();
+                economy.SetBillService(window);
+                AssertCondition(!shop.TryPurchaseRing(ring.Id), "구매 창이 닫혔는데 반지를 샀습니다.");
+                AssertCondition(legacy.CurrentLegacyPoints == points && shop.GetRingLevel(ring.Id) == 0,
+                                "창이 닫혀 실패한 구매가 포인트나 레벨을 바꿨습니다.");
+                checkCount++;
+
+                window.IsPrestigeWindowOpen = true;
+                AssertCondition(shop.TryPurchaseRing(ring.Id), "구매 창이 열렸는데 반지를 사지 못했습니다.");
+                checkCount++;
+
+                window.IsPrestigeWindowOpen = false;
+                var level = shop.GetRingLevel(ring.Id);
+                AssertCondition(!shop.TryPurchaseRing(ring.Id), "창이 다시 닫혔는데 반지를 샀습니다.");
+                AssertCondition(shop.GetRingLevel(ring.Id) == level, "창이 닫혔는데 레벨이 올랐습니다.");
+                checkCount++;
+            }
+            finally
+            {
+                TearDown(host, saved);
+            }
+
+            return checkCount;
+        }
+
+        /// <summary>반지 상점 기능을 볼 때 쓴다. 창 규칙 자체는 RunRingWindowGateChecks 가 본다.</summary>
+        private static void OpenRingWindow(EconomyManager economy)
+        {
+            economy.SetBillService(new RingWindowStub { IsPrestigeWindowOpen = true });
+        }
+
+        /// <summary>
+        /// 반지 구매 창만 흉내 내는 가짜. 나머지는 아무 일도 하지 않는다 — 대출 징수율 0 이라
+        /// 연결하지 않았을 때와 코인 계산이 같다.
+        /// </summary>
+        private sealed class RingWindowStub : IBillService
+        {
+            public bool IsPrestigeWindowOpen { get; set; }
+
+            public int CurrentDay => 1;
+            public int CurrentCycle => 1;
+            public int DaysLeft => 0;
+            public float LoanDailyCut => 0f;
+            public long LoanOwedAmount => 0L;
+            public bool IsLoanUnlocked => false;
+            public int LoanCooldownDaysRemaining => 0;
+            public Bill ActiveBill => null;
+            public string[] OfferedPerkIds => Array.Empty<string>();
+            public PostPaymentFlowState PaymentFlowState => PostPaymentFlowState.None;
+
+            public bool TryPay(Bill bill) => false;
+            public bool TryTakeLoan(long amount) => false;
+            public bool TryRepayLoan() => false;
+            public bool TryChoosePerk(string perkId) => false;
+            public bool TryConfirmPaidFeedback() => false;
+            public bool TryEnterInvestmentMenu() => false;
+            public bool TryCompletePostPaymentFlow() => false;
+            public bool TryCloseDay() => false;
+            public void DeclareBankruptcy()
+            {
+            }
+
+            public void RestoreCycle(int cycle)
+            {
+            }
+        }
 
         private static EconomyManager CreateEconomy(BalanceData balance, out GameObject host)
         {

@@ -168,8 +168,11 @@ namespace NCAIClicker.EditorTools
 
                 // 값을 심는다.
                 wallet.RestoreWallet(1234L, "0");
-                legacy.AddLegacyPoints(50L);
-                AssertCondition(shop.TryPurchaseRing(balance.Rings[0].Id), "준비: 반지를 사지 못했습니다.");
+                // 반지 레벨은 사지 않고 복원 통로로 심는다. 이 검사는 구매가 아니라 **저장 왕복**을
+                // 본다 — 구매는 파산 후 프레스티지 구간에서만 되므로(#291) 그 조건까지 끌어오면
+                // 검사가 보려는 것과 무관한 이유로 깨진다.
+                ((ILegacyPersistence)economy).RestoreLegacy(50L, new[] { 1 });
+                AssertCondition(shop.GetRingLevel(balance.Rings[0].Id) == 1, "준비: 반지 레벨을 심지 못했습니다.");
                 upgradeShop.TryPurchase(balance.Upgrades[0].Id);
                 stage.RestoreStage(2);
                 bill.RestoreBillState(3, 2,

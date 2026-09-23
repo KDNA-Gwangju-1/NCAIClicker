@@ -28,6 +28,15 @@ namespace NCAIClicker.Interfaces
         string[] OfferedPerkIds { get; }
         PostPaymentFlowState PaymentFlowState { get; }
 
+        /// <summary>
+        /// 반지를 살 수 있는 구간인가 (이슈 #291). 파산이 성립한 뒤부터 다음 사이클의 첫 런이
+        /// 시작되기 전까지만 true 다 — 자발적 파산과 마감 미납 파산을 구분하지 않는다.
+        ///
+        /// **저장하지 않는다.** 저장에서 복원한 상태는 늘 false 다. 프레스티지 화면 자체가
+        /// 저장·복원에 흔적이 없어, 그 화면에서 앱을 끄면 다음 파산까지 구매 창도 닫힌다.
+        /// </summary>
+        bool IsPrestigeWindowOpen { get; }
+
         bool TryPay(Bill bill);
         bool TryTakeLoan(long amount);
         bool TryRepayLoan();
@@ -39,19 +48,19 @@ namespace NCAIClicker.Interfaces
         bool TryCompletePostPaymentFlow();
 
         /// <summary>
-        /// 플레이어가 스스로 파산을 선언한다 (이슈 #175). 마감 미납으로 자동 발동하는 파산과
-        /// **같은 처리를 탄다** — OnBankrupt 를 발행하고 회차를 1일차로 되돌린다.
-        ///
-        /// 되돌릴 수 없다. 부르는 쪽이 확인 절차를 먼저 거친다 (고지서 화면의 파산 선고 버튼).
-        /// 코인·단계는 사라지고 레거시 포인트와 반지는 남는다 (#183).
-        /// </summary>
-        /// <summary>
         /// 다음 날로 넘어가기 직전에 마감을 확정한다 (이슈 #211).
         /// 마감일이 지났는데 미납 상태이면 파산 처리 후 true 를 반환한다.
         /// 기한이 남았거나 이미 납부 완료된 상태이면 파산 없이 false 를 반환한다.
         /// </summary>
         bool TryCloseDay();
 
+        /// <summary>
+        /// 플레이어가 스스로 파산을 선언한다 (이슈 #175). 마감 미납으로 자동 발동하는 파산과
+        /// **같은 처리를 탄다** — OnBankrupt 를 발행하고 회차를 1일차로 되돌린다.
+        ///
+        /// 되돌릴 수 없다. 부르는 쪽이 확인 절차를 먼저 거친다 (고지서 화면의 파산 선고 버튼).
+        /// 코인·단계는 사라지고 레거시 포인트와 반지는 남는다 (#183).
+        /// </summary>
         void DeclareBankruptcy();
 
         void RestoreCycle(int cycle);

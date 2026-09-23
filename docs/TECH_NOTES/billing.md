@@ -1,6 +1,6 @@
 # 하루 진행과 고지서
 
-> 관련 이슈: #27, #28, #29, #150, #30, #164, #92, #175, #203, #212, #211, #249, #270, #306, #272 · 최종 수정: 2026-09-23
+> 관련 이슈: #27, #28, #29, #150, #30, #164, #92, #175, #203, #212, #211, #249, #270, #306, #272, #291 · 최종 수정: 2026-09-23
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
 ## 무엇을 하는가
@@ -95,8 +95,8 @@ flowchart LR
 | `BillHud` | `Assets/Scripts/Runtime/UI/BillHud.cs` | `OnBillIssued`/`OnBillDueSoon` 구독, `TextMeshProUGUI`에 "D-N  N원" 형식으로 표시 |
 | (프리팹) | 삭제됨 (#173) | 본래 Assets/Prefabs/UI/BillHud.prefab 이었으나 GameHud.prefab 으로 단일화되어 삭제됨 |
 | `BillManagerChecks` | `Assets/Scripts/Editor/BillManagerChecks.cs` | EditMode 배치 검증. `MenuItem` 없이 `RunBatch()`를 외부에서 호출한다 |
-| `BillPanelController` | `Assets/Scripts/Runtime/UI/BillPanelController.cs` | 고지서 화면(모달/탭 겸용). `TryPay` 실패 시 부족액을 표시하고, 기한 당일에는 `[아직]` 을 숨겨 납부·대출 선택만 남긴다. 대출 버튼은 활성 고지서 전액을 `TryTakeLoan`에 넘기며, 자발적 파산 확정 후에는 프레스티지 전용 반지 화면(`PrestigeOnly`)으로 전환한다(#211, #212). 상환 버튼(`_repayButton`)은 활성 대출이 있을 때만 나타나 `LoanOwedAmount`를 캡션에 보여 주고 `TryRepayLoan`을 부른다. 대출 버튼 캡션은 `IsLoanUnlocked`·`LoanCooldownDaysRemaining`으로 해금 순번 미달/쿨다운을 구분해 보여 준다(#272, #306) |
-| `BillPanelChecks` | `Assets/Scripts/Editor/BillPanelChecks.cs` | 고지서 화면 Edit Mode 검증. 모달/탭/프레스티지 전용 상태별 노출, 기한 당일 `[아직]` 숨김, 납부 실패 부족액, 실제 대출 버튼 리스너 경유 호출과 완료 상태, 이름 생성 결정성, 대출 거절 사유 캡션 구분, 상환 버튼 노출·상환액 표시·실패/성공 경로를 본다(#272) |
+| `BillPanelController` | `Assets/Scripts/Runtime/UI/BillPanelController.cs` | 고지서 화면(모달/탭 겸용). `TryPay` 실패 시 부족액을 표시하고, 기한 당일에는 `[아직]` 을 숨겨 납부·대출 선택만 남긴다. 대출 버튼은 활성 고지서 전액을 `TryTakeLoan`에 넘기며, 자발적 파산 확정 후에는 프레스티지 전용 반지 화면(`PrestigeOnly`)으로 전환한다(#211, #212). 상환 버튼(`_repayButton`)은 활성 대출이 있을 때만 나타나 `LoanOwedAmount`를 캡션에 보여 주고 `TryRepayLoan`을 부른다. 대출 버튼 캡션은 `IsLoanUnlocked`·`LoanCooldownDaysRemaining`으로 해금 순번 미달/쿨다운을 구분해 보여 준다(#272, #306). **프레스티지 화면이 반지를 살 수 있는 유일한 창이다** — 매일 여는 탭 화면에서는 반지 탭 버튼을 숨긴다(#291) |
+| `BillPanelChecks` | `Assets/Scripts/Editor/BillPanelChecks.cs` | 고지서 화면 Edit Mode 검증. 모달/탭/프레스티지 전용 상태별 노출, 기한 당일 `[아직]` 숨김, 납부 실패 부족액, 실제 대출 버튼 리스너 경유 호출과 완료 상태, 이름 생성 결정성, 대출 거절 사유 캡션 구분, 상환 버튼 노출·상환액 표시·실패/성공 경로(#272), 탭 화면에 반지 탭 버튼이 없고 억지로 열어도 반지 상점이 안 보이는지(#291)를 본다 |
 
 ### 이벤트
 
@@ -418,3 +418,4 @@ MCP로 열린 에디터에서 직접 호출):
 | 2026-09-22 | #270 | Claude | 퍼크 선택 직후 발행되는 고지서의 마감일이 하루 짧던 버그 수정. `IssueBill()`을 무인자/발행일 명시 오버로드로 나누고 `TryChoosePerk()`는 `_currentDay + 1`을 넘긴다. `BillManagerChecks`에 발행일·마감일 검증 추가 |
 | 2026-09-23 | #306 | Claude | 공용 계약 변경 발의·본인 승인 — `IBillService`에 `LoanOwedAmount`·`IsLoanUnlocked`·`LoanCooldownDaysRemaining` 읽기 전용 프로퍼티 3개 추가. `BillManager`가 구현, `EconomyManagerChecks`·`BillPanelChecks`의 `FakeBillService` 갱신 |
 | 2026-09-23 | #272 | Claude | 대출 상환 UI 신설. `BillPanelController`에 상환 버튼(`_repayButton`/`_repayCaptionText`)·`HandleRepayClicked` 추가, 대출 버튼 거절 사유를 해금 순번/쿨다운으로 구분. `BillPanelPrefabCreator`에 `RepayColumn` 추가. `BillManagerChecks`·`BillPanelChecks` 검증 보강 |
+| 2026-09-23 | #291 | twins6375-art | `IBillService.IsPrestigeWindowOpen` 추가 — `HandleBankruptcy` 가 켜고 다음 사이클 첫 `BeginRun` 과 `RestoreBillState` 가 끈다. 자발적·미납 파산을 구분하지 않는다. 탭 화면에서 반지 탭을 숨긴다 |

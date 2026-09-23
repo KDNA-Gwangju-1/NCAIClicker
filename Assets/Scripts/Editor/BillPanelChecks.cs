@@ -103,11 +103,19 @@ namespace NCAIClicker.EditorTools
                 Assert(parts.ContinueRow.activeSelf, "탭 상태에서는 계속하기가 보여야 합니다.");
                 checkCount++;
 
+                // 반지는 파산 후 프레스티지 화면에서만 산다 (#291). 매일 여는 탭 화면에서는 반지 탭 버튼이
+                // 없어야 하고, **코드로 반지 탭을 억지로 열어도** 반지 상점이 보이면 안 된다.
+                Assert(!parts.RingTabButton.activeSelf, "탭 상태에서 반지 탭 버튼이 보입니다. 반지는 파산 후에만 삽니다.");
+                controller.ShowAsTab(BillPanelController.Tab.Ring);
+                Assert(!parts.RingTabRoot.activeSelf, "탭 상태에서 반지 탭을 열었더니 반지 상점이 보입니다.");
+                checkCount++;
+
                 controller.ShowAsPrestige(3);
                 Assert(controller.IsOpen, "ShowAsPrestige 후 패널이 열려야 합니다.");
                 Assert(controller.CurrentMode == BillPanelController.Mode.PrestigeOnly, "모드가 PrestigeOnly 이어야 합니다.");
                 Assert(!parts.TabBar.activeSelf, "프레스티지 화면에서는 탭 줄이 숨겨져야 합니다.");
                 Assert(parts.ContinueRow.activeSelf, "프레스티지 화면에서는 사이클 시작 버튼이 보여야 합니다.");
+                Assert(parts.RingTabRoot.activeSelf, "프레스티지 화면인데 반지 상점이 보이지 않습니다.");
                 checkCount++;
 
                 controller.Close();
@@ -408,6 +416,8 @@ namespace NCAIClicker.EditorTools
             public GameObject RepayButton { get; set; }
             public GameObject SkillTreeNoticePanel;
             public GameObject SkillTreeNoticeConfirmButton;
+            public GameObject RingTabButton { get; set; }
+            public GameObject RingTabRoot { get; set; }
             public TMPro.TextMeshProUGUI DueValue;
             public TMPro.TextMeshProUGUI PayCaption;
             public TMPro.TextMeshProUGUI LoanCaption { get; set; }
@@ -434,6 +444,8 @@ namespace NCAIClicker.EditorTools
                 RepayButton = ((Button)typeof(BillPanelController).GetField("_repayButton", flags).GetValue(controller)).gameObject,
                 SkillTreeNoticePanel = (GameObject)typeof(BillPanelController).GetField("_skillTreeNoticePanel", flags).GetValue(controller),
                 SkillTreeNoticeConfirmButton = ((Button)typeof(BillPanelController).GetField("_skillTreeNoticeConfirmButton", flags).GetValue(controller)).gameObject,
+                RingTabButton = ((Button)typeof(BillPanelController).GetField("_ringTabButton", flags).GetValue(controller)).gameObject,
+                RingTabRoot = (GameObject)typeof(BillPanelController).GetField("_ringTabRoot", flags).GetValue(controller),
                 DueValue = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_dueValueText", flags).GetValue(controller),
                 PayCaption = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_payCaptionText", flags).GetValue(controller),
                 LoanCaption = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_loanCaptionText", flags).GetValue(controller),
@@ -484,6 +496,7 @@ namespace NCAIClicker.EditorTools
             public Bill ActiveBill { get; set; }
             public string[] OfferedPerkIds => Array.Empty<string>();
             public PostPaymentFlowState PaymentFlowState { get; set; }
+            public bool IsPrestigeWindowOpen { get; set; }
 
             /// <summary>true면 TryPay 가 실패한다 — 잔액 부족 캡션 표시를 검증하려고 둔 스위치.</summary>
             public bool ShouldFailPay { get; set; }

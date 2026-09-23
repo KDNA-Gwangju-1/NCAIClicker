@@ -30,6 +30,7 @@ namespace NCAIClicker.Economy
         private int _billIndex = 1;
         private int _cycleIndex = 1;
         private bool _hasBegun;
+        private bool _isPrestigeWindowOpen;
         private Bill _activeBill;
         private string[] _offeredPerkIds = Array.Empty<string>();
         private PostPaymentFlowState _postPaymentFlowState;
@@ -113,6 +114,16 @@ namespace NCAIClicker.Economy
         public string[] OfferedPerkIds => _offeredPerkIds;
         public PostPaymentFlowState PaymentFlowState => _postPaymentFlowState;
 
+        /// <summary>
+        /// 반지 구매 창 (이슈 #291). HandleBankruptcy 가 켜고, 다음 사이클의 첫 BeginRun 과
+        /// 저장 복원(RestoreBillState)이 끈다.
+        ///
+        /// **저장하지 않는다.** 프레스티지 화면이 원래 저장·복원에 흔적이 없어서, 그 화면에서
+        /// 앱을 끄면 다음 파산까지 구매 창도 닫힌다. 저장에 올리면 "재시작해도 창이 남는다"는
+        /// 새 동작이 되고 저장 버전을 올려야 해서, 이 이슈의 범위보다 크다고 보고 받아들였다.
+        /// </summary>
+        public bool IsPrestigeWindowOpen => _isPrestigeWindowOpen;
+
         public int CurrentBillIndex => _billIndex;
 
         public Loan CurrentLoan => _activeLoan;
@@ -132,6 +143,10 @@ namespace NCAIClicker.Economy
             _offeredPerkIds = offeredPerkIds ?? Array.Empty<string>();
             _postPaymentFlowState = postPaymentFlowState;
             _hasBegun = true;
+
+            // 구매 창은 저장하지 않으므로 복원한 상태는 늘 창 밖이다 (#291). 새 회차 시작과
+            // 설정의 저장 초기화도 빈 저장을 분배하며 이 경로를 지나 창이 닫힌다.
+            _isPrestigeWindowOpen = false;
         }
 
         private void Awake()
@@ -203,6 +218,10 @@ namespace NCAIClicker.Economy
             {
                 return;
             }
+
+            // 런이 실제로 시작되는 순간 반지 구매 창을 닫는다 (#291). 위 가드에서 돌아가는
+            // 경우는 납부 후 흐름이 남아 있을 때라 파산 직후가 아니다 — 창이 열려 있을 수 없다.
+            _isPrestigeWindowOpen = false;
 
             if (_hasBegun)
             {
@@ -277,6 +296,14 @@ namespace NCAIClicker.Economy
         /// </summary>
         private void HandleBankruptcy()
         {
+            // 반지 구매 창을 연다 (#291). **여기 한 곳에서만 연다** — 자발적 파산(DeclareBankruptcy)과
+            // 마감 미납 파산(TryCloseDay)이 모두 이 메서드를 지난다. 한쪽 호출자에만 걸면 다른 쪽
+            // 파산이 창을 못 여는 반대 버그가 된다.
+            //
+            // OnBankrupt 발행보다 앞에 둔다. 받는 쪽이 곧바로 창을 물어도 열려 있어야 한다.
+            // ResetRound 는 이 값을 건드리지 않는다.
+            _isPrestigeWindowOpen = true;
+
             _cycleIndex++;
             GameEvents.PublishBankrupt();
             ResetRound();
