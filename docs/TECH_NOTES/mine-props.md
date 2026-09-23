@@ -1,6 +1,6 @@
-# 소품·환경 에셋 (소형 7종·대형 3종·컨테이너 4종)
+# 소품·환경 에셋 (소형 7종·대형 3종·컨테이너 4종) 및 Game 씬 배치
 
-> 관련 이슈: #238 · #236 · #237 · 최종 수정: 2026-09-23
+> 관련 이슈: #238 · #236 · #237 · #239 · 최종 수정: 2026-09-23
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -165,6 +165,102 @@ VARCO 3D 편집기 UI에서 `pivotToBottom` 내보내기 옵션을 직접 켜고
 - **자루 (#237)**: 원본 이미지 자체에 곡괭이 십자 엠블럼이 인쇄돼 있어 `EditImage` 로 "엠블럼을
   지우고 민무늬 삼베 질감으로"만 보정, 1회로 해결
 
+## 씬 배치 (6.26, #239)
+
+Game 씬 소유자가 컨셉 이미지(`docs/CONCEPT_ART/MineWorksite/SceneConcept_MineWorksite.jpg`)를 보고
+위 14종 프리팹 21개 인스턴스를 배치했다. 전부 `SceneProps` 빈 오브젝트 아래 자식으로 두었다
+(프리팹 오버라이드 없이 위치·회전만 인스턴스 값으로 지정).
+
+### 배치 기준 좌표계
+
+- `DeskPlane_Greybox`: 중심 `(0, 0, 2)`, 6×6 유닛 → X `[-3, 3]`, Z `[-1, 5]`
+- 크리처 이동/스폰 영역(`CreatureManager._deskBounds`): 중심 `(0, 0, 2)`, 4.8×4.8 유닛 →
+  X `[-2.4, 2.4]`, Z `[-0.4, 4.4]` — **이 안쪽에는 소품을 두지 않는다.**
+- 남는 가장자리 띠(폭 0.6유닛)와 desk 바깥 경계 쪽에 소품을 배치. 갱도 입구는 뒤쪽 벽(Z≈4.7~4.95)
+  중앙에, 나머지는 좌우 가장자리와 앞뒤 코너에 나눠 배치했다.
+- 컨테이너 소품 4종(광차·나무상자·자루·나무통)은 중심 피벗이라 인스턴스 배치 시 `mine-props.md`
+  "구조" 절의 `localPosition.y` 값을 그대로 써야 바닥에 붙는다 — 씬에서 프리팹을 인스턴스화할 때
+  위치를 명시적으로 지정하면 프리팹 기본값이 무시되므로, Y를 빠뜨리면 바닥을 뚫고 들어간다.
+
+### 바닥에 뜨거나 파묻히는 문제 — 실측으로 고친다
+
+배치 도중 나무상자·자루·나무통이 살짝 공중에 떠 보이는 문제가 있었다. 원인은 이 문서에 적힌
+"컨테이너 소품 4종" 표의 `localPosition.y` 값이 기록 시점 이후 프리팹이 재조정되며 이미 바닥
+피벗으로 바뀌어 있었는데, 그 위에 문서의 옛 오프셋을 또 더해 두 번 띄운 것이었다. **문서 값을
+맹신하지 말고, 배치 후에는 항상 `Renderer.bounds.min.y`(월드 좌표 기준 실제 바닥)를 코드로
+재측정해서 정확히 `0`에 맞춘다:**
+
+```csharp
+var renderers = obj.GetComponentsInChildren<Renderer>();
+var bounds = renderers[0].bounds;
+foreach (var r in renderers) bounds.Encapsulate(r.bounds);
+obj.transform.position += new Vector3(0, -bounds.min.y, 0); // minY 만큼 끌어올림(또는 내림)
+```
+
+소품을 다른 소품 위에 쌓을 때(예: 통 위에 랜턴)도 같은 방식 — 아래 오브젝트의 `bounds.max.y`
+(꼭대기 실측값)를 그대로 위 오브젝트의 Y 좌표로 쓴다.
+
+### 바닥 재질과 배경
+
+- `DeskPlane_Greybox`의 임시 단색 머티리얼을 VARCO 생성 텍스처(`Assets/Materials/MineDirtFloor.png`,
+  머티리얼 `MineDirtFloor.mat`, URP Lit)로 교체했다.
+- **가장자리 자연스럽게 흐리기**: 바닥 텍스처의 알파 채널에 중심은 불투명·네 귀퉁이로 갈수록
+  투명해지는 슈퍼엘립스(둥근 사각형) 그라데이션을 구워 넣고(`n=4, inner=0.95, outer=1.15`,
+  파이썬 PIL로 생성), 머티리얼을 Transparent Surface Type으로 전환했다. 바닥의 실제 메시(사각형)와
+  크리처 이동 판정은 전혀 건드리지 않는 순수 시각 처리다.
+- **배경(`MineCaveBackdrop`)**: 카메라가 고정이라(회전·이동 없음) 실제 동굴 벽 메시를 새로 만드는
+  대신(AGENTS.md 범위 밖 규칙), VARCO로 생성한 동굴 내부 이미지를 카메라 뒤 먼 곳(거리 18유닛)에
+  카메라 프러스텀 크기에 정확히 맞춘 평면(Quad) 하나로 깔았다. 크기는
+  `Camera.ViewportToWorldPoint`로 프러스텀 네 모서리를 직접 구해 계산했고, 1080p 종횡비(16:9)를
+  강제 지정하고 15% 여유를 둬서 에디터 창 크기 변화에도 회색 여백이 남지 않게 했다. 머티리얼은
+  Unlit(`MineCaveBackdrop.mat`) — 씬 조명에 영향받지 않고 이미지에 미리 그려둔 조명 그대로 보인다.
+  메시 에셋은 `Assets/Models/MineCaveBackdropQuad.asset`.
+
+### 크리처가 소품을 뚫고 지나가는 문제 — 장애물 회피 (#239)
+
+Play 모드로 확인해 보니 크리처가 소품 위를 그대로 지나다녔다. **콜라이더를 다는 것은 해결책이
+아니다** — `CreatureMovement`의 이동은 물리 충돌이 아니라 사각형 좌표 클램프(`ClampAndBounce`)
+방식이라 콜라이더가 있어도 무시한다. 대신 다음을 코드에 추가했다:
+
+- `NCAIClicker.Targets.ObstacleCircle` (get-only 프로퍼티 `Center`/`Radius`) — 소품 하나를 원으로
+  근사한 값.
+- `CreatureManager.CacheObstacles()` — `SceneProps`(이름은 `_obstacleRootName`) 아래 자식마다
+  `Renderer.bounds`를 실측해 장애물 원 목록을 만든다. `BeginRun()`마다 다시 만든다 — 이 매니저가
+  `DontDestroyOnLoad`라 인스펙터로 씬 오브젝트를 직접 연결할 수 없기 때문이다.
+- `CreatureMovement.AvoidObstacles()` — `ClampAndBounce()` 안에서 사각형 벽 클램프 다음에 호출.
+  장애물 원과 겹치면 원 밖으로 밀어내고 `Vector3.Reflect`로 이동 방향을 반사한다(벽에 부딪힐 때와
+  같은 느낌).
+- `CreatureManager.GetRandomSpawnPosition()`도 장애물과 안 겹치는 자리가 나올 때까지 재시도한다.
+- 소품이 늘거나 위치가 바뀌어도 코드를 다시 손댈 필요가 없다 — 매 런마다 실측해서 자동 반영된다.
+
+### 크리처 크기 축소 (0.8 → 0.65유닛)
+
+소품 배치 이후 이동 공간이 좁게 느껴진다는 피드백으로 타격 대상 통일 높이를 0.8 → 0.65유닛으로
+낮췄다(조준 원 대비 83% → 약 67%). 근거와 이전 기준들의 폐기 사유는
+[ASSET_PIPELINE.md](../ASSET_PIPELINE.md) "스케일 기준" 절 참고. 대상 6종(`TargetRunner`·
+`TargetNormal`·`TargetTourist`·`TargetAnchor`·`TargetAngry`·`TargetPinata`) 전부
+`Renderer.bounds` 실측으로 재조정했고, `TargetNormal`(`PiggyNormalVisual` 사용, 다른 5종과
+달리 중심 피벗이라 `localPosition`도 스케일 비율만큼 같이 낮춰야 바닥에 붙었다.
+
+부수적으로 `TargetAnchor`·`TargetTourist`·`TargetAngry`·`TargetPinata`·`TargetRunner` 5종이
+전부터 "`Visual` 자식은 스케일이 1이어야 한다"(연출 코드가 여길 스케일하므로)는 규칙을 어기고
+있었다 — 이번 작업과 무관하게 있던 문제인데, 검증(`TargetChecks`)이 이번에 처음 그 지점까지
+도달하며 드러났다. 시각적 크기는 그대로 두고 스케일을 `Visual`에서 그 자식으로 옮겨 정리했다.
+
+### 프로파일링 (6.26 DoD)
+
+Unity 에디터 프로파일러, Game 뷰 1920×1080, Play 모드에서 크리처 다수 스폰 상태로 실측:
+
+| 지표 | 값 |
+|---|---|
+| Draw Calls | 206 |
+| Batches | 205 |
+| SetPass Calls | 57 |
+| Triangles | 234,033 |
+| CPU Frame Time | 0.57ms |
+
+PC 타겟에서 여유 있는 수준 — 프레임 저하 없음.
+
 ## 검증
 
 Unity 6000.3.21f1, 2026-09-22 ~ 2026-09-23.
@@ -177,18 +273,25 @@ Unity 6000.3.21f1, 2026-09-22 ~ 2026-09-23.
   (분홍 머티리얼 아님)
 - [ ] 곡괭이 손잡이가 -Z 를 향하는지 육안 확인 — 아직 스크린샷으로 확인하지 않음
 - [x] 랜턴 머티리얼 Emission 켜 둠(`LanternEmissive.mat`, `emissiveTexture`=베이스 컬러 재사용, `emissiveFactor=(1, 0.65, 0.25)`) — `Object.Instantiate(srcMat)` 로 복제 후 정상 동작 확인(아래 "알려진 한계" 정정 참고). 정확한 밝기 수치 튜닝은 DoD대로 6.26에서 진행
-- [ ] Play Mode 렌더 캡처로 7종 동시 육안 확인 — 미실시
+- [x] Play Mode 렌더 캡처로 7종 동시 육안 확인 (6.26 씬 배치 후)
 - [x] 환경 대형 3종 GLB 모두 glTFast 정상 임포트 확인(`manage_asset search` 로 `assetType=UnityEngine.GameObject` 확인, 콘솔 임포트 오류·경고 0건)
 - [x] `Renderer.bounds` 실측으로 3종 스케일 산출, 프리팹 생성 후 재측정해 목표 치수(2.4/0.8/1.2, 오차 0.005 이내)·바닥 피벗(`minY=0.0000`) 확인
 - [x] 3개 `{Name}Visual.prefab` 생성, 전부 `Shader Graphs/glTF-pbrMetallicRoughness` 셰이더 확인 (분홍 머티리얼 아님)
 - [x] 자수정 군락 머티리얼 Emission 켜 둠(`AmethystClusterEmissive.mat`, `emissiveTexture`=베이스 컬러 재사용, `emissiveFactor=(0.55, 0.25, 0.85)`) — `Object.Instantiate(srcMat)` 로 복제해 `occlusionTexture`/`metallicRoughnessTexture`/`normalTexture` 슬롯 정상 유지 확인. 정확한 밝기 수치 튜닝은 DoD대로 6.26에서 진행
-- [ ] Play Mode 렌더 캡처로 3종 동시 육안 확인 — 미실시
+- [x] Play Mode 렌더 캡처로 3종 동시 육안 확인 (6.26 씬 배치 후)
 - [x] 컨테이너 소품 4종 GLB 모두 glTFast 정상 임포트 확인(`manage_asset search` 로 `assetType=UnityEngine.GameObject` 확인, 콘솔 임포트 오류·경고 0건)
 - [x] `Renderer.bounds` 실측으로 4종 스케일·바닥 오프셋 산출, 프리팹 생성 후 재측정해 목표 치수(0.96/0.8/0.8/0.96, 오차 0)·바닥 피벗(`minY=0.0000`) 확인
 - [x] 4개 `{Name}Visual.prefab` 생성 (`Props/Small/`), 전부 `Shader Graphs/glTF-pbrMetallicRoughness` 셰이더 확인 (분홍 머티리얼 아님)
 - [x] 사용자가 스크린샷으로 확인한 결함(광차 바퀴 방향, 나무상자 메시 구멍·이음선·뚜껑·경첩) 전부 재생성 후 사용자 검수 완료
-- [ ] Play Mode 렌더 캡처로 4종 동시 육안 확인 — 미실시
-- [ ] 6.26 씬 배치 시 실측 크기가 다른 소품·크리처와 시각적으로 자연스러운지 재확인 필요
+- [x] Play Mode 렌더 캡처로 4종 동시 육안 확인 (6.26 씬 배치 후)
+- [x] 6.26 씬 배치 시 실측 크기가 다른 소품·크리처와 시각적으로 자연스러운지 재확인 — 크리처 크기를
+  0.8→0.65유닛으로 낮추며 함께 확인
+- [x] 14종 프리팹 21개 인스턴스 배치, 프리팹 오버라이드 없이 위치·회전·스케일만 (6.26)
+- [x] 조준 원·크리처 이동 경로(4.8×4.8)와 소품 겹침 없음 — 좌표 실측으로 배치, 장애물 회피 코드로 이중 보강
+- [x] 바닥 머티리얼 교체(`MineDirtFloor.mat`), 가장자리 알파 블렌드로 사각형 경계 제거
+- [x] 배경(`MineCaveBackdrop`) 추가로 카메라 프레임 안 회색 여백 제거
+- [x] 1080p 기준 프로파일러 확인 — Draw Calls 206, Batches 205, 프레임 저하 없음
+- [x] `NCAI/전체 검증 실행` 29/29 통과 (TargetChecks 37건 포함)
 
 ## 알려진 한계
 
@@ -250,3 +353,8 @@ Unity 6000.3.21f1, 2026-09-22 ~ 2026-09-23.
 | 2026-09-23 | #237 | Claude | 나무상자 3D 결과의 코너 브래킷 주변 메시 구멍을 사용자가 스크린샷으로 지적 — `EditImage` 보정으로는 재현·악화(바닥면 왜곡 심화)만 됨. 표면 디테일을 대폭 줄인 단순 상자 이미지로 `GenerateImage` 처음부터 재생성해 구멍 문제 해결 |
 | 2026-09-23 | #237 | Claude | 나무상자가 "너무 단순하다"는 피드백으로 `EditImage` 뚜껑 추가 → 이음선 불균일·뚜껑 얇음 피드백으로 `GenerateImage` 재생성(이음선 4줄 균일화, 뚜껑 두껍게) → 경첩 모양 불일치·광산 느낌 부족 피드백으로 한 번 더 `GenerateImage` 재생성(경첩 좌우 대칭 통일, 낡은 나무·녹슨 철제 밴드·광석 덩어리 추가) — 이 결과를 최종 채택 |
 | 2026-09-23 | #237 | Claude | 최종 4개 `.glb` 를 `Assets/Models/` 에 저장, glTFast 정상 임포트 확인. `Renderer.bounds` 실측 결과 넷 다 중심 피벗으로 나온 것을 확인(워크플로 API `Generate3D` 노드에 `pivotToBottom` 없음) — `BucketVisual` 방식대로 `localPosition.y` 보정해 4개 `{Name}Visual.prefab` 을 `Props/Small/` 에 생성 |
+| 2026-09-23 | #239 | Claude | Game 씬에 14종 프리팹 21개 인스턴스 배치(`SceneProps`). 이동 영역(4.8×4.8) 침범 없게 좌표 실측, 바닥에 뜨거나 파묻히는 문제를 `Renderer.bounds.min.y` 재실측으로 해결 |
+| 2026-09-23 | #239 | Claude | VARCO로 흙바닥 텍스처 신규 생성해 바닥 머티리얼 교체, 알파 채널 그라데이션으로 사각형 가장자리를 동굴 벽에 자연스럽게 블렌드 |
+| 2026-09-23 | #239 | Claude | VARCO로 동굴 내부 배경 이미지 생성 후 카메라 프러스텀에 정확히 맞춘 평면(`MineCaveBackdrop`)으로 배치 — 카메라가 고정이라 실제 벽 메시 없이 배경판만으로 처리(범위 밖 규칙 준수) |
+| 2026-09-23 | #239 | Claude | 크리처가 소품을 그대로 뚫고 지나가는 문제 발견 — 콜라이더가 아니라 `CreatureMovement`/`CreatureManager`에 장애물 회피 코드(`ObstacleCircle`) 추가. `convention-checker` 점검에서 `ObstacleCircle`의 public 필드를 get-only 프로퍼티로 수정 |
+| 2026-09-23 | #239 | Claude | 이동 공간이 좁다는 피드백으로 타격 대상 통일 높이를 0.8→0.65유닛으로 낮춤(6종 전부, `ASSET_PIPELINE.md` 갱신). 겸사겸사 5종 프리팹의 기존 "`Visual` 스케일=1" 규칙 위반을 정리. `NCAI/전체 검증 실행` 29/29 통과, 1080p 프로파일링(Draw Calls 206) 확인 |

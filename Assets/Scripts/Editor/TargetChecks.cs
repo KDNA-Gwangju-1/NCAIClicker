@@ -21,8 +21,9 @@ namespace NCAIClicker.EditorTools
         /// <summary>
         /// 타격 대상 통일 높이 (ASSET_PIPELINE 2절). 카메라 구도와 조준 원(지름 0.9유닛) 대비 크기로 정했다.
         /// 그레이박스 시절 0.4 에서 광물 크리처 교체(6.6) 때 0.8 로 올렸다 (#287 에서 검증도 맞춤).
+        /// 6.26 씬 배치(#239)에서 이동 공간이 좁다는 피드백으로 0.65 로 다시 낮췄다.
         /// </summary>
-        private const float TargetHeight = 0.8f;
+        private const float TargetHeight = 0.65f;
 
         private static readonly Dictionary<string, string> _prefabs = new Dictionary<string, string>
         {
