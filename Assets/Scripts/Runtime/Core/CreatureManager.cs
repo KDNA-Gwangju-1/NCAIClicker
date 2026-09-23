@@ -22,10 +22,12 @@ namespace NCAIClicker.Core
         public static CreatureManager Instance { get; private set; }
 
         [SerializeField] private BalanceData _balanceData;
-        [SerializeField] private GameObject _targetNormalPrefab;
-        [SerializeField] private GameObject _targetAnchorPrefab;
-        [SerializeField] private GameObject _targetRunnerPrefab;
-        [SerializeField] private GameObject _targetTouristPrefab;
+
+        /// <summary>
+        /// target_id → 프리팹 (#293). 종류가 늘면 여기에 한 줄만 더한다. 어느 단계에 무엇이
+        /// 나오는지는 stage_spawns.csv 가 정한다.
+        /// </summary>
+        [SerializeField] private List<TargetPrefabEntry> _targetPrefabs = new List<TargetPrefabEntry>();
 
         /// <summary>
         /// 책상 평면 중심(0, 0, 2) 기준 6x6 유닛에서 10% 안전 여백을 둔 이동/스폰 영역.
@@ -286,42 +288,56 @@ namespace NCAIClicker.Core
         private GameObject PickPrefabByStageRatio()
         {
             // 기본값을 코드에 두지 않는다. CSV 를 못 읽으면 스폰하지 않는 편이 낫다 (AGENTS.md 데이터 절, #148).
-            var stageDef = _balanceData == null ? null : _balanceData.GetStage(_currentStageNumber);
-            if (stageDef == null)
+            if (_balanceData == null)
             {
                 return null;
             }
 
-            var normalRatio = stageDef.NormalRatio;
-            var anchorRatio = stageDef.AnchorRatio;
-            var runnerRatio = stageDef.RunnerRatio;
-            var touristRatio = stageDef.TouristRatio;
-
-            var total = normalRatio + anchorRatio + runnerRatio + touristRatio;
+            // 프리팹이 연결되지 않은 종류는 추첨에서 뺀다 — 다른 종류로 바꿔 내보내면 비율이 조용히 틀어진다.
+            var spawns = _balanceData.GetStageSpawns(_currentStageNumber);
+            var total = 0f;
+            foreach (var spawn in spawns)
+            {
+                if (spawn.Ratio > 0f && FindPrefab(spawn.TargetId) != null)
+                {
+                    total += spawn.Ratio;
+                }
+            }
             if (total <= 0f)
             {
                 return null;
             }
 
             var roll = Random.Range(0f, total);
-            if (roll < normalRatio)
+            GameObject last = null;
+            foreach (var spawn in spawns)
             {
-                return _targetNormalPrefab != null ? _targetNormalPrefab : _targetAnchorPrefab;
+                var prefab = spawn.Ratio > 0f ? FindPrefab(spawn.TargetId) : null;
+                if (prefab == null)
+                {
+                    continue;
+                }
+                last = prefab;
+                if (roll < spawn.Ratio)
+                {
+                    return prefab;
+                }
+                roll -= spawn.Ratio;
             }
-            roll -= normalRatio;
+            return last;
+        }
 
-            if (roll < anchorRatio)
+        private GameObject FindPrefab(string targetId)
+        {
+            foreach (var entry in _targetPrefabs)
             {
-                return _targetAnchorPrefab != null ? _targetAnchorPrefab : _targetNormalPrefab;
+                if (entry.TargetId == targetId && entry.Prefab != null)
+                {
+                    return entry.Prefab;
+                }
             }
-            roll -= anchorRatio;
-
-            if (roll < runnerRatio)
-            {
-                return _targetRunnerPrefab != null ? _targetRunnerPrefab : _targetNormalPrefab;
-            }
-
-            return _targetTouristPrefab != null ? _targetTouristPrefab : _targetNormalPrefab;
+            Debug.LogWarning("[CreatureManager] '" + targetId + "' 에 연결된 프리팹이 없습니다. Managers 프리팹의 Target Prefabs 를 확인하세요.");
+            return null;
         }
 
         public Vector3 GetRandomSpawnPosition()
@@ -358,6 +374,16 @@ namespace NCAIClicker.Core
             {
                 DestroyImmediate(obj);
             }
+        }
+
+        [System.Serializable]
+        private struct TargetPrefabEntry
+        {
+            [SerializeField] private string _targetId;
+            [SerializeField] private GameObject _prefab;
+
+            public string TargetId => _targetId;
+            public GameObject Prefab => _prefab;
         }
     }
 }

@@ -184,22 +184,14 @@ namespace NCAIClicker.EditorTools
                 Stage = 1,
                 BillAmount = 450L,
                 DueDays = 5,
-                SpawnCount = 6,
-                NormalRatio = 0.6f,
-                AnchorRatio = 0.15f,
-                RunnerRatio = 0.1f,
-                TouristRatio = 0.15f
+                SpawnCount = 6
             });
             balanceData.Stages.Add(new StageDef
             {
                 Stage = 2,
                 BillAmount = 1125L,
                 DueDays = 4,
-                SpawnCount = 7,
-                NormalRatio = 0.45f,
-                AnchorRatio = 0.2f,
-                RunnerRatio = 0.2f,
-                TouristRatio = 0.15f
+                SpawnCount = 7
             });
 
             StageGoalManager stageManager = null;

@@ -57,6 +57,7 @@ MonoBehaviour:
     TurnIntervalSec: 4
     CoinCount: 1
     MinDenomId: c5
+    InstantBreakChance: 0
   - Id: anchor
     DisplayName: "\uAC70\uCE58\uD615"
     Hp: 12
@@ -65,6 +66,7 @@ MonoBehaviour:
     TurnIntervalSec: 6
     CoinCount: 1
     MinDenomId: c25
+    InstantBreakChance: 0
   - Id: runner
     DisplayName: "\uACE0\uC18D\uD615"
     Hp: 1
@@ -73,6 +75,7 @@ MonoBehaviour:
     TurnIntervalSec: 1.5
     CoinCount: 1
     MinDenomId: c1
+    InstantBreakChance: 0
   - Id: tourist
     DisplayName: "\uD68C\uBCF5\uD615"
     Hp: 10
@@ -81,6 +84,7 @@ MonoBehaviour:
     TurnIntervalSec: 5
     CoinCount: 1
     MinDenomId: c5
+    InstantBreakChance: 0
   Upgrades:
   - Id: strong_hammer
     DisplayName: "\uC644\uB825 \uB2E8\uB828"
@@ -143,27 +147,52 @@ MonoBehaviour:
   - Stage: 1
     BillAmount: 35
     DueDays: 5
-    NormalRatio: 0.6
-    AnchorRatio: 0.15
-    RunnerRatio: 0.1
-    TouristRatio: 0.15
     SpawnCount: 6
   - Stage: 2
     BillAmount: 90
     DueDays: 4
-    NormalRatio: 0.45
-    AnchorRatio: 0.2
-    RunnerRatio: 0.2
-    TouristRatio: 0.15
     SpawnCount: 7
   - Stage: 3
     BillAmount: 235
     DueDays: 3
-    NormalRatio: 0.35
-    AnchorRatio: 0.25
-    RunnerRatio: 0.25
-    TouristRatio: 0.15
     SpawnCount: 8
+  StageSpawns:
+  - Stage: 1
+    TargetId: normal
+    Ratio: 0.6
+  - Stage: 1
+    TargetId: anchor
+    Ratio: 0.15
+  - Stage: 1
+    TargetId: runner
+    Ratio: 0.1
+  - Stage: 1
+    TargetId: tourist
+    Ratio: 0.15
+  - Stage: 2
+    TargetId: normal
+    Ratio: 0.45
+  - Stage: 2
+    TargetId: anchor
+    Ratio: 0.2
+  - Stage: 2
+    TargetId: runner
+    Ratio: 0.2
+  - Stage: 2
+    TargetId: tourist
+    Ratio: 0.15
+  - Stage: 3
+    TargetId: normal
+    Ratio: 0.35
+  - Stage: 3
+    TargetId: anchor
+    Ratio: 0.25
+  - Stage: 3
+    TargetId: runner
+    Ratio: 0.25
+  - Stage: 3
+    TargetId: tourist
+    Ratio: 0.15
   Perks:
   - Id: stamina_restore
     DisplayName: "\uC2A4\uD0DC\uBBF8\uB098 \uD68C\uBCF5"

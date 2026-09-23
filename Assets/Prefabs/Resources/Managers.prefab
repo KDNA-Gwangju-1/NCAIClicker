@@ -290,10 +290,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NCAIClicker.Core.CreatureManager
   _balanceData: {fileID: 11400000, guid: 148d52a305feece4e9ed4cb51a933689, type: 2}
-  _targetNormalPrefab: {fileID: 4546548138084177262, guid: 97f92a5f98a67c743a32a484234b7048, type: 3}
-  _targetAnchorPrefab: {fileID: 7893189225021298616, guid: 0cb329d029ddcbf40996830aecd3bcfe, type: 3}
-  _targetRunnerPrefab: {fileID: 875064334984069561, guid: d64d25f50930aca47af313f9fc4057f6, type: 3}
-  _targetTouristPrefab: {fileID: 7395411435693180892, guid: 00144c806ceb7f44fab552c551c2a687, type: 3}
+  _targetPrefabs:
+  - _targetId: normal
+    _prefab: {fileID: 4546548138084177262, guid: 97f92a5f98a67c743a32a484234b7048, type: 3}
+  - _targetId: anchor
+    _prefab: {fileID: 7893189225021298616, guid: 0cb329d029ddcbf40996830aecd3bcfe, type: 3}
+  - _targetId: runner
+    _prefab: {fileID: 875064334984069561, guid: d64d25f50930aca47af313f9fc4057f6, type: 3}
+  - _targetId: tourist
+    _prefab: {fileID: 7395411435693180892, guid: 00144c806ceb7f44fab552c551c2a687, type: 3}
+  - _targetId: pinata
+    _prefab: {fileID: 7307835849117988394, guid: 8cdfecc443d343608e3bfd763f2536e7, type: 3}
   _deskBounds:
     m_Center: {x: 0, y: 0, z: 2}
     m_Extent: {x: 2.4, y: 0.5, z: 2.4}

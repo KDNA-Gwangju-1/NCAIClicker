@@ -89,7 +89,11 @@ def simulate(root, runs, seed, uptime, policy):
         value = expected_coin_value(coins, target["min_denom_id"], int(float(target["coin_count"])))
         target["expected_value"] = value
         target["expected_value_per_hp"] = value / float(target["hp"])
-    weights = [float(stage[target["id"] + "_ratio"]) for target in targets]
+    # 종류별 가중치는 stage_spawns.csv (#293). 행이 없는 종류는 그 단계에 나오지 않는다.
+    ratios = {row["target_id"]: float(row["ratio"])
+              for row in read_rows(root, "stage_spawns.csv") if row["stage"] == stage["stage"]}
+    targets = [target for target in targets if ratios.get(target["id"], 0.0) > 0.0]
+    weights = [ratios[target["id"]] for target in targets]
     extra_spawn_chance = economy["extra_spawn_chance_on_destroy"]
     rng = random.Random(seed)
     results = []
@@ -142,6 +146,10 @@ def simulate(root, runs, seed, uptime, policy):
                     fevers += 1
             selected = next(s for s in active if s["id"] == selected_id)
             selected["hp"] -= economy["base_hit_power"]
+            # 즉시 파괴 (#293). 확률 0 인 종류는 난수를 뽑지 않아 기존 시드 결과가 유지된다.
+            chance = float(selected["target"].get("instant_break_chance") or 0.0)
+            if selected["hp"] > 0 and chance > 0.0 and rng.random() < chance:
+                selected["hp"] = 0.0
             if selected["hp"] > 0:
                 continue
             target = selected["target"]
