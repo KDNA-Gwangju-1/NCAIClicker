@@ -91,6 +91,12 @@ namespace NCAIClicker.UI
         [SerializeField] private Button _loanConfirmButton;
         [SerializeField] private Button _loanCancelButton;
 
+        // 파산 → 반지 화면 전환 암전 (7.14 #324). 회차가 끝났다는 것을 한 박자로 보여 준다.
+        [Header("파산 암전")]
+        [SerializeField, Min(0f)] private float _bankruptFadeOutSec = 1.0f;
+        [SerializeField, Min(0f)] private float _bankruptHoldSec = 0.4f;
+        [SerializeField, Min(0f)] private float _bankruptFadeInSec = 0.5f;
+
         [Header("스킬 트리 안내")]
         [SerializeField] private GameObject _skillTreeNoticePanel;
         [SerializeField] private Button _skillTreeNoticeConfirmButton;
@@ -351,6 +357,55 @@ namespace NCAIClicker.UI
         /// 파산 후 프레스티지(보석함) 전용 단일 화면으로 연다.
         /// 상단 탭바를 숨기고 배경을 100% 완전 불투명하게 처리하여 뒤의 게임 씬과 HUD를 완전히 가린다.
         /// </summary>
+        /// <summary>
+        /// 파산 직후 반지 화면으로 넘어갈 때 쓴다. 암전 → 반지 화면 → 밝아짐 순서로 회차 종료를 보여 준다.
+        /// 비활성 상태라 코루틴을 못 돌리면 암전 없이 바로 연다.
+        /// </summary>
+        public void ShowAsPrestigeWithFade()
+        {
+            if (!isActiveAndEnabled)
+            {
+                ShowAsPrestige();
+                return;
+            }
+            StartCoroutine(FadeToPrestige());
+        }
+
+        private IEnumerator FadeToPrestige()
+        {
+            // 이 패널 아래에 둔다 — 암전 도중 패널이 꺼지면 오버레이도 같이 꺼져 검은 화면이 남지 않는다.
+            var overlay = new GameObject("BankruptFadeOverlay", typeof(RectTransform));
+            overlay.transform.SetParent(transform, false);
+            var rect = (RectTransform)overlay.transform;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            var canvas = overlay.AddComponent<Canvas>();
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = short.MaxValue;
+            overlay.AddComponent<GraphicRaycaster>();
+            var image = overlay.AddComponent<Image>();
+            image.color = new Color(0f, 0f, 0f, 0f);
+            image.raycastTarget = true; // 암전 중 클릭을 막는다
+
+            yield return FadeOverlay(image, 0f, 1f, _bankruptFadeOutSec);
+            ShowAsPrestige();
+            yield return new WaitForSecondsRealtime(_bankruptHoldSec);
+            yield return FadeOverlay(image, 1f, 0f, _bankruptFadeInSec);
+            Destroy(overlay);
+        }
+
+        private static IEnumerator FadeOverlay(Image image, float from, float to, float duration)
+        {
+            for (var t = 0f; t < duration; t += Time.unscaledDeltaTime)
+            {
+                image.color = new Color(0f, 0f, 0f, Mathf.Lerp(from, to, t / duration));
+                yield return null;
+            }
+            image.color = new Color(0f, 0f, 0f, to);
+        }
+
         public void ShowAsPrestige(int cycleNumber = -1)
         {
             _tab = Tab.Ring;
@@ -1194,9 +1249,9 @@ namespace NCAIClicker.UI
             HideBankruptcyConfirm();
             _billService?.DeclareBankruptcy();
 
-            // 파산 후 정비를 위해 보석함 단일 화면을 띄운다.
+            // 파산 후 정비를 위해 보석함 단일 화면을 띄운다. 암전으로 회차가 끝났음을 보여 준다.
             // 우측 하단 [사이클 N 시작]을 누르면 1일차 새 런으로 진입한다.
-            ShowAsPrestige();
+            ShowAsPrestigeWithFade();
         }
 
         private void HandleBalanceChanged(long currentBalance)

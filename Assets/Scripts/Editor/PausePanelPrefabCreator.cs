@@ -137,23 +137,17 @@ namespace NCAIClicker.EditorTools
             var mainMenuButton = CreateButton("MainMenuButton", mainBoxGo, font, 64, "메인 메뉴", NeutralBtnFill, PanelBorder, TextNeutral, 28);
             var quitButton = CreateButton("QuitButton", mainBoxGo, font, 64, "종료", DangerBtnFill, DangerBtnBorder, TextLoss, 28);
 
-            // 7. 경고 상자
+            // 7. 경고 문구 — 바탕·테두리 없이 글자만 둔다. 버튼과 같은 상자를 씌우면 다섯 번째 버튼으로 읽힌다 (7.1.1 #320).
             var warningBox = CreateObject("WarningBox", mainBoxGo);
-            var warningBoxImage = warningBox.AddComponent<Image>();
-            warningBoxImage.color = DangerBtnFill;
-            var warningOutline = warningBox.AddComponent<Outline>();
-            warningOutline.effectColor = DangerBtnBorder;
-            warningOutline.effectDistance = new Vector2(2f, -2f);
-
             var warnLayout = warningBox.AddComponent<VerticalLayoutGroup>();
-            warnLayout.padding = new RectOffset(20, 20, 14, 14);
+            warnLayout.padding = new RectOffset(8, 8, 0, 0);
             warnLayout.childControlWidth = true;
             warnLayout.childControlHeight = true;
             warnLayout.childForceExpandWidth = true;
             warnLayout.childForceExpandHeight = true;
-            warningBox.AddComponent<LayoutElement>().preferredHeight = 76;
+            warningBox.AddComponent<LayoutElement>().preferredHeight = 52;
 
-            CreateLabel("WarningText", warningBox, font, 22, TextLoss, TextAlignmentOptions.Center,
+            CreateLabel("WarningText", warningBox, font, 20, TextLoss, TextAlignmentOptions.Center,
                 "메인 메뉴·종료는 오늘 벌어들인 코인을 버립니다. 업그레이드와 납부 기록은 남습니다.");
 
             // 8. ESC 안내

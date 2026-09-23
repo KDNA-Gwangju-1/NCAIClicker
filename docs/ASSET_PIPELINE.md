@@ -74,7 +74,7 @@ VARCO 3D 의 출력 사양을 팀에서 한 번 확인하고 아래를 채운다
 
 - [x] 내보내기 포맷 (`.glb` / `.fbx` / `.obj`) 및 Unity 임포트 시 이상 유무 — `.glb` 사용. `com.unity.cloud.gltfast` 패키지 설치 후 정상 임포트 확인 (`Transform`/`MeshFilter`/`MeshRenderer` 구성, 저금통 일반형 실측)
 - [x] 폴리곤 수 조절 가능 여부 — 목표는 저금통 1체당 **1,000~2,000 삼각형**. `Generate3D` 노드의 `polygonCount` 파라미터로 지정 가능, 저금통 일반형 실측 1,500삼각형으로 확인
-- [x] 텍스처 해상도 — **1024×1024(BaseColor)/2048×2048(Normal) 그대로 사용한다.** glTFast(`com.unity.cloud.gltfast`)로 임포트한 텍스처는 Unity의 `TextureImporter` Max Size 설정이 적용되지 않는다 (glTFast는 자체 임포터를 쓰며 리플렉션으로 확인한 `ImportSettings`/`InstantiationSettings`/`EditorImportSettings` 어디에도 해상도 조절 필드가 없음). 512 다운스케일은 별도 `AssetPostprocessor`가 필요해 배보다 배꼽이 커짐 — 저금통 1개당 VRAM 약 26MB(BaseColor+Normal, 밉맵 포함)로 예산에 문제없어 그대로 채택
+- [x] 텍스처 — **glb 안의 텍스처를 그대로 쓰지 않는다.** glTFast 는 내장 텍스처를 무압축 ARGB32 로 가져오고 Max Size·압축 설정이 없다. 7.1.1(#320) 실측에서 glb 1개당 32MB, 빌드 794MB 중 618MB 가 이것이었다. 그래서 glb 에서 원본 PNG 를 꺼내 `Assets/Materials/<모델명>BaseColor|Orm|Normal.png` 로 두고 (Max Size 1024, Compressed, BaseColor 만 sRGB), 같은 셰이더의 `<모델명>.mat` 을 만들어 프리팹에 연결한다. **Normal 은 Texture Type 을 Normal map 으로 바꾸지 않는다** — glTFast 셰이더가 일반 텍스처로 받아 직접 해석하므로 바꾸면 표면이 푸르게 번들거린다 (Default·Linear 로 둔다). glb 는 메시 출처로만 남는다. 적용 후 텍스처 61MB · 빌드 237MB
 - [x] 머티리얼이 URP 셰이더로 들어오는지 (Built-in 셰이더로 들어오면 분홍색으로 보인다 → `Edit > Rendering > Materials > Convert...` 로 일괄 변환) — glTFast가 `Shader Graphs/glTF-pbrMetallicRoughness` 셰이더로 임포트, 현재 파이프라인(URP)에서 `isSupported=true` 확인. Built-in 셰이더 아니므로 변환 불필요
 - [x] 생성물의 이용 조건 — 수업/포트폴리오/공개 배포 각각 가능한지 ([THIRD_PARTY.md](THIRD_PARTY.md)에 기록). NC AI 교육 프로그램 하 수업 프로젝트 용도로 사용 가능, 공개 배포·상업적 이용은 별도 확인 필요
 
