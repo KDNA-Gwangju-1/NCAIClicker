@@ -39,9 +39,10 @@ namespace NCAIClicker.EditorTools
                     new[] { "targets.csv", "runner,구리광석(고속),1,", "runner,구리광석(고속),0," },
                     new[] { "targets.csv", "normal,철광석,3,", "runner,철광석,3," },
                     new[] { "upgrades.csv", "strong_hammer,완력 단련,", "auto_hammer,완력 단련," },
-                    new[] { "stage_spawns.csv", "2,tourist,0.25,", "2,tourist,-0.25," },
-                    new[] { "stage_spawns.csv", "2,tourist,0.25,", "2,ghost,0.25," },
-                    new[] { "stage_spawns.csv", "2,tourist,0.25,", "2,tourist,0.5," },
+                    // 해금 (#301): 음수 기준액·음수 가중치, 처음부터 나오는 종류가 없으면 거부
+                    new[] { "targets.csv", "normal,철광석,3,0,0.5,4.0,1,c5,0,0,0,0,0.35,", "normal,철광석,3,0,0.5,4.0,1,c5,0,0,0,-1,0.35," },
+                    new[] { "targets.csv", "normal,철광석,3,0,0.5,4.0,1,c5,0,0,0,0,0.35,", "normal,철광석,3,0,0.5,4.0,1,c5,0,0,0,0,-0.35," },
+                    new[] { "targets.csv", "normal,철광석,3,0,0.5,4.0,1,c5,0,0,0,0,0.35,", "normal,철광석,3,0,0.5,4.0,1,c5,0,0,0,50,0.35," },
                     new[] { "targets.csv", "runner,구리광석(고속),1,0,1.25,1.5,1,c1,0,0,0,", "runner,구리광석(고속),1,0,1.25,1.5,1,c1,1.5,0,0," },
                     new[] { "targets.csv", "runner,구리광석(고속),1,0,1.25,1.5,1,c1,0,0,0,", "runner,구리광석(고속),1,0,1.25,1.5,1,c1,0,-1,0.7," },
                     new[] { "targets.csv", "runner,구리광석(고속),1,0,1.25,1.5,1,c1,0,0,0,", "runner,구리광석(고속),1,0,1.25,1.5,1,c1,0,2,1.5," },

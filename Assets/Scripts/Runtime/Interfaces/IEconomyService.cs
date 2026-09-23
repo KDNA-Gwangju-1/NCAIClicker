@@ -19,6 +19,22 @@ namespace NCAIClicker.Interfaces
         /// 결과 화면의 "$1×113" 같은 액면 칸이 이 조회 하나로 채워진다.
         /// </summary>
         IReadOnlyList<CoinDrop> RunCoinBreakdown { get; }
+
+        /// <summary>
+        /// 이번 회차 누적 순수입 (#301). 정산(EndRun) 때 RunCoin 만큼 늘고, 파산하면 0 이 된다.
+        /// 크리처 해금은 이 값과 targets.csv 의 unlock_earned 로만 판정한다.
+        /// </summary>
+        long EarnedTotal { get; }
+    }
+
+    /// <summary>
+    /// 회차 누적 수입 저장·초기화 계약 (#301). SaveManager(저장·복원)·BillManager(파산 초기화)만 쓴다.
+    /// 해금 목록은 저장하지 않는다 — EarnedTotal 에서 매번 계산한다.
+    /// </summary>
+    public interface IUnlockPersistence
+    {
+        long EarnedTotal { get; }
+        void RestoreEarnedTotal(long earnedTotal);
     }
 
     /// <summary>

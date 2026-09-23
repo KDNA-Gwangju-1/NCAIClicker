@@ -115,6 +115,8 @@ namespace NCAIClicker.EditorTools
                     InstantBreakChance = ToFloat(r["instant_break_chance"]),
                     ChargeSpeed = ToFloat(r["charge_speed"]),
                     ChargeDamageRatio = ToFloat(r["charge_damage_ratio"]),
+                    UnlockEarned = ToLong(r["unlock_earned"]),
+                    SpawnWeight = ToFloat(r["spawn_weight"]),
                 });
 
                 data.Upgrades = ReadRows("upgrades.csv", r => new UpgradeDef
@@ -151,13 +153,6 @@ namespace NCAIClicker.EditorTools
                     BillAmount = ToLong(r["bill_amount"]),
                     DueDays = ToInt(r["due_days"]),
                     SpawnCount = ToInt(r["spawn_count"]),
-                });
-
-                data.StageSpawns = ReadRows("stage_spawns.csv", r => new StageSpawnDef
-                {
-                    Stage = ToInt(r["stage"]),
-                    TargetId = r["target_id"],
-                    Ratio = ToFloat(r["ratio"]),
                 });
 
                 data.BillNames = ReadRows("bill_names.csv", r => new BillNameDef
@@ -381,15 +376,6 @@ namespace NCAIClicker.EditorTools
 
             foreach (var s in d.Stages)
             {
-                var spawns = d.GetStageSpawns(s.Stage);
-                if (spawns.Count == 0)
-                    _errors.Add(string.Format("stage_spawns.csv: {0}단계에 등장하는 종류가 없습니다.", s.Stage));
-                var sum = 0f;
-                foreach (var spawn in spawns)
-                    sum += spawn.Ratio;
-                if (spawns.Count > 0 && Mathf.Abs(sum - 1f) > 0.001f)
-                    _errors.Add(string.Format(
-                        "stage_spawns.csv: {0}단계 출현 비율 합이 {1:0.###} 입니다. 1이어야 합니다.", s.Stage, sum));
                 if (s.BillAmount <= 0)
                     _errors.Add(string.Format("stages.csv: {0}단계 bill_amount 가 0 이하입니다.", s.Stage));
             }
@@ -446,19 +432,19 @@ namespace NCAIClicker.EditorTools
                     _errors.Add("targets.csv: '" + target.Id + "' 는 돌진하는데 charge_damage_ratio 가 0 입니다.");
             }
 
-            // ---- stage_spawns.csv (#293) — 종류는 targets.csv, 단계는 stages.csv 에 있어야 한다 ----
-            var spawnKeys = new HashSet<string>();
-            foreach (var spawn in d.StageSpawns)
+            // ---- 해금 (#301) — 처음부터 나오는 종류가 있어야 책상이 빈다 ----
+            var hasStarter = false;
+            foreach (var target in d.Targets)
             {
-                if (!ids.Contains(spawn.TargetId))
-                    _errors.Add("stage_spawns.csv: targets.csv 에 없는 target_id 입니다: " + spawn.TargetId);
-                if (!stageNumbers.Contains(spawn.Stage))
-                    _errors.Add("stage_spawns.csv: stages.csv 에 없는 단계입니다: " + spawn.Stage);
-                if (spawn.Ratio < 0f)
-                    _errors.Add("stage_spawns.csv: 출현 비율은 음수일 수 없습니다 (" + spawn.Stage + "단계 " + spawn.TargetId + ").");
-                if (!spawnKeys.Add(spawn.Stage + "/" + spawn.TargetId))
-                    _errors.Add("stage_spawns.csv: " + spawn.Stage + "단계 " + spawn.TargetId + " 행이 중복입니다.");
+                if (target.UnlockEarned < 0)
+                    _errors.Add("targets.csv: '" + target.Id + "' 의 unlock_earned 는 음수일 수 없습니다.");
+                if (target.SpawnWeight < 0f)
+                    _errors.Add("targets.csv: '" + target.Id + "' 의 spawn_weight 는 음수일 수 없습니다.");
+                if (target.SpawnWeight > 0f && target.UnlockEarned == 0)
+                    hasStarter = true;
             }
+            if (!hasStarter)
+                _errors.Add("targets.csv: unlock_earned 0 이고 spawn_weight 가 0 보다 큰 종류가 없습니다. 첫 런에 아무것도 나오지 않습니다.");
 
             // ---- coins.csv / targets.csv 액면 추첨 (이슈 #178) ----
             var coinIds = new HashSet<string>();

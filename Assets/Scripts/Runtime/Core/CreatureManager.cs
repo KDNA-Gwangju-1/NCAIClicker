@@ -24,8 +24,8 @@ namespace NCAIClicker.Core
         [SerializeField] private BalanceData _balanceData;
 
         /// <summary>
-        /// target_id → 프리팹 (#293). 종류가 늘면 여기에 한 줄만 더한다. 어느 단계에 무엇이
-        /// 나오는지는 stage_spawns.csv 가 정한다.
+        /// target_id → 프리팹 (#293). 종류가 늘면 여기에 한 줄만 더한다. 무엇이
+        /// 나오는지는 targets.csv 의 unlock_earned·spawn_weight 와 회차 누적 수입이 정한다 (#301).
         /// </summary>
         [SerializeField] private List<TargetPrefabEntry> _targetPrefabs = new List<TargetPrefabEntry>();
 
@@ -46,6 +46,9 @@ namespace NCAIClicker.Core
         /// 단계 진행 상태 조회 통로 (이슈 #150). 없으면 기본값 1을 쓴다.
         /// </summary>
         private IStageService _stageService;
+
+        /// <summary>회차 누적 수입 조회 통로 (#301).</summary>
+        private IEconomyService _economyService;
 
         private bool _isRunning;
 
@@ -150,6 +153,14 @@ namespace NCAIClicker.Core
         }
 
         /// <summary>
+        /// 회차 누적 수입 조회 통로 (#301). 해금된 종류만 뽑는 데 쓴다. 없으면 누적 0 — 첫 종류만 나온다.
+        /// </summary>
+        public void SetEconomyService(IEconomyService economyService)
+        {
+            _economyService = economyService;
+        }
+
+        /// <summary>
         /// 현재 단계와 업그레이드를 합산한 목표 동시 출현 수를 구한다.
         ///
         /// 다른 소비처와 달리 런 시작에 굳히지 않는다 — spawn_count 의 **기준값이 단계마다 다르다**
@@ -244,11 +255,11 @@ namespace NCAIClicker.Core
         }
 
         /// <summary>
-        /// 단계별 비율에 따라 프리팹을 추첨하여 안전 영역 내에 스폰한다.
+        /// 해금된 종류 중 spawn_weight 가중치로 프리팹을 추첨하여 안전 영역 내에 스폰한다 (#301).
         /// </summary>
         public GameObject SpawnRandomCreature()
         {
-            var prefab = PickPrefabByStageRatio();
+            var prefab = PickUnlockedPrefab();
             if (prefab == null)
             {
                 return null;
@@ -285,7 +296,11 @@ namespace NCAIClicker.Core
             return instance;
         }
 
-        private GameObject PickPrefabByStageRatio()
+        /// <summary>
+        /// 해금된 종류 중에서 spawn_weight 가중치로 뽑는다 (#301). 해금은 회차 누적 수입과
+        /// targets.csv 의 unlock_earned 로만 정한다 — 단계는 보지 않는다.
+        /// </summary>
+        private GameObject PickUnlockedPrefab()
         {
             // 기본값을 코드에 두지 않는다. CSV 를 못 읽으면 스폰하지 않는 편이 낫다 (AGENTS.md 데이터 절, #148).
             if (_balanceData == null)
@@ -293,14 +308,16 @@ namespace NCAIClicker.Core
                 return null;
             }
 
+            var earned = _economyService != null ? _economyService.EarnedTotal : 0L;
+            var unlocked = _balanceData.GetUnlockedTargets(earned);
+
             // 프리팹이 연결되지 않은 종류는 추첨에서 뺀다 — 다른 종류로 바꿔 내보내면 비율이 조용히 틀어진다.
-            var spawns = _balanceData.GetStageSpawns(_currentStageNumber);
             var total = 0f;
-            foreach (var spawn in spawns)
+            foreach (var target in unlocked)
             {
-                if (spawn.Ratio > 0f && FindPrefab(spawn.TargetId) != null)
+                if (FindPrefab(target.Id) != null)
                 {
-                    total += spawn.Ratio;
+                    total += target.SpawnWeight;
                 }
             }
             if (total <= 0f)
@@ -310,19 +327,19 @@ namespace NCAIClicker.Core
 
             var roll = Random.Range(0f, total);
             GameObject last = null;
-            foreach (var spawn in spawns)
+            foreach (var target in unlocked)
             {
-                var prefab = spawn.Ratio > 0f ? FindPrefab(spawn.TargetId) : null;
+                var prefab = FindPrefab(target.Id);
                 if (prefab == null)
                 {
                     continue;
                 }
                 last = prefab;
-                if (roll < spawn.Ratio)
+                if (roll < target.SpawnWeight)
                 {
                     return prefab;
                 }
-                roll -= spawn.Ratio;
+                roll -= target.SpawnWeight;
             }
             return last;
         }

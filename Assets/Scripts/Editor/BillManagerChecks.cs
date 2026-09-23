@@ -405,6 +405,7 @@ namespace NCAIClicker.EditorTools
             public long LastSpendAmount { get; private set; } = -1L;
             public long CurrentCoin => 0L;
             public long RunCoin => 0L;
+            public long EarnedTotal => 0L;
             public IReadOnlyList<CoinDrop> RunCoinBreakdown => Array.Empty<CoinDrop>();
             public void AddCoin(decimal rawAmount) { }
             public long LastLoanPrincipal { get; private set; } = -1L;

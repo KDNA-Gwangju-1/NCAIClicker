@@ -149,7 +149,8 @@ namespace NCAIClicker.EditorTools
             for (var i = 0; i < fields.Length; i++)
             {
                 var field = fields[i];
-                if (!field.IsDefined(typeof(SerializeField), true))
+                // 값 타입(연출 시간 같은 수치, #301)은 참조가 아니라 비어 있을 수 없다.
+                if (!field.IsDefined(typeof(SerializeField), true) || field.FieldType.IsValueType)
                 {
                     continue;
                 }
@@ -275,6 +276,7 @@ namespace NCAIClicker.EditorTools
         {
             public long CurrentCoin { get; set; }
             public long RunCoin { get; set; }
+            public long EarnedTotal { get; set; }
             public List<CoinDrop> Breakdown { get; } = new List<CoinDrop>();
             public IReadOnlyList<CoinDrop> RunCoinBreakdown => Breakdown;
             public void AddCoin(decimal rawAmount) { }

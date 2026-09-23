@@ -60,6 +60,8 @@ MonoBehaviour:
     InstantBreakChance: 0
     ChargeSpeed: 0
     ChargeDamageRatio: 0
+    UnlockEarned: 0
+    SpawnWeight: 0.35
   - Id: anchor
     DisplayName: "\uC740\uAD11\uC11D"
     Hp: 12
@@ -71,6 +73,8 @@ MonoBehaviour:
     InstantBreakChance: 0
     ChargeSpeed: 0
     ChargeDamageRatio: 0
+    UnlockEarned: 1800
+    SpawnWeight: 0.15
   - Id: runner
     DisplayName: "\uAD6C\uB9AC\uAD11\uC11D(\uACE0\uC18D)"
     Hp: 1
@@ -82,6 +86,8 @@ MonoBehaviour:
     InstantBreakChance: 0
     ChargeSpeed: 0
     ChargeDamageRatio: 0
+    UnlockEarned: 0
+    SpawnWeight: 0
   - Id: tourist
     DisplayName: "\uAD6C\uB9AC\uAD11\uC11D"
     Hp: 6
@@ -93,6 +99,8 @@ MonoBehaviour:
     InstantBreakChance: 0
     ChargeSpeed: 0
     ChargeDamageRatio: 0
+    UnlockEarned: 200
+    SpawnWeight: 0.15
   - Id: pinata
     DisplayName: "\uAE08\uAD11\uC11D"
     Hp: 10
@@ -104,6 +112,8 @@ MonoBehaviour:
     InstantBreakChance: 0.1
     ChargeSpeed: 0
     ChargeDamageRatio: 0
+    UnlockEarned: 6000
+    SpawnWeight: 0.15
   - Id: angry
     DisplayName: "\uB2E4\uC774\uC544\uBAAC\uB4DC"
     Hp: 24
@@ -115,6 +125,8 @@ MonoBehaviour:
     InstantBreakChance: 0
     ChargeSpeed: 2.5
     ChargeDamageRatio: 0.7
+    UnlockEarned: 12000
+    SpawnWeight: 0.2
   Upgrades:
   - Id: strong_hammer
     DisplayName: "\uC644\uB825 \uB2E8\uB828"
@@ -194,52 +206,6 @@ MonoBehaviour:
     BillAmount: 2550
     DueDays: 3
     SpawnCount: 9
-  StageSpawns:
-  - Stage: 1
-    TargetId: normal
-    Ratio: 1
-  - Stage: 2
-    TargetId: normal
-    Ratio: 0.75
-  - Stage: 2
-    TargetId: tourist
-    Ratio: 0.25
-  - Stage: 3
-    TargetId: normal
-    Ratio: 0.55
-  - Stage: 3
-    TargetId: tourist
-    Ratio: 0.2
-  - Stage: 3
-    TargetId: anchor
-    Ratio: 0.25
-  - Stage: 4
-    TargetId: normal
-    Ratio: 0.45
-  - Stage: 4
-    TargetId: tourist
-    Ratio: 0.15
-  - Stage: 4
-    TargetId: anchor
-    Ratio: 0.2
-  - Stage: 4
-    TargetId: pinata
-    Ratio: 0.2
-  - Stage: 5
-    TargetId: normal
-    Ratio: 0.35
-  - Stage: 5
-    TargetId: tourist
-    Ratio: 0.15
-  - Stage: 5
-    TargetId: anchor
-    Ratio: 0.15
-  - Stage: 5
-    TargetId: pinata
-    Ratio: 0.15
-  - Stage: 5
-    TargetId: angry
-    Ratio: 0.2
   Perks:
   - Id: stamina_restore
     DisplayName: "\uC2A4\uD0DC\uBBF8\uB098 \uD68C\uBCF5"

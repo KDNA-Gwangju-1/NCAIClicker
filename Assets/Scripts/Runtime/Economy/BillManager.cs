@@ -59,6 +59,7 @@ namespace NCAIClicker.Economy
         /// 함께 지워진다 (GDD 파산 절 층 표, 4.16). 없으면 지우지 않고 건너뛴다.
         /// </summary>
         private IUpgradePersistence _upgradePersistence;
+        private IUnlockPersistence _unlockPersistence;
 
         /// <summary>단계 진행 조회 통로. ManagerBootstrap 이 넣어 준다 (이슈 #150). 없으면 1단계로 폴백한다.</summary>
         private IStageService _stageService;
@@ -140,6 +141,14 @@ namespace NCAIClicker.Economy
         public void SetUpgradePersistence(IUpgradePersistence upgradePersistence)
         {
             _upgradePersistence = upgradePersistence;
+        }
+
+        /// <summary>
+        /// 회차 누적 수입 초기화 통로 (#301). 파산 시 회차 초기화에서만 쓴다 — 크리처 해금은 회차 층이다.
+        /// </summary>
+        public void SetUnlockPersistence(IUnlockPersistence unlockPersistence)
+        {
+            _unlockPersistence = unlockPersistence;
         }
 
         /// <summary>
@@ -298,6 +307,9 @@ namespace NCAIClicker.Economy
             // "소수 잔여는 파산 시 버린다"). IWalletPersistence 소비자에 BillManager 를 추가해
             // 열었다 (이슈 #158) — 주입이 없으면 조용히 건너뛴다.
             _walletPersistence?.RestoreWallet(0L, "0");
+
+            // 크리처 해금도 회차 층이다 (#301, PM 결정). 누적 수입을 비우면 첫 종류만 남는다.
+            _unlockPersistence?.RestoreEarnedTotal(0L);
         }
 
         /// <summary>
