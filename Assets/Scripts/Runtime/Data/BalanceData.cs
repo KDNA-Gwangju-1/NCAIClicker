@@ -178,6 +178,12 @@ namespace NCAIClicker.Data
 
         /// <summary>타격마다 남은 내구도와 무관하게 즉시 파괴될 확률 0~1 (#293). 피냐타형만 0보다 크다.</summary>
         public float InstantBreakChance;
+
+        /// <summary>분노 시 돌진 속도 (world-unit/sec, #297). 0 이면 분노하지 않는다. 화난 저금통만 0보다 크다.</summary>
+        public float ChargeSpeed;
+
+        /// <summary>돌진 충돌 피해 = 분노시킨 타격의 피해(호버 최종 파워) × 이 값 (#297). 원작 0.7.</summary>
+        public float ChargeDamageRatio;
     }
 
     /// <summary>
