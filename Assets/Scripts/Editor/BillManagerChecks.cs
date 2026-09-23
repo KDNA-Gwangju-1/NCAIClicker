@@ -30,6 +30,7 @@ namespace NCAIClicker.EditorTools
 
             var checkCount = RunManagerChecks(balance);
             checkCount += RunLoanChecks(balance);
+            checkCount += RunPrestigeWindowChecks(balance);
             Debug.Log("[BillManagerChecks] PASS " + checkCount + " checks.");
         }
 
@@ -125,11 +126,17 @@ namespace NCAIClicker.EditorTools
 
                 // 다음 날 진입 시점에 마감을 확정한다 (이슈 #211).
                 // 위에서 기한을 넘긴 고지서를 그대로 뒀으므로 TryCloseDay 에서 파산이 처리된다.
+                AssertCondition(!manager.IsPrestigeWindowOpen, "파산 전인데 반지 구매 창이 열려 있습니다.");
                 var closed = manager.TryCloseDay();
                 AssertCondition(closed, "기한을 넘긴 고지서가 TryCloseDay 에서 파산 처리되지 않았습니다.");
                 AssertCondition(manager.ActiveBill == null, "파산 후에도 고지서가 남아 있습니다.");
+                // **마감 미납 파산도 반지 구매 창을 연다** (#291). 자발적 파산 쪽에만 걸면 이쪽이 샌다 —
+                // 그래서 창은 두 경로가 함께 지나는 HandleBankruptcy 한 곳에서 연다.
+                AssertCondition(manager.IsPrestigeWindowOpen, "마감 미납 파산이 반지 구매 창을 열지 않았습니다.");
                 manager.BeginRun();
                 AssertCondition(manager.ActiveBill != null, "파산 후 첫 BeginRun 이 고지서를 발행하지 않았습니다.");
+                AssertCondition(!manager.IsPrestigeWindowOpen,
+                                "다음 사이클 첫 런이 시작됐는데 반지 구매 창이 열려 있습니다.");
                 checkCount++;
 
                 // EconomyService 가 없으면 조기 납부는 항상 실패하고 고지서가 그대로 남는다.
@@ -401,6 +408,49 @@ namespace NCAIClicker.EditorTools
             field.SetValue(manager, balanceData);
             host.SetActive(true);
             return manager;
+        }
+
+        /// <summary>
+        /// 반지 구매 창이 언제 열리고 닫히는지 (이슈 #291). 마감 미납 경로는 RunManagerChecks 가
+        /// TryCloseDay 를 지나며 이미 본다 — 여기서는 자발적 파산과 저장 복원을 본다.
+        /// </summary>
+        private static int RunPrestigeWindowChecks(BalanceData balance)
+        {
+            var checkCount = 0;
+            GameObject host = null;
+
+            try
+            {
+                var manager = CreateManager(balance, out host);
+                manager.BeginRun();
+                AssertCondition(!manager.IsPrestigeWindowOpen, "파산 전인데 반지 구매 창이 열려 있습니다.");
+                checkCount++;
+
+                manager.DeclareBankruptcy();
+                AssertCondition(manager.IsPrestigeWindowOpen, "자발적 파산이 반지 구매 창을 열지 않았습니다.");
+                checkCount++;
+
+                // 창은 저장하지 않으므로 복원한 상태는 늘 창 밖이다. 새 회차 시작과 설정의
+                // 저장 초기화도 빈 저장을 분배하며 이 경로를 지난다.
+                manager.RestoreBillState(1, 1, null, null, -1, Array.Empty<string>());
+                AssertCondition(!manager.IsPrestigeWindowOpen, "저장에서 복원했는데 반지 구매 창이 열려 있습니다.");
+                checkCount++;
+
+                manager.DeclareBankruptcy();
+                manager.BeginRun();
+                AssertCondition(!manager.IsPrestigeWindowOpen,
+                                "자발적 파산 뒤 다음 사이클 첫 런이 시작됐는데 반지 구매 창이 열려 있습니다.");
+                checkCount++;
+            }
+            finally
+            {
+                if (host != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(host);
+                }
+            }
+
+            return checkCount;
         }
 
         private static void AssertCondition(bool condition, string message)
