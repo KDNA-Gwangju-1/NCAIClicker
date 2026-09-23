@@ -50,7 +50,7 @@ MonoBehaviour:
     LoanMaxConcurrent: 1
   Targets:
   - Id: normal
-    DisplayName: "\uC77C\uBC18\uD615"
+    DisplayName: "\uCCA0\uAD11\uC11D"
     Hp: 3
     StaminaRestore: 0
     MoveSpeed: 0.5
@@ -61,18 +61,18 @@ MonoBehaviour:
     ChargeSpeed: 0
     ChargeDamageRatio: 0
   - Id: anchor
-    DisplayName: "\uAC70\uCE58\uD615"
+    DisplayName: "\uC740\uAD11\uC11D"
     Hp: 12
     StaminaRestore: 0
     MoveSpeed: 0.05
     TurnIntervalSec: 6
     CoinCount: 1
-    MinDenomId: c25
+    MinDenomId: c100
     InstantBreakChance: 0
     ChargeSpeed: 0
     ChargeDamageRatio: 0
   - Id: runner
-    DisplayName: "\uACE0\uC18D\uD615"
+    DisplayName: "\uAD6C\uB9AC\uAD11\uC11D(\uACE0\uC18D)"
     Hp: 1
     StaminaRestore: 0
     MoveSpeed: 1.25
@@ -83,16 +83,38 @@ MonoBehaviour:
     ChargeSpeed: 0
     ChargeDamageRatio: 0
   - Id: tourist
-    DisplayName: "\uD68C\uBCF5\uD615"
-    Hp: 10
-    StaminaRestore: 2
+    DisplayName: "\uAD6C\uB9AC\uAD11\uC11D"
+    Hp: 6
+    StaminaRestore: 70
     MoveSpeed: 0.2
     TurnIntervalSec: 5
     CoinCount: 1
-    MinDenomId: c5
+    MinDenomId: c25
     InstantBreakChance: 0
     ChargeSpeed: 0
     ChargeDamageRatio: 0
+  - Id: pinata
+    DisplayName: "\uAE08\uAD11\uC11D"
+    Hp: 10
+    StaminaRestore: 0
+    MoveSpeed: 0.3
+    TurnIntervalSec: 4
+    CoinCount: 10
+    MinDenomId: c1
+    InstantBreakChance: 0.1
+    ChargeSpeed: 0
+    ChargeDamageRatio: 0
+  - Id: angry
+    DisplayName: "\uB2E4\uC774\uC544\uBAAC\uB4DC"
+    Hp: 24
+    StaminaRestore: 0
+    MoveSpeed: 0.35
+    TurnIntervalSec: 5
+    CoinCount: 3
+    MinDenomId: c100
+    InstantBreakChance: 0
+    ChargeSpeed: 2.5
+    ChargeDamageRatio: 0.7
   Upgrades:
   - Id: strong_hammer
     DisplayName: "\uC644\uB825 \uB2E8\uB828"
@@ -153,54 +175,71 @@ MonoBehaviour:
       ValuePerLevel: 2
   Stages:
   - Stage: 1
-    BillAmount: 35
+    BillAmount: 80
     DueDays: 5
     SpawnCount: 6
   - Stage: 2
-    BillAmount: 90
+    BillAmount: 465
     DueDays: 4
     SpawnCount: 7
   - Stage: 3
-    BillAmount: 235
+    BillAmount: 1300
     DueDays: 3
     SpawnCount: 8
+  - Stage: 4
+    BillAmount: 1470
+    DueDays: 3
+    SpawnCount: 8
+  - Stage: 5
+    BillAmount: 2550
+    DueDays: 3
+    SpawnCount: 9
   StageSpawns:
   - Stage: 1
     TargetId: normal
-    Ratio: 0.6
-  - Stage: 1
-    TargetId: anchor
-    Ratio: 0.15
-  - Stage: 1
-    TargetId: runner
-    Ratio: 0.1
-  - Stage: 1
-    TargetId: tourist
-    Ratio: 0.15
+    Ratio: 1
   - Stage: 2
+    TargetId: normal
+    Ratio: 0.75
+  - Stage: 2
+    TargetId: tourist
+    Ratio: 0.25
+  - Stage: 3
+    TargetId: normal
+    Ratio: 0.55
+  - Stage: 3
+    TargetId: tourist
+    Ratio: 0.2
+  - Stage: 3
+    TargetId: anchor
+    Ratio: 0.25
+  - Stage: 4
     TargetId: normal
     Ratio: 0.45
-  - Stage: 2
-    TargetId: anchor
-    Ratio: 0.2
-  - Stage: 2
-    TargetId: runner
-    Ratio: 0.2
-  - Stage: 2
+  - Stage: 4
     TargetId: tourist
     Ratio: 0.15
-  - Stage: 3
+  - Stage: 4
+    TargetId: anchor
+    Ratio: 0.2
+  - Stage: 4
+    TargetId: pinata
+    Ratio: 0.2
+  - Stage: 5
     TargetId: normal
     Ratio: 0.35
-  - Stage: 3
-    TargetId: anchor
-    Ratio: 0.25
-  - Stage: 3
-    TargetId: runner
-    Ratio: 0.25
-  - Stage: 3
+  - Stage: 5
     TargetId: tourist
     Ratio: 0.15
+  - Stage: 5
+    TargetId: anchor
+    Ratio: 0.15
+  - Stage: 5
+    TargetId: pinata
+    Ratio: 0.15
+  - Stage: 5
+    TargetId: angry
+    Ratio: 0.2
   Perks:
   - Id: stamina_restore
     DisplayName: "\uC2A4\uD0DC\uBBF8\uB098 \uD68C\uBCF5"

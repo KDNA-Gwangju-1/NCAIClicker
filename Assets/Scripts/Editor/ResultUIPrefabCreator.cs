@@ -180,8 +180,9 @@ namespace NCAIClicker.EditorTools
             var codexImage = codexIcon.AddComponent<Image>();
             codexImage.color = RowFill;
             SetPreferredHeight(codexIcon, 190f);
+            bound["_codexPreview"] = AttachCreaturePreview(codexIcon);
             bound["_codexProgressText"] = CreateLabel("CodexProgressText", codex, font, 28, Muted, TextAlignmentOptions.Center, ResultUIController.UnwiredPlaceholder);
-            CreateLabel("CodexCaptionText", codex, font, 20, Muted, TextAlignmentOptions.Center, "다음 저금통 해금까지");
+            bound["_codexCaptionText"] = CreateLabel("CodexCaptionText", codex, font, 20, Muted, TextAlignmentOptions.Center, "고지서 납부 시 해금");
 
             // 하단 액션.
             // 원작 버튼 행은 패널 폭의 63% 를 쓰고 가운데 모인다. 끝까지 늘이면 버튼이 배너가 된다.
@@ -451,6 +452,50 @@ namespace NCAIClicker.EditorTools
         private static void SetFlexibleHeight(GameObject go, float value) => EnsureLayoutElement(go).flexibleHeight = value;
 
         /// <summary>직렬화 필드는 private 이라 리플렉션으로 넣는다. 이름이 틀리면 조용히 비니까 검증에서 잡는다.</summary>
+        /// <summary>
+        /// 다음 해금 크리처의 3D 외형 칸 (#247). CodexIcon 위를 RawImage 로 덮고 CreaturePreview 를 붙인다.
+        /// 프리팹 목록은 Managers 프리팹의 CreatureManager 목록을 그대로 복사한다 — 기준은 한 곳이다.
+        /// 기존 프리팹을 다시 만들지 않고 고칠 때도 이 메서드를 쓴다.
+        /// </summary>
+        public static CreaturePreview AttachCreaturePreview(GameObject codexIcon)
+        {
+            var existing = codexIcon.transform.Find("CodexPreview");
+            if (existing != null)
+            {
+                Object.DestroyImmediate(existing.gameObject);
+            }
+
+            var previewGo = CreateStretchedObject("CodexPreview", codexIcon);
+            var rawImage = previewGo.AddComponent<RawImage>();
+            rawImage.raycastTarget = false;
+            rawImage.enabled = false;
+            var preview = previewGo.AddComponent<CreaturePreview>();
+
+            var serialized = new SerializedObject(preview);
+            serialized.FindProperty("_image").objectReferenceValue = rawImage;
+            var entries = serialized.FindProperty("_prefabs");
+            var managers = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Resources/Managers.prefab");
+            var creatureManager = managers != null ? managers.GetComponentInChildren<NCAIClicker.Core.CreatureManager>(true) : null;
+            if (creatureManager == null)
+            {
+                Debug.LogError("[ResultUIPrefabCreator] Managers 프리팹의 CreatureManager 를 찾지 못해 미리보기 목록이 비었다.");
+            }
+            else
+            {
+                var source = new SerializedObject(creatureManager).FindProperty("_targetPrefabs");
+                entries.arraySize = source.arraySize;
+                for (var i = 0; i < source.arraySize; i++)
+                {
+                    var from = source.GetArrayElementAtIndex(i);
+                    var to = entries.GetArrayElementAtIndex(i);
+                    to.FindPropertyRelative("_targetId").stringValue = from.FindPropertyRelative("_targetId").stringValue;
+                    to.FindPropertyRelative("_prefab").objectReferenceValue = from.FindPropertyRelative("_prefab").objectReferenceValue;
+                }
+            }
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return preview;
+        }
+
         private static void Bind(ResultUIController controller, Dictionary<string, object> bound)
         {
             var flags = BindingFlags.NonPublic | BindingFlags.Instance;

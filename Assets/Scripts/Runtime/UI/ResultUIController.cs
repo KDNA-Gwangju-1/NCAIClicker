@@ -52,6 +52,8 @@ namespace NCAIClicker.UI
         [SerializeField] private TextMeshProUGUI _brokenCountText;
         [SerializeField] private TextMeshProUGUI[] _brokenChipTexts;
         [SerializeField] private TextMeshProUGUI _codexProgressText;
+        [SerializeField] private TextMeshProUGUI _codexCaptionText;
+        [SerializeField] private CreaturePreview _codexPreview;
         [SerializeField] private Button _upgradeButton;
         [SerializeField] private Button _payButton;
         [SerializeField] private TextMeshProUGUI _payCaptionText;
@@ -478,7 +480,7 @@ namespace NCAIClicker.UI
             }
             UpdateBrokenChips();
 
-            SetPlaceholder(_codexProgressText);
+            UpdateNextUnlock();
             UpdateDenomCounts();
 
             UpdatePayButton();
@@ -556,7 +558,10 @@ namespace NCAIClicker.UI
             }
         }
 
-        /// <summary>종류별 파괴 수. targets.csv 순서대로 채운다.</summary>
+        /// <summary>
+        /// 종류별 파괴 수. 현재 단계까지 해금된 종류만 해금 순서로 채운다 (#247).
+        /// 칸보다 해금 종류가 많으면 가장 최근에 해금된 것들을 보여 준다. 남는 칸은 비운다.
+        /// </summary>
         private void UpdateBrokenChips()
         {
             if (_brokenChipTexts == null)
@@ -564,6 +569,8 @@ namespace NCAIClicker.UI
                 return;
             }
 
+            var unlocked = _balanceData != null ? _balanceData.GetUnlockedTargets(GetStageNumber()) : null;
+            var skip = unlocked != null ? Mathf.Max(0, unlocked.Count - _brokenChipTexts.Length) : 0;
             for (var i = 0; i < _brokenChipTexts.Length; i++)
             {
                 var label = _brokenChipTexts[i];
@@ -572,16 +579,105 @@ namespace NCAIClicker.UI
                     continue;
                 }
 
-                if (_balanceData == null || i >= _balanceData.Targets.Count)
+                if (unlocked == null)
                 {
                     label.text = UnwiredPlaceholder;
                     continue;
                 }
 
-                var target = _balanceData.Targets[i];
+                var index = skip + i;
+                if (index >= unlocked.Count)
+                {
+                    label.text = string.Empty;
+                    continue;
+                }
+
+                var target = unlocked[index];
                 _brokenByType.TryGetValue(target.Id, out var count);
                 label.text = $"{target.DisplayName} {count}";
             }
+        }
+
+        /// <summary>
+        /// "다음 저금통 해금까지" 패널. 고지서를 내면 단계가 오르고 다음 종류가 나온다 (#247).
+        /// 다음 종류는 stage_spawns.csv 에서 계산한다.
+        /// </summary>
+        private void UpdateNextUnlock()
+        {
+            if (_codexProgressText == null)
+            {
+                return;
+            }
+
+            if (_balanceData == null)
+            {
+                _codexProgressText.text = UnwiredPlaceholder;
+                SetCodexCaption(string.Empty);
+                return;
+            }
+
+            // 납부하면 그 자리에서 단계가 오른다 (StageGoalManager). 납부 직후에는 "다음" 이 아니라
+            // 방금 해금된 종류를 보여 줘야 한다 — 다음 날 책상에 처음 나올 종류다.
+            var bill = _billService != null ? _billService.ActiveBill : null;
+            var isJustUnlocked = bill != null && bill.IsPaid;
+            var next = isJustUnlocked
+                ? FindUnlockedAt(GetStageNumber())
+                : _balanceData.GetNextUnlockTarget(GetStageNumber());
+            if (_codexPreview != null)
+            {
+                _codexPreview.Show(next != null ? next.Id : null);
+            }
+
+            if (next == null)
+            {
+                _codexProgressText.text = "모든 크리처 해금";
+                SetCodexCaption(string.Empty);
+                return;
+            }
+
+            _codexProgressText.text = next.DisplayName;
+            SetCodexCaption(isJustUnlocked ? "해금 완료 · 다음 날 등장" : GetUnlockProgressCaption(bill));
+        }
+
+        private TargetDef FindUnlockedAt(int stageNumber)
+        {
+            foreach (var target in _balanceData.Targets)
+            {
+                if (_balanceData.GetUnlockStage(target.Id) == stageNumber)
+                {
+                    return target;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// 해금 조건은 이번 단계 고지서 납부다 (StageGoalManager). 진행률은 납부 버튼과 같은 기준인
+        /// 보유 코인 ÷ 고지서 금액으로, 100% 에서 멈춘다.
+        /// </summary>
+        private string GetUnlockProgressCaption(Bill bill)
+        {
+            if (bill == null || bill.Amount <= 0)
+            {
+                return "고지서 납부 시 해금";
+            }
+
+            var coin = _economyService != null ? _economyService.CurrentCoin : 0L;
+            var percent = Mathf.Min(100, Mathf.FloorToInt(100f * Mathf.Max(0L, coin) / bill.Amount));
+            return $"고지서 ${bill.Amount:N0} 납부 시 해금 · {percent}%";
+        }
+
+        private void SetCodexCaption(string text)
+        {
+            if (_codexCaptionText != null)
+            {
+                _codexCaptionText.text = text;
+            }
+        }
+
+        private int GetStageNumber()
+        {
+            return _stageService != null ? _stageService.CurrentStageNumber : 1;
         }
 
         /// <summary>이번 런에 실제로 뽑힌 코인 총 개수. RunCoinBreakdown 각 항목의 Count 합이다.</summary>
@@ -644,14 +740,6 @@ namespace NCAIClicker.UI
                     }
                 }
                 label.text = count.ToString();
-            }
-        }
-
-        private static void SetPlaceholder(TextMeshProUGUI label)
-        {
-            if (label != null)
-            {
-                label.text = UnwiredPlaceholder;
             }
         }
 

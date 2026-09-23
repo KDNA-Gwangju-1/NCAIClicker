@@ -75,8 +75,8 @@ namespace NCAIClicker.EditorTools
             AssertNear(drained, drainPerSec, "1초 감소량이 다릅니다: " + drained);
             checkCount++;
 
-            // 빈 자리가 넉넉하면 요청한 만큼 그대로 회복한다.
-            pool.Drain(drainPerSec, 10f);
+            // 빈 자리가 넉넉하면 요청한 만큼 그대로 회복한다. 회복량이 커도(#247) 넘치지 않게 비운 뒤 채운다.
+            pool.Drain(drainPerSec, maxStamina / drainPerSec + 1f);
             var before = pool.Current;
             var restored = pool.Restore(touristRestore);
             AssertNear(restored, touristRestore, "회복량이 다릅니다: " + restored);
@@ -181,7 +181,8 @@ namespace NCAIClicker.EditorTools
                 AssertCondition(changedCount > 0, "지속 감소가 전혀 발행되지 않았습니다.");
                 checkCount++;
 
-                // 회복형 파괴는 실제 회복량을 알린다.
+                // 회복형 파괴는 실제 회복량을 알린다. 회복량이 커도(#247) 최대치에 잘리지 않게 먼저 줄인다.
+                Tick(manager, touristRestore / drainPerSec + 1f);
                 restoredCount = 0;
                 restoredTotal = 0f;
                 GameEvents.PublishTargetBroken(CreateBreak(touristRestore));

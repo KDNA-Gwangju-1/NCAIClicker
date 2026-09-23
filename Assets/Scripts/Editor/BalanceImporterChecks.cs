@@ -36,17 +36,17 @@ namespace NCAIClicker.EditorTools
                     new[] { "stamina.csv", "max_stamina,120,", "max_stamina,NaN," },
                     new[] { "economy.csv", "auto_hammer_count_init,0,", "auto_hammer_count_init,0.5," },
                     new[] { "bills.csv", "loan_daily_cut_min,0.05,", "loan_daily_cut_min,-0.1," },
-                    new[] { "targets.csv", "runner,고속형,1,", "runner,고속형,0," },
-                    new[] { "targets.csv", "normal,일반형,3,", "runner,일반형,3," },
+                    new[] { "targets.csv", "runner,구리광석(고속),1,", "runner,구리광석(고속),0," },
+                    new[] { "targets.csv", "normal,철광석,3,", "runner,철광석,3," },
                     new[] { "upgrades.csv", "strong_hammer,완력 단련,", "auto_hammer,완력 단련," },
-                    new[] { "stage_spawns.csv", "1,anchor,0.15,", "1,anchor,-0.15," },
-                    new[] { "stage_spawns.csv", "1,anchor,0.15,", "1,ghost,0.15," },
-                    new[] { "stage_spawns.csv", "1,anchor,0.15,", "1,anchor,0.5," },
-                    new[] { "targets.csv", "runner,고속형,1,0,1.25,1.5,1,c1,0,0,0,", "runner,고속형,1,0,1.25,1.5,1,c1,1.5,0,0," },
-                    new[] { "targets.csv", "runner,고속형,1,0,1.25,1.5,1,c1,0,0,0,", "runner,고속형,1,0,1.25,1.5,1,c1,0,-1,0.7," },
-                    new[] { "targets.csv", "runner,고속형,1,0,1.25,1.5,1,c1,0,0,0,", "runner,고속형,1,0,1.25,1.5,1,c1,0,2,1.5," },
-                    new[] { "targets.csv", "runner,고속형,1,0,1.25,1.5,1,c1,0,0,0,", "runner,고속형,1,0,1.25,1.5,1,c1,0,2,0," },
-                    new[] { "stages.csv", "1,35,5,", "1,35,5.5," },
+                    new[] { "stage_spawns.csv", "2,tourist,0.25,", "2,tourist,-0.25," },
+                    new[] { "stage_spawns.csv", "2,tourist,0.25,", "2,ghost,0.25," },
+                    new[] { "stage_spawns.csv", "2,tourist,0.25,", "2,tourist,0.5," },
+                    new[] { "targets.csv", "runner,구리광석(고속),1,0,1.25,1.5,1,c1,0,0,0,", "runner,구리광석(고속),1,0,1.25,1.5,1,c1,1.5,0,0," },
+                    new[] { "targets.csv", "runner,구리광석(고속),1,0,1.25,1.5,1,c1,0,0,0,", "runner,구리광석(고속),1,0,1.25,1.5,1,c1,0,-1,0.7," },
+                    new[] { "targets.csv", "runner,구리광석(고속),1,0,1.25,1.5,1,c1,0,0,0,", "runner,구리광석(고속),1,0,1.25,1.5,1,c1,0,2,1.5," },
+                    new[] { "targets.csv", "runner,구리광석(고속),1,0,1.25,1.5,1,c1,0,0,0,", "runner,구리광석(고속),1,0,1.25,1.5,1,c1,0,2,0," },
+                    new[] { "stages.csv", "1,80,5,", "1,80,5.5," },
                     new[] { "economy.csv", "base_hit_power,1.0,hp/hit,", "base_hit_power,1.0,hp/hit,extra," },
                     new[] { "stamina.csv", "key,value,unit,note", "key,value,value,note" },
                 };
@@ -73,7 +73,7 @@ namespace NCAIClicker.EditorTools
 
                 // 단계 목표는 수입 상한이 아니다. 큰 고지서는 구조 오류로 거부하지 않는다.
                 CopyFixture(fixtureDirectory);
-                ReplaceFixture(fixtureDirectory, "stages.csv", "1,35,5,", "1,10000,5,");
+                ReplaceFixture(fixtureDirectory, "stages.csv", "1,80,5,", "1,10000,5,");
                 AssertCondition(BalanceImporter.TryImport(fixtureDirectory, outputPath, out error), error);
                 checkCount++;
 

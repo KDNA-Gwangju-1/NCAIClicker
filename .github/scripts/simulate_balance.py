@@ -1,4 +1,4 @@
-"""CSV 기반 첫 런 추정. 실제 이동·조준·게임 구현의 검증을 대신하지 않는다."""
+"""CSV 기반 런 추정 (업그레이드 없음, 단계는 --stage). 실제 이동·조준·게임 구현의 검증을 대신하지 않는다."""
 import argparse
 import csv
 import json
@@ -76,19 +76,27 @@ def expected_coin_value(coins, min_denom_id, count):
     return count * weighted_value / total_weight
 
 
-def simulate(root, runs, seed, uptime, policy):
+def simulate(root, runs, seed, uptime, policy, stage_number=1, hit_power=None):
     stamina = read_config(root, "stamina.csv")
     economy = read_config(root, "economy.csv")
     fever = read_config(root, "fever.csv")
-    stage = next(row for row in read_rows(root, "stages.csv") if row["stage"] == "1")
+    stage = next(row for row in read_rows(root, "stages.csv") if row["stage"] == str(stage_number))
     if economy["auto_hammer_count_init"] != 0:
         raise ValueError("This baseline model only supports an initial auto-hammer count of zero")
+    # 후반 단계는 업그레이드를 산 상태라 첫 런 파워로는 고HP 종류를 못 부순다. 가정 파워를 따로 받는다 (#247).
+    power = economy["base_hit_power"] if hit_power is None else hit_power
     targets = read_rows(root, "targets.csv")
     coins = read_rows(root, "coins.csv")
     for target in targets:
         value = expected_coin_value(coins, target["min_denom_id"], int(float(target["coin_count"])))
         target["expected_value"] = value
-        target["expected_value_per_hp"] = value / float(target["hp"])
+        # value 정책은 "타격당 기대값"으로 고른다. 파워로 몇 번 쳐야 부서지는지 반영해야 고HP 종류만
+        # 쫓다가 런이 끝나는 왜곡이 없다. 즉시 파괴 확률도 기대 타격 수를 줄인다.
+        hits = max(1.0, -(-float(target["hp"]) // power))
+        chance = float(target.get("instant_break_chance") or 0.0)
+        if chance > 0.0:
+            hits = (1 - (1 - chance) ** hits) / chance
+        target["expected_value_per_hp"] = value / hits
     # 종류별 가중치는 stage_spawns.csv (#293). 행이 없는 종류는 그 단계에 나오지 않는다.
     ratios = {row["target_id"]: float(row["ratio"])
               for row in read_rows(root, "stage_spawns.csv") if row["stage"] == stage["stage"]}
@@ -145,7 +153,7 @@ def simulate(root, runs, seed, uptime, policy):
                     fever_end, gauge = elapsed + fever["duration_sec"], 0.0
                     fevers += 1
             selected = next(s for s in active if s["id"] == selected_id)
-            selected["hp"] -= economy["base_hit_power"]
+            selected["hp"] -= power
             # 즉시 파괴 (#293). 확률 0 인 종류는 난수를 뽑지 않아 기존 시드 결과가 유지된다.
             chance = float(selected["target"].get("instant_break_chance") or 0.0)
             if selected["hp"] > 0 and chance > 0.0 and rng.random() < chance:
@@ -172,10 +180,11 @@ def simulate(root, runs, seed, uptime, policy):
         results.append((coin, elapsed, breaks, restorations, elapsed >= cap, fevers))
     coins_sorted = sorted(row[0] for row in results)
     return {
-        "runs": runs, "seed": seed, "hover_uptime": uptime, "policy": policy,
+        "stage": stage_number, "hit_power": power, "runs": runs, "seed": seed, "hover_uptime": uptime, "policy": policy,
         "mean_coin": round(statistics.mean(coins_sorted), 2),
         "p10_coin": round(coins_sorted[int((runs - 1) * 0.1)], 2),
         "median_coin": round(statistics.median(coins_sorted), 2),
+        "p60_coin": round(coins_sorted[int((runs - 1) * 0.6)], 2),
         "p90_coin": round(coins_sorted[int((runs - 1) * 0.9)], 2),
         "mean_seconds": round(statistics.mean(row[1] for row in results), 2),
         "mean_breaks": round(statistics.mean(row[2] for row in results), 2),
@@ -194,8 +203,11 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=46)
     parser.add_argument("--uptime", type=float, default=0.6)
     parser.add_argument("--policy", choices=["random", "value"], default="random")
+    parser.add_argument("--stage", type=int, default=1, help="stages.csv 의 단계 번호 (#247)")
+    parser.add_argument("--hit-power", type=float, default=None,
+                        help="가정 타격 파워. 생략하면 economy.csv base_hit_power (업그레이드 없음)")
     args = parser.parse_args()
     if args.runs <= 0 or not 0 <= args.uptime <= 1:
         parser.error("runs must be positive and uptime must be between 0 and 1")
     root = Path(__file__).resolve().parents[2] / "Assets/GameData/Balance"
-    print(json.dumps(simulate(root, args.runs, args.seed, args.uptime, args.policy), indent=2))
+    print(json.dumps(simulate(root, args.runs, args.seed, args.uptime, args.policy, args.stage, args.hit_power), indent=2))
