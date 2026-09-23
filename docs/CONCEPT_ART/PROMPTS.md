@@ -48,6 +48,18 @@ Extract only the {ASSET} from this scene as a single isolated game asset. Center
 | P-01m | FenceSection | `one straight section of the WOODEN RAIL FENCE (two horizontal log rails on three vertical posts, about 3 posts wide)` — `game asset` 을 `modular game asset` 으로 |
 | P-01n | TunnelEntrance | `MINE TUNNEL ENTRANCE (timber support frame: two thick vertical wooden posts with a horizontal beam and cross brace, plus a short length of iron mine rails on wooden sleepers running through it, dark opening inside)` — `whole object fully visible,` 뒤에 `no cave rock around it,` 추가 |
 
+### P-01o~p 컨테이너 소품 4종 재보정 (#237)
+
+작업 6.24(#237)에서 광차·나무상자 image-to-3D 결과에 반복적으로 결함이 나와 P-01 템플릿을 벗어난
+전용 프롬프트로 다시 만들었다. 자루는 P-01d 원본 이미지에 엠블럼이 있었을 뿐이라 `EditImage` 로만
+고쳤다. 반복 경위는 [mine-props.md](../TECH_NOTES/mine-props.md) "반복 보정 경위" 절 참고.
+
+| 번호 | 파일 | 방식 | 내용 |
+|---|---|---|---|
+| P-01o | OreCart (최종) | `GenerateImage` (P-01 형식 이탈, 처음부터) | `ORE CART (wooden mine cart on small iron wheels, loaded with dark ore chunks)` + 배경·구도 지시는 P-01 템플릿과 동일 + "all four wheels must be identical and consistently oriented — same size, same spoke/hub pattern, same rotation angle, all facing the same forward direction and aligned on the same two axle lines. No mismatched, tilted, or randomly rotated wheels." |
+| P-01p | WoodenCrate (최종) | `GenerateImage` (P-01 형식 이탈, 처음부터) | `WOODEN ORE CRATE WITH A HINGED LID (rugged mine storage crate used for hauling ore, thick weathered wood planks with dark grimy dirt-stained grain, sturdy rusty dark-iron corner plates, one rusty iron strap band running across the top of the lid, a couple of small dark ore chunks resting on top of the lid)` + "keep the overall shape a simple, perfectly rectangular cuboid box with flat sides" + "exactly 4 evenly spaced horizontal wood planks ... ONE clean continuous straight seam line ... unbroken from edge to edge" + "LID ... visibly THICK, like a solid slab about as tall as one wood plank" + "exactly TWO hinges: both hinges must be IDENTICAL" |
+| — | OreSack (최종) | `EditImage` (source = P-01d 원본) | `Remove the crossed pickaxe emblem/logo printed on the front of the burlap sack. Keep the sack plain burlap texture with no symbol, no marking, no design on the front — same sack shape, same rope tie, same ore/gold nuggets on top, same lighting and background.` |
+
 ### P-02 광석 덩어리 분리 — 템플릿
 
 P-01 과 같되 `Center it` → `Center it large` (작은 물체라 크게), `three-quarter front view` → `three-quarter view`.
