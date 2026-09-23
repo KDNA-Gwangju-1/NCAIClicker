@@ -622,7 +622,7 @@ namespace NCAIClicker.UI
             if (_dayText != null)
             {
                 int currentDay = _billService != null ? _billService.CurrentDay : 1;
-                _dayText.text = $"DAY {currentDay}";
+                _dayText.text = $"회차 DAY {currentDay}";
             }
 
             if (_runCoinText != null)
@@ -652,8 +652,8 @@ namespace NCAIClicker.UI
             var stageNumber = _stageService != null ? _stageService.CurrentStageNumber : 1;
             var bill = _billService?.ActiveBill;
             var billLine = bill == null || bill.IsPaid
-                ? $"{stageNumber}단계 고지서 납부 완료"
-                : $"{stageNumber}단계 고지서 ${bill.Amount:N0} · 마감 {GetDaysLeftAfterToday(bill)}일 남음";
+                ? $"{stageNumber}번째 고지서 납부 완료"
+                : $"{stageNumber}번째 고지서 ${bill.Amount:N0} · 납부 기한 {GetDaysLeftAfterToday(bill)}일 남음";
 
             if (_billStatusText != null)
             {

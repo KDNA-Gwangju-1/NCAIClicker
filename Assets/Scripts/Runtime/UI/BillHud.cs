@@ -96,7 +96,7 @@ namespace NCAIClicker.UI
                 return;
             }
 
-            _label.text = _hasBill ? $"D-{_daysLeft}  {_cachedAmount:N0}원" : "고지서 없음";
+            _label.text = _hasBill ? $"고지서 D-{_daysLeft}  ${_cachedAmount:N0}" : "고지서 없음";
             _label.color = _hasBill && _daysLeft <= _emphasisDaysLeft ? _dueSoonColor : _normalColor;
         }
     }
