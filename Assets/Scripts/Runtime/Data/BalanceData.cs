@@ -206,6 +206,12 @@ namespace NCAIClicker.Data
         /// <summary>이 값 이상의 액면만 추첨 후보가 된다 (coins.csv 의 CoinDef.Value 기준, 이슈 #178).</summary>
         public string MinDenomId;
 
+        /// <summary>
+        /// 이 값 이하의 액면만 추첨 후보가 된다 (#330). 비면 상한이 없다. 철광석이 1일차부터 $1,000 을 뽑아
+        /// 초반 해금이 운에 흔들리던 것을 막으려고 더했다 (#326).
+        /// </summary>
+        public string MaxDenomId;
+
         /// <summary>타격마다 남은 내구도와 무관하게 즉시 파괴될 확률 0~1 (#293). 피냐타형만 0보다 크다.</summary>
         public float InstantBreakChance;
 

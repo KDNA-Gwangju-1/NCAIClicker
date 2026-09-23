@@ -53,7 +53,7 @@ namespace NCAIClicker.UI
 
             SetText(_nameLabel, isUnlocked ? target.DisplayName : "???");
             SetText(_roleLabel, isUnlocked ? KeepWords(GetRoleText(target)) : string.Empty);
-            var expected = CoinLottery.GetExpectedValue(balanceData, target.MinDenomId, target.CoinCount);
+            var expected = CoinLottery.GetExpectedValue(balanceData, target.MinDenomId, target.MaxDenomId, target.CoinCount);
             SetText(_statLabel, isUnlocked ? $"HP {target.Hp} · 기대 ${expected:N0}" : string.Empty);
             SetText(_unlockLabel, isUnlocked
                 ? string.Empty

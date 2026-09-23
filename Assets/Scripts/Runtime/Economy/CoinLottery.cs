@@ -24,29 +24,23 @@ namespace NCAIClicker.Economy
         public static IReadOnlyList<CoinDrop> Draw(BalanceData balanceData, string minDenomId, int count,
             Func<double> nextDouble)
         {
+            return Draw(balanceData, minDenomId, null, count, nextDouble);
+        }
+
+        /// <summary>
+        /// 위와 같되 maxDenomId 액면의 value 이하로 후보를 한 번 더 좁힌다 (#330). 비었거나 못 찾으면 상한이 없다.
+        /// 게임 코드(Target·도감·해금 카드)는 targets.csv 의 min·max 둘 다 넘기는 이 모양을 쓴다.
+        /// </summary>
+        public static IReadOnlyList<CoinDrop> Draw(BalanceData balanceData, string minDenomId, string maxDenomId, int count,
+            Func<double> nextDouble)
+        {
             var drops = new List<CoinDrop>();
             if (balanceData == null || nextDouble == null || count <= 0)
             {
                 return drops;
             }
 
-            var minDenom = balanceData.GetCoin(minDenomId);
-            var pool = new List<CoinDef>();
-            var totalWeight = 0;
-            foreach (var coin in balanceData.Coins)
-            {
-                if (coin.Weight <= 0)
-                {
-                    continue;
-                }
-                if (minDenom != null && coin.Value < minDenom.Value)
-                {
-                    continue;
-                }
-                pool.Add(coin);
-                totalWeight += coin.Weight;
-            }
-
+            var pool = BuildPool(balanceData, minDenomId, maxDenomId, out var totalWeight);
             if (pool.Count == 0 || totalWeight <= 0)
             {
                 return drops;
@@ -77,22 +71,22 @@ namespace NCAIClicker.Economy
         /// </summary>
         public static decimal GetExpectedValue(BalanceData balanceData, string minDenomId, int count)
         {
+            return GetExpectedValue(balanceData, minDenomId, null, count);
+        }
+
+        /// <summary>상한(maxDenomId, #330)까지 넣은 기대 금액. 후보 규칙은 Draw 와 같다.</summary>
+        public static decimal GetExpectedValue(BalanceData balanceData, string minDenomId, string maxDenomId, int count)
+        {
             if (balanceData == null || count <= 0)
             {
                 return 0m;
             }
 
-            var minDenom = balanceData.GetCoin(minDenomId);
+            var pool = BuildPool(balanceData, minDenomId, maxDenomId, out var totalWeight);
             var weighted = 0m;
-            var totalWeight = 0;
-            foreach (var coin in balanceData.Coins)
+            foreach (var coin in pool)
             {
-                if (coin.Weight <= 0 || (minDenom != null && coin.Value < minDenom.Value))
-                {
-                    continue;
-                }
                 weighted += (decimal)coin.Value * coin.Weight;
-                totalWeight += coin.Weight;
             }
             return totalWeight > 0 ? count * weighted / totalWeight : 0m;
         }
@@ -126,28 +120,20 @@ namespace NCAIClicker.Economy
         /// </summary>
         public static IReadOnlyList<CoinRewardBand> GetRewardBands(BalanceData balanceData, string minDenomId, int count)
         {
+            return GetRewardBands(balanceData, minDenomId, null, count);
+        }
+
+        /// <summary>상한(maxDenomId, #330)까지 넣은 구간. 후보 규칙은 Draw 와 같다.</summary>
+        public static IReadOnlyList<CoinRewardBand> GetRewardBands(BalanceData balanceData, string minDenomId, string maxDenomId,
+            int count)
+        {
             var bands = new List<CoinRewardBand>();
             if (balanceData == null || count <= 0)
             {
                 return bands;
             }
 
-            var minDenom = balanceData.GetCoin(minDenomId);
-            var pool = new List<CoinDef>();
-            var totalWeight = 0;
-            foreach (var coin in balanceData.Coins)
-            {
-                if (coin.Weight <= 0)
-                {
-                    continue;
-                }
-                if (minDenom != null && coin.Value < minDenom.Value)
-                {
-                    continue;
-                }
-                pool.Add(coin);
-                totalWeight += coin.Weight;
-            }
+            var pool = BuildPool(balanceData, minDenomId, maxDenomId, out var totalWeight);
             if (pool.Count == 0 || totalWeight <= 0)
             {
                 return bands;
@@ -166,6 +152,37 @@ namespace NCAIClicker.Economy
                 weightBelow = weightUpTo;
             }
             return bands;
+        }
+
+        /// <summary>
+        /// 추첨 후보 — 가중치가 있고, min 액면 값 이상, max 액면 값 이하 (#330). 셋(Draw·기대값·구간)이 이 한 곳을 쓴다 —
+        /// 따로 적으면 도감·해금 카드가 보여 주는 값과 실제로 나오는 코인이 조용히 어긋난다.
+        /// min·max 를 coins.csv 에서 못 찾으면 그쪽 경계는 없다 (임포터가 미리 막는다). coins.csv 순서를 유지한다.
+        /// </summary>
+        private static List<CoinDef> BuildPool(BalanceData balanceData, string minDenomId, string maxDenomId, out int totalWeight)
+        {
+            var minDenom = balanceData.GetCoin(minDenomId);
+            var maxDenom = string.IsNullOrEmpty(maxDenomId) ? null : balanceData.GetCoin(maxDenomId);
+            var pool = new List<CoinDef>();
+            totalWeight = 0;
+            foreach (var coin in balanceData.Coins)
+            {
+                if (coin.Weight <= 0)
+                {
+                    continue;
+                }
+                if (minDenom != null && coin.Value < minDenom.Value)
+                {
+                    continue;
+                }
+                if (maxDenom != null && coin.Value > maxDenom.Value)
+                {
+                    continue;
+                }
+                pool.Add(coin);
+                totalWeight += coin.Weight;
+            }
+            return pool;
         }
 
         private static CoinDef PickOne(List<CoinDef> pool, int totalWeight, double roll)

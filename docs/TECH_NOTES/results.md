@@ -1,6 +1,6 @@
 # 결과 화면 2종
 
-> 관련 이슈: #34, #178, #300 · 최종 수정: 2026.09.23
+> 관련 이슈: #34, #178, #300, #326 · 최종 수정: 2026.09.23
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -24,6 +24,7 @@
   <tr><td>(#300) 코인 구간을 추첨을 여러 번 돌려 표본으로 구함</td><td>❌</td><td>열 때마다 숫자가 흔들린다. "뽑힌 코인 중 가장 큰 액면"으로 묶으면 구간·확률이 식으로 정확히 나오고(<code>CoinLottery.GetRewardBands</code>), 표본은 검사에서 식을 대조하는 데만 쓴다</td></tr>
   <tr><td>(#300) 카드 뒤를 반투명으로 깔아 정산창이 비치게 함 (원작 모양)</td><td>❌</td><td>UI_GUIDE 5절 "알파로 톤을 만들지 않는다" — <code>UiGuidelineChecks</code> 가 알파 톤으로 잡고, 뒤 배경에 따라 글자 대비가 무너진다. 불투명한 어두운 배경을 쓴다</td></tr>
   <tr><td>(#300) 고지서에서 돌아와 정산창이 다시 열릴 때마다 판정</td><td>❌</td><td>고지서를 닫으면 <code>ShowSettlement</code> 가 카운트업을 다시 돌려, 같은 정산인데 카드가 또 뜬다. 마지막으로 띄운 정산의 누적 수입을 기억해 한 번만 띄운다</td></tr>
+  <tr><td>(#326) 액면 칸을 "$1·$5·$25·$100" 네 개로 박아 둠 (#178 원안 — "c1000 은 후반 전용")</td><td>❌ → <b>#326 에서 바뀜</b></td><td>#247·#312 이후 철광석이 1일차부터 $1,000 을 뽑았는데 칸이 없어, "코인" 칸(개수 합)에는 잡히고 액면 칸에는 안 보였다. 합계가 내역으로 설명되지 않아 "수입이 비정상"으로 보고됐다. 이제 칸 수와 라벨을 <code>coins.csv</code> 에서 만든다</td></tr>
   <tr><td>정산창 현장 납부·더블 오어 낫싱 처분: 현장 납부만 살리고 더블 오어 낫싱은 뺀다 (#222)</td><td>✅</td><td>코드를 확인해 보니 이미 이 상태였다 — <code>PayButton</code>은 #34 원본 구현부터 <code>HandlePayClicked</code>→<code>BillPanel.ShowAsModal()</code>로 실제 배선돼 있었고, #181·#212가 고지서 모달 쪽 납부·부족액 표시를 완성시키면서 새 규칙 없이 그대로 동작하게 됐다. <code>GambleButton</code>(더블 오어 낫싱)은 애초에 프리팹에 넣은 적이 없다 — <code>ResultUIChecks</code>가 "MVP 범위 밖이라 없어야 한다"고 계속 검증해 왔다. 도박 규칙을 GDD·BALANCE에 새로 정의할 여유가 7일 일정에 없어, 이미 그렇게 된 상태를 그대로 유지하기로 한다</td></tr>
 </table>
 
@@ -83,7 +84,7 @@ flowchart LR
 
 직접 CSV를 파싱하지 않으며, IEconomyService, IBillService, IStageService 공용 인터페이스를 통해 런타임 수치를 조회한다.
 코인 개수 칸은 `IEconomyService.RunCoin`(금액)이 아니라 `IEconomyService.RunCoinBreakdown`(액면별 개수)을 합산해 채운다 —
-`BalanceData.Coins`의 순서대로 프리팹의 4개 액면 슬롯("$1"/"$5"/"$25"/"$100")에 매핑한다 (#178).
+`BalanceData.Coins`의 순서대로, coins.csv 행마다 하나씩 만든 액면 칸에 매핑한다 (#178, #326 — 예전에는 "$1~$100" 네 칸뿐이었다).
 
 ## 하루의 흐름과 고지서 패널 (#34 범위 확대)
 
@@ -138,7 +139,7 @@ ResultUI 생성  → SetServices(경제·고지서·단계) + SetBillPanel(billP
 |---|---|---|
 | 제목 | `{이름} 해금!` | `targets.csv` `display_name` |
 | 왼쪽 | 3D 외형(회전) + 뒤에서 도는 빛살(텍스처 없는 막대 12개) | `CreaturePreview` — 정산창 미리보기 (0, −500)·도감 미리보기(x 40 간격, y −500 줄)와 모델이 겹치지 않게 `_stageOrigin` 을 따로 (0, −700, 0) 에 둔다 |
-| 오른쪽 | `HP:` / `코인:` 아래 구간·확률 (0.1% 미만 구간은 줄을 내지 않고, 1% 미만은 `<1%`) | `hp`, `coin_count`, `min_denom_id`, `coins.csv` 가중치 → `CoinLottery.GetRewardBands` |
+| 오른쪽 | `HP:` / `코인:` 아래 구간·확률 (0.1% 미만 구간은 줄을 내지 않고, 1% 미만은 `<1%`) | `hp`, `coin_count`, `min_denom_id`, `max_denom_id`(#330), `coins.csv` 가중치 → `CoinLottery.GetRewardBands` |
 | 오른쪽 아래 | 역할 한 줄 (예: `타격마다 10% 즉시 파괴`) | 도감(#299)과 같은 `CreatureCodexEntry.GetRoleText` — CSV 열 없이 수치에서 만든다 |
 
 - 카드는 `PanelRoot` 의 마지막 자식이라 정산창 전부를 덮고, 정산창이 닫히면(`HideAll`) 함께 닫힌다. 파산 화면으로 바뀌면 닫는다.
@@ -158,6 +159,20 @@ ResultUI 생성  → SetServices(경제·고지서·단계) + SetBillPanel(billP
 * [x] Play Mode — 누적 190 에서 런 수입 18 로 208(구리광석 기준 200 통과) 정산을 열어, 카운트업 뒤 카드 표시·`구리광석 해금!`·HP 6·위 세 구간·미리보기 `tourist` 를 캡처로 확인. 수치 판 위를 실제 레이캐스트로 눌러도 닫기 버튼이 받아 닫힘. 고지서를 열었다 닫아 정산창이 다시 열려도 카드는 다시 안 뜸. `NanumGothicBoldSDF` 에 `–`(U+2013) 글리프 있음. 콘솔 오류 0건
 * [x] #299(도감)·#316 리베이스 뒤 — 충돌 없이 합쳐졌다(`CoinLottery.cs` 는 #299 의 `GetExpectedValue` 와 다른 자리). 전체 30/30 (#299 의 `UnlockChecks` PASS 5 포함). Play Mode 로 금광석(누적 5990 → 6015) 카드를 캡처: HP 10, 구간 4줄(`$44–$200 <1%` · `$64–$1,000 13%` · `$139–$4,000 54%` · `$1,039–$40,000 33%`, `$40` 줄은 숨김), 역할 `타격마다 10% 즉시 파괴`
 * [ ] 자연스럽게 런을 돌려 기준액을 넘기는 흐름은 누적 값을 심어 대신했다 — 누적 계산 자체는 #301 의 `UnlockChecks` 가 본다. 빌드된 실행 파일에서는 확인하지 않았다
+
+## 정산창 액면 칸 누락 (2026.09.23, #326)
+
+**버그**: 정산창 액면 칸이 `$1·$5·$25·$100` 네 개뿐이었다. `coins.csv` 에는 $1,000 이 있고, #247·#312 이후 철광석이 1일차부터
+2.5% 로 $1,000 을 뽑는다. 그래서 "코인 10" 인데 칸에는 8개(`0×$1·5×$5·2×$25·1×$100` = $175)만 보이고 합계는 $2,385 가 됐다 —
+보이지 않는 $1,000 두 개($2,000)와 반지·피버 배율이다. 파산과는 무관했다.
+
+**고침**: `ResultUIPrefabCreator.CreateDenomRow` 가 칸을 `coins.csv` 행마다 하나, 라벨을 그 값(`$1,000`)으로 만든다. `ResultUIController.UpdateDenomCounts`
+는 원래 `BalanceData.Coins` 순서로 채우고 있어 그대로다. 해금이 1일차에 몰린 다른 절반은 철광석 최대 액면(#330)으로 막았다 — [coin-economy.md](coin-economy.md).
+
+- [x] `ResultUIChecks` PASS 21 (+2) — 프리팹 칸 수 = 액면 종류 수, 라벨이 coins.csv 순서의 값, **모든 액면을 다른 개수(1·2·3…)로 섞어 넣으면 칸 합 = "코인" 칸이고 칸으로 계산한 금액 = 원시 합, 가장 큰 액면 칸도 보인다** (값은 coins.csv 에서 읽는다)
+- [x] 고치기 전 프리팹(네 칸)을 되돌려 넣으면 "액면 칸이 4개인데 coins.csv 액면은 5종입니다" 로 실패한다
+- [x] 프리팹은 생성기로 다시 만들었다 — 직전 프리팹(#300 생성기 출력)과 대조해 지운 줄 0, `DenomChip4`($1,000) 추가뿐
+- [x] Play Mode — 이슈와 같은 첫 런을 재현해 캡처: 액면 칸 `0 $1 · 5 $5 · 2 $25 · 1 $100 · 2 $1,000`, "코인 10", 다섯 칸이 한 줄에 들어간다. 콘솔 오류 0건
 
 ## 검증
 
@@ -216,4 +231,5 @@ EditMode 검증(ResultUIChecks) 및 Unity MCP 런타임 환경에서 확인했�
   <tr><td>2026.09.22</td><td>#249</td><td>saltlake00</td><td>납부 후 퍽 선택 및 스킬 트리 안내 흐름 전체 연결 완료</td></tr>
   <tr><td>2026.09.22</td><td>#261</td><td>saltlake00</td><td>정산창 "내 몫" 이중 징수 제거 — <code>RunCoin</code> 은 이미 순수입이라 <code>gross * cut</code> 을 다시 빼지 않는다. "빅 토니 징수" 줄은 조회 계약이 없어 자리표시자로 되돌림. <code>TotalCoinCount</code> → <code>GetTotalCoinCount</code> (메서드 동사 규칙)</td></tr>
   <tr><td>2026.09.23</td><td>#300</td><td>twins6375-art</td><td>새 저금통 해금 카드 — 해금이 일어난 정산창 위에 <code>{이름} 해금!</code>·3D 외형·HP·코인 구간과 확률, 클릭으로 닫힘, 여러 종류면 해금 순서대로. <code>UnlockCardView</code>·<code>CoinLottery.GetRewardBands</code>·<code>CoinRewardBand</code>·<code>UnlockCardChecks</code> 추가, 해금 판정을 <code>FindAllJustUnlocked</code> 한 곳으로 모음. 역할 한 줄은 도감(#299)의 <code>GetRoleText</code>, 0.1% 미만 구간은 숨김. 이슈 본문의 '다음 런 시작 직전' 안은 버렸다(왜 이 방법인가)</td></tr>
+  <tr><td>2026.09.23</td><td>#326</td><td>twins6375-art</td><td>정산창 액면 칸을 coins.csv 행마다 만들고 라벨도 데이터에서 — $1,000 칸이 없어 합계가 내역으로 설명되지 않던 버그. <code>ResultUIChecks</code> 에 칸 수·라벨·칸 합 = 코인 개수 검사</td></tr>
 </table>

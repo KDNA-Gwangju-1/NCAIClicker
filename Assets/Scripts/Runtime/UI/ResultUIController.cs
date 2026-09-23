@@ -991,11 +991,11 @@ namespace NCAIClicker.UI
         }
 
         /// <summary>
-        /// 액면별 개수 칸. 프리팹이 만드는 칸 수는 coins.csv 앞 네 행(c1·c5·c25·c100)과 맞춰 뒀다
-        /// (ResultUIPrefabCreator.CreateDenomRow) — c1000 은 후반 전용이라 칸이 없다.
+        /// 액면별 개수 칸. 프리팹은 coins.csv 행마다 한 칸씩, 그 값으로 라벨을 만든다
+        /// (ResultUIPrefabCreator.CreateDenomRow, #326) — 칸이 모자라면 그 액면이 코인 개수에는 잡히고
+        /// 칸에는 안 보여 합계가 내역으로 설명되지 않는다 (예전에 $1,000 칸이 없던 버그).
         /// _balanceData.Coins 순서(=coins.csv 파일 순서)대로 칸을 채운다 — WorthText 라벨이
-        /// 이미 그 순서로 "$1"·"$5"·"$25"·"$100" 를 박아 뒀기 때문에 순서가 어긋나면 안 맞는
-        /// 액면 밑에 숫자가 붙는다.
+        /// 같은 순서로 만들어져 있어 순서가 어긋나면 안 맞는 액면 밑에 숫자가 붙는다.
         /// </summary>
         private void UpdateDenomCounts()
         {

@@ -133,7 +133,7 @@ namespace NCAIClicker.EditorTools
                 Assert(title.text == first.DisplayName + " 해금!", "카드 제목이 다릅니다: " + title.text);
                 Assert(Get<TextMeshProUGUI>(card, "_hpValueText").text == first.Hp.ToString(),
                        "HP 가 targets.csv 의 " + first.Hp + " 가 아닙니다: " + Get<TextMeshProUGUI>(card, "_hpValueText").text);
-                AssertBands(card, CoinLottery.GetRewardBands(balance, first.MinDenomId, first.CoinCount));
+                AssertBands(card, CoinLottery.GetRewardBands(balance, first.MinDenomId, first.MaxDenomId, first.CoinCount));
                 // 역할 문구는 도감(#299)과 같은 한 곳에서 나와야 한다 — 두 화면이 다른 말을 하면 안 된다.
                 Assert(Get<TextMeshProUGUI>(card, "_roleText").text == CreatureCodexEntry.GetRoleText(first),
                        "역할 문구가 도감의 GetRoleText 와 다릅니다: " + Get<TextMeshProUGUI>(card, "_roleText").text);

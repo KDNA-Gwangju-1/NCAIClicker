@@ -156,7 +156,7 @@ namespace NCAIClicker.UI
             {
                 _preview.Show(target.Id);
             }
-            RenderBands(CoinLottery.GetRewardBands(_balanceData, target.MinDenomId, target.CoinCount));
+            RenderBands(CoinLottery.GetRewardBands(_balanceData, target.MinDenomId, target.MaxDenomId, target.CoinCount));
         }
 
         private void RenderBands(IReadOnlyList<CoinRewardBand> allBands)

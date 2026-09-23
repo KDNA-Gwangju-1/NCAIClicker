@@ -23,6 +23,7 @@ namespace NCAIClicker.EditorTools
             checkCount += RunViewBranchChecks();
             checkCount += RunResultPrefabChecks();
             checkCount += RunDenomBreakdownChecks();
+            checkCount += RunDenomCoverageChecks();
 
             Debug.Log("[ResultUIChecks] PASS " + checkCount + " checks.");
         }
@@ -170,6 +171,21 @@ namespace NCAIClicker.EditorTools
             }
             checkCount++;
 
+            // 액면 칸은 coins.csv 행마다 하나, 라벨은 그 값이다 (#326). 칸이 모자라면 그 액면이 "코인" 개수에는 잡히고
+            // 칸에는 안 보여 합계가 내역으로 설명되지 않는다 — 예전에 $1,000 칸이 없어 실제로 그랬다.
+            var resultBalance = (BalanceData)typeof(ResultUIController).GetField("_balanceData", flags).GetValue(controller);
+            var denomTexts = (TextMeshProUGUI[])typeof(ResultUIController).GetField("_denomCountTexts", flags).GetValue(controller);
+            AssertCondition(resultBalance != null && denomTexts.Length == resultBalance.Coins.Count,
+                $"액면 칸이 {denomTexts.Length}개인데 coins.csv 액면은 {resultBalance?.Coins.Count}종입니다. 다시 만드세요 (#326).");
+            for (var i = 0; i < denomTexts.Length; i++)
+            {
+                var worth = denomTexts[i].transform.parent.Find("WorthText")?.GetComponent<TextMeshProUGUI>();
+                var expectedWorth = "$" + resultBalance.Coins[i].Value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
+                AssertCondition(worth != null && worth.text == expectedWorth,
+                    $"{i + 1}번째 액면 라벨이 {worth?.text} 입니다. coins.csv 순서대로 {expectedWorth} 여야 합니다.");
+            }
+            checkCount++;
+
             // 동작이 없는 버튼은 눌리면 안 된다. 눌리면 아무 일도 안 일어나고 플레이어는 고장으로 읽는다.
             var payButton = FindButton(prefab, "PayButton");
             AssertCondition(payButton != null, "납부 버튼을 프리팹에서 찾지 못했습니다.");
@@ -255,6 +271,65 @@ namespace NCAIClicker.EditorTools
             }
 
             return checkCount;
+        }
+
+        /// <summary>
+        /// #326 — 실제 ResultUI 프리팹에 **모든 액면**을 하나 이상 섞어 넣으면, 액면 칸에 보이는 개수의 합이 "코인" 칸과 같고
+        /// 칸으로 계산한 금액이 원시 합과 같아야 한다. 예전에는 가장 큰 액면($1,000) 칸이 없어 이슈의 첫 런
+        /// ($5×5·$25×2·$100×1·$1,000×2)이 "코인 10" 인데 칸에는 8개만 보였다. 값은 coins.csv 에서 읽어 CSV 가 바뀌어도 맞는다.
+        /// </summary>
+        private static int RunDenomCoverageChecks()
+        {
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Resources/UI/ResultUI.prefab");
+            var host = (GameObject)UnityEditor.PrefabUtility.InstantiatePrefab(prefab);
+            host.hideFlags = HideFlags.HideAndDontSave;
+            var controller = host.GetComponent<ResultUIController>();
+            var flags = BindingFlags.NonPublic | BindingFlags.Instance;
+            var type = typeof(ResultUIController);
+            // Edit Mode 에서 3D 미리보기는 모델·카메라를 만들고 Destroy 로 지우려 해서 끊는다. 연출도 끈다.
+            type.GetField("_codexPreview", flags).SetValue(controller, null);
+            type.GetField("_unlockCard", flags).SetValue(controller, null);
+            type.GetField("_countUpDurationSec", flags).SetValue(controller, 0f);
+            var balance = (BalanceData)type.GetField("_balanceData", flags).GetValue(controller);
+            var denomTexts = (TextMeshProUGUI[])type.GetField("_denomCountTexts", flags).GetValue(controller);
+            var runCoinText = (TextMeshProUGUI)type.GetField("_runCoinText", flags).GetValue(controller);
+            try
+            {
+                var economy = new FakeEconomyService { EarnedTotal = 0 };
+                var expectedCount = 0;
+                var expectedValue = 0L;
+                for (var i = 0; i < balance.Coins.Count; i++)
+                {
+                    // 액면마다 다른 개수(1, 2, 3…)라 칸이 하나 밀려도 드러난다.
+                    economy.Breakdown.Add(new CoinDrop(balance.Coins[i].Id, i + 1));
+                    expectedCount += i + 1;
+                    expectedValue += (long)(i + 1) * balance.Coins[i].Value;
+                }
+                economy.RunCoin = expectedValue;
+                controller.SetServices(economy, null, null);
+                controller.ShowSettlement();
+
+                var shownSum = 0;
+                var shownValue = 0L;
+                for (var i = 0; i < denomTexts.Length; i++)
+                {
+                    var n = int.Parse(denomTexts[i].text);
+                    shownSum += n;
+                    shownValue += (long)n * balance.Coins[i].Value;
+                }
+                AssertCondition(runCoinText.text == expectedCount.ToString() && shownSum == expectedCount,
+                    "코인 칸은 " + runCoinText.text + " 인데 액면 칸 합은 " + shownSum + " 입니다 — 보이지 않는 액면이 있습니다 (#326).");
+                AssertCondition(shownValue == expectedValue, "액면 칸으로 계산한 금액 " + shownValue + " 이 원시 합 " + expectedValue + " 과 다릅니다.");
+                var last = balance.Coins.Count - 1;
+                AssertCondition(denomTexts[last].text == (last + 1).ToString(),
+                    "가장 큰 액면(" + balance.Coins[last].Id + ") 칸에 " + (last + 1) + " 이 보여야 합니다: " + denomTexts[last].text);
+            }
+            finally
+            {
+                controller.HideAll();
+                UnityEngine.Object.DestroyImmediate(host);
+            }
+            return 1;
         }
 
         private static BalanceData MakeMiniBalance()

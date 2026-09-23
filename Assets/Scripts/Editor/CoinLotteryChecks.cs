@@ -21,6 +21,7 @@ namespace NCAIClicker.EditorTools
             checkCount += RunDistributionChecks();
             checkCount += RunAggregationChecks();
             checkCount += RunRewardBandChecks();
+            checkCount += RunMaxDenomChecks();
 
             Debug.Log("[CoinLotteryChecks] PASS " + checkCount + " checks.");
         }
@@ -297,6 +298,58 @@ namespace NCAIClicker.EditorTools
                 UnityEngine.Object.DestroyImmediate(fiveDenoms);
             }
 
+            return checkCount;
+        }
+
+        /// <summary>
+        /// 최대 액면 (#330). 추첨·기대값·구간이 같은 상한을 지키는지, 비었거나 못 찾은 상한은 "없음" 인지 본다.
+        /// 철광석이 1일차부터 $1,000 을 뽑아 해금이 운에 흔들리던 것(#326)을 막는 필터다.
+        /// </summary>
+        private static int RunMaxDenomChecks()
+        {
+            var checkCount = 0;
+            var balance = MakeBalance(("c1", 1, 60), ("c5", 5, 25), ("c25", 25, 10), ("c100", 100, 4), ("c1000", 1000, 1));
+            try
+            {
+                // roll 이 1 에 가까우면 상한이 없을 때 가장 큰 액면(c1000)이 나온다. 상한 c100 이면 c100 까지만.
+                var capped = CoinLottery.Draw(balance, "c5", "c100", 50, () => 0.999999);
+                var uncapped = CoinLottery.Draw(balance, "c5", null, 50, () => 0.999999);
+                AssertCondition(capped.Count == 1 && capped[0].DenomId == "c100",
+                    "상한 c100 인데 c100 보다 큰 액면이 나왔거나 c100 이 아닙니다: " + (capped.Count > 0 ? capped[0].DenomId : "없음"));
+                AssertCondition(uncapped.Count == 1 && uncapped[0].DenomId == "c1000", "상한이 없으면 c1000 이 나와야 합니다.");
+                checkCount++;
+
+                // 시드 고정 대량 추첨 — 상한 위 액면은 한 번도 나오지 않는다.
+                var rng = new System.Random(330);
+                for (var i = 0; i < 5000; i++)
+                {
+                    foreach (var drop in CoinLottery.Draw(balance, "c5", "c100", 1, rng.NextDouble))
+                    {
+                        AssertCondition(balance.GetCoin(drop.DenomId).Value <= 100, "상한 c100 을 넘는 " + drop.DenomId + " 이 나왔습니다.");
+                    }
+                }
+                checkCount++;
+
+                // 기대값·구간도 같은 후보를 쓴다. c5~c100: (5×25 + 25×10 + 100×4) / 39.
+                var expected = (5m * 25 + 25m * 10 + 100m * 4) / 39m;
+                AssertCondition(Math.Abs(CoinLottery.GetExpectedValue(balance, "c5", "c100", 1) - expected) < 0.0001m,
+                    "상한을 넣은 기대값이 " + expected.ToString("0.##") + " 가 아닙니다: " + CoinLottery.GetExpectedValue(balance, "c5", "c100", 1));
+                var bands = CoinLottery.GetRewardBands(balance, "c5", "c100", 1);
+                AssertCondition(bands.Count == 3 && bands[bands.Count - 1].TopDenomId == "c100",
+                    "상한 c100 구간은 c5·c25·c100 세 개여야 합니다: " + bands.Count);
+                checkCount++;
+
+                // 비었거나 coins.csv 에 없는 상한은 "상한 없음" 이다 (임포터가 없는 id 는 미리 막는다). 옛 모양도 같다.
+                AssertCondition(CoinLottery.GetExpectedValue(balance, "c5", "", 1) == CoinLottery.GetExpectedValue(balance, "c5", 1)
+                                && CoinLottery.GetExpectedValue(balance, "c5", "없는id", 1) == CoinLottery.GetExpectedValue(balance, "c5", 1)
+                                && CoinLottery.GetRewardBands(balance, "c5", null, 1).Count == CoinLottery.GetRewardBands(balance, "c5", 1).Count,
+                    "빈 상한·없는 상한은 상한이 없는 것과 같아야 합니다.");
+                checkCount++;
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(balance);
+            }
             return checkCount;
         }
 
