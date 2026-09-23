@@ -58,6 +58,9 @@ namespace NCAIClicker.UI
         [Tooltip("정산창이 열릴 때 금액·진행률이 0 에서 올라가는 시간(초). 0 이면 연출 없이 바로 표시")]
         [SerializeField] private float _countUpDurationSec = 0.8f;
 
+        [Tooltip("금액 카운트업 뒤 해금 진행률이 올라가는 시간(초). 금액과 따로 보여 줘야 차오르는 게 보인다")]
+        [SerializeField] private float _progressDurationSec = 1.2f;
+
         private Coroutine _countUpRoutine;
         private Coroutine _unlockPunchRoutine;
 
@@ -358,9 +361,23 @@ namespace NCAIClicker.UI
                 SetMoney(_balanceText, balance - runCoin + shown);
                 if (progressTarget != null && before >= 0L)
                 {
-                    SetCodexCaption(GetProgressCaptionToward(progressTarget, before + shown));
+                    // 금액이 오르는 동안 진행률은 지난 수치에 머문다
+                    SetCodexCaption(GetProgressCaptionToward(progressTarget, before));
                 }
                 yield return null;
+            }
+
+            // 금액이 다 오른 뒤 진행률을 따로 천천히 올린다 (#247 PM: 1초 내외로 보여 준다).
+            if (progressTarget != null && before >= 0L && _progressDurationSec > 0f)
+            {
+                elapsed = 0f;
+                while (elapsed < _progressDurationSec)
+                {
+                    elapsed += Time.unscaledDeltaTime;
+                    var t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / _progressDurationSec));
+                    SetCodexCaption(GetProgressCaptionToward(progressTarget, before + (long)Mathf.Round(runCoin * t)));
+                    yield return null;
+                }
             }
 
             _countUpRoutine = null;
