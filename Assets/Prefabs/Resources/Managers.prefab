@@ -150,6 +150,7 @@ GameObject:
   - component: {fileID: 5698368792507650637}
   - component: {fileID: 973819007005177771}
   - component: {fileID: 2470400381175560268}
+  - component: {fileID: 3837724069393808496}
   m_Layer: 0
   m_Name: Managers
   m_TagString: Untagged
@@ -435,3 +436,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NCAIClicker.UI.PerkChoiceController
   _balanceData: {fileID: 11400000, guid: 148d52a305feece4e9ed4cb51a933689, type: 2}
   _panelPrefab: {fileID: 2817454402918735262, guid: ceeac3dbc831e9947872bc7a8c22dc72, type: 3}
+--- !u!114 &3837724069393808496
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3648626491330066443}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea91bbb93d0454d92a3ca59194223738, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NCAIClicker.UI.EndingController
+  _balanceData: {fileID: 11400000, guid: 148d52a305feece4e9ed4cb51a933689, type: 2}
+  _panelPrefab: {fileID: 5686757225321792941, guid: 129d554734cee4b0c8582ae6c9eeac29, type: 3}
