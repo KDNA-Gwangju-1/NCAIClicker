@@ -31,7 +31,7 @@ MonoBehaviour:
     SpawnIntervalSec: 0
     ExtraSpawnChanceOnDestroy: 0
     LegacyPointPerAmount: 50
-    UpgradeCostGrowth: 1.15
+    UpgradeCostGrowth: 1.3
     StageGoalGrowth: 2.5
   Fever:
     GaugeMax: 100
@@ -68,7 +68,7 @@ MonoBehaviour:
     StaminaRestore: 0
     MoveSpeed: 0.05
     TurnIntervalSec: 6
-    CoinCount: 1
+    CoinCount: 3
     MinDenomId: c100
     InstantBreakChance: 0
     ChargeSpeed: 0
@@ -94,7 +94,7 @@ MonoBehaviour:
     StaminaRestore: 70
     MoveSpeed: 0.2
     TurnIntervalSec: 5
-    CoinCount: 1
+    CoinCount: 2
     MinDenomId: c25
     InstantBreakChance: 0
     ChargeSpeed: 0
@@ -107,7 +107,7 @@ MonoBehaviour:
     StaminaRestore: 0
     MoveSpeed: 0.3
     TurnIntervalSec: 4
-    CoinCount: 10
+    CoinCount: 40
     MinDenomId: c1
     InstantBreakChance: 0.1
     ChargeSpeed: 0
@@ -120,7 +120,7 @@ MonoBehaviour:
     StaminaRestore: 0
     MoveSpeed: 0.35
     TurnIntervalSec: 5
-    CoinCount: 3
+    CoinCount: 9
     MinDenomId: c100
     InstantBreakChance: 0
     ChargeSpeed: 2.5
@@ -185,6 +185,19 @@ MonoBehaviour:
     - Stat: 16
       Type: 0
       ValuePerLevel: 2
+  - Id: coin_bonus
+    DisplayName: "\uBD80\uC5C5 \uC7A5\uBD80"
+    Description: "\uD2C8\uD2C8\uC774 \uC801\uC5B4 \uB454 \uBD80\uC5C5 \uC218\uC785\uC774
+      \uC313\uC778\uB2E4. \uC800\uAE08\uD1B5\uC5D0\uC11C \uB098\uC624\uB294 \uCF54\uC778\uC774
+      \uB298\uC5B4\uB09C\uB2E4"
+    InitCost: 50
+    CostGrowth: 1.5
+    MaxLevel: 30
+    SortOrder: 5
+    Effects:
+    - Stat: 13
+      Type: 0
+      ValuePerLevel: 1
   Stages:
   - Stage: 1
     BillAmount: 20
