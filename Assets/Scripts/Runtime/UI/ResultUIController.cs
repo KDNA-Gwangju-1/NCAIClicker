@@ -1042,7 +1042,7 @@ namespace NCAIClicker.UI
             HideAll();
             if (_billPanel != null)
             {
-                _billPanel.ShowAsPrestige();
+                _billPanel.ShowAsPrestigeWithFade();
             }
             else
             {
