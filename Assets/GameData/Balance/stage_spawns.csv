@@ -1,13 +1,16 @@
 stage,target_id,ratio,note
-1,normal,0.6,#293 에서 stages.csv 의 normal_ratio 열을 그대로 옮김
-1,anchor,0.15,
-1,runner,0.1,
-1,tourist,0.15,
-2,normal,0.45,
-2,anchor,0.2,
-2,runner,0.2,
-2,tourist,0.15,
-3,normal,0.35,
-3,anchor,0.25,
-3,runner,0.25,
-3,tourist,0.15,
+1,normal,1.0,1단계는 일반형만 (#247)
+2,normal,0.75,
+2,tourist,0.25,최초 등장
+3,normal,0.55,
+3,tourist,0.2,
+3,anchor,0.25,최초 등장
+4,normal,0.45,
+4,tourist,0.15,
+4,anchor,0.2,
+4,pinata,0.2,최초 등장
+5,normal,0.35,
+5,tourist,0.15,
+5,anchor,0.15,
+5,pinata,0.15,
+5,angry,0.2,최초 등장
