@@ -52,6 +52,7 @@ flowchart LR
 | 클래스 | 경로 | 하는 일 |
 |---|---|---|
 | `HammerSwingController` | `Assets/Scripts/Runtime/Core/HammerSwingController.cs` | 상시 스윙 타이머 관리, 커서 스크린 좌표 책상 평면 투영, Physics.OverlapSphere 기반 레티클 반경 판정, OnHit 호출 및 OnSwingResolved 발행 |
+| `HammerSwingVisual` | `Assets/Scripts/Runtime/Core/HammerSwingVisual.cs` | 바닥 레티클·쿨타임 세그먼트·허공 망치 연출, 마우스 위치 흰 점 커서(최상단 Screen Space Overlay 캔버스) |
 
 ### 이벤트
 
@@ -106,6 +107,7 @@ Unity 6000.3.21f1 에디터 Edit Mode 및 Play Mode, 2026.09.17.
 * `HammerSwingVisual._swingInterval` 은 `#if UNITY_EDITOR` 안에서만 BalanceData 를 읽는다. 이 컴포넌트는 코드가 스스로 만들어 붙어 인스펙터 오버라이드도 없으므로 **빌드에서는 0.85 가 고정**이다. `hover_swing_interval_sec` 를 바꾸면 게이지와 실제 스윙 박자가 어긋난다 (#132 범위 밖).
 * `Game.unity` 에 저장된 `HammerSwingController` 에 현재 스크립트에 없는 `_maxRayDistance` 가 남아 있다. 동작에는 영향이 없지만 씬이 옛 버전 스크립트로 저장된 흔적이다 — 씬 소유자가 정리한다.
 * 레티클·망치 머티리얼은 여전히 런타임에 `Shader.Find` 로 만든다. 셰이더 이름이 문자열이라 URP 버전이 올라가 이름이 바뀌면 컴파일은 통과하고 실행에서만 깨진다. 근본적으로는 머티리얼을 에셋으로 두고 참조하는 편이 맞지만, 이 컴포넌트가 코드로 스스로 붙어 인스펙터 배선이 없어 미뤘다 — 3D 에셋 교체(6.6)에서 비주얼을 프리팹으로 옮길 때 같이 정리한다.
+* 레티클은 투명 큐(3000)에서 깊이 테스트를 받으므로 같은 큐나 더 늦은 큐의 불투명하지 않은 바닥에 가려질 수 있다. 바닥 머티리얼은 Sorting Priority(`_QueueOffset`)로 2999 이하에 둔다 — `Render Queue` 칸만 바꾸면 URP 가 되돌린다 (#316). 마우스 위치 자체는 오버레이 캔버스의 흰 점이라 무엇에도 가려지지 않는다.
 * `_hittableLayerMask` 기본값이 전체 레이어라 프로젝트에 레이어가 세분화되면 과잉 판정될 수 있다. 대상 레이어가 정해지면 인스펙터에서 좁혀야 한다.
 
 ## 갱신 이력
@@ -117,3 +119,4 @@ Unity 6000.3.21f1 에디터 Edit Mode 및 Play Mode, 2026.09.17.
 | 2026.09.17 | #132 | saltlake00 | 조준 반경을 `economy.csv` 로 이관, 연출 원을 같은 출처에서 유도, `OverlapSphereNonAlloc` 전환 |
 | 2026.09.17 | #151 | saltlake00 | URP/Unlit 이 빌드에서 스트립돼 레티클이 마젠타로 렌더되던 것을 Always Included Shaders 등록으로 수정, 빌트인 셰이더 폴백 제거 |
 | 2026.09.22 | #256 | Claude | 최근접 하나만 때리던 판정을 반경 내 전체 타격으로 전환 (데미지 분할 없음) |
+| 2026.09.23 | #316 | saltlake00 | 바닥 머티리얼 큐 2999 로 레티클 가림 해결, 마우스 위치 흰 점 커서 추가 |
