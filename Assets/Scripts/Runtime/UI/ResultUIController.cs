@@ -54,6 +54,11 @@ namespace NCAIClicker.UI
         [SerializeField] private TextMeshProUGUI _codexProgressText;
         [SerializeField] private TextMeshProUGUI _codexCaptionText;
         [SerializeField] private CreaturePreview _codexPreview;
+
+        [Tooltip("정산창이 열릴 때 금액·진행률이 0 에서 올라가는 시간(초). 0 이면 연출 없이 바로 표시")]
+        [SerializeField] private float _countUpDurationSec = 0.8f;
+
+        private Coroutine _countUpRoutine;
         [SerializeField] private Button _upgradeButton;
         [SerializeField] private Button _payButton;
         [SerializeField] private TextMeshProUGUI _payCaptionText;
@@ -281,6 +286,68 @@ namespace NCAIClicker.UI
 
             SetBackgroundBlur(true);
             UpdateSettlementView();
+            StartCountUp();
+        }
+
+        /// <summary>
+        /// 정산창이 열릴 때 이번 런 금액이 올라가는 연출 (#301). 최종값은 UpdateSettlementView 가 이미 썼고,
+        /// 여기서는 잠깐 덮어쓰며 올려 보일 뿐이다 — 연출이 끊겨도 값이 틀리지 않는다.
+        /// </summary>
+        private void StartCountUp()
+        {
+            StopCountUp();
+            if (_countUpDurationSec <= 0f || _economyService == null || !isActiveAndEnabled)
+            {
+                return;
+            }
+            _countUpRoutine = StartCoroutine(CountUp());
+        }
+
+        private void StopCountUp()
+        {
+            if (_countUpRoutine != null)
+            {
+                StopCoroutine(_countUpRoutine);
+                _countUpRoutine = null;
+            }
+        }
+
+        private System.Collections.IEnumerator CountUp()
+        {
+            var runCoin = _economyService.RunCoin;
+            var balance = _economyService.CurrentCoin;
+            var earned = _economyService.EarnedTotal;
+            var showsProgress = _balanceData != null && FindJustUnlocked(earned, runCoin) == null &&
+                                _balanceData.GetNextUnlockTarget(earned) != null;
+
+            var elapsed = 0f;
+            while (elapsed < _countUpDurationSec)
+            {
+                // 정산창은 시간이 멈춘 상태일 수 있어 실제 시간으로 센다.
+                elapsed += Time.unscaledDeltaTime;
+                var t = Mathf.Clamp01(elapsed / _countUpDurationSec);
+                t = 1f - (1f - t) * (1f - t);
+                var shown = (long)Mathf.Round(runCoin * t);
+                SetMoney(_grossText, shown);
+                SetMoney(_netText, shown);
+                SetMoney(_balanceText, balance - runCoin + shown);
+                if (showsProgress)
+                {
+                    SetCodexCaption(GetUnlockProgressCaption(earned - runCoin + shown));
+                }
+                yield return null;
+            }
+
+            _countUpRoutine = null;
+            UpdateSettlementView();
+        }
+
+        private static void SetMoney(TextMeshProUGUI label, long amount)
+        {
+            if (label != null)
+            {
+                label.text = $"${amount:N0}";
+            }
         }
 
         public void ShowBankruptcy()
@@ -395,6 +462,11 @@ namespace NCAIClicker.UI
         private void UpdateSettlementView()
         {
             EnsureServices();
+            // 다른 경로(납부 등)로 다시 그리면 연출을 멈추고 최종값을 쓴다.
+            if (_countUpRoutine != null)
+            {
+                StopCountUp();
+            }
 
             if (_titleText != null)
             {
@@ -559,7 +631,7 @@ namespace NCAIClicker.UI
         }
 
         /// <summary>
-        /// 종류별 파괴 수. 현재 단계까지 해금된 종류만 해금 순서로 채운다 (#247).
+        /// 종류별 파괴 수. 회차 누적 수입으로 해금된 종류만 해금 순서로 채운다 (#247, #301).
         /// 칸보다 해금 종류가 많으면 가장 최근에 해금된 것들을 보여 준다. 남는 칸은 비운다.
         /// </summary>
         private void UpdateBrokenChips()
@@ -569,7 +641,7 @@ namespace NCAIClicker.UI
                 return;
             }
 
-            var unlocked = _balanceData != null ? _balanceData.GetUnlockedTargets(GetStageNumber()) : null;
+            var unlocked = _balanceData != null ? _balanceData.GetUnlockedTargets(GetEarnedTotal()) : null;
             var skip = unlocked != null ? Mathf.Max(0, unlocked.Count - _brokenChipTexts.Length) : 0;
             for (var i = 0; i < _brokenChipTexts.Length; i++)
             {
@@ -599,8 +671,8 @@ namespace NCAIClicker.UI
         }
 
         /// <summary>
-        /// "다음 저금통 해금까지" 패널. 고지서를 내면 단계가 오르고 다음 종류가 나온다 (#247).
-        /// 다음 종류는 stage_spawns.csv 에서 계산한다.
+        /// "다음 크리처 해금" 패널 (#301). 해금은 이번 회차 누적 수입이 targets.csv 의 unlock_earned 를
+        /// 넘는 정산에서 일어난다. 이번 정산에서 해금됐으면 그 종류를, 아니면 다음 종류와 진행률을 보여 준다.
         /// </summary>
         private void UpdateNextUnlock()
         {
@@ -616,55 +688,74 @@ namespace NCAIClicker.UI
                 return;
             }
 
-            // 납부하면 그 자리에서 단계가 오른다 (StageGoalManager). 납부 직후에는 "다음" 이 아니라
-            // 방금 해금된 종류를 보여 줘야 한다 — 다음 날 책상에 처음 나올 종류다.
-            var bill = _billService != null ? _billService.ActiveBill : null;
-            var isJustUnlocked = bill != null && bill.IsPaid;
-            var next = isJustUnlocked
-                ? FindUnlockedAt(GetStageNumber())
-                : _balanceData.GetNextUnlockTarget(GetStageNumber());
+            var earned = GetEarnedTotal();
+            var runCoin = _economyService != null ? _economyService.RunCoin : 0L;
+            var justUnlocked = FindJustUnlocked(earned, runCoin);
+            var shown = justUnlocked ?? _balanceData.GetNextUnlockTarget(earned);
             if (_codexPreview != null)
             {
-                _codexPreview.Show(next != null ? next.Id : null);
+                _codexPreview.Show(shown != null ? shown.Id : null);
             }
 
-            if (next == null)
+            if (shown == null)
             {
                 _codexProgressText.text = "모든 크리처 해금";
                 SetCodexCaption(string.Empty);
                 return;
             }
 
-            _codexProgressText.text = next.DisplayName;
-            SetCodexCaption(isJustUnlocked ? "해금 완료 · 다음 날 등장" : GetUnlockProgressCaption(bill));
-        }
-
-        private TargetDef FindUnlockedAt(int stageNumber)
-        {
-            foreach (var target in _balanceData.Targets)
-            {
-                if (_balanceData.GetUnlockStage(target.Id) == stageNumber)
-                {
-                    return target;
-                }
-            }
-            return null;
+            _codexProgressText.text = shown.DisplayName;
+            SetCodexCaption(justUnlocked != null ? "해금! 다음 날 등장" : GetUnlockProgressCaption(earned));
         }
 
         /// <summary>
-        /// 해금 조건은 이번 단계 고지서 납부다 (StageGoalManager). 진행률은 납부 버튼과 같은 기준인
-        /// 보유 코인 ÷ 고지서 금액으로, 100% 에서 멈춘다.
+        /// 이번 런 수입으로 기준을 넘은 종류 중 가장 나중 것. 없으면 null.
+        /// 파산으로 누적이 0 이 됐는데 RunCoin 이 남아 있으면 earned - runCoin 이 음수가 된다 — 그때 기준 0 인
+        /// 첫 종류가 "해금!" 으로 잡히지 않도록, 처음부터 있는 종류(기준 0)와 음수 구간은 제외한다.
         /// </summary>
-        private string GetUnlockProgressCaption(Bill bill)
+        private TargetDef FindJustUnlocked(long earned, long runCoin)
         {
-            if (bill == null || bill.Amount <= 0)
+            var before = earned - runCoin;
+            if (before < 0L)
             {
-                return "고지서 납부 시 해금";
+                return null;
             }
 
-            var coin = _economyService != null ? _economyService.CurrentCoin : 0L;
-            var percent = Mathf.Min(100, Mathf.FloorToInt(100f * Mathf.Max(0L, coin) / bill.Amount));
-            return $"고지서 ${bill.Amount:N0} 납부 시 해금 · {percent}%";
+            TargetDef latest = null;
+            foreach (var target in _balanceData.GetUnlockOrder())
+            {
+                if (target.UnlockEarned > 0L && target.UnlockEarned > before && target.UnlockEarned <= earned)
+                {
+                    latest = target;
+                }
+            }
+            return latest;
+        }
+
+        /// <summary>
+        /// 진행률 = 직전 해금 기준액부터 다음 기준액까지 구간에서 누적 수입이 온 비율. 원작 해금 칸의 %.
+        /// </summary>
+        private string GetUnlockProgressCaption(long earned)
+        {
+            var next = _balanceData != null ? _balanceData.GetNextUnlockTarget(earned) : null;
+            if (next == null)
+            {
+                return string.Empty;
+            }
+
+            var previous = 0L;
+            foreach (var target in _balanceData.GetUnlockedTargets(earned))
+            {
+                previous = System.Math.Max(previous, target.UnlockEarned);
+            }
+            var span = System.Math.Max(1L, next.UnlockEarned - previous);
+            var percent = Mathf.Clamp(Mathf.FloorToInt(100f * (earned - previous) / span), 0, 99);
+            return $"누적 ${earned:N0} / ${next.UnlockEarned:N0} · {percent}%";
+        }
+
+        private long GetEarnedTotal()
+        {
+            return _economyService != null ? _economyService.EarnedTotal : 0L;
         }
 
         private void SetCodexCaption(string text)
@@ -673,11 +764,6 @@ namespace NCAIClicker.UI
             {
                 _codexCaptionText.text = text;
             }
-        }
-
-        private int GetStageNumber()
-        {
-            return _stageService != null ? _stageService.CurrentStageNumber : 1;
         }
 
         /// <summary>이번 런에 실제로 뽑힌 코인 총 개수. RunCoinBreakdown 각 항목의 Count 합이다.</summary>
