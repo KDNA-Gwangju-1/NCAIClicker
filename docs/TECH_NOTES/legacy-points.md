@@ -173,7 +173,7 @@ flowchart LR
 
 ### 반지 구매 창 (2026-09-23, #291)
 
-`ValidationRunner.RunAll()` — **통과 26 / 실패 0 (전체 26)**, 도메인 리로드 직후 요약 줄로 확인했다.
+`ValidationRunner.RunAll()` — **통과 27 / 실패 0 (전체 27)**, 도메인 리로드 직후 요약 줄로 확인했다 (#297 리베이스 뒤, 새 `ChargeChecks` 포함). **컴파일이 끝난 것을 먼저 확인하고 돌렸다** — 리베이스 직후 곧바로 돌렸을 때는 옛 어셈블리로 26 개만 돌았고, 검증이 CSV 를 옛 스키마로 재임포트하면서 `BalanceData.asset` 에서 #297 의 필드를 지웠다. 생성 파일을 되돌리고 새 스키마로 다시 재니 커밋본과 같았다.
 새로 넣은 검사는 `BillManagerChecks` 4건(+기존 마감 미납 흐름 안에 확인 3개), `LegacyPointChecks` 4건,
 `BillPanelChecks` 1건(+프레스티지 화면 확인 1개)이다.
 
