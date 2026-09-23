@@ -185,6 +185,15 @@ public interface IWalletPersistence
     string CurrentRemainderText { get; }
 }
 
+// 회차 누적 수입 저장·초기화 (#301). SaveManager(저장·복원)·BillManager(파산 초기화)만 쓴다.
+// 크리처 해금은 이 값과 targets.csv 의 unlock_earned 로만 계산한다 — 해금 목록은 저장하지 않는다.
+// 읽기는 IEconomyService.EarnedTotal 로 한다 (CreatureManager 추첨, 정산창 진행률).
+public interface IUnlockPersistence
+{
+    long EarnedTotal { get; }
+    void RestoreEarnedTotal(long earnedTotal);   // 이벤트를 내지 않는다
+}
+
 // 업그레이드 실효값 조회. 소비처는 BalanceData 기준값 대신 이것을 읽는다 (이슈 #116).
 // 기준값은 항상 호출측이 넘긴다 — spawn_count 처럼 기준값이 현재 단계(StageDef)에 따라
 // 달라지는 스탯이 있어, 표를 여기서 복제하지 않도록 통일했다 (#24 구현 중 발견, #116 코멘트).
@@ -354,7 +363,8 @@ public class SaveData
 - 런 도중 종료하면 **그 런의 시작 스냅샷**으로 복귀한다. 그날의 수입·지출·납부·대출·퍼크 변경을 전부 함께 되돌린다. 씬의 대상 위치·남은 내구도는 저장하지 않는다. 중간 상태 일부만 저장해 재실행으로 빚만 지워지는 일을 막는다.
 - 하루 종료 처리가 끝나면 결과와 다음 행동 상태를 함께 저장한다. 로드 시 `LastCompletedDay`를 다시 정산하지 않는다. **이 줄은 아직 목표다.** `CurrentDay`·`BillIndex`·`LastLoanRepaidDay`·`OfferedPerkIds`·`ActiveBill`·`ActiveLoan`은 #221 이 `IBillPersistence` 통로로 수집·복원을 잇는다. 여전히 수집하지 않는 필드는 `PendingPerkIds`·`LastCompletedDay`·`ResumePoint`·`LastRunCoin`·`BestRunCoin`·`WasBankrupt`·`IsCompleted` 다 — 복원 통로를 가질 계약이 아직 없어서인데, **담아 두고 되돌리지 못하면 "저장된다"는 착각만 만든다.** 계약 이슈가 먼저다 (docs/TECH_NOTES/save-load.md 알려진 한계).
 - 저장은 임시 파일 작성 후 교체한다. JSON 오류·지원하지 않는 버전은 원본을 백업하고 경고 후 초기화한다. 버전 1은 회차 정보가 없으므로 성장·코인은 유지하고 하루/고지서/대출을 기본값으로 보완한다.
-- 파산 시 보유 코인·소수 잔여·단계·날짜·고지서·대출·퍼크·업그레이드를 새 회차 값으로 초기화한다. 레거시 포인트·반지와 최고 기록은 유지한다 (회차 층과 영구 층의 경계, #250). 파산 결과는 `WasBankrupt`와 `LastCompletedDay`로 별도 표시한다.
+- 회차 누적 수입 `EarnedTotal` 은 #301 이 `IUnlockPersistence` 로 수집·복원한다 (v6). v5 이하 저장은 0 으로 시작한다 — 단계에서 누적을 거꾸로 추정하지 않는다.
+- 파산 시 보유 코인·소수 잔여·단계·날짜·고지서·대출·퍼크·업그레이드·**회차 누적 수입(크리처 해금)**을 새 회차 값으로 초기화한다. 레거시 포인트·반지와 최고 기록은 유지한다 (회차 층과 영구 층의 경계, #250). 파산 결과는 `WasBankrupt`와 `LastCompletedDay`로 별도 표시한다.
 
 ### 직렬화 방식 (이슈 1.2.2)
 
@@ -463,6 +473,7 @@ GameManager만 `OnStaminaDepleted`와 `OnBankrupt`를 구독한다. **Running �
 | `OnStageGoalReached` | `int` | 단계 목표(코인) 도달, 도달한 단계 번호 |
 | `OnPerkOffered` | `string[]` | 조기 납부 성공 시 뽑힌 퍼크 후보 id 3개 |
 | `OnPerkChosen` | `string` | 퍼크 후보 중 고른 id |
+| `OnCreatureUnlocked` | `string` | 정산 때 회차 누적 수입이 기준액을 넘어 새로 해금된 크리처 id. 종류마다 한 번. 복원·파산 초기화에서는 내지 않는다 (#301) |
 
 선언은 `public static event Action<...>` 형식이다. 피버는 두 소스의 적중을 받아도 되지만,
 자동 망치를 정확도 분모·분자에 넣지 않는다. UI는 구독 후 공용 조회 인터페이스로 초기 상태를 한 번 읽는다.

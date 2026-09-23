@@ -56,7 +56,7 @@ flowchart LR
   end
 
   events{{"GameEvents"}}
-  balance[("BalanceData<br/>targets.csv · stages.csv · stage_spawns.csv · economy.csv")]
+  balance[("BalanceData<br/>targets.csv · stages.csv · economy.csv")]
 
   swing -- "OnHit(HitInfo)" --> target
   target -- "피격 통지" --> movement
@@ -130,7 +130,7 @@ TargetNormal (루트)          ← 로직: Target, CreatureMovement, SphereColli
 | `targets.csv` | `stamina_restore` | `BreakInfo.StaminaRestore`. 회복형만 0 보다 크다 |
 | `targets.csv` | `move_speed`, `turn_interval_sec` | `CreatureMovement` 배회 이동 속도 및 방향 전환 주기 |
 | `stages.csv` | `spawn_count` | `CreatureManager` 동시 출현 목표 수 |
-| `stage_spawns.csv` | `stage`, `target_id`, `ratio` | `CreatureManager` 단계별 종류 등장 가중치. 행이 없는 종류는 그 단계에 안 나온다 (#293) |
+| `targets.csv` | `unlock_earned`, `spawn_weight` | 해금 기준 회차 누적 수입과 등장 가중치 (#301). `CreatureManager` 는 해금된 종류만 가중치로 뽑는다. `stage_spawns.csv`(#293)는 폐기 |
 | `targets.csv` | `instant_break_chance` | `Target.OnHit` 타격마다 즉시 파괴 확률 (#293). 피냐타형만 0 보다 크다 |
 | `targets.csv` | `charge_speed`, `charge_damage_ratio` | `CreatureMovement` 분노 돌진 속도와 충돌 피해 비율 (#297). 화난 저금통만 0 보다 크다 |
 | `economy.csv` | `hit_radius_bonus` | 피격 반경 확대 비율 |
@@ -359,7 +359,7 @@ instance 로 끼웠다. `TargetAnchor`/`Runner`/`Tourist` 는 대응하는 3D �
 * [x] `ChargeChecks` 7건 추가 — Charge 로는 분노 안 함, 호버로 분노·피해 ×0.7, 경직 후 최근접 돌진·충돌 피해 1회, 스윙 이벤트 미발행, 비돌진 종류 무반응, 분노끼리 반격
 * [x] `NCAI > 전체 검증 실행` 27/27 통과
 
-### #247 크리처 단계별 해금 (2026-09-23)
+### #247 크리처 단계별 해금 (2026-09-23) — 해금 판정은 #301 에서 누적 수입 기준으로 교체
 
 * 5종을 5단계에 하나씩 해금 — `stage_spawns.csv` 행으로만 표현한다 (#293 구조). 고속형은 행이 없어 나오지 않는다
 * `TargetAngry.prefab` 추가 (`TargetAnchor` 복제, `_targetId: angry`), `Managers.prefab` 목록에 등록
@@ -371,6 +371,18 @@ instance 로 끼웠다. `TargetAnchor`/`Runner`/`Tourist` 는 대응하는 3D �
 * 크리처 이름을 광물 이름으로 (철광석·구리광석·은광석·금광석·다이아몬드, `targets.csv` display_name)
 * 결과 화면 "다음 해금" 칸: 다음 크리처를 `CreaturePreview`(Visual 만 복제 → 화면 밖 전용 카메라 → RenderTexture → RawImage, 천천히 회전)로 보여 주고, 캡션에 해금 조건과 진행률(보유 코인 ÷ 고지서, 최대 100%)을 표시. 미리보기 프리팹 목록은 `ResultUIPrefabCreator.AttachCreaturePreview` 가 Managers 목록에서 복사한다
 * [x] `UnlockChecks` 4건 추가(미리보기·스포너 목록 일치 포함), `NCAI > 전체 검증 실행` 28/28 통과
+
+### #301 해금을 회차 누적 수입 기준으로 (2026-09-23)
+
+* 해금 판정: `BalanceData.GetUnlockOrder` / `GetUnlockedTargets(earned)` / `GetNextUnlockTarget(earned)` / `IsUnlocked`. #247 의 단계 기준 `GetUnlockStage`·`GetStageSpawns` 는 삭제
+* `EconomyManager.EndRun` 이 `RunCoin` 을 `EarnedTotal` 에 더하고, 새로 기준을 넘은 종류마다 `GameEvents.OnCreatureUnlocked` 발행. `RestoreEarnedTotal`(저장 복원·파산)은 이벤트 없음
+* `CreatureManager.PickUnlockedPrefab` — 해금된 종류를 `spawn_weight` 로 추첨. 누적은 `SetEconomyService` 로 받은 `IEconomyService.EarnedTotal`
+* 저장 v6 `EarnedTotal`, 파산 시 `BillManager` 가 0 으로
+* 정산창 "다음 크리처 해금": 누적 구간 진행률 / 이번 정산 해금 표시. 파산으로 누적이 0 이 된 날 첫 종류가 "해금!" 으로 잡히던 경우를 막음(기준 0·음수 구간 제외)
+* 정산창 금액 카운트업 연출(0.8초, 합계·내 몫·보유액·진행률) — `_countUpDurationSec`
+* 디버그 `NCAI/디버그/다음 크리처 해금 직전으로` — 누적을 다음 기준액 −1 로. 런 도중 쓰면 스폰 종류가 그 자리에서 바뀐다(규칙상은 다음 런부터)
+* [x] `UnlockChecks` 재작성(해금 순서·경계·정산 이벤트 횟수·복원 무이벤트·미리보기 목록), 테스트 대역 5개에 `EarnedTotal`, `ResultUIChecks` 값 타입 필드 제외
+* [x] `NCAI > 전체 검증 실행` 28/28 통과
 
 ## 갱신 이력
 
@@ -391,3 +403,4 @@ instance 로 끼웠다. `TargetAnchor`/`Runner`/`Tourist` 는 대응하는 3D �
 | 2026-09-23 | #293 | saltlake00 | 출현 비율을 `stage_spawns.csv` 로 분리, 프리팹 목록을 `target_id` 키로, `instant_break_chance` 즉시 파괴 추가 |
 | 2026-09-23 | #297 | saltlake00 | 화난 저금통 분노·돌진 — `HitSource.Charge`, `CreatureState.Charging`, `targets.csv` 돌진 열 2개 |
 | 2026-09-23 | #247 | saltlake00 | 크리처 5종 단계별 해금, `TargetAngry` 추가, 외형 재배정, 검증 2건 보정 |
+| 2026-09-23 | #301 | saltlake00 | 크리처 해금을 회차 누적 수입 기준으로, `stage_spawns.csv` 폐기, 저장 v6, `OnCreatureUnlocked`, 정산창 진행률·카운트업 |
