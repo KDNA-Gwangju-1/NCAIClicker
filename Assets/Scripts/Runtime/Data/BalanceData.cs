@@ -54,6 +54,62 @@ namespace NCAIClicker.Data
         public List<StageSpawnDef> GetStageSpawns(int stageNumber) => StageSpawns.FindAll(s => s.Stage == stageNumber);
 
         /// <summary>
+        /// 종류가 처음 등장하는 단계 (#247). stage_spawns.csv 에서 비율이 0 보다 큰 첫 단계이며, 없으면 0 이다.
+        /// 해금은 이 값으로만 판정한다 — 코드에 해금 목록을 두지 않는다.
+        /// </summary>
+        public int GetUnlockStage(string targetId)
+        {
+            var first = 0;
+            foreach (var spawn in StageSpawns)
+            {
+                if (spawn.TargetId == targetId && spawn.Ratio > 0f && (first == 0 || spawn.Stage < first))
+                {
+                    first = spawn.Stage;
+                }
+            }
+            return first;
+        }
+
+        /// <summary>stageNumber 단계까지 해금된 종류를 해금 순서(같은 단계면 targets.csv 순서)로 돌려준다.</summary>
+        public List<TargetDef> GetUnlockedTargets(int stageNumber)
+        {
+            var unlocked = Targets.FindAll(t =>
+            {
+                var stage = GetUnlockStage(t.Id);
+                return stage > 0 && stage <= stageNumber;
+            });
+            // List.Sort 는 안정 정렬이 아니라 원래 순서를 보조 키로 쓴다.
+            var order = new Dictionary<string, int>();
+            for (var i = 0; i < Targets.Count; i++)
+            {
+                order[Targets[i].Id] = i;
+            }
+            unlocked.Sort((a, b) =>
+            {
+                var byStage = GetUnlockStage(a.Id).CompareTo(GetUnlockStage(b.Id));
+                return byStage != 0 ? byStage : order[a.Id].CompareTo(order[b.Id]);
+            });
+            return unlocked;
+        }
+
+        /// <summary>stageNumber 다음 단계들 중 가장 먼저 해금되는 종류. 더 없으면 null.</summary>
+        public TargetDef GetNextUnlockTarget(int stageNumber)
+        {
+            TargetDef next = null;
+            var nextStage = int.MaxValue;
+            foreach (var target in Targets)
+            {
+                var stage = GetUnlockStage(target.Id);
+                if (stage > stageNumber && stage < nextStage)
+                {
+                    next = target;
+                    nextStage = stage;
+                }
+            }
+            return next;
+        }
+
+        /// <summary>
         /// 씨앗값으로 고지서 이름을 고른다. 고지서마다 다른 이름이 나오되, **같은 고지서를 다시 열면
         /// 같은 이름**이 나와야 한다 — 열 때마다 바뀌면 "아까 그 고지서가 맞나" 를 의심하게 된다.
         /// 그래서 난수 생성기 대신 씨앗값을 흩는 해시를 쓴다.

@@ -1898,7 +1898,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\uB2E4\uC74C \uC800\uAE08\uD1B5 \uD574\uAE08\uAE4C\uC9C0"
+  m_text: "\uACE0\uC9C0\uC11C \uB0A9\uBD80 \uC2DC \uD574\uAE08"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 3fb0b1a4823e64bab83fe9dcd97db598, type: 2}
   m_sharedMaterial: {fileID: 5784178288401293008, guid: 3fb0b1a4823e64bab83fe9dcd97db598, type: 2}
@@ -5154,6 +5154,109 @@ MonoBehaviour:
   m_FlexibleWidth: -1
   m_FlexibleHeight: -1
   m_LayoutPriority: 1
+--- !u!1 &5250457018330612321
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5690117418962793091}
+  - component: {fileID: 4396635029686419208}
+  - component: {fileID: 3107832502374440188}
+  - component: {fileID: 5130169477024036132}
+  m_Layer: 0
+  m_Name: CodexPreview
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &5690117418962793091
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5250457018330612321}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6466182611153992734}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!222 &4396635029686419208
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5250457018330612321}
+  m_CullTransparentMesh: 1
+--- !u!114 &3107832502374440188
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5250457018330612321}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1344c3c82d62a2a41a3576d8abb8e3ea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.RawImage
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Texture: {fileID: 0}
+  m_UVRect:
+    serializedVersion: 2
+    x: 0
+    y: 0
+    width: 1
+    height: 1
+--- !u!114 &5130169477024036132
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5250457018330612321}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f15ba725ef085634091baf808a27e30a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NCAIClicker.UI.CreaturePreview
+  _image: {fileID: 3107832502374440188}
+  _prefabs:
+  - _targetId: normal
+    _prefab: {fileID: 4546548138084177262, guid: 97f92a5f98a67c743a32a484234b7048, type: 3}
+  - _targetId: anchor
+    _prefab: {fileID: 7893189225021298616, guid: 0cb329d029ddcbf40996830aecd3bcfe, type: 3}
+  - _targetId: runner
+    _prefab: {fileID: 875064334984069561, guid: d64d25f50930aca47af313f9fc4057f6, type: 3}
+  - _targetId: tourist
+    _prefab: {fileID: 7395411435693180892, guid: 00144c806ceb7f44fab552c551c2a687, type: 3}
+  - _targetId: pinata
+    _prefab: {fileID: 7307835849117988394, guid: 8cdfecc443d343608e3bfd763f2536e7, type: 3}
+  - _targetId: angry
+    _prefab: {fileID: 7893189225021298616, guid: 9dde40fe511e33c408839f1b2a50f9f2, type: 3}
+  _stageOrigin: {x: 0, y: -500, z: 0}
+  _textureSize: 256
+  _turnSpeedDegPerSec: 40
+  _cameraOffset: {x: 0, y: 0.55, z: -1.9}
 --- !u!1 &5297034208404056234
 GameObject:
   m_ObjectHideFlags: 0
@@ -8841,6 +8944,8 @@ MonoBehaviour:
   - {fileID: 1257340565228041816}
   - {fileID: 1530396823429012419}
   _codexProgressText: {fileID: 4610282248876068558}
+  _codexCaptionText: {fileID: 7577819257311287508}
+  _codexPreview: {fileID: 5130169477024036132}
   _upgradeButton: {fileID: 6280797796909353258}
   _payButton: {fileID: 6069514066881826332}
   _payCaptionText: {fileID: 1158411830151691390}
@@ -9515,7 +9620,8 @@ RectTransform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 5690117418962793091}
   m_Father: {fileID: 5069967508481933021}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
