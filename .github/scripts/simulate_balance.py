@@ -77,7 +77,7 @@ def expected_coin_value(coins, min_denom_id, count):
     return count * weighted_value / total_weight
 
 
-def simulate(root, runs, seed, uptime, policy, stage_number=1, hit_power=None, earned=0, spawn_bonus=0):
+def simulate(root, runs, seed, uptime, policy, stage_number=1, hit_power=None, earned=0, spawn_bonus=0, bonus_add=0.0):
     stamina = read_config(root, "stamina.csv")
     economy = read_config(root, "economy.csv")
     fever = read_config(root, "fever.csv")
@@ -98,9 +98,19 @@ def simulate(root, runs, seed, uptime, policy, stage_number=1, hit_power=None, e
         if chance > 0.0:
             hits = (1 - (1 - chance) ** hits) / chance
         target["expected_value_per_hp"] = value / hits
+        target["expected_hits"] = hits
     # 해금은 회차 누적 수입 기준이다 (#301). spawn_weight 가 0 이면 해금 목록에도 없다.
     targets = [target for target in targets
                if float(target["spawn_weight"]) > 0.0 and earned >= int(float(target["unlock_earned"]))]
+    # 스태미나 회복은 런을 늘려 준다 — 돌려받는 시간 동안 평균적으로 벌 코인으로 환산해 타격당 가치에 더한다 (#247).
+    # 이것이 없으면 value 정책이 회복형을 무시하고 고HP 종류만 쫓아 런이 일찍 끝나는 왜곡이 생긴다.
+    if targets:
+        average_per_hit = statistics.mean(target["expected_value_per_hp"] for target in targets)
+        hits_per_sec = uptime / economy["hover_swing_interval_sec"]
+        for target in targets:
+            restore_seconds = float(target["stamina_restore"]) / stamina["idle_drain_per_sec"]
+            bought = restore_seconds * hits_per_sec * average_per_hit
+            target["expected_value_per_hp"] += bought / target["expected_hits"]
     weights = [float(target["spawn_weight"]) for target in targets]
     extra_spawn_chance = economy["extra_spawn_chance_on_destroy"]
     rng = random.Random(seed)
@@ -166,7 +176,7 @@ def simulate(root, runs, seed, uptime, policy, stage_number=1, hit_power=None, e
             # (이슈 #178). Target.OnHit 은 이 두 열을 더는 읽지 않는다 — CoinLottery.Draw
             # 만 본다. 이 두 열은 현재 지급액에 영향이 없는 죽은 필드다.
             raw_coin = draw_coin_lottery(coins, target["min_denom_id"], int(float(target["coin_count"])), rng)
-            coin += raw_coin * multiplier * economy["coin_bonus_multiplier"]
+            coin += raw_coin * multiplier * (economy["coin_bonus_multiplier"] + bonus_add)
             restore = float(target["stamina_restore"])
             energy = min(stamina["max_stamina"], energy + restore)
             restorations += int(restore > 0)
@@ -241,7 +251,7 @@ def upgrade_cost(upgrade, level, default_growth):
 
 def simulate_campaign(root, players, seed, uptime, policy, max_days=120):
     """회차 전체를 돈다 (#247). 매일 한 런 → 지갑에 입금 → 낼 수 있으면 고지서 납부 → 고지서 금액을 남겨 두고
-    완력 단련·저금통 수집벽을 싼 것부터 산다. 기한 안에 못 내면 파산으로 끝낸다. 퍼크·반지·자동 망치·피버 강화는
+    완력 단련·저금통 수집벽·코인 배율(coin_bonus)을 싼 것부터 산다. 기한 안에 못 내면 파산으로 끝낸다. 퍼크·반지·자동 망치·피버 강화는
     모델링하지 않는다 — 수입 곡선이 고지서 곡선을 따라가는지만 본다."""
     economy = read_config(root, "economy.csv")
     stages = read_rows(root, "stages.csv")
@@ -252,7 +262,7 @@ def simulate_campaign(root, players, seed, uptime, policy, max_days=120):
         per_level.setdefault(effect["upgrade_id"], {})[effect["stat"]] = float(effect["value_per_level"])
     default_growth = economy["upgrade_cost_growth"]
     base_power = economy["base_hit_power"]
-    buyable = [upgrade_id for upgrade_id in ("strong_hammer", "desk_expand") if upgrade_id in upgrades]
+    buyable = [upgrade_id for upgrade_id in ("strong_hammer", "desk_expand", "coin_bonus") if upgrade_id in upgrades]
 
     paid_day = [[] for _ in stages]
     reached = [0] * len(stages)
@@ -264,8 +274,9 @@ def simulate_campaign(root, players, seed, uptime, policy, max_days=120):
         for day in range(1, max_days + 1):
             power = base_power + per_level.get("strong_hammer", {}).get("base_hit_power", 0.0) * levels.get("strong_hammer", 0)
             spawn_bonus = int(per_level.get("desk_expand", {}).get("spawn_count", 0.0) * levels.get("desk_expand", 0))
+            bonus_add = per_level.get("coin_bonus", {}).get("coin_bonus_multiplier", 0.0) * levels.get("coin_bonus", 0)
             result = simulate(root, 1, seed * 100003 + player * 997 + day, uptime, policy,
-                              stage_index + 1, power, earned, spawn_bonus)
+                              stage_index + 1, power, earned, spawn_bonus, bonus_add)
             income = int(result["mean_coin"])
             if day == 1:
                 first_run.append(income)
