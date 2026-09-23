@@ -332,6 +332,15 @@ stat 은 일부뿐이라(`max_stamina`·`fever_gauge_per_hit`·`coin_bonus_multi
   ([#132](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/132)), `hit_radius`(대상 콜라이더
   확대)와는 다른 축이다. 두 축에 같은 업그레이드를 걸면 효과가 두 번 곱해진다 (BALANCE 6절 표)
 
+### #247 부업 장부(코인 배율) 추가와 카드 5장 배치 (2026-09-23)
+
+* `upgrades.csv` 에 `coin_bonus`(부업 장부) 행을 추가했다 — 초기 50 · 단가 1.5배 · 최대 30레벨, 효과 `coin_bonus_multiplier` +1.0/Lv. 원작 고지서 11장에 수입 곡선을 맞추는 후반 성장 엔진이다 (근거 BALANCE.md "고지서 — 원작 고지서 11장"). 코드는 고치지 않았다 — `EconomyManager` 가 이 stat 을 이미 업그레이드 실효값으로 읽는다. `UpgradeConsumerChecks` 의 배율 검증이 "해당 업그레이드 없음" 건너뛰기에서 실제 검증으로 켜졌다
+* `economy.csv` `upgrade_cost_growth` 1.15 → 1.3 (나머지 4종의 단가)
+* 업그레이드 탭 카드 배치: 2열 534×328 → **3열 × 2행, 카드 350×328**. 이름 40 → 32px, Lv 칸 160 → 110(22px), 설명·효과 22 → 20px. 시안 비교(A안 3×2 / B안 2×3)는 PR 에 남기고, 구현했으므로 목업 파일은 README 규칙대로 지웠다
+* `UpgradeShopPrefabCreator` 도 같은 값으로 고쳤다 — 카드 수는 원래 `upgrades.csv` 행 수를 따르므로 다시 생성해도 5장이 나온다. 이번에는 #184 디자인 조정을 잃지 않도록 프리팹을 다시 만들지 않고 MCP 로 고쳤다 (카드 복제 → `_upgradeId: coin_bonus`, 패널 `_entries` 5개)
+* **개선 예정 (PM):** 좁아진 카드에서 설명이 빡빡하다 — [#311](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/311)
+* [x] `NCAI > 전체 검증 실행` 29/29 (UI 가이드라인 포함)
+
 ## 갱신 이력
 
 | 날짜 | 이슈 | 누가 | 무엇이 바뀌었나 |
@@ -346,3 +355,4 @@ stat 은 일부뿐이라(`max_stamina`·`fever_gauge_per_hit`·`coin_bonus_multi
 | 2026-09-22 | #250 | yahoo-afk | 업그레이드를 영구 층에서 **회차 층**으로 이관 (4.16, 팀장 결정). `BillManager.ResetRound` 가 `IUpgradePersistence.RestoreUpgradeLevels(null)` 로 비운다. 레거시 포인트·반지는 그대로 영구 층 |
 | 2026-09-22 | #249 | saltlake00 | 새 고지서의 `아직` 버튼을 스킬 트리 탭으로 연결하고 최초 1회 투자 안내 팝업 배선 완료 |
 | 2026-09-22 | #258 | yahoo-afk | 자동 망치를 `IUpgradeStats` 로 연결 (3.12). push 통로 `SetBonusCount` 제거, `BeginRun` 이 보유 수를 굳힌다. `UpgradeConsumerChecks` 에 자동 망치 3건과 조립 지점 원문 확인 1건 추가 |
+| 2026-09-23 | #247 | saltlake00 | 부업 장부(`coin_bonus`) 추가, 단가 성장 1.3, 업그레이드 탭 3열×2행 배치 |

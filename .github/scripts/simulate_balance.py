@@ -2,6 +2,7 @@
 import argparse
 import csv
 import json
+import math
 import random
 import statistics
 from pathlib import Path
@@ -76,7 +77,7 @@ def expected_coin_value(coins, min_denom_id, count):
     return count * weighted_value / total_weight
 
 
-def simulate(root, runs, seed, uptime, policy, stage_number=1, hit_power=None, earned=0):
+def simulate(root, runs, seed, uptime, policy, stage_number=1, hit_power=None, earned=0, spawn_bonus=0, bonus_add=0.0):
     stamina = read_config(root, "stamina.csv")
     economy = read_config(root, "economy.csv")
     fever = read_config(root, "fever.csv")
@@ -97,9 +98,19 @@ def simulate(root, runs, seed, uptime, policy, stage_number=1, hit_power=None, e
         if chance > 0.0:
             hits = (1 - (1 - chance) ** hits) / chance
         target["expected_value_per_hp"] = value / hits
+        target["expected_hits"] = hits
     # 해금은 회차 누적 수입 기준이다 (#301). spawn_weight 가 0 이면 해금 목록에도 없다.
     targets = [target for target in targets
                if float(target["spawn_weight"]) > 0.0 and earned >= int(float(target["unlock_earned"]))]
+    # 스태미나 회복은 런을 늘려 준다 — 돌려받는 시간 동안 평균적으로 벌 코인으로 환산해 타격당 가치에 더한다 (#247).
+    # 이것이 없으면 value 정책이 회복형을 무시하고 고HP 종류만 쫓아 런이 일찍 끝나는 왜곡이 생긴다.
+    if targets:
+        average_per_hit = statistics.mean(target["expected_value_per_hp"] for target in targets)
+        hits_per_sec = uptime / economy["hover_swing_interval_sec"]
+        for target in targets:
+            restore_seconds = float(target["stamina_restore"]) / stamina["idle_drain_per_sec"]
+            bought = restore_seconds * hits_per_sec * average_per_hit
+            target["expected_value_per_hp"] += bought / target["expected_hits"]
     weights = [float(target["spawn_weight"]) for target in targets]
     extra_spawn_chance = economy["extra_spawn_chance_on_destroy"]
     rng = random.Random(seed)
@@ -117,7 +128,7 @@ def simulate(root, runs, seed, uptime, policy, stage_number=1, hit_power=None, e
         # ① 파괴할 때마다 extra_spawn_chance_on_destroy 확률로 즉시 1개가 추가되거나,
         # ② 책상 위가 완전히 비면(0마리) 즉시 1개만 채워진다. 원작 재관찰 근거는
         # REFERENCE_ANALYSIS.md 9절.
-        active = [spawn() for _ in range(int(stage["spawn_count"]))]
+        active = [spawn() for _ in range(int(stage["spawn_count"]) + spawn_bonus)]
         energy, elapsed, coin, gauge = stamina["max_stamina"], 0.0, 0.0, 0.0
         last_hit, fever_end = -float("inf"), 0.0
         selected_id, breaks, restorations, fevers = None, 0, 0, 0
@@ -165,7 +176,7 @@ def simulate(root, runs, seed, uptime, policy, stage_number=1, hit_power=None, e
             # (이슈 #178). Target.OnHit 은 이 두 열을 더는 읽지 않는다 — CoinLottery.Draw
             # 만 본다. 이 두 열은 현재 지급액에 영향이 없는 죽은 필드다.
             raw_coin = draw_coin_lottery(coins, target["min_denom_id"], int(float(target["coin_count"])), rng)
-            coin += raw_coin * multiplier * economy["coin_bonus_multiplier"]
+            coin += raw_coin * multiplier * (economy["coin_bonus_multiplier"] + bonus_add)
             restore = float(target["stamina_restore"])
             energy = min(stamina["max_stamina"], energy + restore)
             restorations += int(restore > 0)
@@ -232,6 +243,91 @@ def simulate_days(root, players, days, seed, uptime, policy, power_start, power_
             "policy": policy, "unlock": summary, "median_earned_by_day": median_earned}
 
 
+def upgrade_cost(upgrade, level, default_growth):
+    """GrowthFormula.cs 와 같다: ceil(init_cost × growth^level). cost_growth 가 0 이하면 economy.csv 기본값."""
+    growth = float(upgrade["cost_growth"]) or default_growth
+    return math.ceil(float(upgrade["init_cost"]) * growth ** level)
+
+
+def simulate_campaign(root, players, seed, uptime, policy, max_days=120):
+    """회차 전체를 돈다 (#247). 매일 한 런 → 지갑에 입금 → 낼 수 있으면 고지서 납부 → 고지서 금액을 남겨 두고
+    완력 단련·저금통 수집벽·코인 배율(coin_bonus)을 싼 것부터 산다. 기한 안에 못 내면 파산으로 끝낸다. 퍼크·반지·자동 망치·피버 강화는
+    모델링하지 않는다 — 수입 곡선이 고지서 곡선을 따라가는지만 본다."""
+    economy = read_config(root, "economy.csv")
+    stages = read_rows(root, "stages.csv")
+    upgrades = {row["id"]: row for row in read_rows(root, "upgrades.csv")}
+    effects = read_rows(root, "upgrade_effects.csv")
+    per_level = {}
+    for effect in effects:
+        per_level.setdefault(effect["upgrade_id"], {})[effect["stat"]] = float(effect["value_per_level"])
+    default_growth = economy["upgrade_cost_growth"]
+    base_power = economy["base_hit_power"]
+    buyable = [upgrade_id for upgrade_id in ("strong_hammer", "desk_expand", "coin_bonus") if upgrade_id in upgrades]
+
+    paid_day = [[] for _ in stages]
+    reached = [0] * len(stages)
+    bankrupt_at = []
+    first_run = []
+    for player in range(players):
+        wallet, earned, levels = 0, 0, {upgrade_id: 0 for upgrade_id in buyable}
+        stage_index, due = 0, int(stages[0]["due_days"])
+        recent = []
+        for day in range(1, max_days + 1):
+            power = base_power + per_level.get("strong_hammer", {}).get("base_hit_power", 0.0) * levels.get("strong_hammer", 0)
+            spawn_bonus = int(per_level.get("desk_expand", {}).get("spawn_count", 0.0) * levels.get("desk_expand", 0))
+            bonus_add = per_level.get("coin_bonus", {}).get("coin_bonus_multiplier", 0.0) * levels.get("coin_bonus", 0)
+            result = simulate(root, 1, seed * 100003 + player * 997 + day, uptime, policy,
+                              stage_index + 1, power, earned, spawn_bonus, bonus_add)
+            income = int(result["mean_coin"])
+            if day == 1:
+                first_run.append(income)
+            wallet += income
+            earned += income
+            recent = (recent + [income])[-3:]
+            bill = int(stages[stage_index]["bill_amount"])
+            if wallet >= bill:
+                wallet -= bill
+                paid_day[stage_index].append(day)
+                reached[stage_index] += 1
+                stage_index += 1
+                if stage_index >= len(stages):
+                    break
+                due = day + int(stages[stage_index]["due_days"])
+            elif day >= due:
+                bankrupt_at.append(stage_index + 1)
+                break
+            # "살까, 낼까" (#247): 지금 사도 남은 날 수입으로 마감 전에 고지서를 낼 수 있으면 산다. 수입 예상은
+            # 최근 3런 중앙값의 70% — 잭팟이 터진 날 과하게 사지 않는 보수적인 플레이어다.
+            bill_now = int(stages[stage_index]["bill_amount"])
+            days_left = max(0, due - day)
+            expected = sorted(recent)[len(recent) // 2] * 0.7
+            bought = True
+            while bought:
+                bought = False
+                options = []
+                for upgrade_id in buyable:
+                    if levels[upgrade_id] < int(upgrades[upgrade_id]["max_level"]):
+                        options.append((upgrade_cost(upgrades[upgrade_id], levels[upgrade_id], default_growth), upgrade_id))
+                options.sort()
+                if options and wallet - options[0][0] + expected * days_left >= bill_now:
+                    wallet -= options[0][0]
+                    levels[options[0][1]] += 1
+                    bought = True
+    rows = []
+    for index, stage in enumerate(stages):
+        days = sorted(paid_day[index])
+        rows.append({
+            "stage": index + 1, "bill": int(stage["bill_amount"]),
+            "paid_percent": round(100 * reached[index] / players, 1),
+            "median_paid_day": days[len(days) // 2] if days else None,
+        })
+    first_run.sort()
+    return {"players": players, "policy": policy, "first_run_median": first_run[len(first_run) // 2],
+            "bankrupt_percent": round(100 * len(bankrupt_at) / players, 1),
+            "bankrupt_stage_counts": {str(k): bankrupt_at.count(k) for k in sorted(set(bankrupt_at))},
+            "stages": rows}
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--runs", type=int, default=1000)
@@ -245,13 +341,17 @@ if __name__ == "__main__":
                         help="회차 누적 수입 (#301). 이 값으로 해금된 종류만 나온다")
     parser.add_argument("--days", type=int, default=0,
                         help="0 보다 크면 새 회차를 이 날수만큼 이어 돌려 종류별 해금일을 낸다 (#301). --runs 는 플레이어 수")
+    parser.add_argument("--campaign", action="store_true",
+                        help="회차 전체를 업그레이드 구매·고지서 납부·파산까지 돌린다 (#247). --runs 는 플레이어 수")
     parser.add_argument("--power-per-day", type=float, default=0.35,
                         help="--days 모드에서 하루마다 오르는 가정 파워 (완력 단련 1레벨 = 0.35)")
     args = parser.parse_args()
     if args.runs <= 0 or not 0 <= args.uptime <= 1:
         parser.error("runs must be positive and uptime must be between 0 and 1")
     root = Path(__file__).resolve().parents[2] / "Assets/GameData/Balance"
-    if args.days > 0:
+    if args.campaign:
+        print(json.dumps(simulate_campaign(root, args.runs, args.seed, args.uptime, args.policy), indent=2, ensure_ascii=False))
+    elif args.days > 0:
         start = 1.0 if args.hit_power is None else args.hit_power
         print(json.dumps(simulate_days(root, args.runs, args.days, args.seed, args.uptime, args.policy,
                                        start, args.power_per_day), indent=2, ensure_ascii=False))

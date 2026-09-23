@@ -182,7 +182,9 @@ namespace NCAIClicker.EditorTools
                 checkCount++;
 
                 // 기한 당일에는 [아직] 버튼이 사라지고 납부·대출 선택만 남는다 (원작 규칙).
+                // 고지서 화면은 정산 뒤에 열리므로 남은 날은 마감일 − 오늘로 센다 (#247). 오늘이 마감일이면 당일이다.
                 service.DaysLeft = 1;
+                service.CurrentDay = service.ActiveBill.DueDay;
                 controller.ShowAsModal();
                 Assert(!parts.LaterButton.activeSelf,
                        "기한 당일에는 [아직] 버튼이 숨겨져야 합니다 — 납부·대출만 선택할 수 있어야 합니다.");

@@ -32,6 +32,8 @@ namespace NCAIClicker.EditorTools
             var checkCount = 0;
             var balanceData = ScriptableObject.CreateInstance<BalanceData>();
             balanceData.Stages.Add(new StageDef { Stage = 1, BillAmount = 100L });
+            balanceData.Stages.Add(new StageDef { Stage = 2, BillAmount = 200L });
+            balanceData.Stages.Add(new StageDef { Stage = 3, BillAmount = 300L });
 
             var reachedCount = 0;
             var lastReachedStage = 0;
@@ -62,16 +64,17 @@ namespace NCAIClicker.EditorTools
                 AssertCondition(lastReachedStage == 1, "발행된 단계 번호가 다릅니다: " + lastReachedStage);
                 checkCount++;
 
-                // 같은 런에서 다시 납부 이벤트가 와도 중복 발행하지 않는다.
+                // 같은 날(같은 정산 메뉴)에 새 고지서를 또 내면 한 단계 더 오른다 (#247). 새 고지서 화면에도 납부
+                // 버튼이 있고 원작도 받자마자 낸다 — 막으면 다음 고지서가 같은 단계 금액으로 다시 나온다.
                 GameEvents.PublishBillPaid(new Bill { Amount = 100L, IsPaid = true });
-                AssertCondition(reachedCount == 1, "같은 런에서 중복 발행됐습니다: " + reachedCount);
+                AssertCondition(reachedCount == 2, "같은 날 두 번째 납부가 단계를 올리지 않았습니다: " + reachedCount);
+                AssertCondition(lastReachedStage == 2, "두 번째 납부의 단계 번호가 다릅니다: " + lastReachedStage);
+                AssertCondition(manager.CurrentStageNumber == 3, "두 번 낸 뒤 단계가 " + manager.CurrentStageNumber + " 입니다. 3 이어야 합니다.");
                 checkCount++;
 
-                // 다음 런을 시작하면 플래그가 되돌아가고 다시 판정한다.
+                // 다음 런을 시작하면 클리어 표시가 되돌아간다.
                 manager.BeginRun();
                 AssertCondition(!manager.IsStageCleared, "런 시작 후에도 클리어 상태가 남아 있습니다.");
-                GameEvents.PublishBillPaid(new Bill { Amount = 100L, IsPaid = true });
-                AssertCondition(reachedCount == 2, "다음 런에서 재판정되지 않았습니다: " + reachedCount);
                 checkCount++;
 
                 // 설정 범위를 넘는 단계는 조회하지 않고 조용히 무시한다.

@@ -59,13 +59,14 @@ namespace NCAIClicker.EditorTools
             gridRect.offsetMin = new Vector2(8f, 40f);
             gridRect.offsetMax = new Vector2(-8f, -40f);
             var grid = gridGo.AddComponent<GridLayoutGroup>();
-            grid.cellSize = new Vector2(534f, 328f);
+            // 5장부터 3열 × 2행 (#247 부업 장부 추가, docs/UI_MOCKUPS/upgrade-shop.html A안). 높이는 그대로 두어 설명·효과 2줄을 유지한다.
+            grid.cellSize = new Vector2(350f, 328f);
             grid.spacing = new Vector2(16f, 16f);
             grid.startCorner = GridLayoutGroup.Corner.UpperLeft;
             grid.startAxis = GridLayoutGroup.Axis.Horizontal;
             grid.childAlignment = TextAnchor.MiddleCenter;
             grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-            grid.constraintCount = 2;
+            grid.constraintCount = 3;
 
             var defs = balance.Upgrades;
             var entries = new UpgradeShopEntry[defs.Count];
@@ -121,17 +122,17 @@ namespace NCAIClicker.EditorTools
             head.childControlHeight = true;
             head.childForceExpandWidth = false;
             head.childForceExpandHeight = true;
-            var nameLabel = CreateLabel("NameLabel", headGo, displayFont, 40, TextCream, TextAlignmentOptions.MidlineLeft, "이름");
+            var nameLabel = CreateLabel("NameLabel", headGo, displayFont, 32, TextCream, TextAlignmentOptions.MidlineLeft, "이름");
             nameLabel.characterSpacing = 2;
             nameLabel.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1;
-            var levelLabel = CreateLabel("LevelLabel", headGo, bodyFont, 26, Gold, TextAlignmentOptions.MidlineRight, "Lv 0 / 0");
-            levelLabel.gameObject.AddComponent<LayoutElement>().preferredWidth = 160;
+            var levelLabel = CreateLabel("LevelLabel", headGo, bodyFont, 22, Gold, TextAlignmentOptions.MidlineRight, "Lv 0 / 0");
+            levelLabel.gameObject.AddComponent<LayoutElement>().preferredWidth = 110;
 
-            var descLabel = CreateLabel("DescriptionLabel", cardGo, bodyFont, 22, TextMuted, TextAlignmentOptions.TopLeft, "설명");
+            var descLabel = CreateLabel("DescriptionLabel", cardGo, bodyFont, 20, TextMuted, TextAlignmentOptions.TopLeft, "설명");
             descLabel.textWrappingMode = TextWrappingModes.Normal;
             descLabel.gameObject.AddComponent<LayoutElement>().preferredHeight = 64;
 
-            var effectLabel = CreateLabel("EffectLabel", cardGo, bodyFont, 22, TextCream, TextAlignmentOptions.TopLeft, "효과");
+            var effectLabel = CreateLabel("EffectLabel", cardGo, bodyFont, 20, TextCream, TextAlignmentOptions.TopLeft, "효과");
             effectLabel.textWrappingMode = TextWrappingModes.Normal;
             effectLabel.gameObject.AddComponent<LayoutElement>().preferredHeight = 60;
 

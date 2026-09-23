@@ -47,7 +47,7 @@ namespace NCAIClicker.EditorTools
                     new[] { "targets.csv", "runner,구리광석(고속),1,0,1.25,1.5,1,c1,0,0,0,", "runner,구리광석(고속),1,0,1.25,1.5,1,c1,0,-1,0.7," },
                     new[] { "targets.csv", "runner,구리광석(고속),1,0,1.25,1.5,1,c1,0,0,0,", "runner,구리광석(고속),1,0,1.25,1.5,1,c1,0,2,1.5," },
                     new[] { "targets.csv", "runner,구리광석(고속),1,0,1.25,1.5,1,c1,0,0,0,", "runner,구리광석(고속),1,0,1.25,1.5,1,c1,0,2,0," },
-                    new[] { "stages.csv", "1,80,5,", "1,80,5.5," },
+                    new[] { "stages.csv", "1,20,3,", "1,20,3.5," },
                     new[] { "economy.csv", "base_hit_power,1.0,hp/hit,", "base_hit_power,1.0,hp/hit,extra," },
                     new[] { "stamina.csv", "key,value,unit,note", "key,value,value,note" },
                 };
@@ -66,7 +66,7 @@ namespace NCAIClicker.EditorTools
 
                 // Float 경유 시 손실되는 정수를 실제 에셋에 정확하게 기록해야 한다.
                 CopyFixture(fixtureDirectory);
-                ReplaceFixture(fixtureDirectory, "upgrades.csv", ",2,0,20,1", ",16777217,0,20,1");
+                ReplaceFixture(fixtureDirectory, "upgrades.csv", ",6,1.6,20,1", ",16777217,1.6,20,1");
                 AssertCondition(BalanceImporter.TryImport(fixtureDirectory, outputPath, out error), error);
                 AssertCondition(asset.Upgrades[0].InitCost == 16777217L, "64비트 코인 정밀도 손실");
                 AssertCondition(AssetDatabase.AssetPathToGUID(outputPath) == guid, "재임포트 GUID 변경");
@@ -74,7 +74,7 @@ namespace NCAIClicker.EditorTools
 
                 // 단계 목표는 수입 상한이 아니다. 큰 고지서는 구조 오류로 거부하지 않는다.
                 CopyFixture(fixtureDirectory);
-                ReplaceFixture(fixtureDirectory, "stages.csv", "1,80,5,", "1,10000,5,");
+                ReplaceFixture(fixtureDirectory, "stages.csv", "1,20,3,", "1,10000,3,");
                 AssertCondition(BalanceImporter.TryImport(fixtureDirectory, outputPath, out error), error);
                 checkCount++;
 

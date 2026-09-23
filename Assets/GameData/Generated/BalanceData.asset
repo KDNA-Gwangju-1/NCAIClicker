@@ -31,7 +31,7 @@ MonoBehaviour:
     SpawnIntervalSec: 0
     ExtraSpawnChanceOnDestroy: 0
     LegacyPointPerAmount: 50
-    UpgradeCostGrowth: 1.15
+    UpgradeCostGrowth: 1.3
     StageGoalGrowth: 2.5
   Fever:
     GaugeMax: 100
@@ -68,7 +68,7 @@ MonoBehaviour:
     StaminaRestore: 0
     MoveSpeed: 0.05
     TurnIntervalSec: 6
-    CoinCount: 1
+    CoinCount: 3
     MinDenomId: c100
     InstantBreakChance: 0
     ChargeSpeed: 0
@@ -91,10 +91,10 @@ MonoBehaviour:
   - Id: tourist
     DisplayName: "\uAD6C\uB9AC\uAD11\uC11D"
     Hp: 6
-    StaminaRestore: 70
+    StaminaRestore: 3
     MoveSpeed: 0.2
     TurnIntervalSec: 5
-    CoinCount: 1
+    CoinCount: 2
     MinDenomId: c25
     InstantBreakChance: 0
     ChargeSpeed: 0
@@ -107,7 +107,7 @@ MonoBehaviour:
     StaminaRestore: 0
     MoveSpeed: 0.3
     TurnIntervalSec: 4
-    CoinCount: 10
+    CoinCount: 40
     MinDenomId: c1
     InstantBreakChance: 0.1
     ChargeSpeed: 0
@@ -120,7 +120,7 @@ MonoBehaviour:
     StaminaRestore: 0
     MoveSpeed: 0.35
     TurnIntervalSec: 5
-    CoinCount: 3
+    CoinCount: 9
     MinDenomId: c100
     InstantBreakChance: 0
     ChargeSpeed: 2.5
@@ -132,8 +132,8 @@ MonoBehaviour:
     DisplayName: "\uC644\uB825 \uB2E8\uB828"
     Description: "\uC950\uB294 \uD798\uC774 \uBD99\uC5B4 \uD55C \uBC29\uC774 \uBB34\uAC70\uC6CC\uC9C4\uB2E4.
       \uC870\uC900 \uD310\uC815\uB3C4 \uC870\uAE08 \uB113\uC5B4\uC9C4\uB2E4"
-    InitCost: 2
-    CostGrowth: 0
+    InitCost: 6
+    CostGrowth: 1.6
     MaxLevel: 20
     SortOrder: 1
     Effects:
@@ -147,8 +147,8 @@ MonoBehaviour:
     DisplayName: "\uCE74\uD398\uC778 \uC911\uB3C5"
     Description: "\uC190\uC774 \uC800\uC808\uB85C \uB5A8\uB9B0\uB2E4. \uC548 \uB54C\uB9AC\uB824\uACE0
       \uD574\uB3C4 \uB54C\uB824\uC9C4\uB2E4"
-    InitCost: 3
-    CostGrowth: 0
+    InitCost: 9
+    CostGrowth: 1.6
     MaxLevel: 10
     SortOrder: 2
     Effects:
@@ -159,8 +159,8 @@ MonoBehaviour:
     DisplayName: "\uD5EC\uC2A4\uC7A5 \uD68C\uC6D0\uAD8C"
     Description: "\uB4F1\uB85D\uB9CC \uD574\uB3C4 \uD798\uC774 \uB098\uB294 \uAE30\uBD84\uC774\uB2E4.
       \uD55C\uBC88 \uBD99\uC740 \uBD88\uC774 \uC624\uB798 \uAC04\uB2E4"
-    InitCost: 4
-    CostGrowth: 0
+    InitCost: 12
+    CostGrowth: 1.6
     MaxLevel: 15
     SortOrder: 3
     Effects:
@@ -174,8 +174,8 @@ MonoBehaviour:
     DisplayName: "\uC800\uAE08\uD1B5 \uC218\uC9D1\uBCBD"
     Description: "\uCC45\uC0C1 \uC704\uC5D0 \uC800\uAE08\uD1B5\uC774 \uB354 \uB9CE\uC544\uC9C0\uACE0
       \uBD80\uC220 \uB54C \uD558\uB098 \uB354 \uB098\uC62C \uD655\uB960\uC774 \uBD99\uB294\uB2E4"
-    InitCost: 5
-    CostGrowth: 0
+    InitCost: 15
+    CostGrowth: 1.6
     MaxLevel: 12
     SortOrder: 4
     Effects:
@@ -185,27 +185,64 @@ MonoBehaviour:
     - Stat: 16
       Type: 0
       ValuePerLevel: 2
+  - Id: coin_bonus
+    DisplayName: "\uBD80\uC5C5 \uC7A5\uBD80"
+    Description: "\uD2C8\uD2C8\uC774 \uC801\uC5B4 \uB454 \uBD80\uC5C5 \uC218\uC785\uC774
+      \uC313\uC778\uB2E4. \uC800\uAE08\uD1B5\uC5D0\uC11C \uB098\uC624\uB294 \uCF54\uC778\uC774
+      \uB298\uC5B4\uB09C\uB2E4"
+    InitCost: 150
+    CostGrowth: 2
+    MaxLevel: 30
+    SortOrder: 5
+    Effects:
+    - Stat: 13
+      Type: 0
+      ValuePerLevel: 0.8
   Stages:
   - Stage: 1
-    BillAmount: 80
-    DueDays: 5
+    BillAmount: 20
+    DueDays: 3
     SpawnCount: 6
   - Stage: 2
-    BillAmount: 465
-    DueDays: 4
+    BillAmount: 45
+    DueDays: 5
     SpawnCount: 7
   - Stage: 3
-    BillAmount: 1300
-    DueDays: 3
+    BillAmount: 200
+    DueDays: 5
     SpawnCount: 8
   - Stage: 4
-    BillAmount: 1470
-    DueDays: 3
+    BillAmount: 750
+    DueDays: 9
     SpawnCount: 8
   - Stage: 5
-    BillAmount: 2550
-    DueDays: 3
+    BillAmount: 1000
+    DueDays: 5
     SpawnCount: 9
+  - Stage: 6
+    BillAmount: 2700
+    DueDays: 5
+    SpawnCount: 9
+  - Stage: 7
+    BillAmount: 5800
+    DueDays: 5
+    SpawnCount: 9
+  - Stage: 8
+    BillAmount: 12000
+    DueDays: 5
+    SpawnCount: 10
+  - Stage: 9
+    BillAmount: 34000
+    DueDays: 5
+    SpawnCount: 10
+  - Stage: 10
+    BillAmount: 65000
+    DueDays: 5
+    SpawnCount: 10
+  - Stage: 11
+    BillAmount: 250000
+    DueDays: 5
+    SpawnCount: 10
   Perks:
   - Id: stamina_restore
     DisplayName: "\uC2A4\uD0DC\uBBF8\uB098 \uD68C\uBCF5"
