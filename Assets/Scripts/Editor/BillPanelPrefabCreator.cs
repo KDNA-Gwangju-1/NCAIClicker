@@ -344,6 +344,8 @@ namespace NCAIClicker.EditorTools
             
             confirmRoot.SetActive(false);
 
+            CreateLoanPicker(root, font, bound);
+
             // 스킬 트리 최초 투자 안내 팝업 (이슈 #249).
             var noticeRoot = CreateStretched("SkillTreeNoticePanel", root);
             noticeRoot.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.85f);
@@ -377,6 +379,118 @@ namespace NCAIClicker.EditorTools
             Object.DestroyImmediate(root);
             AssetDatabase.Refresh();
             Debug.Log("[BillPanelPrefabCreator] 프리팹 생성 완료: " + PrefabPath);
+        }
+
+        /// <summary>
+        /// 대출 금액 선택창 (이슈 #273). 파산 확인창처럼 패널 위에 겹쳐 뜬다.
+        /// 바깥 막은 알파 0 이라 클릭만 막고 그리지 않는다 — 반투명 막을 쓰면 UiGuidelineChecks 가
+        /// 알파 톤으로 잡고, 뒤의 PanelRoot 가 이미 어둡게 깔려 있다. 글자는 불투명한 카드 위에만 둔다.
+        /// </summary>
+        private static void CreateLoanPicker(GameObject root, TMP_FontAsset font, Dictionary<string, object> bound)
+        {
+            var cardColor = new Color(0.086f, 0.075f, 0.059f);
+            var light = new Color(0.992f, 0.953f, 0.874f);
+            var soft = new Color(0.784f, 0.663f, 0.471f);
+
+            var pickerRoot = CreateStretched("LoanPickerPanel", root);
+            pickerRoot.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0f);
+            bound["_loanPickerPanel"] = pickerRoot;
+
+            var card = CreateObject("LoanPickerCard", pickerRoot);
+            var cardRect = card.GetComponent<RectTransform>();
+            cardRect.anchorMin = new Vector2(0.5f, 0.5f);
+            cardRect.anchorMax = new Vector2(0.5f, 0.5f);
+            cardRect.pivot = new Vector2(0.5f, 0.5f);
+            cardRect.sizeDelta = new Vector2(800f, 560f);
+            card.AddComponent<Image>().color = cardColor;
+            var outline = card.AddComponent<Outline>();
+            outline.effectColor = new Color(0.604f, 0.486f, 0.275f);
+            outline.effectDistance = new Vector2(2f, -2f);
+            var column = card.AddComponent<VerticalLayoutGroup>();
+            column.padding = new RectOffset(32, 32, 32, 32);
+            column.spacing = 16f;
+            column.childAlignment = TextAnchor.UpperCenter;
+            column.childControlWidth = true;
+            column.childControlHeight = true;
+            column.childForceExpandWidth = true;
+            column.childForceExpandHeight = false;
+
+            CreateLabel("LoanPickerTitle", card, font, 32, light, "빅 토니에게 얼마나 빌릴까?", TextAlignmentOptions.Center, 44f);
+            bound["_loanAmountText"] = CreateLabel("LoanAmountText", card, font, 52, light, "$0", TextAlignmentOptions.Center, 64f);
+            bound["_loanAmountSlider"] = CreateSlider("LoanAmountSlider", card, soft, light);
+
+            var presetRow = CreateRow("LoanPresetRow", card, 16f);
+            SetPreferred(presetRow, 0f, 56f);
+            bound["_loanShortfallPresetButton"] = CreateButton("LoanShortfallPresetButton", presetRow, font, new Vector2(240f, 56f), "부족분만큼",
+                new Color(0.23f, 0.21f, 0.19f), new Color(0.37f, 0.33f, 0.29f), new Color(0.91f, 0.87f, 0.8f), 24);
+            bound["_loanFullPresetButton"] = CreateButton("LoanFullPresetButton", presetRow, font, new Vector2(240f, 56f), "고지서 전액",
+                new Color(0.23f, 0.21f, 0.19f), new Color(0.37f, 0.33f, 0.29f), new Color(0.91f, 0.87f, 0.8f), 24);
+
+            bound["_loanPreviewText"] = CreateLabel("LoanPreviewText", card, font, 24, soft, string.Empty, TextAlignmentOptions.Center, 72f, true);
+            // 붉은 Warn 은 어두운 카드 위에서 대비가 모자란다. 파산 확인창 문구와 같은 색을 쓴다.
+            bound["_loanShortfallWarningText"] = CreateLabel("LoanShortfallWarningText", card, font, 24,
+                new Color(1f, 0.843f, 0.812f), string.Empty, TextAlignmentOptions.Center, 32f);
+
+            var buttonRow = CreateRow("LoanPickerButtonRow", card, 40f);
+            SetPreferred(buttonRow, 0f, 68f);
+            bound["_loanConfirmButton"] = CreateButton("LoanConfirmButton", buttonRow, font, new Vector2(240f, 68f), "빌린다",
+                new Color(0.141f, 0.102f, 0.071f), new Color(0.36f, 0.27f, 0.15f), soft, 28);
+            bound["_loanCancelButton"] = CreateButton("LoanCancelButton", buttonRow, font, new Vector2(240f, 68f), "돌아간다",
+                new Color(0.11f, 0.31f, 0.45f), new Color(0.24f, 0.51f, 0.71f), new Color(0.9f, 0.95f, 0.98f), 28);
+
+            pickerRoot.SetActive(false);
+        }
+
+        /// <summary>
+        /// 가로 슬라이더. 범위와 값은 컨트롤러가 열 때마다 고지서에 맞춰 채운다.
+        /// 손잡이는 44px 로 둔다 — UI_GUIDE 5절 최소 클릭 타깃.
+        /// </summary>
+        private static Slider CreateSlider(string name, GameObject parent, Color fill, Color handle)
+        {
+            var go = CreateObject(name, parent);
+            SetPreferred(go, 0f, 44f);
+
+            var background = CreateObject("Background", go);
+            var backgroundRect = background.GetComponent<RectTransform>();
+            backgroundRect.anchorMin = new Vector2(0f, 0.25f);
+            backgroundRect.anchorMax = new Vector2(1f, 0.75f);
+            backgroundRect.offsetMin = Vector2.zero;
+            backgroundRect.offsetMax = Vector2.zero;
+            background.AddComponent<Image>().color = new Color(0.30f, 0.26f, 0.20f);
+
+            var fillArea = CreateObject("Fill Area", go);
+            var fillAreaRect = fillArea.GetComponent<RectTransform>();
+            fillAreaRect.anchorMin = new Vector2(0f, 0.25f);
+            fillAreaRect.anchorMax = new Vector2(1f, 0.75f);
+            fillAreaRect.offsetMin = new Vector2(22f, 0f);
+            fillAreaRect.offsetMax = new Vector2(-22f, 0f);
+            var fillObject = CreateObject("Fill", fillArea);
+            var fillRect = fillObject.GetComponent<RectTransform>();
+            fillRect.offsetMin = new Vector2(-22f, 0f);
+            fillRect.offsetMax = new Vector2(22f, 0f);
+            fillObject.AddComponent<Image>().color = fill;
+
+            var handleArea = CreateObject("Handle Slide Area", go);
+            var handleAreaRect = handleArea.GetComponent<RectTransform>();
+            handleAreaRect.anchorMin = Vector2.zero;
+            handleAreaRect.anchorMax = Vector2.one;
+            handleAreaRect.offsetMin = new Vector2(22f, 0f);
+            handleAreaRect.offsetMax = new Vector2(-22f, 0f);
+            var handleObject = CreateObject("Handle", handleArea);
+            var handleRect = handleObject.GetComponent<RectTransform>();
+            handleRect.sizeDelta = new Vector2(44f, 0f);
+            var handleImage = handleObject.AddComponent<Image>();
+            handleImage.color = handle;
+
+            var slider = go.AddComponent<Slider>();
+            slider.fillRect = fillRect;
+            slider.handleRect = handleRect;
+            slider.targetGraphic = handleImage;
+            slider.direction = Slider.Direction.LeftToRight;
+            slider.wholeNumbers = true;
+            slider.minValue = 1f;
+            slider.maxValue = 1f;
+            return slider;
         }
 
         // --- 조립 헬퍼 -------------------------------------------------------

@@ -1,11 +1,11 @@
 # 하루 진행과 고지서
 
-> 관련 이슈: #27, #28, #29, #150, #30, #164, #92, #175, #203, #212, #211, #249, #270, #306, #272, #291 · 최종 수정: 2026-09-23
+> 관련 이슈: #27, #28, #29, #150, #30, #164, #92, #175, #203, #212, #211, #249, #270, #306, #272, #291, #273 · 최종 수정: 2026-09-23
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
 ## 무엇을 하는가
 
-런 종료를 하루 종료로 집계하고 `stages.csv` 단계값으로 고지서(금액·마감일)를 발행한다. HUD는 남은 일수와 금액을 항상 보여준다. 마감 전이면 `TryPay`로 언제든 조기 납부할 수 있고, 납부에 성공하면 기존 고지서의 납부 완료 표시 뒤 `perks.csv`에서 3종을 무작위로 뽑아 `OnPerkOffered`로 알린다. `TryChoosePerk`로 하나를 고르면 다음 단계의 고지서를 즉시 발행해 메뉴에서 보여 주되, `계속하기` 전에는 날짜·납기 일수를 진행하지 않는 흐름이 #249의 확정 목표다. **현재 구현과의 차이는 아래 알려진 한계에 남긴다.** 퍼크 효과의 실제 게임플레이 반영은 이 클래스 범위 밖이다. 대출(#29)은 두 번째 고지서부터 활성 고지서 금액을 한도로 빌리고(`TryTakeLoan`), 이자를 더한 전액을 한 번에 갚는다(`TryRepayLoan`). 미상환 기간에는 `LoanDailyCut`이 0이 아니게 되어 `EconomyManager`가 수입에서 그만큼 떼며, 그 징수분은 부채를 줄이지 않는다. 고지서 화면의 상환 버튼(#272)은 활성 대출이 있을 때만 나타나 상환액(`LoanOwedAmount`)을 보여 주고, 대출 버튼은 거절 사유를 쿨다운(`LoanCooldownDaysRemaining`)과 해금 순번 미달(`IsLoanUnlocked`)로 구분해 캡션에 보여 준다 — 셋 다 `IBillService` 읽기 전용 프로퍼티다(#306). **파산 판정(#30, #211)도 여기서 한다** — 아래 "마감 미납과 파산" 절. 게임 규칙은 [GDD](../GDD.md)에 있으니 여기서 반복하지 않는다.
+런 종료를 하루 종료로 집계하고 `stages.csv` 단계값으로 고지서(금액·마감일)를 발행한다. HUD는 남은 일수와 금액을 항상 보여준다. 마감 전이면 `TryPay`로 언제든 조기 납부할 수 있고, 납부에 성공하면 기존 고지서의 납부 완료 표시 뒤 `perks.csv`에서 3종을 무작위로 뽑아 `OnPerkOffered`로 알린다. `TryChoosePerk`로 하나를 고르면 다음 단계의 고지서를 즉시 발행해 메뉴에서 보여 주되, `계속하기` 전에는 날짜·납기 일수를 진행하지 않는 흐름이 #249의 확정 목표다. **현재 구현과의 차이는 아래 알려진 한계에 남긴다.** 퍼크 효과의 실제 게임플레이 반영은 이 클래스 범위 밖이다. 대출(#29)은 두 번째 고지서부터 활성 고지서 금액을 한도로 빌리고(`TryTakeLoan`), 이자를 더한 전액을 한 번에 갚는다(`TryRepayLoan`). 미상환 기간에는 `LoanDailyCut`이 0이 아니게 되어 `EconomyManager`가 수입에서 그만큼 떼며, 그 징수분은 부채를 줄이지 않는다. 고지서 화면의 상환 버튼(#272)은 활성 대출이 있을 때만 나타나 상환액(`LoanOwedAmount`)을 보여 주고, 대출 버튼은 거절 사유를 쿨다운(`LoanCooldownDaysRemaining`)과 해금 순번 미달(`IsLoanUnlocked`)로 구분해 캡션에 보여 준다 — 셋 다 `IBillService` 읽기 전용 프로퍼티다(#306). 대출 버튼은 곧바로 빌리지 않고 금액 선택창을 연다(#273) — 기본값은 부족분(`고지서 금액 - 보유 코인`), 상한은 고지서 전액이고, 상환액·징수율 미리보기는 `BillManager`가 대출을 확정할 때 쓰는 바로 그 식(`LoanTerms.CalculateOwed`·`LoanTerms.CalculateDailyCut`)을 부른다. **파산 판정(#30, #211)도 여기서 한다** — 아래 "마감 미납과 파산" 절. 게임 규칙은 [GDD](../GDD.md)에 있으니 여기서 반복하지 않는다.
 
 ## 왜 이 방법인가
 
@@ -43,7 +43,7 @@
 | (#211) UI 두 곳(`ResultUIController`·`BillPanelController`)에서 `TryCloseDay()` 호출 | ❌ | 확인을 두 곳에 두면 새 경로(일시정지 등)가 생길 때 마감이 누락된다. `GameManager.ContinueRun()` 단일 지점으로 모으고 UI 코드는 수정하지 않는다 |
 | (#211) `IBillService.TryCloseDay()` 계약 추가 및 `GameManager.ContinueRun()` 에서 호출 | ✅ | 공용 계약에 `bool TryCloseDay()` 를 열고, `GameManager.ContinueRun()` 에서 Result 상태일 때 마감을 확정하여 미납 파산 시 씬 전환을 차단하고 파산 화면을 유지한다 |
 | (#211) 마감 당일 납부 실패 시 즉시 파산 직행 | ❌ | 플레이어에게 대출 기회가 있어도 납부 버튼을 먼저 누르면 즉시 파산하고 `TryCloseDay()` 중앙 판정을 우회한다. 현재는 부족액을 표시하고 대출 기회를 유지하며, 최종 파산은 `GameManager.ContinueRun()`의 `TryCloseDay()` 한 곳에서 확정한다 |
-| (#211) 고지서 모달의 대출 버튼을 활성 고지서 전액 대출로 배선 | ✅ | 마감 당일 `[아직]` 이 사라져도 `TryTakeLoan(bill.Amount)`으로 부족분을 막을 기회를 보장한다. 성공 직후 다시 그려 보유 코인과 `대출 완료` 상태를 동기화한다 |
+| (#211) 고지서 모달의 대출 버튼을 활성 고지서 전액 대출로 배선 | ✅ → **#273 에서 바뀜** | 마감 당일 `[아직]` 이 사라져도 `TryTakeLoan(bill.Amount)`으로 부족분을 막을 기회를 보장한다. 성공 직후 다시 그려 보유 코인과 `대출 완료` 상태를 동기화한다 |
 | (#270) `IssueBill()`에 발행일을 매개변수로 받는 오버로드 추가 | ✅ | `TryChoosePerk()`가 정산 중(아직 `계속하기` 전, `_currentDay`가 다음 날로 안 넘어간 시점)에 새 고지서를 발행할 때 `_currentDay`를 그대로 썼더니 `DueDay`가 `due_days`보다 하루 짧게 나왔다(#249가 정한 "정산 중엔 날짜를 진행하지 않는다" 원칙과, `IssueBill`이 발행일=현재 날짜를 전제하던 기존 가정이 충돌). 무인자 `IssueBill()`은 `_currentDay`를 그대로 쓰는 기존 호출(`BeginRun`)을 유지하고, `IssueBill(int issuedDay)`만 다음 런의 날짜(`_currentDay + 1`)를 명시로 받는다 |
 | (#270) `TryChoosePerk()`에서 `_currentDay`를 먼저 증가시켜 두고 `IssueBill()` 무인자로 호출 | ❌ | `_currentDay`는 `BeginRun`이 하루 시작을 알리는 단일 출처다. 여기서 미리 올리면 아직 `계속하기`를 누르지 않았는데도 다른 조회자(HUD 등)가 다음 날짜를 보게 되어 #249가 막은 "계속하기 전 날짜 진행"이 다시 생긴다 |
 | (#272/#306) `BillPanelController`가 `IBillPersistence`(`CurrentLoan`/`LastLoanRepaidDay`/`CurrentBillIndex`)를 직접 참조 | ❌ | 그 계약은 문서(코드 주석)에 "SaveManager 만 쓴다"고 못 박혀 있다. UI가 두 번째 사용자가 되면 SaveManager 전용이라는 경계가 흐려지고, 저장 스키마가 바뀔 때 UI도 같이 흔들린다 |
@@ -51,6 +51,14 @@
 | (#272) 대출 거절 사유를 `TryTakeLoan`의 반환 타입(enum 등)으로 확장 | ❌ | 이미 있는 `bool` 시그니처를 바꾸는 게 계약 변경 폭이 더 크다. 대신 클릭 **전에** `IsLoanUnlocked`·`LoanCooldownDaysRemaining`으로 상태를 미리 읽어 `RenderButtons`가 캡션과 `interactable`을 함께 결정한다 — 실패하고 나서 사유를 되묻지 않는다 |
 | (#272) 해금 순번 캡션("N번째 고지서부터")의 숫자를 코드 상수로 박음 | ❌ | AGENTS.md 데이터 규칙 위반. `BillPanelController`가 이미 갖고 있는 `_balanceData.Bill.LoanUnlockBillIndex`(CSV `loan_unlock_bill_index`)에서 그때그때 계산한다 |
 | (#272) 상환 실패(잔액 부족) 캡션을 새 형식으로 만듦 | ❌ | `HandlePayClicked`의 `"$N 부족"` 패턴(#212)을 그대로 따랐다 — 같은 화면 안에서 실패 표기 방식이 갈리면 한쪽만 고쳐진 것처럼 읽힌다 |
+| (#273) 상환액·징수율 계산을 정적 클래스 `LoanTerms`로 옮겨 `BillManager`와 화면이 함께 부름 | ✅ | 식이 한 곳뿐이라 화면이 보여 준 금액과 실제로 확정되는 금액이 어긋날 수 없다. 화면은 이미 `BalanceData`(`BillConfig`)를 들고 있어 인터페이스·이벤트·CSV 스키마를 건드리지 않는다 |
+| (#273) 식을 `Loan` 정적 메서드로 둠 (이슈 본문이 적은 안) | ❌ | `Loan`은 `SaveData.ActiveLoan`으로 저장되는 DTO이고 PATTERNS.md 6절이 "DTO에는 메서드를 넣지 않는다"고 못 박았다(convention-checker 지적). 같은 `Data` 폴더의 별도 정적 클래스로 뺐다 |
+| (#273) `IBillService`에 미리보기 조회(`PreviewLoan(amount)` 등)를 추가 | ❌ | 공용 계약 변경이라 이슈부터 내야 하는데, 들어가는 값이 금액과 설정뿐인 순수 계산이라 매니저 상태가 필요 없다. 인터페이스를 넓힐 이유가 없다 |
+| (#273) 화면에 같은 식을 따로 적음 | ❌ | 두 벌이 되면 한쪽만 고쳐졌을 때 미리보기와 실제 징수가 조용히 갈린다. 변이 시험에서 "화면만 이자를 뺀다"·"화면만 징수율을 상한으로 본다"를 넣어 `BillPanelChecks`가 잡는 것을 확인했다 |
+| (#273) 금액을 ±단계 버튼으로 고름 | ❌ | 단계 폭이 새 수치가 되는데 둘 근거가 없고, 고지서가 단계마다 수십~천 단위로 벌어져 고정 폭 하나로는 맞지 않는다. 슬라이더는 범위를 고지서에 맞춰 늘이면 된다 |
+| (#273) 슬라이더만 둠 | ❌ | 수백 px 슬라이더에 고지서 전액을 나누면 한 픽셀이 여러 코인이라, 한 번 움직이면 부족분에 정확히 돌아올 수 없다. `부족분만큼`·`고지서 전액` 단추를 붙였다 |
+| (#273) 슬라이더 하한을 부족분으로 | ❌ | 오늘은 일부만 빌리고 나머지는 벌어서 채우는 선택을 막는다. 하한은 1로 두고, 부족분보다 적게 고르면 `"$N 모자라 이대로는 납부할 수 없습니다"`로 알린다 |
+| (#273) 부족분이 0 이하여도 대출 허용 | ❌ | 이슈 DoD. 가진 돈으로 낼 수 있는데 빌리면 이자와 징수만 남는다. 버튼을 잠그고 캡션에 `잔액으로 충분`을 적는다 — 잠긴 이유가 안 보이면 고장으로 읽힌다. **화면 규칙이다** — `TryTakeLoan`은 여전히 보유 코인을 보지 않는다 |
 
 ## 구조
 
@@ -95,8 +103,9 @@ flowchart LR
 | `BillHud` | `Assets/Scripts/Runtime/UI/BillHud.cs` | `OnBillIssued`/`OnBillDueSoon` 구독, `TextMeshProUGUI`에 "D-N  N원" 형식으로 표시 |
 | (프리팹) | 삭제됨 (#173) | 본래 Assets/Prefabs/UI/BillHud.prefab 이었으나 GameHud.prefab 으로 단일화되어 삭제됨 |
 | `BillManagerChecks` | `Assets/Scripts/Editor/BillManagerChecks.cs` | EditMode 배치 검증. `MenuItem` 없이 `RunBatch()`를 외부에서 호출한다 |
-| `BillPanelController` | `Assets/Scripts/Runtime/UI/BillPanelController.cs` | 고지서 화면(모달/탭 겸용). `TryPay` 실패 시 부족액을 표시하고, 기한 당일에는 `[아직]` 을 숨겨 납부·대출 선택만 남긴다. 대출 버튼은 활성 고지서 전액을 `TryTakeLoan`에 넘기며, 자발적 파산 확정 후에는 프레스티지 전용 반지 화면(`PrestigeOnly`)으로 전환한다(#211, #212). 상환 버튼(`_repayButton`)은 활성 대출이 있을 때만 나타나 `LoanOwedAmount`를 캡션에 보여 주고 `TryRepayLoan`을 부른다. 대출 버튼 캡션은 `IsLoanUnlocked`·`LoanCooldownDaysRemaining`으로 해금 순번 미달/쿨다운을 구분해 보여 준다(#272, #306). **프레스티지 화면이 반지를 살 수 있는 유일한 창이다** — 매일 여는 탭 화면에서는 반지 탭 버튼을 숨긴다(#291) |
-| `BillPanelChecks` | `Assets/Scripts/Editor/BillPanelChecks.cs` | 고지서 화면 Edit Mode 검증. 모달/탭/프레스티지 전용 상태별 노출, 기한 당일 `[아직]` 숨김, 납부 실패 부족액, 실제 대출 버튼 리스너 경유 호출과 완료 상태, 이름 생성 결정성, 대출 거절 사유 캡션 구분, 상환 버튼 노출·상환액 표시·실패/성공 경로(#272), 탭 화면에 반지 탭 버튼이 없고 억지로 열어도 반지 상점이 안 보이는지(#291)를 본다 |
+| `LoanTerms` | `Assets/Scripts/Runtime/Data/LoanTerms.cs` | 대출 계산식 `CalculateOwed`·`CalculateDailyCut`. #273 에서 `BillManager` private 메서드에서 옮겨 왔다 — 대출 확정과 화면 미리보기가 같은 식을 부른다 |
+| `BillPanelController` | `Assets/Scripts/Runtime/UI/BillPanelController.cs` | 고지서 화면(모달/탭 겸용). `TryPay` 실패 시 부족액을 표시하고, 기한 당일에는 `[아직]` 을 숨겨 납부·대출 선택만 남긴다. 대출 버튼은 금액 선택창(`_loanPickerPanel`)을 열고, 고른 금액을 `TryTakeLoan`에 넘긴다(#273). 자발적 파산 확정 후에는 프레스티지 전용 반지 화면(`PrestigeOnly`)으로 전환한다(#211, #212). 상환 버튼(`_repayButton`)은 활성 대출이 있을 때만 나타나 `LoanOwedAmount`를 캡션에 보여 주고 `TryRepayLoan`을 부른다. 대출 버튼 캡션은 `IsLoanUnlocked`·`LoanCooldownDaysRemaining`으로 해금 순번 미달/쿨다운을 구분해 보여 준다(#272, #306). **프레스티지 화면이 반지를 살 수 있는 유일한 창이다** — 매일 여는 탭 화면에서는 반지 탭 버튼을 숨긴다(#291) |
+| `BillPanelChecks` | `Assets/Scripts/Editor/BillPanelChecks.cs` | 고지서 화면 Edit Mode 검증. 모달/탭/프레스티지 전용 상태별 노출, 기한 당일 `[아직]` 숨김, 납부 실패 부족액, 실제 대출 버튼 리스너 경유 호출과 완료 상태, 이름 생성 결정성, 대출 거절 사유 캡션 구분, 상환 버튼 노출·상환액 표시·실패/성공 경로(#272), 탭 화면에 반지 탭 버튼이 없고 억지로 열어도 반지 상점이 안 보이는지(#291), 대출 금액 선택창의 기본값(부족분)·범위·미리보기·부족 경고·단추·취소·부분 대출·부족분 0 잠금(#273)을 본다 |
 
 ### 이벤트
 
@@ -120,8 +129,8 @@ flowchart LR
 | `Assets/GameData/Balance/perks.csv` | `value` | 퍼크 효과 수치(`PerkDef.Value`). 실제 적용은 각 시스템 몫 — 알려진 한계 참고 |
 | `Assets/GameData/Balance/perks.csv` | `duration_sec` | 지속시간(`PerkDef.DurationSec`). `coin_gain_boost`만 0보다 커야 하고 나머지는 0이어야 한다(임포터 검증) |
 | `Assets/GameData/Balance/bills.csv` | `loan_unlock_bill_index` | 대출 해금 순번 — 손에 든 고지서가 몇 번째부터 빌릴 수 있나 |
-| `Assets/GameData/Balance/bills.csv` | `loan_interest_rate` | 상환액 계산(`CalculateOwed`, 소수 올림) |
-| `Assets/GameData/Balance/bills.csv` | `loan_daily_cut_min`·`loan_daily_cut_max` | 일일 징수율을 빌린 금액에 비례해 보간하는 범위(`CalculateDailyCut`) |
+| `Assets/GameData/Balance/bills.csv` | `loan_interest_rate` | 상환액 계산(`LoanTerms.CalculateOwed`, 소수 올림) |
+| `Assets/GameData/Balance/bills.csv` | `loan_daily_cut_min`·`loan_daily_cut_max` | 일일 징수율을 빌린 금액에 비례해 보간하는 범위(`LoanTerms.CalculateDailyCut`) |
 | `Assets/GameData/Balance/bills.csv` | `loan_cooldown_days` | 완제 후 재대출 금지 일수(`IsLoanOnCooldown`) |
 | `Assets/GameData/Balance/bills.csv` | `loan_max_concurrent` | 동시에 유지할 수 있는 대출 건수 |
 
@@ -345,7 +354,7 @@ MCP로 열린 에디터에서 직접 호출):
 **고침**: 위 "왜 이 방법인가" #272/#306 행 참고.
 `BillPanelController.RenderButtons`가 활성 대출 유무로 상환 버튼(`_repayButton`)을 켜고 끄며
 `LoanOwedAmount`를 캡션에 표시한다. 대출 버튼 캡션은 해금 순번 미달이면
-`"{LoanUnlockBillIndex + 1}번째 고지서부터"`, 쿨다운 중이면 `"{LoanCooldownDaysRemaining}일 후
+`"{LoanUnlockBillIndex + 1}번째 고지서부터"`(**한 장 늦게 안내하는 버그였다** — #273 에서 `+ 1` 을 뺐다, 아래 "대출 해금 안내 순번" 절), 쿨다운 중이면 `"{LoanCooldownDaysRemaining}일 후
 가능"`으로 나뉜다 — 이전에는 둘 다 `"대출 실패"`였다. `HandleRepayClicked`는 `TryRepayLoan()`만
 부르고, 실패(잔액 부족)하면 `HandlePayClicked`(#212)와 같은 `"$N 부족"` 캡션을 띄운다.
 `BillPanelPrefabCreator`에 `RepayColumn`(버튼+캡션)을 추가했고, `ActionColumn` 높이를
@@ -368,6 +377,110 @@ MCP로 열린 에디터에서 직접 호출):
 **미검증**: Play Mode. 실제로 대출을 받고 상환 버튼을 눌러 코인이 빠지고 징수가 멎는지, 정산창
 `_loanCutRow`가 상환 직후 사라지는지는 크리처를 때려 코인을 모아야 확인할 수 있다.
 
+### 대출 금액 선택 (2026-09-23, #273)
+
+**Edit Mode** — `ValidationRunner.RunAll()` **통과 29 / 실패 0 (전체 29)**. 컴파일이 끝나 새 어셈블리가
+올라온 것을 먼저 확인한 뒤 요약 줄로 봤다. `[BillPanelChecks] PASS 51 checks.`,
+`[BillManagerChecks] PASS 32 checks.` 새 검사는 `BillPanelChecks.RunLoanPickerChecks` 9건과 프리팹 검사
+1건(선택창이 꺼진 채 저장됐나), `BillManagerChecks.RunLoanFormulaChecks` 2건과 `RunLoanChecks` 안의
+1건(확정된 값이 `LoanTerms` 와 같은가)이다. 기존 "대출 버튼 → 전액 대출" 검사는 "대출 버튼 → 선택창 →
+`빌린다`" 경로로 바꿨다.
+
+`UiGuidelineChecks` 의 `BillPanel` 권고는 추가 전후 모두 19건으로 **줄 단위까지 같다** — 새 선택창이
+늘린 권고는 없다 (글자 24px 이상, 단추 44px 이상, 불투명 카드 위 글자).
+
+프리팹은 `BillPanelPrefabCreator` 로 다시 만들었다. **다시 만들기 전에** 고치지 않은 생성기로 한 번 다시
+만들어 모든 컴포넌트의 직렬화 값을 이전 프리팹과 대조했고 차이가 0줄이었다 — 손으로 고친 흔적이 없어
+재생성이 아무것도 지우지 않는다. 새 프리팹과의 차이는 `LoanPickerPanel` 하위 추가와, 그 앞에 끼어든
+탓에 `SkillTreeNoticePanel` 의 자식 순번이 2→3 으로 밀린 것뿐이다.
+
+**변이 시험** — 넣은 결함 9종이 전부 잡혔다.
+
+| 넣은 결함 | 잡은 검사 |
+|---|---|
+| 대출 버튼이 선택창 없이 바로 전액을 빌림 | `BillPanelChecks` — "대출 버튼만 눌렀는데 TryTakeLoan 이 불렸습니다" |
+| 선택창 기본값이 부족분이 아니라 전액 | `BillPanelChecks` — "기본값은 부족분(700)이어야 합니다: 1000" |
+| 미리보기가 이자를 뺀 자체 식 | `BillPanelChecks` — "미리보기 상환액이 LoanTerms.CalculateOwed(700) = 770 와 다릅니다" |
+| 미리보기 징수율이 늘 상한 | `BillPanelChecks` — "미리보기 징수율이 … 8.5% 와 다릅니다" |
+| 부족분 0 이하 잠금 삭제 | `BillPanelChecks` — "잔액으로 낼 수 있는데 대출 버튼이 눌립니다" |
+| 패널을 닫아도 선택창이 남음 | `BillPanelChecks` |
+| `빌린다`가 고른 금액 대신 전액을 넘김 | `BillPanelChecks` — "고른 금액(400)을 TryTakeLoan 에 넘겨야 합니다: 1000" |
+| 상환액을 `double` 로 계산 | `BillManagerChecks` — "LoanOwedAmount 가 이자 포함 상환액과 다릅니다: 89 (기대 88)" |
+| `BillManager` 가 징수율 식을 부르지 않음(늘 상한) | `BillManagerChecks` |
+
+`float` 로 계산하는 결함은 **잡히지 않았는데, 결함이 아니었다.** `float` 곱은 결과를 가장 가까운 `float` 로
+반올림해 1~5000 원금을 이자 10% 로 전부 맞게 계산한다. 틀리는 쪽은 `double` 이다 — 410 × 1.1 이
+451.00000000000006 이 되어 452 로 올라가고, 1~5000 중 228개가 이렇게 한 푼 더 뜯긴다. 옛 주석의
+"450.99… 로 떨어져 한 푼이 깎인다" 는 방향이 반대였어서 옮기면서 확인한 사실로 고쳤다.
+
+**Play Mode** — `Game` 씬, 두 번째 고지서($465)·보유 $165 를 심고 고지서 모달을 연다.
+
+| 단계 | 결과 |
+|---|---|
+| A. 대출 버튼 | 선택창이 뜬다 · 슬라이더 $300(부족분) · 범위 1~465 · "갚을 돈 $330 (이자 10%) / 갚을 때까지 수입의 8.2% 징수" · 경고 없음 |
+| A. `빌린다` → 납부 | 보유 $465 · 상환액 330 · 징수율 0.08226 (미리보기와 같음) · 캡션 `대출 완료` · 상환 버튼 보임 · **납부 성공** |
+| B. `고지서 전액` | $465 · 갚을 돈 $512 · 10% |
+| B. 슬라이더 $150 → `빌린다` → 납부 | 경고 "$150 모자라 이대로는 납부할 수 없습니다" · 상환액 165 · 징수율 0.06613 (미리보기 6.6%) · 납부 실패 캡션 `$150 부족` |
+| C. 보유 $500 | 대출 버튼 잠김 · 캡션 `잔액으로 충분` |
+
+선택창 화면은 캡처로 눈으로 확인했다. 콘솔 오류 0건. 버튼은 `Button.onClick.Invoke()` 로 눌렀다.
+
+**식을 `LoanTerms` 로 옮긴 뒤(convention-checker 지적)** 다시 컴파일해 전체 검증 29/29 를 확인했고, `double` 계산과 화면 자체 식 두 결함을 새 자리에 다시 넣어 둘 다 잡히는 것을 봤다. 위 Play Mode 표는 옮기기 **전** 코드로 잰 것이다 — 식 본문은 글자 그대로 같고 호출 이름만 바뀌었다.
+
+**재확인 (옮긴 뒤 코드, Play Mode)** — `onClick.Invoke()` 로는 안 보이는 입력 경로 두 가지를 쟀다.
+
+- **선택창 뒤가 눌리지 않는다.** 바깥 막은 알파 0 이고 `CanvasRenderer.cullTransparentMesh` 가 켜져 있어,
+  그리지 않는 그래픽을 레이캐스트가 건너뛰면 뒤의 버튼이 눌릴 수 있었다. 선택창을 연 채 `GraphicRaycaster` 로
+  쏴 보니 `파산 선고`·대출 버튼·화면 구석 자리의 맨 위는 `LoanPickerPanel`(깊이 112)이었고 버튼이 아니었다.
+  카드 안 버튼(`빌린다`·`돌아간다`·`고지서 전액`)만 자기 자리에서 맞았다.
+- **슬라이더가 포인터 입력을 받는다.** 트랙 25%·0%·100% 지점에 `pointerDown` 을 보내면 값이 117·1·465 가
+  되고(1 + 0.25 × 464 = 117) 금액·미리보기가 따라 바뀐다.
+
+**정상 흐름 한 바퀴 (옮긴 뒤 코드, Play Mode)** — 상태를 심지 않고 저장된 판을 메인 메뉴 `이어하기` 로 열어,
+화면의 실제 버튼(`onClick.Invoke()`)과 실제 수입 경로(`EconomyManager.AddCoin`)만으로 돌렸다. 시작 상태는
+4일차 · 두 번째 고지서 $465(마감 5일차) · 보유 $165 · 대출 없음.
+
+| 단계 | 결과 |
+|---|---|
+| 런 수입 raw 20 → 스태미나 소진 | 정산창 · 보유 $185 · `$280 부족` |
+| 정산창 납부 → 고지서 모달 → 대출 버튼 | 선택창 기본값 **$280**(정산창의 부족분과 같다) · 갚을 돈 $308 · 징수 8% |
+| `빌린다` → `납부하기` | 보유 465 → 0 · 상환액 308 · 징수율 0.08011 · 상환 버튼 `상환액 $308` · 납부 완료 |
+| 퍽 선택 → 새 고지서 → `아직` → `계속하기` | 5일차 런 시작 · **대출이 씬 재로드·저장을 넘어 남는다**(상환액 308) · 새 고지서에서 대출 버튼은 `대출 완료` 로 잠김 |
+| 5일차 수입 raw 100 → 보유 91, raw 400 더 → 459 | 징수가 실제로 떼인다 — ⌊500 × (1 − 0.08011)⌋ = 459 |
+| 스태미나 소진 | 정산창에 `빅 토니 징수 (8%)` 행 (금액 칸은 `—` — 기존 한계, `ResultUIController.UpdateLoanCutRow`) |
+| 정산창 납부 → `대출 갚기` | 보유 459 → 151 · 상환액 0 · 징수율 0 · 상환 버튼 사라짐 · 대출 버튼 `5일 후 가능` 으로 잠김 |
+
+콘솔 오류 0건. 이 판은 저장에 남는다(이어하기로 연 로컬 저장을 진행시켰다).
+
+**#312 리베이스 뒤** — #312(#247)가 고지서를 11장($20~$250,000)으로 바꾸고 고지서 화면의 남은 날 계산을
+`DueDay − CurrentDay` 로 옮겼다. 충돌 없이 합쳐졌고 전체 검증 29/29. Play Mode 로 가장 큰 고지서($250,000,
+마감 당일, 보유 $61,234)를 심어 쟀다: `[아직]` 숨김·`지금 납부!`(#312 계산) · 선택창 기본값 $188,766 ·
+갚을 돈 $207,643 · 징수 8.8% · 부족분만큼 빌려 납부 성공(상환액 207,643 · 징수율 0.08775). 콘솔 오류 0건.
+
+**#313 리베이스 뒤** — #313(#239)은 `Game` 씬 소품·크리처 이동이라 겹치는 파일이 없고, 씬에 고지서·정산 패널이
+새로 박히지도 않았다(여전히 `InGameUIFallbackLoader` 가 띄운다). 새 어셈블리 확인 뒤 전체 검증 29/29.
+Play Mode — 메인 메뉴 `이어하기` → 새 `Game` 씬에서 런 종료 → 정산창 납부: 첫 고지서($20)라 대출 버튼 잠김.
+두 번째 고지서($45)·보유 $12 로 바꿔 선택창 기본값 $33 · 갚을 돈 $37 · 징수 8.7% → 빌려 납부 성공
+(상환액 37 · 징수율 0.08667). 콘솔 오류 0건.
+
+**실제 마우스로 끌어 보는 조작과 빌드된 실행 파일에서는 확인하지 않았다.**
+
+### 대출 해금 안내 순번 (2026-09-23, #273 에서 함께 고침)
+
+**버그**: 대출은 두 번째 고지서부터 열리는데, 첫 고지서에서 잠긴 이유를 **"3번째 고지서부터"** 로 안내했다.
+#272 의 캡션이 `LoanUnlockBillIndex + 1` 을 썼기 때문이다. `_billIndex` 는 1부터 시작해 첫 고지서를 발행하면
+2가 되고, `IsLoanUnlocked` 는 손에 든 고지서의 1부터 센 순번(`_billIndex - 1`)이 `loan_unlock_bill_index`(2)
+이상일 때 연다. 그러니 안내할 순번은 그 값 **그대로**다 — `bills.csv` 설명("두 번째 고지서부터")과도 맞다.
+
+**왜 검사가 못 잡았나**: `BillPanelChecks` 가 캡션에 `"번째 고지서부터"` 가 **들어 있는지만** 봤다.
+숫자가 틀려도 통과했다. 이제 `"{loan_unlock_bill_index}번째 고지서부터"` 와 **같은지**를 본다.
+
+**찾은 경위**: #313 리베이스 뒤 Play Mode 에서, 첫 고지서($20)를 든 저장으로 정산창 납부를 열었더니 캡션이
+"3번째 고지서부터" 였다. 두 번째 고지서($45)로 바꾸자 실제로 대출이 열렸다.
+
+**고친 뒤**: `BillPanelChecks` 가 `"2번째 고지서부터"` 를 기대하고 통과한다. 되돌려 `+ 1` 을 넣으면
+"해금 순번 미달이면 '2번째 고지서부터' 안내가 떠야 합니다: 3번째 고지서부터" 로 실패한다(변이 시험).
+
 ## 알려진 한계
 
 - ~~`GameManager`가 `BillManager.BeginRun()`/`EndRun()`을 호출하지 않는다.~~ — #164 에서 `IRunScoped` 를 구현해 붙였다. Play Mode 로 하루 진행·고지서 발행·파산 발동을 확인했다 (위 검증).
@@ -381,7 +494,9 @@ MCP로 열린 에디터에서 직접 호출):
   비우도록 바꿨다 — 파산을 넘어 남는 것은 레거시 포인트와 반지뿐이다.
 - **파산 즉시 상태를 되돌리는 것이 임시 방편이다.** 원래는 결과 화면을 보여 준 뒤 새 회차를 시작할 때 되돌리는 것이 맞지만, 새 회차 시작이 매니저 상태를 초기화하지 않아(`DontDestroyOnLoad`) 지금은 여기서 되돌리지 않으면 1일차 재시작이 성립하지 않는다.
 - ~~마감일 잔액 부족 시 고지서 모달에서 진행할 경로가 없다.~~ — #211 후속 보완에서 `_loanButton`을 활성 고지서 전액 대출로 배선했다. 마감 당일 `[아직]` 은 원작대로 숨긴다.
-- 대출 금액을 고르는 UI는 없다. 현재는 활성 고지서 전액을 빌리는 단일 선택이며, `BillManager`가 같은 금액을 상한으로 검증한다. 상환도 마찬가지로 **전액 상환 단일 선택**이다(#272) — 부분 상환은 원작에도 없다.
+- ~~대출 금액을 고르는 UI는 없다.~~ — #273 에서 금액 선택창을 붙였다. 상한은 여전히 `BillManager`가 활성 고지서 금액으로 검증한다. 상환은 **전액 상환 단일 선택**이다(#272) — 부분 상환은 원작에도 없다.
+- **부족분은 선택창을 연 순간의 값이다.** 모달이 떠 있는 동안에는 코인이 들어오지 않아 지금은 어긋날 일이 없지만, 선택창을 연 채 수입이 생기는 흐름이 생기면 기본값·경고가 낡는다.
+- **"잔액으로 충분" 잠금은 화면에만 있다.** `TryTakeLoan`은 보유 코인을 보지 않으므로, 다른 화면이 대출을 부르면 잔액이 넉넉해도 빌릴 수 있다. 지금 대출을 부르는 화면은 고지서 패널 하나다.
 - ~~대출 상태(`ActiveLoan`·`LastLoanRepaidDay`)가 저장·복원되지 않는다.~~ — #221 에서 `IBillPersistence` 로 붙였다.
 - 징수는 수입이 들어올 때만 일어난다. 하루 종일 한 푼도 벌지 못하면 뜯기는 것도 없다 — 원작이 그러한지는 7.2 실측에서 확인한다.
 - ~~`BillManager`의 날짜·고지서·퍼크 후보(`OfferedPerkIds`) 상태는 저장/복원되지 않는다.~~ — #221 에서 `IBillPersistence` 로 붙였다. `PendingPerkIds`(선택 대기 중인 퍼크)는 이 계약에 없어 여전히 저장되지 않는다.
@@ -419,3 +534,4 @@ MCP로 열린 에디터에서 직접 호출):
 | 2026-09-23 | #306 | Claude | 공용 계약 변경 발의·본인 승인 — `IBillService`에 `LoanOwedAmount`·`IsLoanUnlocked`·`LoanCooldownDaysRemaining` 읽기 전용 프로퍼티 3개 추가. `BillManager`가 구현, `EconomyManagerChecks`·`BillPanelChecks`의 `FakeBillService` 갱신 |
 | 2026-09-23 | #272 | Claude | 대출 상환 UI 신설. `BillPanelController`에 상환 버튼(`_repayButton`/`_repayCaptionText`)·`HandleRepayClicked` 추가, 대출 버튼 거절 사유를 해금 순번/쿨다운으로 구분. `BillPanelPrefabCreator`에 `RepayColumn` 추가. `BillManagerChecks`·`BillPanelChecks` 검증 보강 |
 | 2026-09-23 | #291 | twins6375-art | `IBillService.IsPrestigeWindowOpen` 추가 — `HandleBankruptcy` 가 켜고 다음 사이클 첫 `BeginRun` 과 `RestoreBillState` 가 끈다. 자발적·미납 파산을 구분하지 않는다. 탭 화면에서 반지 탭을 숨긴다 |
+| 2026-09-23 | #273 | twins6375-art | 대출 금액 선택창 추가 — 기본값 부족분, 상한 고지서 전액, 상환액·징수율 미리보기, 부족분 0 이하면 잠금. 계산식을 `BillManager` private 에서 새 정적 클래스 `LoanTerms`로 옮겨 확정과 미리보기가 같은 식을 부른다. 상환액 올림 주석의 부동소수 설명을 실측으로 고쳤다. #272 의 대출 해금 안내가 한 장 늦던("3번째") 버그를 함께 고치고 검사가 숫자까지 보게 했다 |

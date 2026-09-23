@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Globalization;
 using NCAIClicker.Core;
 using NCAIClicker.Data;
 using NCAIClicker.Events;
@@ -71,6 +72,19 @@ namespace NCAIClicker.UI
         [SerializeField] private Button _bankruptcyConfirmYesButton;
         [SerializeField] private Button _bankruptcyConfirmNoButton;
 
+        // 대출 금액 선택창 (이슈 #273). 파산 확인창과 같은 방식으로 패널 위에 겹쳐 띄운다.
+        // 기본값은 부족분, 상한은 고지서 전액이다 — 상한은 BillManager.TryTakeLoan 이 정한 한도와 같다.
+        [Header("대출 금액 선택")]
+        [SerializeField] private GameObject _loanPickerPanel;
+        [SerializeField] private Slider _loanAmountSlider;
+        [SerializeField] private TextMeshProUGUI _loanAmountText;
+        [SerializeField] private TextMeshProUGUI _loanPreviewText;
+        [SerializeField] private TextMeshProUGUI _loanShortfallWarningText;
+        [SerializeField] private Button _loanShortfallPresetButton;
+        [SerializeField] private Button _loanFullPresetButton;
+        [SerializeField] private Button _loanConfirmButton;
+        [SerializeField] private Button _loanCancelButton;
+
         [Header("스킬 트리 안내")]
         [SerializeField] private GameObject _skillTreeNoticePanel;
         [SerializeField] private Button _skillTreeNoticeConfirmButton;
@@ -85,6 +99,9 @@ namespace NCAIClicker.UI
         private ILegacyService _legacyService;
         private IGameFlowService _gameFlowService;
         private Coroutine _paidFeedbackRoutine;
+
+        /// <summary>선택창을 연 순간의 부족분. 창이 열려 있는 동안 기본값·경고 문구의 기준이다 (이슈 #273).</summary>
+        private long _loanPickerShortfall;
 
         /// <summary>이번 회차에 마지막 단계를 냈다 — 이후 고지서는 재발행이라 "더 벌기" 안내를 붙인다 (이슈 #271).</summary>
         private bool _isFinalStageCleared;
@@ -178,7 +195,28 @@ namespace NCAIClicker.UI
             {
                 _skillTreeNoticeConfirmButton.onClick.AddListener(HideSkillTreeNotice);
             }
+            if (_loanAmountSlider != null)
+            {
+                _loanAmountSlider.onValueChanged.AddListener(HandleLoanAmountChanged);
+            }
+            if (_loanShortfallPresetButton != null)
+            {
+                _loanShortfallPresetButton.onClick.AddListener(SelectShortfallLoanAmount);
+            }
+            if (_loanFullPresetButton != null)
+            {
+                _loanFullPresetButton.onClick.AddListener(SelectFullLoanAmount);
+            }
+            if (_loanConfirmButton != null)
+            {
+                _loanConfirmButton.onClick.AddListener(HandleLoanConfirmClicked);
+            }
+            if (_loanCancelButton != null)
+            {
+                _loanCancelButton.onClick.AddListener(HideLoanPicker);
+            }
             HideBankruptcyConfirm();
+            HideLoanPicker();
             HideSkillTreeNoticePanelOnly();
             RestorePostPaymentView();
         }
@@ -244,6 +282,26 @@ namespace NCAIClicker.UI
             if (_skillTreeNoticeConfirmButton != null)
             {
                 _skillTreeNoticeConfirmButton.onClick.RemoveListener(HideSkillTreeNotice);
+            }
+            if (_loanAmountSlider != null)
+            {
+                _loanAmountSlider.onValueChanged.RemoveListener(HandleLoanAmountChanged);
+            }
+            if (_loanShortfallPresetButton != null)
+            {
+                _loanShortfallPresetButton.onClick.RemoveListener(SelectShortfallLoanAmount);
+            }
+            if (_loanFullPresetButton != null)
+            {
+                _loanFullPresetButton.onClick.RemoveListener(SelectFullLoanAmount);
+            }
+            if (_loanConfirmButton != null)
+            {
+                _loanConfirmButton.onClick.RemoveListener(HandleLoanConfirmClicked);
+            }
+            if (_loanCancelButton != null)
+            {
+                _loanCancelButton.onClick.RemoveListener(HideLoanPicker);
             }
         }
 
@@ -321,6 +379,7 @@ namespace NCAIClicker.UI
         private void Show(Mode mode)
         {
             _mode = mode;
+            HideLoanPicker();
 
             if (_panelRoot != null)
             {
@@ -430,6 +489,7 @@ namespace NCAIClicker.UI
         public void Close(bool notifyClosed = true)
         {
             var wasOpen = IsOpen;
+            HideLoanPicker();
             if (_panelRoot != null)
             {
                 _panelRoot.SetActive(false);
@@ -590,7 +650,8 @@ namespace NCAIClicker.UI
             {
                 var isUnlocked = _billService != null && _billService.IsLoanUnlocked;
                 var cooldownDaysLeft = _billService != null ? _billService.LoanCooldownDaysRemaining : 0;
-                var canLoan = hasUnpaidBill && !hasActiveLoan && isUnlocked && cooldownDaysLeft <= 0;
+                var shortfall = hasUnpaidBill ? CalculateShortfall(bill) : 0L;
+                var canLoan = hasUnpaidBill && !hasActiveLoan && isUnlocked && cooldownDaysLeft <= 0 && shortfall > 0L;
                 _loanButton.interactable = canLoan;
                 if (_loanCaptionText != null)
                 {
@@ -605,12 +666,19 @@ namespace NCAIClicker.UI
                     else if (!isUnlocked)
                     {
                         // 해금 순번은 CSV(loan_unlock_bill_index) 원본이다 (AGENTS.md 데이터 규칙, 이슈 #306).
-                        var unlockOrdinal = _balanceData != null ? _balanceData.Bill.LoanUnlockBillIndex + 1 : 0;
+                        // 값이 곧 "몇 번째 고지서부터" 다 — BillManager.IsLoanUnlocked 는 손에 든 고지서의 1부터 센
+                        // 순번(_billIndex - 1)이 이 값 이상일 때 연다. +1 을 붙이면 한 장 늦게 안내한다 (#273 에서 고침).
+                        var unlockOrdinal = _balanceData != null ? _balanceData.Bill.LoanUnlockBillIndex : 0;
                         _loanCaptionText.text = $"{unlockOrdinal}번째 고지서부터";
                     }
                     else if (cooldownDaysLeft > 0)
                     {
                         _loanCaptionText.text = $"{cooldownDaysLeft}일 후 가능";
+                    }
+                    else if (shortfall <= 0L)
+                    {
+                        // 부족분이 0 이하면 대출 불가 (이슈 #273 DoD). 잠긴 이유가 안 보이면 고장으로 읽힌다.
+                        _loanCaptionText.text = "잔액으로 충분";
                     }
                     else
                     {
@@ -902,15 +970,121 @@ namespace NCAIClicker.UI
             }
         }
 
+        /// <summary>
+        /// 바로 빌리지 않고 금액 선택창을 연다 (이슈 #273). 예전에는 늘 고지서 전액을 빌렸는데,
+        /// 징수율이 빌린 비율에 비례하므로(LoanTerms.CalculateDailyCut) "적게 빌리면 덜 뜯긴다" 는 선택이 화면에 없었다.
+        /// </summary>
         private void HandleLoanClicked()
         {
             var bill = _billService?.ActiveBill;
-            if (bill == null || _billService == null)
+            if (bill == null || _billService == null || _loanPickerPanel == null || _loanAmountSlider == null)
             {
                 return;
             }
 
-            if (_billService.TryTakeLoan(bill.Amount))
+            _loanPickerShortfall = CalculateShortfall(bill);
+            _loanAmountSlider.wholeNumbers = true;
+            _loanAmountSlider.minValue = 1f;
+            _loanAmountSlider.maxValue = bill.Amount;
+            _loanAmountSlider.SetValueWithoutNotify(ClampLoanAmount(_loanPickerShortfall, bill.Amount));
+            _loanPickerPanel.SetActive(true);
+            RenderLoanPicker();
+        }
+
+        /// <summary>부족분 = 고지서 금액 - 보유 코인. 0 이하면 지금 가진 돈으로 낼 수 있다.</summary>
+        private long CalculateShortfall(Bill bill)
+        {
+            var coin = _economyService != null ? _economyService.CurrentCoin : 0L;
+            return bill.Amount - coin;
+        }
+
+        /// <summary>하한은 1이다 — 오늘은 일부만 빌리고 나머지는 벌어서 채우는 선택도 막지 않는다.</summary>
+        private static long ClampLoanAmount(long amount, long billAmount)
+        {
+            return Math.Max(1L, Math.Min(amount, billAmount));
+        }
+
+        private long SelectedLoanAmount => _loanAmountSlider != null ? (long)Mathf.Round(_loanAmountSlider.value) : 0L;
+
+        private void HandleLoanAmountChanged(float value)
+        {
+            RenderLoanPicker();
+        }
+
+        /// <summary>슬라이더로는 정확한 값에 다시 맞추기 어렵다. 두 기준값으로 곧장 돌아가는 단추다.</summary>
+        private void SelectShortfallLoanAmount()
+        {
+            var bill = _billService?.ActiveBill;
+            if (bill != null && _loanAmountSlider != null)
+            {
+                _loanAmountSlider.value = ClampLoanAmount(_loanPickerShortfall, bill.Amount);
+            }
+        }
+
+        private void SelectFullLoanAmount()
+        {
+            if (_loanAmountSlider != null)
+            {
+                _loanAmountSlider.value = _loanAmountSlider.maxValue;
+            }
+        }
+
+        /// <summary>
+        /// 상환액과 징수율은 BillManager 가 대출을 확정할 때 쓰는 바로 그 식(LoanTerms)으로 계산한다.
+        /// 화면이 식을 따로 가지면 미리보기와 실제 값이 조용히 어긋난다.
+        /// </summary>
+        private void RenderLoanPicker()
+        {
+            var bill = _billService?.ActiveBill;
+            if (bill == null)
+            {
+                return;
+            }
+
+            var amount = SelectedLoanAmount;
+            if (_loanAmountText != null)
+            {
+                _loanAmountText.text = $"${amount:N0}";
+            }
+            if (_loanPreviewText != null)
+            {
+                if (_balanceData != null)
+                {
+                    var config = _balanceData.Bill;
+                    var owed = LoanTerms.CalculateOwed(amount, config.LoanInterestRate);
+                    var cut = LoanTerms.CalculateDailyCut(amount, bill.Amount, config);
+                    _loanPreviewText.text = $"갚을 돈 ${owed:N0} (이자 {FormatPercent(config.LoanInterestRate)})\n"
+                                            + $"갚을 때까지 수입의 {FormatPercent(cut)} 징수";
+                }
+                else
+                {
+                    _loanPreviewText.text = string.Empty;
+                }
+            }
+            if (_loanShortfallWarningText != null)
+            {
+                _loanShortfallWarningText.text = amount < _loanPickerShortfall
+                    ? $"${_loanPickerShortfall - amount:N0} 모자라 이대로는 납부할 수 없습니다"
+                    : string.Empty;
+            }
+        }
+
+        /// <summary>징수율은 하한과 상한 사이를 선형으로 오가 정수 퍼센트로 떨어지지 않는다. 소수 한 자리까지 보인다.</summary>
+        private static string FormatPercent(float ratio)
+        {
+            return (ratio * 100f).ToString("0.#", CultureInfo.InvariantCulture) + "%";
+        }
+
+        private void HandleLoanConfirmClicked()
+        {
+            if (_billService == null)
+            {
+                return;
+            }
+
+            var amount = SelectedLoanAmount;
+            HideLoanPicker();
+            if (_billService.TryTakeLoan(amount))
             {
                 if (_loanCaptionText != null)
                 {
@@ -924,6 +1098,14 @@ namespace NCAIClicker.UI
                 {
                     _loanCaptionText.text = "대출 실패";
                 }
+            }
+        }
+
+        private void HideLoanPicker()
+        {
+            if (_loanPickerPanel != null)
+            {
+                _loanPickerPanel.SetActive(false);
             }
         }
 

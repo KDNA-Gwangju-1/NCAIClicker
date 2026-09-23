@@ -451,7 +451,7 @@ namespace NCAIClicker.Economy
         /// 빅 토니에게 amount 만큼 빌린다. 거부 조건은 순서대로 금액, 동시 건수, 해금 순번, 재대출 쿨다운, 한도다.
         /// 성공하면 이자를 더한 상환액이 그 자리에서 확정되고 원금이 지갑에 들어간다 — 원금 입금은
         /// IEconomyService.AddLoanPrincipal 을 거치므로 배율·징수·RunCoin 집계에서 빠진다
-        /// (ARCHITECTURE.md "코인 계산 순서" 8번).
+        /// (ARCHITECTURE.md "코인 계산·정산 계약" 8번).
         /// </summary>
         public bool TryTakeLoan(long amount)
         {
@@ -487,8 +487,8 @@ namespace NCAIClicker.Economy
             _activeLoan = new Loan
             {
                 Principal = amount,
-                Owed = CalculateOwed(amount, config.LoanInterestRate),
-                DailyCut = CalculateDailyCut(amount, _activeBill.Amount, config),
+                Owed = LoanTerms.CalculateOwed(amount, config.LoanInterestRate),
+                DailyCut = LoanTerms.CalculateDailyCut(amount, _activeBill.Amount, config),
             };
             _economyService.AddLoanPrincipal(amount);
             return true;
@@ -520,28 +520,6 @@ namespace NCAIClicker.Economy
         {
             return _lastLoanRepaidDay >= 0
                    && _currentDay - _lastLoanRepaidDay < config.LoanCooldownDays;
-        }
-
-        /// <summary>
-        /// 이자 포함 상환액. 소수 부분은 올려 정수로 확정한다 (ARCHITECTURE.md "코인 계산 순서" 8번).
-        /// float 이자율을 그대로 곱하면 410 × 1.1 이 450.99… 로 떨어져 한 푼이 깎이므로 decimal 로 올려 계산한다.
-        /// </summary>
-        private static long CalculateOwed(long principal, float interestRate)
-        {
-            var owed = principal * (1m + (decimal)interestRate);
-            return (long)Math.Ceiling(owed);
-        }
-
-        /// <summary>
-        /// 일일 징수율을 빌린 금액에 비례해 정한다 — 고지서 전액을 빌리면 상한, 조금만 빌리면 하한에 가깝다.
-        /// 대출할 때 한 번만 정하고 미상환 기간 내내 고정한다 (ARCHITECTURE.md Loan.DailyCut).
-        /// 범위 안에서 무작위로 뽑지 않는 이유: 같은 선택이 늘 같은 결과를 내야 7.2 밸런싱 실측과
-        /// Edit Mode 검증이 성립하고, "많이 빌릴수록 비싸다" 는 저울질도 이쪽이 분명하다.
-        /// </summary>
-        private static float CalculateDailyCut(long amount, long billAmount, BillConfig config)
-        {
-            var ratio = billAmount <= 0L ? 1f : Mathf.Clamp01((float)amount / billAmount);
-            return Mathf.Lerp(config.LoanDailyCutMin, config.LoanDailyCutMax, ratio);
         }
 
         /// <summary>
