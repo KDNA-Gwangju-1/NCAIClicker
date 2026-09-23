@@ -5,7 +5,7 @@
 
 ## MineWorksite/ — 지하 광산 작업장 테마
 
-`SceneConcept_MineWorksite.jpg` 가 씬 전체 컨셉이고, 나머지 22장은 그 씬에서 에셋별로 분리한
+`SceneConcept_MineWorksite.jpg` 가 씬 전체 컨셉이고, 나머지 23장은 그 씬에서 에셋별로 분리한
 **image-to-3D 입력 이미지**다 (1:1, 회색 무배경, 3/4 뷰). `ContactSheet.jpg` 로 한눈에 본다.
 
 저장소에는 JPEG(q92)로 넣었다. **Generate3D 에 넣을 때는 아래 VARCO 원본(PNG 1024²) URL 을 그대로 쓴다** —
@@ -15,10 +15,11 @@
 
 | 파일 | 대상 | 원본 URL |
 |---|---|---|
-| `CreatureCopper` | `TargetRunner` Visual | https://3d.varco.ai/api/objects/8a1a61e3bcc826b969a20c826a7c1bc2.png |
-| `CreatureSilver` | `TargetNormal` Visual | https://3d.varco.ai/api/objects/25cb563314407b2ecd82a75e90c70f1d.png |
-| `CreatureGold` | `TargetTourist` Visual | https://3d.varco.ai/api/objects/2549ae040906d4e05afda3e41d39ddb8.png |
-| `CreatureDiamond` | `TargetAnchor` Visual | https://3d.varco.ai/api/objects/4d12b2c6c6e7ad90d1d89ddefb0da8cb.png |
+| `CreatureCopper` | `TargetTourist`·`TargetRunner` Visual (#247) | https://3d.varco.ai/api/objects/8a1a61e3bcc826b969a20c826a7c1bc2.png |
+| `CreatureIron` | `TargetNormal` Visual (#282) | https://3d.varco.ai/api/objects/9c614d8430fdf87a95329c5490392a7f.png |
+| `CreatureSilver` | `TargetAnchor` Visual (#247) | https://3d.varco.ai/api/objects/25cb563314407b2ecd82a75e90c70f1d.png |
+| `CreatureGold` | `TargetPinata` Visual (#247) | https://3d.varco.ai/api/objects/2549ae040906d4e05afda3e41d39ddb8.png |
+| `CreatureDiamond` | `TargetAngry` Visual (#247) | https://3d.varco.ai/api/objects/4d12b2c6c6e7ad90d1d89ddefb0da8cb.png |
 | `OreChunkIron` | 코인(획득물) 액면 1 | https://3d.varco.ai/api/objects/a16419c5d76867ed468040fd47055977.png |
 | `OreChunkCopper` | 코인 액면 2 | https://3d.varco.ai/api/objects/f86c725abbe3a0eefd59593621d671b0.png |
 | `OreChunkSilver` | 코인 액면 3 | https://3d.varco.ai/api/objects/96230014542ffc5605d3e2d2930e3b52.png |
@@ -48,6 +49,7 @@
 | `polygonCount` | **1500** (소형 소품은 1000) | 타격 대상 1,000~2,000 삼각형 기준 |
 | `topology` | `tri` | |
 | `useAlpha` | `0` | 회색 배경이라 배경 제거를 VARCO 에 맡긴다 |
+| `generateTexture` | **`1`** | 빠지면 기본값이 꺼짐이라 텍스처 없는 회색 메시가 나온다 (#282 에서 한 번 헛돌았다) |
 | `usePbrTexture` | `1` | 기존 크리처와 동일 |
 | `textureSize` | `1024` | 실측 결과 그대로 채택 |
 | `tPose` | `0` | 리깅 안 함 |
