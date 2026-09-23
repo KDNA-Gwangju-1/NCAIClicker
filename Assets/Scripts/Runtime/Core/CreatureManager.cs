@@ -34,6 +34,17 @@ namespace NCAIClicker.Core
         /// </summary>
         [SerializeField] private Bounds _deskBounds = new Bounds(new Vector3(0f, 0f, 2f), new Vector3(4.8f, 1f, 4.8f));
 
+        /// <summary>
+        /// 씬에 배치된 소품 부모 오브젝트 이름(예: SceneProps). 이 매니저는 DontDestroyOnLoad라
+        /// 인스펙터로 씬 오브젝트를 직접 연결할 수 없어, 런 시작마다 이 이름으로 씬에서 다시
+        /// 찾는다 — AutoHammerController 가 연출 오브젝트를 다시 찾는 것과 같은 방식이다.
+        /// 그 아래 자식 하나하나를 장애물 원으로 근사해 크리처가 소품을 뚫고 지나가지 않게
+        /// 한다 (#239). 씬에 없으면 장애물 회피를 하지 않는다.
+        /// </summary>
+        [SerializeField] private string _obstacleRootName = "SceneProps";
+
+        private readonly List<ObstacleCircle> _obstacles = new List<ObstacleCircle>();
+
         private int _currentStageNumber = 1;
 
         /// <summary>
@@ -68,6 +79,40 @@ namespace NCAIClicker.Core
             Instance = this;
         }
 
+        /// <summary>
+        /// _obstacleRootName 아래 자식 하나하나의 렌더러 바운드를 실측해 장애물 원(중심·반경)을
+        /// 만든다. 소품 크기가 제각각이라 반경을 하드코딩하지 않고 매번 직접 잰다 (#239).
+        /// DontDestroyOnLoad 매니저가 씬 오브젝트를 봐야 해서 런 시작마다(BeginRun) 새로 찾는다.
+        /// </summary>
+        private void CacheObstacles()
+        {
+            _obstacles.Clear();
+            var root = GameObject.Find(_obstacleRootName);
+            if (root == null)
+            {
+                return;
+            }
+
+            foreach (Transform child in root.transform)
+            {
+                var renderers = child.GetComponentsInChildren<Renderer>();
+                if (renderers.Length == 0)
+                {
+                    continue;
+                }
+
+                var bounds = renderers[0].bounds;
+                for (var i = 1; i < renderers.Length; i++)
+                {
+                    bounds.Encapsulate(renderers[i].bounds);
+                }
+
+                var center = new Vector2(bounds.center.x, bounds.center.z);
+                var radius = new Vector2(bounds.extents.x, bounds.extents.z).magnitude;
+                _obstacles.Add(new ObstacleCircle(center, radius));
+            }
+        }
+
         private void OnEnable()
         {
             GameEvents.OnTargetBroken += HandleTargetBroken;
@@ -91,6 +136,7 @@ namespace NCAIClicker.Core
         public void BeginRun()
         {
             _isRunning = true;
+            CacheObstacles();
             if (_stageService != null)
             {
                 _currentStageNumber = _stageService.CurrentStageNumber;
@@ -283,7 +329,7 @@ namespace NCAIClicker.Core
             }
 
             var targetId = target != null ? target.TargetId : "normal";
-            movement.Initialize(_balanceData, targetId, _deskBounds, _activeCreatures);
+            movement.Initialize(_balanceData, targetId, _deskBounds, _obstacles, _activeCreatures);
 
             var hpDisplay = instance.GetComponent<CreatureHpDisplay>();
             if (hpDisplay == null)
@@ -357,11 +403,39 @@ namespace NCAIClicker.Core
             return null;
         }
 
+        /// <summary>
+        /// 이동 영역 안에서 무작위 좌표를 뽑되, 장애물 원과 겹치면 다시 뽑는다 (#239).
+        /// 시도 횟수를 넘기면 소품이 영역을 거의 다 채운 예외 상황으로 보고 마지막으로 뽑은
+        /// 좌표를 그대로 쓴다 — 스폰 자체가 막히는 것보다 낫다.
+        /// </summary>
         public Vector3 GetRandomSpawnPosition()
         {
-            var rx = Random.Range(_deskBounds.min.x, _deskBounds.max.x);
-            var rz = Random.Range(_deskBounds.min.z, _deskBounds.max.z);
+            const int maxAttempts = 20;
+            var rx = 0f;
+            var rz = 0f;
+            for (var attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                rx = Random.Range(_deskBounds.min.x, _deskBounds.max.x);
+                rz = Random.Range(_deskBounds.min.z, _deskBounds.max.z);
+                if (!IsInsideObstacle(rx, rz))
+                {
+                    break;
+                }
+            }
             return new Vector3(rx, 0f, rz);
+        }
+
+        private bool IsInsideObstacle(float x, float z)
+        {
+            var point = new Vector2(x, z);
+            foreach (var obstacle in _obstacles)
+            {
+                if ((point - obstacle.Center).magnitude < obstacle.Radius)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public void ClearAllCreatures()

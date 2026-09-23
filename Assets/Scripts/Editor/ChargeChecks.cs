@@ -156,7 +156,7 @@ namespace NCAIClicker.EditorTools
             // 에디터에서 만든 컴포넌트는 Awake·OnEnable 이 돌지 않아 직접 부른다 (구독 쌍 포함).
             InvokeLifecycle(movement, "Awake");
             InvokeLifecycle(movement, "OnEnable");
-            movement.Initialize(balance, target.TargetId, bounds, spawned);
+            movement.Initialize(balance, target.TargetId, bounds, others: spawned);
             return go;
         }
 

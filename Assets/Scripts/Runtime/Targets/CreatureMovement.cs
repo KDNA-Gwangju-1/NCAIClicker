@@ -6,6 +6,22 @@ using UnityEngine;
 namespace NCAIClicker.Targets
 {
     /// <summary>
+    /// 씬에 배치된 소품(장애물) 하나를 원으로 근사한 값. 크리처가 이동 중 이 원 안으로
+    /// 들어오면 사각형 벽에 부딪힐 때와 같은 방식으로 밀려나며 튕긴다 (#239).
+    /// </summary>
+    public readonly struct ObstacleCircle
+    {
+        public Vector2 Center { get; }
+        public float Radius { get; }
+
+        public ObstacleCircle(Vector2 center, float radius)
+        {
+            Center = center;
+            Radius = radius;
+        }
+    }
+
+    /// <summary>
     /// 크리처의 책상 평면 2축(XZ) 이동과 FSM 상태 머신을 제어한다 (ARCHITECTURE 4절).
     /// 평상시에는 멈춰 서서 대기(Idle)와 짧은 배회(Moving)를 번갈아 수행하며,
     /// 피격 시 경직(BeingHit) 후 타격 지점 반대 방향으로 도망(Fleeing)친다.
@@ -23,6 +39,10 @@ namespace NCAIClicker.Targets
         [SerializeField] private float _fleeDuration = 0.5f;
         [SerializeField] private float _baseIdleDuration = 1.0f;
         [SerializeField] private Bounds _movementBounds;
+
+        [Header("장애물 회피 (#239)")]
+        [Tooltip("씬 소품(장애물) 원과 이 거리(XZ) 안으로 들어오면 밀려나며 튕긴다")]
+        [SerializeField] private float _obstacleAvoidRadius = 0.35f;
 
         [Header("배회·피격 반응 (#267 — 원작 실측)")]
         [Tooltip("방향 전환 시점에 멈춰 서서 대기할 확률")]
@@ -55,6 +75,7 @@ namespace NCAIClicker.Targets
         private bool _shouldFleeAfterHit;
         private Vector3 _visualRestLocalPos;
         private bool _hasVisualRestLocalPos;
+        private IReadOnlyList<ObstacleCircle> _obstacles;
 
         // 분노 돌진 (#297)
         private float _chargeSpeed;
@@ -107,12 +128,15 @@ namespace NCAIClicker.Targets
         /// <summary>
         /// CSV 수치 및 이동 경계로 초기화한다.
         /// </summary>
+        /// <param name="obstacles">씬 소품 장애물 원 목록. 없으면 장애물을 무시하고 사각형 벽만 본다.</param>
         /// <param name="others">돌진 목표를 고를 필드 위 저금통 목록 (CreatureManager.ActiveCreatures). 없으면 돌진하지 않는다.</param>
         public void Initialize(BalanceData balanceData, string targetId, Bounds bounds,
+                               IReadOnlyList<ObstacleCircle> obstacles = null,
                                IReadOnlyList<GameObject> others = null)
         {
             _balanceData = balanceData;
             _movementBounds = bounds;
+            _obstacles = obstacles;
             _others = others;
             _consecutiveHits = 0;
             _comboResetTimer = 0f;
@@ -144,6 +168,11 @@ namespace NCAIClicker.Targets
         public void SetBounds(Bounds bounds)
         {
             _movementBounds = bounds;
+        }
+
+        public void SetObstacles(IReadOnlyList<ObstacleCircle> obstacles)
+        {
+            _obstacles = obstacles;
         }
 
         private void Update()
@@ -459,6 +488,8 @@ namespace NCAIClicker.Targets
                 _currentDirection.z = -Mathf.Abs(_currentDirection.z);
             }
 
+            pos = AvoidObstacles(pos);
+
             _currentDirection.y = 0f;
             if (_currentDirection.sqrMagnitude > 0.001f)
             {
@@ -466,6 +497,39 @@ namespace NCAIClicker.Targets
             }
 
             return pos;
+        }
+
+        /// <summary>
+        /// 장애물 원 안으로 들어온 좌표를 원 밖으로 밀어내고, 벽 튕김과 같은 방식으로
+        /// 그 방향의 이동 성분을 반사한다 (#239). 겹치는 장애물이 여럿이면 가장 가까운 것부터
+        /// 하나씩 해소한다 — 한 프레임에 여러 장애물과 동시에 겹칠 만큼 빠르게 움직이지 않는다.
+        /// </summary>
+        private Vector3 AvoidObstacles(Vector3 pos)
+        {
+            if (_obstacles == null || _obstacles.Count == 0)
+            {
+                return pos;
+            }
+
+            var flatPos = new Vector2(pos.x, pos.z);
+            foreach (var obstacle in _obstacles)
+            {
+                var offset = flatPos - obstacle.Center;
+                var minDist = obstacle.Radius + _obstacleAvoidRadius;
+                var dist = offset.magnitude;
+                if (dist >= minDist)
+                {
+                    continue;
+                }
+
+                var normal = dist > 0.001f ? offset / dist : new Vector2(1f, 0f);
+                flatPos = obstacle.Center + normal * minDist;
+
+                var flatNormal = new Vector3(normal.x, 0f, normal.y);
+                _currentDirection = Vector3.Reflect(_currentDirection, flatNormal);
+            }
+
+            return new Vector3(flatPos.x, pos.y, flatPos.y);
         }
 
         public void ChangeState(CreatureState newState)
