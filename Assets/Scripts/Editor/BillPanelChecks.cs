@@ -24,6 +24,7 @@ namespace NCAIClicker.EditorTools
             checkCount += RunPrefabChecks();
             checkCount += RunModeChecks();
             checkCount += RunDueDayChecks();
+            checkCount += RunLoanPickerChecks();
             checkCount += RunPostPaymentFlowChecks();
             checkCount += RunCurrencyHudChecks();
             checkCount += RunNameChecks();
@@ -66,6 +67,11 @@ namespace NCAIClicker.EditorTools
                    FindButton(prefab, "BankruptcyConfirmNoButton") != null,
                    "파산 선고 확인창의 예/아니오 버튼이 프리팹에 없습니다. " +
                    "되돌릴 수 없는 선택이라 확인 절차가 있어야 합니다 (#175).");
+            checkCount++;
+
+            // 대출 금액 선택창 (#273). 켜진 채 저장되면 고지서가 뜨자마자 선택창이 화면을 덮는다.
+            var loanPicker = (GameObject)typeof(BillPanelController).GetField("_loanPickerPanel", flags).GetValue(controller);
+            Assert(loanPicker != null && !loanPicker.activeSelf, "대출 금액 선택창은 꺼진 채 프리팹에 저장돼야 합니다 (#273).");
             checkCount++;
 
             Assert(FindButton(prefab, "SkillTreeNoticeConfirmButton") != null,
@@ -144,7 +150,7 @@ namespace NCAIClicker.EditorTools
 
         /// <summary>
         /// 기한 당일이면 "지금 납부!" 로 바뀌고 [아직] 버튼은 사라진다 (원작).
-        /// 잔액 부족으로 납부가 실패하면 부족액을 표시하고 대출 버튼으로 고지서 전액을 빌릴 수 있다.
+        /// 잔액 부족으로 납부가 실패하면 부족액을 표시하고 대출 버튼으로 빌릴 수 있다 — 금액 선택창을 거친다 (#273).
         /// </summary>
         private static int RunDueDayChecks()
         {
@@ -227,10 +233,16 @@ namespace NCAIClicker.EditorTools
                 var loanButton = parts.LoanButton.GetComponent<Button>();
                 Assert(loanButton.interactable, "마감 당일 미납이고 활성 대출이 없으면 대출 버튼이 활성화돼야 합니다.");
                 loanButton.onClick.Invoke();
+                // 대출 버튼은 바로 빌리지 않고 금액 선택창을 연다 (이슈 #273).
+                Assert(service.LoanAttemptCount == 0, "대출 버튼만 눌렀는데 TryTakeLoan 이 불렸습니다 — 금액 선택창을 거쳐야 합니다.");
+                Assert(parts.LoanPickerPanel.activeSelf, "대출 버튼을 누르면 금액 선택창이 열려야 합니다.");
+                parts.LoanConfirmButton.onClick.Invoke();
                 Assert(service.LoanAttemptCount == 1,
-                       "대출 버튼 클릭 1회당 TryTakeLoan 이 정확히 한 번 호출돼야 합니다: " + service.LoanAttemptCount);
+                       "빌린다 클릭 1회당 TryTakeLoan 이 정확히 한 번 호출돼야 합니다: " + service.LoanAttemptCount);
+                // 코인 서비스가 없으면 보유 0 이라 부족분 = 고지서 전액이다.
                 Assert(service.LastLoanTakenAmount == service.ActiveBill.Amount,
-                       "대출 시 고지서 전액을 빌려야 합니다: " + service.LastLoanTakenAmount);
+                       "보유 코인이 0 이면 기본값(부족분)이 고지서 전액이어야 합니다: " + service.LastLoanTakenAmount);
+                Assert(!parts.LoanPickerPanel.activeSelf, "빌린 뒤에는 금액 선택창이 닫혀야 합니다.");
                 Assert(parts.LoanCaption != null && parts.LoanCaption.text == "대출 완료",
                        "대출 성공 시 대출 완료 캡션이 표시되어야 합니다.");
                 checkCount++;
@@ -278,6 +290,123 @@ namespace NCAIClicker.EditorTools
             }
 
             return checkCount;
+        }
+
+        /// <summary>
+        /// 대출 금액 선택 (이슈 #273). 기본값은 부족분, 상한은 고지서 전액, 미리보기는 BillManager 가
+        /// 대출을 확정할 때 쓰는 LoanTerms 와 같은 값이어야 한다.
+        /// </summary>
+        private static int RunLoanPickerChecks()
+        {
+            var checkCount = 0;
+            var host = BuildHost(out var controller, out var parts);
+            var balance = UnityEditor.AssetDatabase.LoadAssetAtPath<BalanceData>("Assets/GameData/Generated/BalanceData.asset");
+            Assert(balance != null, "BalanceData.asset 이 없습니다.");
+            var config = balance.Bill;
+
+            try
+            {
+                var service = new FakeBillService { DaysLeft = 3, ShouldSucceedLoan = true };
+                service.ActiveBill = new Bill { Amount = 1000, IssuedDay = 1, DueDay = 4, IsPaid = false };
+                var economy = new FakeEconomyAndLegacyService { CurrentCoin = 300 };
+                controller.SetServices(service, economy, economy);
+                controller.SetBalanceData(balance);
+                InvokeLifecycle(controller, "OnEnable");
+                controller.ShowAsModal();
+
+                // 열면 부족분(1000 - 300)에 맞춰져 있고, 범위는 1 ~ 고지서 전액이다.
+                parts.LoanButton.GetComponent<Button>().onClick.Invoke();
+                Assert(parts.LoanPickerPanel.activeSelf, "대출 버튼을 누르면 금액 선택창이 열려야 합니다.");
+                Assert(service.LoanAttemptCount == 0, "선택창을 열기만 했는데 TryTakeLoan 이 불렸습니다.");
+                Assert(Mathf.Approximately(parts.LoanAmountSlider.value, 700f),
+                       "기본값은 부족분(700)이어야 합니다: " + parts.LoanAmountSlider.value);
+                Assert(Mathf.Approximately(parts.LoanAmountSlider.maxValue, 1000f),
+                       "상한은 고지서 전액(1000)이어야 합니다: " + parts.LoanAmountSlider.maxValue);
+                Assert(Mathf.Approximately(parts.LoanAmountSlider.minValue, 1f) && parts.LoanAmountSlider.wholeNumbers,
+                       "하한은 1, 정수 단위여야 합니다: " + parts.LoanAmountSlider.minValue);
+                checkCount++;
+
+                // 미리보기는 LoanTerms 값을 그대로 보여 준다. 부족분만큼이면 경고가 없다.
+                AssertPreview(parts, config, 700L, 1000L);
+                Assert(string.IsNullOrEmpty(parts.LoanShortfallWarningText.text),
+                       "부족분만큼 빌리면 경고가 없어야 합니다: " + parts.LoanShortfallWarningText.text);
+                checkCount++;
+
+                // 부족분보다 적게 고르면 미리보기가 따라 바뀌고, 모자라는 금액을 경고한다.
+                parts.LoanAmountSlider.value = 400f;
+                AssertPreview(parts, config, 400L, 1000L);
+                Assert(parts.LoanShortfallWarningText.text.Contains("$300"),
+                       "부족분보다 적게 고르면 모자라는 금액($300)을 알려야 합니다: " + parts.LoanShortfallWarningText.text);
+                checkCount++;
+
+                // 두 단추는 정확한 기준값으로 돌아간다.
+                parts.LoanFullPresetButton.onClick.Invoke();
+                Assert(Mathf.Approximately(parts.LoanAmountSlider.value, 1000f), "고지서 전액 단추가 1000 이 아닙니다: " + parts.LoanAmountSlider.value);
+                AssertPreview(parts, config, 1000L, 1000L);
+                parts.LoanShortfallPresetButton.onClick.Invoke();
+                Assert(Mathf.Approximately(parts.LoanAmountSlider.value, 700f), "부족분 단추가 700 이 아닙니다: " + parts.LoanAmountSlider.value);
+                checkCount++;
+
+                // 돌아간다는 아무것도 빌리지 않는다.
+                parts.LoanCancelButton.onClick.Invoke();
+                Assert(!parts.LoanPickerPanel.activeSelf, "돌아간다를 누르면 선택창이 닫혀야 합니다.");
+                Assert(service.LoanAttemptCount == 0, "돌아간다를 눌렀는데 TryTakeLoan 이 불렸습니다.");
+                checkCount++;
+
+                // 창이 열린 채 패널이 닫히거나 다시 열리면 선택창이 남지 않는다.
+                parts.LoanButton.GetComponent<Button>().onClick.Invoke();
+                controller.Close();
+                Assert(!parts.LoanPickerPanel.activeSelf, "패널을 닫았는데 대출 선택창이 남아 있습니다.");
+                controller.ShowAsModal();
+                Assert(!parts.LoanPickerPanel.activeSelf, "패널을 다시 열었는데 대출 선택창이 남아 있습니다.");
+                checkCount++;
+
+                // 고른 금액을 그대로 넘긴다 — 부분 대출.
+                parts.LoanButton.GetComponent<Button>().onClick.Invoke();
+                parts.LoanAmountSlider.value = 400f;
+                parts.LoanConfirmButton.onClick.Invoke();
+                Assert(service.LoanAttemptCount == 1 && service.LastLoanTakenAmount == 400L,
+                       "고른 금액(400)을 TryTakeLoan 에 넘겨야 합니다: " + service.LastLoanTakenAmount + " ×" + service.LoanAttemptCount);
+                Assert(!parts.LoanPickerPanel.activeSelf, "빌린 뒤에는 선택창이 닫혀야 합니다.");
+                Assert(parts.LoanCaption.text == "대출 완료", "대출 성공 캡션이 다릅니다: " + parts.LoanCaption.text);
+                checkCount++;
+
+                // 실패하면 기존 문구로 알린다.
+                service.LoanDailyCut = 0f;
+                service.ShouldSucceedLoan = false;
+                controller.ShowAsModal();
+                parts.LoanButton.GetComponent<Button>().onClick.Invoke();
+                parts.LoanConfirmButton.onClick.Invoke();
+                Assert(parts.LoanCaption.text == "대출 실패", "대출 실패 캡션이 다릅니다: " + parts.LoanCaption.text);
+                checkCount++;
+
+                // 부족분이 0 이하면 빌릴 수 없다 (DoD). 잠긴 이유를 캡션에 적는다.
+                economy.CurrentCoin = 1000;
+                controller.ShowAsModal();
+                Assert(!parts.LoanButton.GetComponent<Button>().interactable, "잔액으로 낼 수 있는데 대출 버튼이 눌립니다.");
+                Assert(parts.LoanCaption.text == "잔액으로 충분", "부족분이 없을 때 캡션이 다릅니다: " + parts.LoanCaption.text);
+                checkCount++;
+            }
+            finally
+            {
+                InvokeLifecycle(controller, "OnDisable");
+                UnityEngine.Object.DestroyImmediate(host);
+            }
+
+            return checkCount;
+        }
+
+        private static void AssertPreview(Parts parts, BillConfig config, long amount, long billAmount)
+        {
+            Assert(parts.LoanAmountText.text == "$" + amount.ToString("N0"),
+                   "선택 금액 표시가 다릅니다: " + parts.LoanAmountText.text + " (기대 $" + amount.ToString("N0") + ")");
+            var owed = LoanTerms.CalculateOwed(amount, config.LoanInterestRate);
+            var cutPercent = (LoanTerms.CalculateDailyCut(amount, billAmount, config) * 100f)
+                .ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "%";
+            Assert(parts.LoanPreviewText.text.Contains("$" + owed.ToString("N0")),
+                   "미리보기 상환액이 LoanTerms.CalculateOwed(" + amount + ") = " + owed + " 와 다릅니다: " + parts.LoanPreviewText.text);
+            Assert(parts.LoanPreviewText.text.Contains("수입의 " + cutPercent),
+                   "미리보기 징수율이 LoanTerms.CalculateDailyCut(" + amount + ") = " + cutPercent + " 와 다릅니다: " + parts.LoanPreviewText.text);
         }
 
         /// <summary>
@@ -420,6 +549,15 @@ namespace NCAIClicker.EditorTools
             public GameObject SkillTreeNoticeConfirmButton;
             public GameObject RingTabButton { get; set; }
             public GameObject RingTabRoot { get; set; }
+            public GameObject LoanPickerPanel { get; set; }
+            public Slider LoanAmountSlider { get; set; }
+            public TMPro.TextMeshProUGUI LoanAmountText { get; set; }
+            public TMPro.TextMeshProUGUI LoanPreviewText { get; set; }
+            public TMPro.TextMeshProUGUI LoanShortfallWarningText { get; set; }
+            public Button LoanShortfallPresetButton { get; set; }
+            public Button LoanFullPresetButton { get; set; }
+            public Button LoanConfirmButton { get; set; }
+            public Button LoanCancelButton { get; set; }
             public TMPro.TextMeshProUGUI DueValue;
             public TMPro.TextMeshProUGUI PayCaption;
             public TMPro.TextMeshProUGUI LoanCaption { get; set; }
@@ -448,6 +586,15 @@ namespace NCAIClicker.EditorTools
                 SkillTreeNoticeConfirmButton = ((Button)typeof(BillPanelController).GetField("_skillTreeNoticeConfirmButton", flags).GetValue(controller)).gameObject,
                 RingTabButton = ((Button)typeof(BillPanelController).GetField("_ringTabButton", flags).GetValue(controller)).gameObject,
                 RingTabRoot = (GameObject)typeof(BillPanelController).GetField("_ringTabRoot", flags).GetValue(controller),
+                LoanPickerPanel = (GameObject)typeof(BillPanelController).GetField("_loanPickerPanel", flags).GetValue(controller),
+                LoanAmountSlider = (Slider)typeof(BillPanelController).GetField("_loanAmountSlider", flags).GetValue(controller),
+                LoanAmountText = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_loanAmountText", flags).GetValue(controller),
+                LoanPreviewText = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_loanPreviewText", flags).GetValue(controller),
+                LoanShortfallWarningText = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_loanShortfallWarningText", flags).GetValue(controller),
+                LoanShortfallPresetButton = (Button)typeof(BillPanelController).GetField("_loanShortfallPresetButton", flags).GetValue(controller),
+                LoanFullPresetButton = (Button)typeof(BillPanelController).GetField("_loanFullPresetButton", flags).GetValue(controller),
+                LoanConfirmButton = (Button)typeof(BillPanelController).GetField("_loanConfirmButton", flags).GetValue(controller),
+                LoanCancelButton = (Button)typeof(BillPanelController).GetField("_loanCancelButton", flags).GetValue(controller),
                 DueValue = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_dueValueText", flags).GetValue(controller),
                 PayCaption = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_payCaptionText", flags).GetValue(controller),
                 LoanCaption = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_loanCaptionText", flags).GetValue(controller),
