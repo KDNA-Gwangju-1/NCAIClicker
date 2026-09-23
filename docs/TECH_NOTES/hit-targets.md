@@ -94,7 +94,7 @@ TargetNormal (루트)          ← 로직: Target, CreatureMovement, SphereColli
 | `CreatureMovement` | `Assets/Scripts/Runtime/Targets/CreatureMovement.cs` | 평면 2축(XZ) 배회 이동, FSM 전이, 책상 평면 안전 경계 이탈 방지, `Visual` 상하 바운스·이동 방향 회전 연출 (#267) |
 | `CreatureManager` | `Assets/Scripts/Runtime/Core/CreatureManager.cs` | 크리처 4종 스폰, 동시 출현 수 유지, 파괴 후 리스폰 관리 |
 | `CreatureHpDisplay` | `Assets/Scripts/Runtime/Targets/CreatureHpDisplay.cs` | 크리처 머리 위 실시간 HP 숫자 표시 및 피격 시 펀치 스케일 연출 |
-| `DamagePopup` | `Assets/Scripts/Runtime/Targets/DamagePopup.cs` | 타격 시 피해량을 공중에 띄우고 서서히 페이드아웃 후 소멸하는 연출 |
+| `DamagePopup` | `Assets/Scripts/Runtime/Targets/DamagePopup.cs` | 타격 시 피해량을 공중에 띄우고 서서히 페이드아웃 후 소멸하는 연출. 표시는 half-up 정수 반올림(1.5 → 2) — 피해 계산은 소수 그대로 (#321) |
 | `TargetChecks` | `Assets/Scripts/Editor/TargetChecks.cs` | 프리팹 구조·동작 검증 25건 |
 | `CreatureMovementChecks` | `Assets/Scripts/Editor/CreatureMovementChecks.cs` | 이동, FSM 전이, 경계 클램프, 바운스·회전, 피격 반응, 스폰, HP표시 검증 19건 |
 
@@ -404,3 +404,4 @@ instance 로 끼웠다. `TargetAnchor`/`Runner`/`Tourist` 는 대응하는 3D �
 | 2026-09-23 | #297 | saltlake00 | 화난 저금통 분노·돌진 — `HitSource.Charge`, `CreatureState.Charging`, `targets.csv` 돌진 열 2개 |
 | 2026-09-23 | #247 | saltlake00 | 크리처 5종 단계별 해금, `TargetAngry` 추가, 외형 재배정, 검증 2건 보정 |
 | 2026-09-23 | #301 | saltlake00 | 크리처 해금을 회차 누적 수입 기준으로, `stage_spawns.csv` 폐기, 저장 v6, `OnCreatureUnlocked`, 정산창 진행률·카운트업 |
+| 2026-09-23 | #321 | soilrist | 반지·퍼크 배율로 소수가 된 피해가 팝업에 `1.8` 로 뜨던 것을 정수로. `Mathf.RoundToInt` 는 .5 를 짝수로 보내 2.5 → 2 가 되므로 `FloorToInt(x + 0.5f)` 를 쓴다. `CreatureMovementChecks` 13번에 표시 검증 2건 |
