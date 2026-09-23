@@ -406,6 +406,9 @@ namespace NCAIClicker.EditorTools
             public int CurrentCycle => 1;
             public int DaysLeft => 0;
             public float LoanDailyCut => 0f;
+            public long LoanOwedAmount => 0L;
+            public bool IsLoanUnlocked => false;
+            public int LoanCooldownDaysRemaining => 0;
             public Bill ActiveBill => null;
             public string[] OfferedPerkIds => Array.Empty<string>();
             public PostPaymentFlowState PaymentFlowState => PostPaymentFlowState.None;
