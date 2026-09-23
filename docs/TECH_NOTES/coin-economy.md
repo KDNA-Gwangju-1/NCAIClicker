@@ -1,6 +1,6 @@
 # 코인 정산
 
-> 관련 이슈: #22, #71, #116, #32, #126, #30, #178, #217, #235 · 최종 수정: 2026-09-22
+> 관련 이슈: #22, #71, #116, #32, #126, #30, #178, #217, #235, #326, #330 · 최종 수정: 2026-09-23
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -24,6 +24,9 @@
 | `long` 으로 계산한다 | ❌ | 배율 곱에서 소수가 매번 잘려 파괴 보상이 체계적으로 깎인다 |
 | `float`/`double` 로 계산한다 | ❌ | 0.1 을 열 번 더해도 1 에 못 미쳐 입금이 0 이 된다. 검증으로 확인했다 |
 | 피버 배율을 FeverManager 에서 직접 받는다 | ❌ | 매니저 구현 클래스 직접 참조 금지. 게다가 FeverManager 가 없으면 컴파일도 안 된다 |
+| (#330) 종류별 **최대** 액면 `max_denom_id` 를 `targets.csv` 에 더한다 | ✅ | 철광석이 1일차부터 2.5% 로 $1,000 을 뽑아 기대값의 절반 이상이 한 갈래에서 나왔다(#326). 그 종류에서만 큰 액면을 빼려면 종류별 상한이 필요하다. 빈칸이면 상한 없음이라 다른 행은 그대로다. CSV 스키마 변경이라 #330 을 먼저 올렸다 |
+| (#330) `coins.csv` 에서 c1000 가중치를 낮춘다 | ❌ | 모든 종류의 수입이 함께 바뀐다. c1000 은 은광석·다이아의 핵심 수입이라(BALANCE "c1000 잭팟은 여전히 수입의 큰 축") 파산률이 뛴다 |
+| (#330) 추첨·기대값·구간의 후보 필터를 한 곳(`BuildPool`)에 둔다 | ✅ | 셋이 따로 적혀 있었다. 한 곳만 상한을 빠뜨리면 도감·해금 카드가 보여 주는 값과 실제로 나오는 코인이 조용히 어긋난다 |
 | 피버 상태를 `OnFeverStart`/`OnFeverEnd` 로 받는다 | ✅ | 의존이 0 이다. **상태만 받고 배율 값은 이쪽이 정한다** — 업그레이드가 배율을 올리는데(#32) 그 레벨도 여기 있어서, 값까지 받으면 오히려 두 곳을 봐야 한다 |
 
 ## 구조
@@ -68,7 +71,7 @@ flowchart LR
 |---|---|---|
 | `EconomyManager` | `Assets/Scripts/Runtime/Economy/EconomyManager.cs` | `IEconomyService` 외 런 경계·저장·업그레이드 계약(#71·#111·#116)을 함께 구현. 이벤트 구독·발행, 배율 계수 수집, `BreakInfo.Coins` 를 액면별로 누적해 `RunCoinBreakdown` 노출(#178) |
 | `CoinWallet` | `Assets/Scripts/Runtime/Economy/CoinWallet.cs` | 배율 곱, 소수 잔여 이월, 런 순수입 집계. 이벤트를 모른다 |
-| `CoinLottery` | `Assets/Scripts/Runtime/Economy/CoinLottery.cs` | `coins.csv` 가중치 테이블에서 `coin_count`개 추첨(`min_denom_id` 필터), 액면 합계 계산. 순수 정적 로직 — 매니저·씬에 의존하지 않는다 (#178) |
+| `CoinLottery` | `Assets/Scripts/Runtime/Economy/CoinLottery.cs` | `coins.csv` 가중치 테이블에서 `coin_count`개 추첨(`min_denom_id` 이상 · `max_denom_id` 이하, #330 — 후보는 `BuildPool` 한 곳), 액면 합계 계산. 순수 정적 로직 — 매니저·씬에 의존하지 않는다 (#178) |
 | `UpgradeState` | `Assets/Scripts/Runtime/Economy/UpgradeState.cs` | 업그레이드 레벨·비용·실효값. `EconomyManager` 가 함께 들고 있다 — 자세한 것은 [업그레이드](upgrades.md) |
 | `CoinWalletChecks` | `Assets/Scripts/Editor/CoinWalletChecks.cs` | 계산식 검증 11건 |
 | `EconomyManagerChecks` | `Assets/Scripts/Editor/EconomyManagerChecks.cs` | 이벤트 배선 검증 8건 |
@@ -148,7 +151,7 @@ Coin (Transform + CapsuleCollider + CoinVisual)
 | `Assets/GameData/Balance/upgrade_effects.csv` | `stat`, `value_per_level` | 위 기준값에 얹는 업그레이드 증분. `stat` 이 `fever_multiplier` 인 행 (#32) |
 | `Assets/GameData/Balance/economy.csv` | `coin_bonus_multiplier` | 보너스 배율 기준값 |
 | `Assets/GameData/Balance/coins.csv` | `id`, `value`, `weight` | 코인 액면과 추첨 가중치. `CoinLottery` 만 읽는다 (#178) |
-| `Assets/GameData/Balance/targets.csv` | `coin_count`, `min_denom_id` | 파괴 시 뽑을 코인 개수와 최소 액면. 타겟별 확정값은 [BALANCE.md](../BALANCE.md) 3절 "코인 액면 확정" 참고 (#217) |
+| `Assets/GameData/Balance/targets.csv` | `coin_count`, `min_denom_id`, `max_denom_id` | 파괴 시 뽑을 코인 개수와 최소·최대 액면(최대는 비면 상한 없음, #330 — 지금은 철광석만 `c100`). 타겟별 확정값은 [BALANCE.md](../BALANCE.md) 3절 "코인 액면 확정" 참고 (#217) |
 
 피버 배율은 CSV 값을 그대로 쓰지 않는다. `GetStat(StatId.FeverMultiplier, ...)` 를 거쳐
 업그레이드가 얹힌 실효값을 쓴다 — 자세한 것은 [업그레이드](upgrades.md)·[피버 게이지](fever-gauge.md).
@@ -177,6 +180,18 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
       스폰되지 않는 고아 프리팹이라 `SetDenomination("c5"/"c25"/"c100"/"c1000")` 분기는 Play
       Mode에서 실제로 호출해 볼 무대가 없다 — 코드 리뷰로만 확인(스위치문이 4개 필드를 배타적으로
       켜고 끄는 것을 `CoinVisual.cs` 소스로 직접 확인)
+
+### 최대 액면 (2026-09-23, #326 · #330)
+
+- [x] `ValidationRunner.RunAll()` **통과 30 / 실패 0 (전체 30)** — 컴파일이 끝나 새 어셈블리(`TargetDef.MaxDenomId`)가 올라온 것을 먼저 확인했다
+- [x] `CoinLotteryChecks` PASS 22 (+4) — 상한이 있으면 굴림 0.999999 에도 c100 까지만, 시드 고정 5,000회에 상한 위 액면 0, 기대값 `(5×25+25×10+100×4)/39`·구간 3개, 빈 상한·없는 상한·옛 모양은 상한 없음과 같다
+- [x] `TargetChecks` PASS 37 — 실제 `Target` 이 상한을 넘기는지: 상한 위 액면의 가중치를 메모리에서만 100만으로 올려도 철광석은 c100 이하만 낸다
+- [x] `PreflightChecks`(임포터) PASS 23 (+2) — `max_denom_id` 가 coins.csv 에 없거나 `min_denom_id` 보다 작으면 거부
+- [x] `UnlockChecks` PASS 5 — 도감 카드가 **실제로 보여 주는** 기대 코인이 상한까지 넣은 값(철광석 $20)과 같다
+- [x] 변이 시험 — `BuildPool` 이 상한 무시 / `Target` 이 상한을 안 넘김 / 임포터가 상한<하한 허용 / 도감이 상한을 안 넘김, 넷 다 잡혔다
+- [x] `BalanceData.asset` 재임포트 — 차이는 `MaxDenomId` 6줄(철광석만 `c100`)뿐
+- [x] `simulate_balance.py` 에 같은 필터(`coin_pool`) — 결과는 BALANCE.md "철광석 최대 액면" 절
+- [ ] 해금 카드(`UnlockCardView`)의 상한 전달은 지금 데이터로 검사되지 않는다 — 상한이 있는 종류가 처음부터 나오는 철광석뿐이라 카드가 뜨지 않는다
 
 ## 알려진 한계
 
@@ -235,3 +250,4 @@ Unity 6000.3.21f1, Edit Mode, 2026-09-16.
 | 2026-09-22 | #217 | hunil58 | `coin_count`·`min_denom_id`를 타겟별로 확정(`normal`/`tourist` c5, `anchor` c25, `runner` c1 유지). `simulate_balance.py`에 `draw_coin_lottery` 추가해 실제 추첨을 반영하고 `value` 정책의 목표 선택 기준을 죽은 열(`coin_mult`·`break_bonus`) 대신 기대 지급액 기준으로 교체. `coin_mult`·`break_bonus` 제거가 맞다고 판단했으나 스키마 변경이라 별도 공용 계약 이슈로 미룸. `stages.csv`의 `bill_amount`(10→35→90→235) 재조정 |
 | 2026-09-22 | #241 | saltlake00 | `targets.csv` 의 죽은 열 `coin_mult`·`break_bonus` 와 `TargetDef.CoinMult`/`BreakBonus`, 임포터 파싱·검증을 제거. 지급 경로(`CoinLottery`)는 변경 없음 |
 | 2026-09-22 | #235 | soilrist | 고아 프리팹이던 `Coin.prefab`에 액면별 광석 시각을 붙임. `Visual` 자식(역수 스케일로 루트의 비균일 스케일 상쇄) 아래 `OreChunk{Iron,Copper,Silver,Gold}Visual.prefab` 4종을 두고 `CoinVisual.SetDenomination`으로 스위칭. 스포너·호출 코드는 범위 밖(YAGNI) |
+| 2026-09-23 | #326·#330 | twins6375-art | `targets.csv` 에 `max_denom_id`(최대 액면, 빈칸=상한 없음) 추가, 철광석 `c100`. `CoinLottery` 후보 필터를 `BuildPool` 한 곳으로 모으고 `Draw`·`GetExpectedValue`·`GetRewardBands` 에 상한 인자 오버로드(옛 모양은 상한 없음). 임포터 검증·시뮬레이터 필터 추가 |

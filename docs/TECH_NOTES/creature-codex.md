@@ -74,7 +74,7 @@ flowchart LR
 | CSV | 열 | 쓰는 곳 |
 |---|---|---|
 | `targets.csv` | `unlock_earned`, `spawn_weight`(0 이면 도감에서 빠짐) | 카드 순서·해금 판정·진행률 |
-| `targets.csv` | `display_name`, `hp`, `coin_count`, `min_denom_id` | 이름·HP·기대 코인 |
+| `targets.csv` | `display_name`, `hp`, `coin_count`, `min_denom_id`, `max_denom_id` | 이름·HP·기대 코인 (최대 액면은 #330 — 철광석 기대 코인이 $44 → $20) |
 | `targets.csv` | `instant_break_chance`, `charge_speed`, `stamina_restore`, `move_speed` | 역할 문구 |
 | `coins.csv` | `value`, `weight` | 기대 코인 |
 
@@ -102,3 +102,4 @@ flowchart LR
 | 날짜 | 이슈 | 누가 | 무엇이 바뀌었나 |
 |---|---|---|---|
 | 2026-09-23 | #299 | soilrist + Claude | 최초 작성. 고지서 패널 저금통 탭, 카드별 CreaturePreview, 실루엣, 기대 코인, 진행률, UnlockChecks 도감 검사 |
+| 2026-09-23 | #326·#330 | twins6375-art | 기대 코인이 최대 액면(`max_denom_id`)까지 넣어 계산된다. `UnlockChecks` 에 카드가 실제로 보여 주는 기대 코인 검사 추가 |

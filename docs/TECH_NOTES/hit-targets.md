@@ -1,6 +1,6 @@
 # 타격 대상 (크리처)
 
-> 관련 이슈: #16, #17, #141, #148, #161, #37, #156 · 최종 수정: 2026-09-21
+> 관련 이슈: #16, #17, #141, #148, #161, #37, #156, #330 · 최종 수정: 2026-09-23
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -126,7 +126,7 @@ TargetNormal (루트)          ← 로직: Target, CreatureMovement, SphereColli
 | CSV | 열 | 쓰는 곳 |
 |---|---|---|
 | `targets.csv` | `hp` | 초기 내구도, 원시 보상 계산 |
-| `targets.csv` | `coin_count`, `min_denom_id` | `CoinLottery.Draw` → `BreakInfo.Coins`·`RawCoin` (#178). 예전 `coin_mult`·`break_bonus` 는 #241 에서 제거 |
+| `targets.csv` | `coin_count`, `min_denom_id`, `max_denom_id` | `CoinLottery.Draw` → `BreakInfo.Coins`·`RawCoin` (#178). 최대 액면은 #330 (철광석 `c100`). 예전 `coin_mult`·`break_bonus` 는 #241 에서 제거 |
 | `targets.csv` | `stamina_restore` | `BreakInfo.StaminaRestore`. 회복형만 0 보다 크다 |
 | `targets.csv` | `move_speed`, `turn_interval_sec` | `CreatureMovement` 배회 이동 속도 및 방향 전환 주기 |
 | `stages.csv` | `spawn_count` | `CreatureManager` 동시 출현 목표 수 |
@@ -405,3 +405,4 @@ instance 로 끼웠다. `TargetAnchor`/`Runner`/`Tourist` 는 대응하는 3D �
 | 2026-09-23 | #247 | saltlake00 | 크리처 5종 단계별 해금, `TargetAngry` 추가, 외형 재배정, 검증 2건 보정 |
 | 2026-09-23 | #301 | saltlake00 | 크리처 해금을 회차 누적 수입 기준으로, `stage_spawns.csv` 폐기, 저장 v6, `OnCreatureUnlocked`, 정산창 진행률·카운트업 |
 | 2026-09-23 | #321 | soilrist | 반지·퍼크 배율로 소수가 된 피해가 팝업에 `1.8` 로 뜨던 것을 정수로. `Mathf.RoundToInt` 는 .5 를 짝수로 보내 2.5 → 2 가 되므로 `FloorToInt(x + 0.5f)` 를 쓴다. `CreatureMovementChecks` 13번에 표시 검증 2건 |
+| 2026-09-23 | #326·#330 | twins6375-art | `targets.csv` 에 `max_denom_id`(최대 액면) — 철광석 `c100`. `TargetChecks` 가 실제 `Target` 이 상한을 넘기는지 본다(상한 위 액면 가중치를 메모리에서만 올려도 c100 이하만 나오는지) |
