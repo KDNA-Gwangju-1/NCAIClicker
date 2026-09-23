@@ -367,7 +367,14 @@ namespace NCAIClicker.UI
         {
             // 모달일 때는 탭이 없다. 고지서만 보인다.
             var showUpgrade = _mode == Mode.Tab && _tab == Tab.Upgrade;
-            var showRing = (_mode == Mode.Tab || _mode == Mode.PrestigeOnly) && _tab == Tab.Ring;
+            // 반지는 파산 후 프레스티지 화면에서만 보인다 (이슈 #291). 매일 여는 탭 모드에서는
+            // 반지 탭 버튼 자체를 숨긴다 — 눌러도 살 수 없는 상점을 보여 줄 이유가 없다.
+            // 구매 규칙의 정본은 EconomyManager.TryPurchaseRing 이고, 이 줄은 화면을 맞출 뿐이다.
+            var showRing = _mode == Mode.PrestigeOnly && _tab == Tab.Ring;
+            if (_ringTabButton != null)
+            {
+                _ringTabButton.gameObject.SetActive(_mode == Mode.PrestigeOnly);
+            }
 
             if (_billTabRoot != null)
             {
