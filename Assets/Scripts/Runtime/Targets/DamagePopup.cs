@@ -127,9 +127,9 @@ namespace NCAIClicker.Targets
                 }
             }
 
-            // 정수면 소수점 없이, 소수점 있으면 첫째자리까지 표시
-            bool isInteger = Mathf.Approximately(damage, Mathf.Round(damage));
-            _textMesh.text = isInteger ? Mathf.RoundToInt(damage).ToString() : damage.ToString("0.0");
+            // 표시만 반올림한다 — 피해 계산은 소수 그대로다 (#321).
+            // RoundToInt 는 .5 를 짝수로 보내(2.5 → 2) half-up 으로 직접 올린다.
+            _textMesh.text = Mathf.FloorToInt(damage + 0.5f).ToString();
 
             // 풀에서 재사용될 때 이전 페이드아웃 알파가 남지 않도록 되돌린다.
             _textMesh.color = _baseColor;

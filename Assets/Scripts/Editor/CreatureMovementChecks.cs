@@ -318,6 +318,11 @@ namespace NCAIClicker.EditorTools
 
                 var popup = DamagePopup.Spawn(Vector3.zero, 1.5f);
                 Assert(popup != null, "DamagePopup 생성 실패");
+                var popupText = popup.GetComponent<TMPro.TextMeshPro>().text;
+                Assert(popupText == "2", "피해 1.5 팝업은 정수 2 로 표시돼야 합니다 (#321). 실제: " + popupText);
+                popup.Setup(2.5f);
+                popupText = popup.GetComponent<TMPro.TextMeshPro>().text;
+                Assert(popupText == "3", "피해 2.5 팝업은 half-up 으로 3 이어야 합니다 (#321). 실제: " + popupText);
                 popup.Despawn();
                 passedCount++;
             }
