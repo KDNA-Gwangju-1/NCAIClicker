@@ -666,7 +666,9 @@ namespace NCAIClicker.UI
                     else if (!isUnlocked)
                     {
                         // 해금 순번은 CSV(loan_unlock_bill_index) 원본이다 (AGENTS.md 데이터 규칙, 이슈 #306).
-                        var unlockOrdinal = _balanceData != null ? _balanceData.Bill.LoanUnlockBillIndex + 1 : 0;
+                        // 값이 곧 "몇 번째 고지서부터" 다 — BillManager.IsLoanUnlocked 는 손에 든 고지서의 1부터 센
+                        // 순번(_billIndex - 1)이 이 값 이상일 때 연다. +1 을 붙이면 한 장 늦게 안내한다 (#273 에서 고침).
+                        var unlockOrdinal = _balanceData != null ? _balanceData.Bill.LoanUnlockBillIndex : 0;
                         _loanCaptionText.text = $"{unlockOrdinal}번째 고지서부터";
                     }
                     else if (cooldownDaysLeft > 0)

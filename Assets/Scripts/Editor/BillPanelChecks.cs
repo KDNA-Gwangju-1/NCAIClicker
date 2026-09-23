@@ -210,8 +210,13 @@ namespace NCAIClicker.EditorTools
                 // 대출 거절 사유 구분 (이슈 #272 DoD): "대출 실패" 하나로 뭉치지 않고 사유별로 캡션을 나눈다.
                 service.IsLoanUnlocked = false;
                 controller.ShowAsModal();
-                Assert(parts.LoanCaption != null && parts.LoanCaption.text.Contains("번째 고지서부터"),
-                       "해금 순번 미달이면 안내 캡션이 떠야 합니다: " +
+                // 숫자까지 본다 — 문구만 보면 한 장 늦게 안내해도 통과한다(#272 의 "+1" 이 그렇게 지나갔다, #273).
+                // BillManager.IsLoanUnlocked 는 손에 든 고지서 순번(1부터)이 loan_unlock_bill_index 이상일 때 열리므로
+                // 안내할 순번은 그 값 그대로다. 실제로 그 순번에서 열리는지는 BillManagerChecks.RunLoanChecks 가 본다.
+                var unlockBalance = UnityEditor.AssetDatabase.LoadAssetAtPath<BalanceData>("Assets/GameData/Generated/BalanceData.asset");
+                var expectedUnlockCaption = unlockBalance.Bill.LoanUnlockBillIndex + "번째 고지서부터";
+                Assert(parts.LoanCaption != null && parts.LoanCaption.text == expectedUnlockCaption,
+                       "해금 순번 미달이면 '" + expectedUnlockCaption + "' 안내가 떠야 합니다: " +
                        (parts.LoanCaption != null ? parts.LoanCaption.text : "null"));
                 checkCount++;
 
