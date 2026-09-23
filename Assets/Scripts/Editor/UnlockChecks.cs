@@ -171,13 +171,36 @@ namespace NCAIClicker.EditorTools
                 for (var i = 0; i < draws; i++)
                 {
                     sum += CoinLottery.SumValue(
-                        CoinLottery.Draw(balance, target.MinDenomId, target.CoinCount, random.NextDouble), balance);
+                        CoinLottery.Draw(balance, target.MinDenomId, target.MaxDenomId, target.CoinCount, random.NextDouble), balance);
                 }
-                var expected = CoinLottery.GetExpectedValue(balance, target.MinDenomId, target.CoinCount);
+                var expected = CoinLottery.GetExpectedValue(balance, target.MinDenomId, target.MaxDenomId, target.CoinCount);
                 var average = sum / draws;
                 Assert(expected > 0m && System.Math.Abs(average - expected) <= expected * 0.05m,
                        target.Id + " 기대 코인 " + expected + " 이 추첨 평균 " + average + " 과 5% 넘게 다릅니다.");
                 Assert(!string.IsNullOrEmpty(NCAIClicker.UI.CreatureCodexEntry.GetRoleText(target)), target.Id + " 역할 문구가 비었습니다.");
+            }
+
+            // 카드가 **실제로 보여 주는** 기대 코인도 같은 값이어야 한다 — 최대 액면(#330)을 빠뜨리면 철광석 카드만
+            // 옛 값($44)을 보여 준다. 미리보기는 Edit Mode 에서 모델·카메라를 만들어 끊고 본다.
+            var host = (GameObject)PrefabUtility.InstantiatePrefab(codex);
+            host.hideFlags = HideFlags.HideAndDontSave;
+            try
+            {
+                var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+                foreach (var entry in host.GetComponentsInChildren<NCAIClicker.UI.CreatureCodexEntry>(true))
+                {
+                    typeof(NCAIClicker.UI.CreatureCodexEntry).GetField("_preview", flags).SetValue(entry, null);
+                    entry.Render(balance, long.MaxValue);
+                    var target = balance.GetTarget(entry.TargetId);
+                    var shownExpected = CoinLottery.GetExpectedValue(balance, target.MinDenomId, target.MaxDenomId, target.CoinCount);
+                    var stat = (TMPro.TextMeshProUGUI)typeof(NCAIClicker.UI.CreatureCodexEntry).GetField("_statLabel", flags).GetValue(entry);
+                    Assert(stat.text == $"HP {target.Hp} · 기대 ${shownExpected:N0}",
+                           target.Id + " 도감 카드의 기대 코인이 최대 액면까지 넣은 값과 다릅니다: " + stat.text);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(host);
             }
             return 1;
         }

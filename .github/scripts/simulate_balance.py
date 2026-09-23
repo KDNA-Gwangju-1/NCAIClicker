@@ -17,28 +17,38 @@ def read_config(root, name):
     return {row["key"]: float(row["value"]) for row in read_rows(root, name)}
 
 
-def draw_coin_lottery(coins, min_denom_id, count, rng):
-    """`coins.csv` 가중치 표에서 `min_denom_id` 액면의 value 이상인 액면만 후보로 놓고,
-    weight 비례로 count 개를 뽑아 합계를 돌려준다. `CoinLottery.Draw` + `SumValue`
-    (Assets/Scripts/Runtime/Economy/CoinLottery.cs, 이슈 #178)를 그대로 옮긴 것이다 —
-    두 구현이 갈리면 이 도구의 추정이 실제 게임과 어긋난다."""
-    if count <= 0:
-        return 0.0
-    min_value = None
-    for coin in coins:
-        if coin["id"] == min_denom_id:
-            min_value = float(coin["value"])
-            break
+def coin_pool(coins, min_denom_id, max_denom_id=""):
+    """추첨 후보 — 가중치가 있고 `min_denom_id` 값 이상, `max_denom_id` 값 이하(비면 상한 없음, #330).
+    `CoinLottery.BuildPool` 을 그대로 옮겼다. 추첨·기대값 둘이 이 한 곳을 쓴다."""
+    def value_of(denom_id):
+        for coin in coins:
+            if denom_id and coin["id"] == denom_id:
+                return float(coin["value"])
+        return None
+    min_value = value_of(min_denom_id)
+    max_value = value_of(max_denom_id)
     pool = []
-    total_weight = 0.0
     for coin in coins:
         weight = float(coin["weight"])
+        value = float(coin["value"])
         if weight <= 0:
             continue
-        if min_value is not None and float(coin["value"]) < min_value:
+        if min_value is not None and value < min_value:
             continue
-        pool.append((float(coin["value"]), weight))
-        total_weight += weight
+        if max_value is not None and value > max_value:
+            continue
+        pool.append((value, weight))
+    return pool
+
+
+def draw_coin_lottery(coins, min_denom_id, count, rng, max_denom_id=""):
+    """`coins.csv` 가중치 표에서 후보(`coin_pool`)를 놓고 weight 비례로 count 개를 뽑아 합계를 돌려준다.
+    `CoinLottery.Draw` + `SumValue` (Assets/Scripts/Runtime/Economy/CoinLottery.cs, 이슈 #178)를 그대로
+    옮긴 것이다 — 두 구현이 갈리면 이 도구의 추정이 실제 게임과 어긋난다."""
+    if count <= 0:
+        return 0.0
+    pool = coin_pool(coins, min_denom_id, max_denom_id)
+    total_weight = sum(weight for _, weight in pool)
     if not pool or total_weight <= 0:
         return 0.0
     total = 0.0
@@ -55,23 +65,12 @@ def draw_coin_lottery(coins, min_denom_id, count, rng):
     return total
 
 
-def expected_coin_value(coins, min_denom_id, count):
+def expected_coin_value(coins, min_denom_id, count, max_denom_id=""):
     """타겟의 기대 지급액. `value` 정책이 이제 죽은 열(coin_mult·break_bonus) 대신
-    실제 지급을 결정하는 coin_count·min_denom_id 로 목표를 고르게 한다."""
-    min_value = None
-    for coin in coins:
-        if coin["id"] == min_denom_id:
-            min_value = float(coin["value"])
-            break
-    total_weight, weighted_value = 0.0, 0.0
-    for coin in coins:
-        weight = float(coin["weight"])
-        if weight <= 0:
-            continue
-        if min_value is not None and float(coin["value"]) < min_value:
-            continue
-        total_weight += weight
-        weighted_value += weight * float(coin["value"])
+    실제 지급을 결정하는 coin_count·min_denom_id·max_denom_id 로 목표를 고르게 한다."""
+    pool = coin_pool(coins, min_denom_id, max_denom_id)
+    total_weight = sum(weight for _, weight in pool)
+    weighted_value = sum(weight * value for value, weight in pool)
     if total_weight <= 0:
         return 0.0
     return count * weighted_value / total_weight
@@ -89,7 +88,8 @@ def simulate(root, runs, seed, uptime, policy, stage_number=1, hit_power=None, e
     targets = read_rows(root, "targets.csv")
     coins = read_rows(root, "coins.csv")
     for target in targets:
-        value = expected_coin_value(coins, target["min_denom_id"], int(float(target["coin_count"])))
+        value = expected_coin_value(coins, target["min_denom_id"], int(float(target["coin_count"])),
+                                    target.get("max_denom_id", ""))
         target["expected_value"] = value
         # value 정책은 "타격당 기대값"으로 고른다. 파워로 몇 번 쳐야 부서지는지 반영해야 고HP 종류만
         # 쫓다가 런이 끝나는 왜곡이 없다. 즉시 파괴 확률도 기대 타격 수를 줄인다.
@@ -175,7 +175,8 @@ def simulate(root, runs, seed, uptime, policy, stage_number=1, hit_power=None, e
             # 파괴 보상은 coin_mult·break_bonus 가 아니라 coins.csv 액면 추첨의 합이다
             # (이슈 #178). Target.OnHit 은 이 두 열을 더는 읽지 않는다 — CoinLottery.Draw
             # 만 본다. 이 두 열은 현재 지급액에 영향이 없는 죽은 필드다.
-            raw_coin = draw_coin_lottery(coins, target["min_denom_id"], int(float(target["coin_count"])), rng)
+            raw_coin = draw_coin_lottery(coins, target["min_denom_id"], int(float(target["coin_count"])), rng,
+                                         target.get("max_denom_id", ""))
             coin += raw_coin * multiplier * (economy["coin_bonus_multiplier"] + bonus_add)
             restore = float(target["stamina_restore"])
             energy = min(stamina["max_stamina"], energy + restore)

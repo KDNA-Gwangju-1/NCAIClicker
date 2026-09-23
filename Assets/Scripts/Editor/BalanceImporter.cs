@@ -112,6 +112,8 @@ namespace NCAIClicker.EditorTools
                     TurnIntervalSec = ToFloat(r["turn_interval_sec"]),
                     CoinCount = ToInt(r["coin_count"]),
                     MinDenomId = r["min_denom_id"],
+                    // 비어 있으면 상한 없음 (#330). 열이 없는 옛 CSV 도 같은 뜻으로 읽는다.
+                    MaxDenomId = r.ContainsKey("max_denom_id") ? r["max_denom_id"].Trim() : "",
                     InstantBreakChance = ToFloat(r["instant_break_chance"]),
                     ChargeSpeed = ToFloat(r["charge_speed"]),
                     ChargeDamageRatio = ToFloat(r["charge_damage_ratio"]),
@@ -464,6 +466,18 @@ namespace NCAIClicker.EditorTools
                 if (string.IsNullOrWhiteSpace(target.MinDenomId) || !coinIds.Contains(target.MinDenomId))
                     _errors.Add("targets.csv: '" + target.Id + "' 의 min_denom_id '" + target.MinDenomId +
                                "' 가 coins.csv 에 없습니다.");
+                if (!string.IsNullOrEmpty(target.MaxDenomId))
+                {
+                    // 상한이 하한보다 작으면 후보가 비어 한 푼도 안 나온다 — 조용히 0 원 크리처가 된다 (#330).
+                    var minCoin = d.GetCoin(target.MinDenomId);
+                    var maxCoin = d.GetCoin(target.MaxDenomId);
+                    if (maxCoin == null)
+                        _errors.Add("targets.csv: '" + target.Id + "' 의 max_denom_id '" + target.MaxDenomId +
+                                   "' 가 coins.csv 에 없습니다.");
+                    else if (minCoin != null && maxCoin.Value < minCoin.Value)
+                        _errors.Add("targets.csv: '" + target.Id + "' 의 max_denom_id '" + target.MaxDenomId +
+                                   "' 가 min_denom_id '" + target.MinDenomId + "' 보다 작습니다.");
+                }
             }
 
             if (d.Economy.BaseHitPower <= 0 || d.Economy.HoverSwingIntervalSec <= 0 ||

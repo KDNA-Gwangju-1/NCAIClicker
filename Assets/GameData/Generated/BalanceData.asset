@@ -57,6 +57,7 @@ MonoBehaviour:
     TurnIntervalSec: 4
     CoinCount: 1
     MinDenomId: c5
+    MaxDenomId: c100
     InstantBreakChance: 0
     ChargeSpeed: 0
     ChargeDamageRatio: 0
@@ -70,6 +71,7 @@ MonoBehaviour:
     TurnIntervalSec: 6
     CoinCount: 3
     MinDenomId: c100
+    MaxDenomId: 
     InstantBreakChance: 0
     ChargeSpeed: 0
     ChargeDamageRatio: 0
@@ -83,6 +85,7 @@ MonoBehaviour:
     TurnIntervalSec: 1.5
     CoinCount: 1
     MinDenomId: c1
+    MaxDenomId: 
     InstantBreakChance: 0
     ChargeSpeed: 0
     ChargeDamageRatio: 0
@@ -96,6 +99,7 @@ MonoBehaviour:
     TurnIntervalSec: 5
     CoinCount: 2
     MinDenomId: c25
+    MaxDenomId: 
     InstantBreakChance: 0
     ChargeSpeed: 0
     ChargeDamageRatio: 0
@@ -109,6 +113,7 @@ MonoBehaviour:
     TurnIntervalSec: 4
     CoinCount: 40
     MinDenomId: c1
+    MaxDenomId: 
     InstantBreakChance: 0.1
     ChargeSpeed: 0
     ChargeDamageRatio: 0
@@ -122,6 +127,7 @@ MonoBehaviour:
     TurnIntervalSec: 5
     CoinCount: 9
     MinDenomId: c100
+    MaxDenomId: 
     InstantBreakChance: 0
     ChargeSpeed: 2.5
     ChargeDamageRatio: 0.7

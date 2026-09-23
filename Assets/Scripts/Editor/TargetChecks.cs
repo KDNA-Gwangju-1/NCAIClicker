@@ -121,6 +121,22 @@ namespace NCAIClicker.EditorTools
                     // 즉시 파괴(#293)는 확률이라 이 구간에서만 메모리 값을 0 으로 둔다. 에셋에는 저장하지 않는다.
                     var savedInstantBreak = def.InstantBreakChance;
                     def.InstantBreakChance = 0f;
+
+                    // 최대 액면(#330)이 있는 종류는 그보다 큰 액면의 가중치를 메모리에서만 크게 올린다 — Target 이
+                    // max 를 넘기지 않으면 거의 확실히 그 액면이 나와 아래 검사에 걸린다. 에셋에는 저장하지 않는다.
+                    var maxDenom = string.IsNullOrEmpty(def.MaxDenomId) ? null : balance.GetCoin(def.MaxDenomId);
+                    var savedWeights = new Dictionary<CoinDef, int>();
+                    if (maxDenom != null)
+                    {
+                        foreach (var coin in balance.Coins)
+                        {
+                            if (coin.Value > maxDenom.Value)
+                            {
+                                savedWeights[coin] = coin.Weight;
+                                coin.Weight = 1000000;
+                            }
+                        }
+                    }
                     try
                     {
                         broken.Clear();
@@ -152,6 +168,10 @@ namespace NCAIClicker.EditorTools
                     finally
                     {
                         def.InstantBreakChance = savedInstantBreak;
+                        foreach (var saved in savedWeights)
+                        {
+                            saved.Key.Weight = saved.Value;
+                        }
                     }
 
                     var info = broken[0];
@@ -170,6 +190,8 @@ namespace NCAIClicker.EditorTools
                         AssertCondition(coinDef != null, pair.Key + ": coins.csv 에 없는 액면 '" + drop.DenomId + "' 이 나왔습니다.");
                         AssertCondition(minDenom == null || coinDef.Value >= minDenom.Value,
                             pair.Key + ": min_denom_id(" + def.MinDenomId + ") 미만 액면 '" + drop.DenomId + "' 이 나왔습니다.");
+                        AssertCondition(maxDenom == null || coinDef.Value <= maxDenom.Value,
+                            pair.Key + ": max_denom_id(" + def.MaxDenomId + ") 를 넘는 액면 '" + drop.DenomId + "' 이 나왔습니다 (#330).");
                         AssertCondition(drop.Count > 0, pair.Key + ": CoinDrop 개수가 0 이하입니다.");
                         drawnCount += drop.Count;
                         sum += (decimal)coinDef.Value * drop.Count;

@@ -204,7 +204,7 @@ namespace NCAIClicker.Targets
             // 액면 추첨은 파괴되는 지금 한다 (이슈 #178) — Initialize 에서 미리 정하면
             // 같은 프리팹 인스턴스가 매번 같은 액면만 내놓게 된다.
             var coins = def != null
-                ? CoinLottery.Draw(_balanceData, def.MinDenomId, def.CoinCount, () => _coinRandom.NextDouble())
+                ? CoinLottery.Draw(_balanceData, def.MinDenomId, def.MaxDenomId, def.CoinCount, () => _coinRandom.NextDouble())
                 : System.Array.Empty<CoinDrop>();
             var rawCoin = CoinLottery.SumValue(coins, _balanceData);
 
