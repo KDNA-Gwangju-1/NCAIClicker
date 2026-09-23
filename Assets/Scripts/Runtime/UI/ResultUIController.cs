@@ -674,6 +674,18 @@ namespace NCAIClicker.UI
             {
                 _payDaysLeftText.text = unpaid ? $"{GetDaysLeftAfterToday(activeBill)}일 남음" : string.Empty;
             }
+            // 마감일에는 업그레이드·계속을 숨겨 납부 창으로만 가게 한다 (원작과 같다, 7.1.1 #320).
+            // 계속을 열어 두면 돈이 있어도 눌러서 바로 파산으로 넘어간다.
+            var isDueToday = unpaid && GetDaysLeftAfterToday(activeBill) <= 0;
+            if (_upgradeButton != null)
+            {
+                _upgradeButton.gameObject.SetActive(!isDueToday);
+            }
+            if (_continueButton != null)
+            {
+                _continueButton.gameObject.SetActive(!isDueToday);
+            }
+
             if (_payCaptionText != null)
             {
                 var coin = _economyService != null ? _economyService.CurrentCoin : 0L;
