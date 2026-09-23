@@ -26,9 +26,9 @@
 | `TunnelEntrance` | 환경 — 갱도 입구 (지지대+레일) | https://3d.varco.ai/api/objects/f9ecb0ded00e4fbfd6b864eb97009ed6.png |
 | `FenceSection` | 환경 — 목책 1칸 (모듈) | https://3d.varco.ai/api/objects/288989f6984494909bb73c8209db5f67.png |
 | `AmethystCluster` | 환경 — 자수정 군락 | https://3d.varco.ai/api/objects/50cc277bc1c94f89762b9668f6197a6d.png |
-| `OreCart` | 소품 — 광차 | https://3d.varco.ai/api/objects/21d3127c5f5a3fae8501586dcc70dcf3.png |
-| `WoodenCrate` | 소품 — 나무상자 | https://3d.varco.ai/api/objects/b364981d2a2c937e25914a3a7c736c49.png |
-| `OreSack` | 소품 — 광석 자루 | https://3d.varco.ai/api/objects/906ab95a1b4ef9bc64f8e003daab4b6c.png |
+| `OreCart` | 소품 — 광차 | https://3d.varco.ai/api/objects/08f7b66fb7463547e36034de5e9a8e3f.png |
+| `WoodenCrate` | 소품 — 나무상자 | https://3d.varco.ai/api/objects/0105c1c7b370e6e1d5c384d8b17e2f43.png |
+| `OreSack` | 소품 — 광석 자루 | https://3d.varco.ai/api/objects/c5f2cae53ff0e9e731debced6b97d3cb.png |
 | `Barrel` | 소품 — 나무통 | https://3d.varco.ai/api/objects/f07d66cf4b28228650318357efd60745.png |
 | `Lantern` | 소품 — 랜턴 | https://3d.varco.ai/api/objects/fa427f0e5b3f5ed38721b1aec1a5ca8c.png |
 | `Pickaxe` | 소품 — 곡괭이 (플레이어 도구 후보) | https://3d.varco.ai/api/objects/6b590259b48e44ebc0de74d8de493131.png |
