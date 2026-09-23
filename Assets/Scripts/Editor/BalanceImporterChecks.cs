@@ -66,7 +66,7 @@ namespace NCAIClicker.EditorTools
 
                 // Float 경유 시 손실되는 정수를 실제 에셋에 정확하게 기록해야 한다.
                 CopyFixture(fixtureDirectory);
-                ReplaceFixture(fixtureDirectory, "upgrades.csv", ",2,0,20,1", ",16777217,0,20,1");
+                ReplaceFixture(fixtureDirectory, "upgrades.csv", ",6,1.6,20,1", ",16777217,1.6,20,1");
                 AssertCondition(BalanceImporter.TryImport(fixtureDirectory, outputPath, out error), error);
                 AssertCondition(asset.Upgrades[0].InitCost == 16777217L, "64비트 코인 정밀도 손실");
                 AssertCondition(AssetDatabase.AssetPathToGUID(outputPath) == guid, "재임포트 GUID 변경");
