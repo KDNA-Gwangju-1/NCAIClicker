@@ -524,11 +524,11 @@ namespace NCAIClicker.UI
 
         private void RenderDue(Bill bill)
         {
-            var daysLeft = _billService != null ? _billService.DaysLeft : 0;
+            var daysLeft = GetDaysLeftAfterToday(bill);
 
             // 기한 당일이면 남은 일수를 세지 않고 "지금 납부!" 로 바꾼다 (원작).
             // 숫자로 "0일" 이라고 쓰면 아직 하루가 남은 것처럼 읽힌다.
-            var isDueToday = bill != null && !bill.IsPaid && daysLeft <= 1;
+            var isDueToday = bill != null && !bill.IsPaid && daysLeft <= 0;
 
             if (_dueLabelText != null)
             {
@@ -547,11 +547,26 @@ namespace NCAIClicker.UI
             }
         }
 
+        /// <summary>
+        /// 고지서 화면은 그날 런이 끝난 뒤에만 열린다. 오늘은 이미 썼으므로 남은 날에서 뺀다 — 원작도 첫 정산에
+        /// 3일짜리 고지서를 "2일 남음", 새로 받은 5일짜리를 "5일" 로 보여 준다 (#247). 새 고지서는 다음 날부터
+        /// 세도록 발행되므로(IssueBill(_currentDay + 1)) 이 계산으로 정확히 기한 일수가 나온다.
+        /// IBillService.DaysLeft 는 런 중 HUD 용으로 오늘을 포함해 센다.
+        /// </summary>
+        private int GetDaysLeftAfterToday(Bill bill)
+        {
+            if (bill == null || _billService == null)
+            {
+                return 0;
+            }
+            return Mathf.Max(0, bill.DueDay - _billService.CurrentDay);
+        }
+
         private void RenderButtons(Bill bill)
         {
             var hasUnpaidBill = bill != null && !bill.IsPaid;
-            var daysLeft = _billService != null ? _billService.DaysLeft : 0;
-            var isDueToday = hasUnpaidBill && daysLeft <= 1;
+            var daysLeft = GetDaysLeftAfterToday(bill);
+            var isDueToday = hasUnpaidBill && daysLeft <= 0;
 
             if (_payButton != null)
             {

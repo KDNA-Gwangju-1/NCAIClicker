@@ -507,7 +507,7 @@ namespace NCAIClicker.UI
             var bill = _billService?.ActiveBill;
             var billLine = bill == null || bill.IsPaid
                 ? $"{stageNumber}단계 고지서 납부 완료"
-                : $"{stageNumber}단계 고지서 ${bill.Amount:N0} · 마감 {_billService.DaysLeft}일 남음";
+                : $"{stageNumber}단계 고지서 ${bill.Amount:N0} · 마감 {GetDaysLeftAfterToday(bill)}일 남음";
 
             if (_billStatusText != null)
             {
@@ -575,7 +575,7 @@ namespace NCAIClicker.UI
             }
             if (_payDaysLeftText != null)
             {
-                _payDaysLeftText.text = unpaid ? $"{_billService.DaysLeft}일 남음" : string.Empty;
+                _payDaysLeftText.text = unpaid ? $"{GetDaysLeftAfterToday(activeBill)}일 남음" : string.Empty;
             }
             if (_payCaptionText != null)
             {
@@ -751,6 +751,19 @@ namespace NCAIClicker.UI
             var span = System.Math.Max(1L, next.UnlockEarned - previous);
             var percent = Mathf.Clamp(Mathf.FloorToInt(100f * (earned - previous) / span), 0, 99);
             return $"누적 ${earned:N0} / ${next.UnlockEarned:N0} · {percent}%";
+        }
+
+        /// <summary>
+        /// 정산창은 그날 런이 끝난 뒤라 오늘을 남은 날에서 뺀다 (#247, 원작: 3일짜리 첫 고지서가 첫 정산에 "2일 남음").
+        /// IBillService.DaysLeft 는 런 중 HUD 용으로 오늘을 포함해 센다.
+        /// </summary>
+        private int GetDaysLeftAfterToday(Bill bill)
+        {
+            if (bill == null || _billService == null)
+            {
+                return 0;
+            }
+            return Mathf.Max(0, bill.DueDay - _billService.CurrentDay);
         }
 
         private long GetEarnedTotal()

@@ -91,7 +91,9 @@ namespace NCAIClicker.Economy
         /// </summary>
         private void HandleBillPaid(Bill bill)
         {
-            if (_isStageCleared || _balanceData == null)
+            // 납부할 때마다 한 단계 오른다. 정산창에서 고지서를 내고 새 고지서도 같은 날 또 낼 수 있으므로
+            // "한 런에 한 번" 으로 막으면 두 번째 납부가 단계를 올리지 못해 같은 금액이 다시 나온다 (#247).
+            if (_balanceData == null)
             {
                 return;
             }
