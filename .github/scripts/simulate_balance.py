@@ -76,7 +76,7 @@ def expected_coin_value(coins, min_denom_id, count):
     return count * weighted_value / total_weight
 
 
-def simulate(root, runs, seed, uptime, policy, stage_number=1, hit_power=None):
+def simulate(root, runs, seed, uptime, policy, stage_number=1, hit_power=None, earned=0):
     stamina = read_config(root, "stamina.csv")
     economy = read_config(root, "economy.csv")
     fever = read_config(root, "fever.csv")
@@ -97,11 +97,10 @@ def simulate(root, runs, seed, uptime, policy, stage_number=1, hit_power=None):
         if chance > 0.0:
             hits = (1 - (1 - chance) ** hits) / chance
         target["expected_value_per_hp"] = value / hits
-    # 종류별 가중치는 stage_spawns.csv (#293). 행이 없는 종류는 그 단계에 나오지 않는다.
-    ratios = {row["target_id"]: float(row["ratio"])
-              for row in read_rows(root, "stage_spawns.csv") if row["stage"] == stage["stage"]}
-    targets = [target for target in targets if ratios.get(target["id"], 0.0) > 0.0]
-    weights = [ratios[target["id"]] for target in targets]
+    # 해금은 회차 누적 수입 기준이다 (#301). spawn_weight 가 0 이면 해금 목록에도 없다.
+    targets = [target for target in targets
+               if float(target["spawn_weight"]) > 0.0 and earned >= int(float(target["unlock_earned"]))]
+    weights = [float(target["spawn_weight"]) for target in targets]
     extra_spawn_chance = economy["extra_spawn_chance_on_destroy"]
     rng = random.Random(seed)
     results = []
@@ -180,7 +179,7 @@ def simulate(root, runs, seed, uptime, policy, stage_number=1, hit_power=None):
         results.append((coin, elapsed, breaks, restorations, elapsed >= cap, fevers))
     coins_sorted = sorted(row[0] for row in results)
     return {
-        "stage": stage_number, "hit_power": power, "runs": runs, "seed": seed, "hover_uptime": uptime, "policy": policy,
+        "stage": stage_number, "earned": earned, "hit_power": power, "runs": runs, "seed": seed, "hover_uptime": uptime, "policy": policy,
         "mean_coin": round(statistics.mean(coins_sorted), 2),
         "p10_coin": round(coins_sorted[int((runs - 1) * 0.1)], 2),
         "median_coin": round(statistics.median(coins_sorted), 2),
@@ -197,6 +196,42 @@ def simulate(root, runs, seed, uptime, policy, stage_number=1, hit_power=None):
     }
 
 
+def simulate_days(root, players, days, seed, uptime, policy, power_start, power_per_day):
+    """새 회차를 날짜 순으로 이어 돌린다 (#301). 매 정산에 순수입을 누적하고, 기준액을 넘은 종류를
+    다음 날부터 섞는다. 종류별 해금일(그 정산이 있었던 날) 분포를 돌려준다.
+    파워는 날마다 power_per_day 씩 오른다고 가정한다 — 업그레이드 구매 속도의 대용이다."""
+    targets = [row for row in read_rows(root, "targets.csv") if float(row["spawn_weight"]) > 0.0]
+    thresholds = {row["id"]: int(float(row["unlock_earned"])) for row in targets}
+    unlock_days = {target_id: [] for target_id, value in thresholds.items() if value > 0}
+    earned_by_day = [[] for _ in range(days)]
+    for player in range(players):
+        earned = 0
+        for day in range(1, days + 1):
+            power = power_start + power_per_day * (day - 1)
+            result = simulate(root, 1, seed * 100003 + player * 997 + day, uptime, policy,
+                              1, power, earned)
+            before = earned
+            earned += int(result["mean_coin"])
+            earned_by_day[day - 1].append(earned)
+            for target_id, value in thresholds.items():
+                if value > 0 and before < value <= earned:
+                    unlock_days[target_id].append(day)
+    summary = {}
+    for target_id, found in unlock_days.items():
+        found.sort()
+        reached = len(found)
+        summary[target_id] = {
+            "unlock_earned": thresholds[target_id],
+            "reached_percent": round(100 * reached / players, 1),
+            "p25_day": found[int((reached - 1) * 0.25)] if reached else None,
+            "median_day": found[int((reached - 1) * 0.5)] if reached else None,
+            "p75_day": found[int((reached - 1) * 0.75)] if reached else None,
+        }
+    median_earned = [sorted(values)[len(values) // 2] for values in earned_by_day]
+    return {"players": players, "days": days, "power_start": power_start, "power_per_day": power_per_day,
+            "policy": policy, "unlock": summary, "median_earned_by_day": median_earned}
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--runs", type=int, default=1000)
@@ -206,8 +241,20 @@ if __name__ == "__main__":
     parser.add_argument("--stage", type=int, default=1, help="stages.csv 의 단계 번호 (#247)")
     parser.add_argument("--hit-power", type=float, default=None,
                         help="가정 타격 파워. 생략하면 economy.csv base_hit_power (업그레이드 없음)")
+    parser.add_argument("--earned", type=int, default=0,
+                        help="회차 누적 수입 (#301). 이 값으로 해금된 종류만 나온다")
+    parser.add_argument("--days", type=int, default=0,
+                        help="0 보다 크면 새 회차를 이 날수만큼 이어 돌려 종류별 해금일을 낸다 (#301). --runs 는 플레이어 수")
+    parser.add_argument("--power-per-day", type=float, default=0.35,
+                        help="--days 모드에서 하루마다 오르는 가정 파워 (완력 단련 1레벨 = 0.35)")
     args = parser.parse_args()
     if args.runs <= 0 or not 0 <= args.uptime <= 1:
         parser.error("runs must be positive and uptime must be between 0 and 1")
     root = Path(__file__).resolve().parents[2] / "Assets/GameData/Balance"
-    print(json.dumps(simulate(root, args.runs, args.seed, args.uptime, args.policy, args.stage, args.hit_power), indent=2))
+    if args.days > 0:
+        start = 1.0 if args.hit_power is None else args.hit_power
+        print(json.dumps(simulate_days(root, args.runs, args.days, args.seed, args.uptime, args.policy,
+                                       start, args.power_per_day), indent=2, ensure_ascii=False))
+    else:
+        print(json.dumps(simulate(root, args.runs, args.seed, args.uptime, args.policy, args.stage,
+                                  args.hit_power, args.earned), indent=2))

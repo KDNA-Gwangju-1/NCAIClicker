@@ -22,11 +22,6 @@ namespace NCAIClicker.Data
         public List<UpgradeDef> Upgrades = new();
         public List<StageDef> Stages = new();
 
-        /// <summary>
-        /// 단계별 종류 출현 가중치 (stage_spawns.csv, #293). 한 단계에 행이 없는 종류는 그 단계에서
-        /// 등장하지 않는다 — 크리처 해금은 이 행의 유무로 표현한다 (#247).
-        /// </summary>
-        public List<StageSpawnDef> StageSpawns = new();
         public List<PerkDef> Perks = new();
 
         /// <summary>고지서에 찍히는 발신처와 제목. 금액·기한과 무관한 표기용 데이터다 (이슈 #34).</summary>
@@ -50,64 +45,43 @@ namespace NCAIClicker.Data
         /// <summary>stageNumber 는 1부터 시작한다.</summary>
         public StageDef GetStage(int stageNumber) => Stages.Find(s => s.Stage == stageNumber);
 
-        /// <summary>stageNumber 단계에 등장하는 종류와 가중치. 파일 순서를 유지한다.</summary>
-        public List<StageSpawnDef> GetStageSpawns(int stageNumber) => StageSpawns.FindAll(s => s.Stage == stageNumber);
+        /// <summary>
+        /// 해금 대상 종류인가 (#301). spawn_weight 가 0 이면 해금 목록에도, 책상에도 나오지 않는다 (고속형).
+        /// </summary>
+        public static bool IsUnlockable(TargetDef target) => target != null && target.SpawnWeight > 0f;
+
+        /// <summary>이번 회차 누적 수입이 earnedTotal 일 때 해금돼 있는가 (#301).</summary>
+        public static bool IsUnlocked(TargetDef target, long earnedTotal) =>
+            IsUnlockable(target) && earnedTotal >= target.UnlockEarned;
 
         /// <summary>
-        /// 종류가 처음 등장하는 단계 (#247). stage_spawns.csv 에서 비율이 0 보다 큰 첫 단계이며, 없으면 0 이다.
+        /// 해금 대상 종류를 해금 순서(unlock_earned 오름차순, 같으면 targets.csv 순서)로 돌려준다.
         /// 해금은 이 값으로만 판정한다 — 코드에 해금 목록을 두지 않는다.
         /// </summary>
-        public int GetUnlockStage(string targetId)
+        public List<TargetDef> GetUnlockOrder()
         {
-            var first = 0;
-            foreach (var spawn in StageSpawns)
-            {
-                if (spawn.TargetId == targetId && spawn.Ratio > 0f && (first == 0 || spawn.Stage < first))
-                {
-                    first = spawn.Stage;
-                }
-            }
-            return first;
-        }
-
-        /// <summary>stageNumber 단계까지 해금된 종류를 해금 순서(같은 단계면 targets.csv 순서)로 돌려준다.</summary>
-        public List<TargetDef> GetUnlockedTargets(int stageNumber)
-        {
-            var unlocked = Targets.FindAll(t =>
-            {
-                var stage = GetUnlockStage(t.Id);
-                return stage > 0 && stage <= stageNumber;
-            });
-            // List.Sort 는 안정 정렬이 아니라 원래 순서를 보조 키로 쓴다.
             var order = new Dictionary<string, int>();
             for (var i = 0; i < Targets.Count; i++)
             {
                 order[Targets[i].Id] = i;
             }
-            unlocked.Sort((a, b) =>
+            var unlockable = Targets.FindAll(IsUnlockable);
+            // List.Sort 는 안정 정렬이 아니라 원래 순서를 보조 키로 쓴다.
+            unlockable.Sort((a, b) =>
             {
-                var byStage = GetUnlockStage(a.Id).CompareTo(GetUnlockStage(b.Id));
-                return byStage != 0 ? byStage : order[a.Id].CompareTo(order[b.Id]);
+                var byAmount = a.UnlockEarned.CompareTo(b.UnlockEarned);
+                return byAmount != 0 ? byAmount : order[a.Id].CompareTo(order[b.Id]);
             });
-            return unlocked;
+            return unlockable;
         }
 
-        /// <summary>stageNumber 다음 단계들 중 가장 먼저 해금되는 종류. 더 없으면 null.</summary>
-        public TargetDef GetNextUnlockTarget(int stageNumber)
-        {
-            TargetDef next = null;
-            var nextStage = int.MaxValue;
-            foreach (var target in Targets)
-            {
-                var stage = GetUnlockStage(target.Id);
-                if (stage > stageNumber && stage < nextStage)
-                {
-                    next = target;
-                    nextStage = stage;
-                }
-            }
-            return next;
-        }
+        /// <summary>earnedTotal 에서 해금된 종류를 해금 순서로 돌려준다.</summary>
+        public List<TargetDef> GetUnlockedTargets(long earnedTotal) =>
+            GetUnlockOrder().FindAll(t => earnedTotal >= t.UnlockEarned);
+
+        /// <summary>earnedTotal 에서 다음에 해금될 종류. 모두 해금됐으면 null.</summary>
+        public TargetDef GetNextUnlockTarget(long earnedTotal) =>
+            GetUnlockOrder().Find(t => earnedTotal < t.UnlockEarned);
 
         /// <summary>
         /// 씨앗값으로 고지서 이름을 고른다. 고지서마다 다른 이름이 나오되, **같은 고지서를 다시 열면
@@ -240,6 +214,12 @@ namespace NCAIClicker.Data
 
         /// <summary>돌진 충돌 피해 = 분노시킨 타격의 피해(호버 최종 파워) × 이 값 (#297). 원작 0.7.</summary>
         public float ChargeDamageRatio;
+
+        /// <summary>이번 회차 누적 수입이 이 값 이상이 되는 정산에서 해금된다 (#301). 0 이면 처음부터 나온다.</summary>
+        public long UnlockEarned;
+
+        /// <summary>해금된 종류 중에서 뽑힐 상대 가중치 (#301). 0 이면 해금 목록에서도 빠진다.</summary>
+        public float SpawnWeight;
     }
 
     /// <summary>
@@ -352,17 +332,6 @@ namespace NCAIClicker.Data
         public int DueDays;
 
         public int SpawnCount;
-    }
-
-    /// <summary>
-    /// 한 단계에서 한 종류가 뽑힐 상대 가중치. stage_spawns.csv 한 행이다 (#293).
-    /// </summary>
-    [Serializable]
-    public class StageSpawnDef
-    {
-        public int Stage;
-        public string TargetId;
-        public float Ratio;
     }
 
     /// <summary>
