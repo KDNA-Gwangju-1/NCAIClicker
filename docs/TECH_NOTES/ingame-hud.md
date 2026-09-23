@@ -83,9 +83,9 @@ flowchart LR
 | `StaminaHud` | `Assets/Scripts/Runtime/UI/StaminaHud.cs` | `Image.fillAmount` 와 `75/120` 라벨 갱신. 현재값은 올림 표시하되 실제 0 이면 0 |
 | `FeverHud` | `Assets/Scripts/Runtime/UI/FeverHud.cs` | 게이지 막대 갱신, 발동 중 막대 색 전환 |
 | `CoinHud` | `Assets/Scripts/Runtime/UI/CoinHud.cs` | 런 순수입과 보유 잔액을 별도 라벨로 표시. 초기값은 `EconomyManager.Instance`(`IEconomyService`)로 한 번 읽는다(#171). 매니저가 없으면 `—` |
-| `DayHud` | `Assets/Scripts/Runtime/UI/DayHud.cs` | `Day N` 표시. 하루가 시작되면 `IBillService.CurrentDay` 재조회, 마감되면 접미사 |
+| `DayHud` | `Assets/Scripts/Runtime/UI/DayHud.cs` | `회차 Day N` 표시. 하루가 시작되면 `IBillService.CurrentDay` 재조회, 마감되면 접미사 |
 | `AccuracyHud` | `Assets/Scripts/Runtime/UI/AccuracyHud.cs` | 호버 스윙만 집계해 `정확도 N% (적중/전체)` 표시. `OnEnable` 에서 0 으로 초기화 |
-| `BillHud` | `Assets/Scripts/Runtime/UI/BillHud.cs` | (#27 에서 만든 것) D-일수·금액. #33 에서 임박 강조와 `OnBillPaid` 구독 추가 |
+| `BillHud` | `Assets/Scripts/Runtime/UI/BillHud.cs` | (#27 에서 만든 것) `고지서 D-일수  $금액`. #33 에서 임박 강조와 `OnBillPaid` 구독 추가 |
 | (프리팹) | `Assets/Prefabs/UI/GameHud.prefab` | Canvas(ScreenSpaceOverlay, ScaleWithScreenSize 1920×1080, match 0.5) + 위젯 6개 |
 | (스프라이트) | `Assets/Materials/HudBar.png` | 게이지용 8×8 순백 사각형 |
 
@@ -198,3 +198,4 @@ Play Mode 에서 실제로 확인한 것만 적는다.
 | 2026-09-18 | #171 | yahoo-afk | `CoinHud` 가 `EconomyManager.Instance`(`IEconomyService`)로 잔액·런 순수입 초기값을 한 번 읽는다. "매 런 시작마다 `—`" 한계 해소 |
 | 2026.09.18 | #173 | saltlake00 | 1.25 HUD 프리팹 중복 정리. BillHud.prefab 에셋 삭제 반영 |
 | 2026-09-22 | #225 | hunil58 | 6.19 `StaminaHud` 저잔량 경고 색 전환 추가. 알려진 한계 항목 해소 |
+| 2026-09-23 | #322 | soilrist | 7.12 날짜와 고지서 마감이 같은 기준으로 읽히던 문제 — `DayHud` 를 `회차 Day N`, `BillHud` 를 `고지서 D-N  $금액`(원 → $, 다른 화면과 통일)으로 바꿔 기준 단어를 붙였다. 표시 문자열만 변경 |

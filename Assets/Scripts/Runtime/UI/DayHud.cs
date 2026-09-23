@@ -90,7 +90,7 @@ namespace NCAIClicker.UI
             var suffix = _isDayEnded && !string.IsNullOrEmpty(_dayEndedSuffix)
                 ? $" {_dayEndedSuffix}"
                 : string.Empty;
-            _label.text = $"Day {_day}{suffix}";
+            _label.text = $"회차 Day {_day}{suffix}";
         }
     }
 }
