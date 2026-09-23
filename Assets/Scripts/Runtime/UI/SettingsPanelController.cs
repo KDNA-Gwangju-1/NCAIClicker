@@ -47,6 +47,16 @@ namespace NCAIClicker.UI
 
         public event System.Action Closed;
 
+        /// <summary>
+        /// 저장 데이터를 초기화했다 (이슈 #220). 런 도중이라면 구독자가 런을 접고 메인 메뉴로 보낸다.
+        ///
+        /// **이 클래스가 직접 씬을 넘기지 않는 이유**: 일시정지 중이면 `Time.timeScale` 이 0 이고,
+        /// 원래 값을 들고 있는 것은 `PausePanelController` 뿐이다. 여기서 씬을 넘기면 메인 메뉴가
+        /// 0배속으로 열려 멈춰 보인다. 런인지 아닌지도 물을 필요가 없다 — 메인 메뉴에는 일시정지
+        /// 패널이 없어 구독자가 아예 없고, 그때는 패널만 닫히는 것이 맞는 동작이다.
+        /// </summary>
+        public event System.Action ResetPerformed;
+
         private void Awake()
         {
             if (_resetConfirmPanel != null)
@@ -171,7 +181,8 @@ namespace NCAIClicker.UI
         }
 
         /// <summary>
-        /// 업그레이드·납부 기록만 지운다. 방금 조정한 볼륨·창모드·화면 흔들림 값은 그대로 남는다 —
+        /// 코인·업그레이드·레거시 포인트·반지·단계·날짜·고지서·대출을 새 회차 값으로 되돌린다. 방금 조정한 볼륨·창모드·화면 흔들림
+        /// 값은 그대로 남는다 —
         /// DoD가 "업그레이드와 납부 기록이 사라진다"고만 했고 설정 초기화는 요구하지 않았다.
         ///
         /// **파일만 비우던 것을 ResetAndDistribute 로 바꿨다** (이슈 #203). 매니저는
@@ -182,16 +193,22 @@ namespace NCAIClicker.UI
         /// 설정을 먼저 파일에 반영하는 이유는 `ResetAndDistribute` 가 설정을 넘겨받지 않고
         /// 현재 저장에서 옮겨 담기 때문이다 — 설정은 패널을 닫을 때만 반영되므로, 열어 둔 채
         /// 초기화하면 방금 조정한 값이 아니라 옛 값이 살아남는다.
+        ///
+        /// **초기화하면 진행 중인 런을 접는다** (이슈 #220). 6.13(#192)이 일시정지에서 이 패널을
+        /// 열 수 있게 하면서 런 한가운데서 초기화가 가능해졌는데, 저장을 지워도 **이미 시작된
+        /// 런은 되감기지 않는다** — BeginRun 이 이미 돌아 그 판의 크리처·스태미나·피버가 살아
+        /// 있는 채로 저장 쪽 상태(코인·업그레이드·레거시 포인트·반지·단계·날짜·고지서·대출)만 새 회차 값이 된다.
+        /// 날짜·고지서·대출까지 함께 되돌아가는 것은 #211·#221 이후다.
+        /// 접는 일 자체는 ResetPerformed 를 받는 쪽이 한다 (위 이벤트 주석).
         /// </summary>
         private void HandleResetConfirmed()
         {
             PersistCurrentSettings();
             SaveManager.Persistence?.ResetAndDistribute();
 
-            if (_resetConfirmPanel != null)
-            {
-                _resetConfirmPanel.SetActive(false);
-            }
+            // **닫은 뒤에 알린다.** 먼저 알리면 구독자가 씬을 넘기는 동안 패널이 떠 있다.
+            Close();
+            ResetPerformed?.Invoke();
         }
 
         private void HandleResetCanceled()

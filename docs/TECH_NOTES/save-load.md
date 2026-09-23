@@ -1,6 +1,6 @@
 # 저장·불러오기
 
-> 관련 이슈: #25, #76, #139, #203 · 최종 수정: 2026-09-21
+> 관련 이슈: #25, #76, #139, #203, #220 · 최종 수정: 2026-09-23
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -87,7 +87,7 @@ flowchart LR
 | `SaveManager` | `Assets/Scripts/Runtime/SaveManager.cs` | `ISaveService`·`IGamePersistence` 구현. `JsonUtility` 직렬화, 버전 마이그레이션, 손상 파일 백업, null↔`Has*` 플래그 변환, 매니저 상태 수집·분배. `Managers` 프리팹에 붙는다 |
 | `SaveData` | `Assets/Scripts/Runtime/Data/SaveData.cs` | 저장 DTO. 이번 작업에서 `HasActiveBill`·`HasActiveLoan` 필드 추가 |
 | `ISaveService` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | `Load()`/`Save(SaveData)`/`HasSave` 계약 |
-| `IGamePersistence` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | 수집·분배·초기화 계약(#203). `SaveManager.Persistence`가 이 타입으로 노출. `ManagerBootstrap`·`GameManager`·`SettingsPanelController` 셋이 쓴다 |
+| `IGamePersistence` | `Assets/Scripts/Runtime/Interfaces/ISaveService.cs` | 수집·분배·초기화 계약(#203). `SaveManager.Persistence`가 이 타입으로 노출. `ManagerBootstrap`·`GameManager`·`SettingsPanelController`·`BillManager`(#249 납부 후 흐름 즉시 저장) 넷이 쓴다 |
 | `ManagerBootstrap` | `Assets/Scripts/Runtime/ManagerBootstrap.cs` | `WirePersistence()`로 저장 대상 7개(#221 이 `IBillPersistence` 추가)를 주입하고, 이어서 복원을 **한 번** 실행 (#203) |
 | `IBillPersistence` | `Assets/Scripts/Runtime/Interfaces/IBillService.cs` | 날짜·고지서·대출·퍼크 후보 저장 복원 계약(#221). `BillManager` 가 구현하고 `SaveManager` 만 쓴다 |
 | `GameManager` | `Assets/Scripts/Runtime/Core/GameManager.cs` | 저장 시점 둘(`ContinueRun`·`NotifyEndRun`)과 새 회차 초기화(`StartNewRun`) (#203) |
@@ -220,7 +220,6 @@ loanPrincipal=6789 lastRepaid=2 perks=verify_perk_A,verify_perk_B`).
 - [x] 초기화가 다음 저장에 되돌려지지 않는다 — 고치기 전에는 여기서 옛 값이 돌아왔다
 - [x] 초기화가 설정을 지우지 않는다
 - [x] 콘솔 오류·경고 0건
-- [x] 콘솔 오류·경고 0건
 
 - [ ] **빌드된 실행 파일에서는 확인하지 않았다** — 에디터 Play Mode 까지다.
 
@@ -232,14 +231,12 @@ loanPrincipal=6789 lastRepaid=2 perks=verify_perk_A,verify_perk_B`).
   새 고지서 확인, 투자 메뉴 대기는 `IBillPersistence`를 통해 고지서 상태와 같은 스냅샷으로 복원된다.
 - **구매 직후 저장은 아직 없다.** 납부 후 네 화면 전환은 #249에서 즉시 저장하도록 보완했지만,
   업그레이드·반지 구매는 고지서 화면을 떠날 때(`ContinueRun`) 저장된다. 구매 직후 앱이 강제 종료되면 그 구매를 잃는다.
-- **런 도중 저장 초기화는 일관성 없는 상태를 남긴다.** #192 가 일시정지 패널에서 설정 패널을
-  열 수 있게 하면서, 런 한가운데서 초기화 버튼에 닿을 수 있게 됐다. 그때 `ResetAndDistribute()`
-  는 코인·업그레이드·레거시·단계를 0 으로 만드는데 **고지서와 날짜는 수집 대상이 아니라 그대로
-  남고**, 이미 스폰된 크리처도 그대로다. Play Mode 로 확인한 결과 예외는 나지 않지만
-  (단계 2 → 0 으로 내려가면서 2단계 크리처가 그대로 남았다) 게임 상태가 앞뒤가 맞지 않는다.
-  **어느 한 카드의 결함이 아니다** — #192 가 경로를 열고 #203 이 초기화에 실체를 준 결과라
-  따로 보면 양쪽 다 정상이다. 초기화 후 메인 메뉴로 돌려보낼지, 런 중에는 버튼을 잠글지는
-  설정 패널(#196)의 판단이라 여기서 정하지 않았다.
+- ~~**런 도중 저장 초기화는 일관성 없는 상태를 남긴다.**~~ — #220 에서 닫았다. 설정 패널이
+  초기화 뒤 `ResetPerformed` 를 발행하고 일시정지 패널이 받아 **런을 접고 메인 메뉴로 보낸다**
+  (`ResetAndDistribute()` 자체는 씬을 넘기지 않는다). #211·#221 이후 `ResetAndDistribute()` 는
+  날짜·고지서·대출까지 되돌리지만 **이미 시작된 런은 되감지 못해** — 크리처·스태미나·피버가
+  그 판의 것으로 남는다 — 메인 메뉴로 보내는 쪽을 유지한다. 자세한 것은
+  [설정 패널](settings-panel.md) "런 도중 초기화".
 - **런 도중 종료 시 그 런의 시작 스냅샷으로 복귀하지 않는다.** 저장이 하루 종료 시점에만 찍히므로 결과적으로는 비슷하게 동작하지만, 의도한 규칙을 코드가 보장하지는 않는다.
 - **테스트 asmdef가 런타임 코드를 참조하지 못하는 기존 제약**([manager-bootstrap.md](manager-bootstrap.md) 참고)이 여기도 적용된다. 그래서 자동화된 `Tests/PlayMode` 테스트 대신 `execute_code`로 직접 실행해 확인했다 — 코드 변경 때마다 재현 가능한 회귀 테스트로 남지 않는다.
 - `BackupCorruptFile()`은 `save.json.bak` 하나만 유지한다. 손상이 반복되면 이전 백업을 덮어쓴다.
@@ -255,3 +252,5 @@ loanPrincipal=6789 lastRepaid=2 perks=verify_perk_A,verify_perk_B`).
 | 2026-09-21 | #203 | twins6375-art | Play Mode 로 앱 시작 복원·구매 존속·새 회차 초기화를 확인하고 검증 절에 반영 |
 | 2026-09-21 | #203 | twins6375-art | `ResetAndDistribute()` 추가. 성장을 지우는 두 경로(새 회차 시작·설정 초기화)가 각자 빈 저장을 쓰다 답이 갈리던 것을 한 메서드로 모았다. 초기화 회귀 검사 5건 (15 → 20) |
 | 2026-09-21 | #221 | Yang | `IBillPersistence` 계약 추가로 날짜·고지서·대출·마지막 상환일·퍼크 후보 저장 복원 배선. `SavePersistenceChecks` 21건, Play Mode 왕복(정지·재시작 도메인 리로드 포함)으로 직접 확인. "고지서·대출·퍼크 후보를 저장하지 않는다" 한계 해소 |
+| 2026-09-21 | #220 | twins6375-art | "런 도중 저장 초기화" 한계를 닫았다 — 초기화가 런을 접고 메인 메뉴로 보낸다 ([설정 패널](settings-panel.md)) |
+| 2026-09-23 | #220 | twins6375-art | Develop 반영 후 정정 — `IGamePersistence` 소비처를 넷(`BillManager` #249 추가)으로, "런 도중 저장 초기화" 한계의 주어(`ResetAndDistribute()` 가 아니라 `ResetPerformed` 경로가 씬을 넘긴다)와 옛 전제를 고쳤다 |
