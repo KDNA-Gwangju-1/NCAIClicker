@@ -47,6 +47,8 @@ namespace NCAIClicker
                 billManager.SetWalletPersistence(economyManager);
                 // 파산 시 업그레이드 레벨을 비우는 통로 (이슈 #250). 업그레이드는 회차 층이다 (GDD 파산 절).
                 billManager.SetUpgradePersistence(economyManager);
+                // 파산 시 크리처 해금을 되돌리는 통로 (#301). 해금은 회차 층이다.
+                billManager.SetUnlockPersistence(economyManager);
             }
 
             WireUpgradeStats(_instance);
@@ -81,6 +83,8 @@ namespace NCAIClicker
                 managers.GetComponentInChildren<ILegacyPersistence>(true),
                 managers.GetComponentInChildren<IStageService>(true),
                 managers.GetComponentInChildren<IBillPersistence>(true));
+
+            save.SetUnlockPersistence(managers.GetComponentInChildren<IUnlockPersistence>(true));
 
             var billManager = managers.GetComponentInChildren<BillManager>(true);
             if (billManager != null)
@@ -154,6 +158,8 @@ namespace NCAIClicker
             if (creatures != null)
             {
                 creatures.SetStageService(stageService);
+                // 해금된 종류만 뽑으려면 회차 누적 수입을 읽어야 한다 (#301).
+                creatures.SetEconomyService(managers.GetComponentInChildren<IEconomyService>(true));
             }
 
             var bills = managers.GetComponentInChildren<BillManager>(true);

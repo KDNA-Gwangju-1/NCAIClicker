@@ -22,7 +22,8 @@ namespace NCAIClicker.Economy
     /// Managers 프리팹(Resources/Managers)에 붙인다. 생성은 ManagerBootstrap 이 한다.
     /// </summary>
     public class EconomyManager : MonoBehaviour, IEconomyService, IRunScoped, IWalletPersistence,
-        IUpgradeStats, IUpgradeShop, IUpgradePersistence, ILegacyService, IRingShop, ILegacyPersistence
+        IUpgradeStats, IUpgradeShop, IUpgradePersistence, ILegacyService, IRingShop, ILegacyPersistence,
+        IUnlockPersistence
     {
         /// <summary>
         /// 코인 조회 통로. BillManager.Instance(IBillService)·SaveManager.Instance(ISaveService)·
@@ -105,6 +106,9 @@ namespace NCAIClicker.Economy
         private bool _isRunning;
         private long _lastPublishedRunCoin;
 
+        /// <summary>이번 회차 누적 순수입 (#301). 크리처 해금 판정의 유일한 입력이다.</summary>
+        private long _earnedTotal;
+
         /// <summary>
         /// 이번 런의 액면별 누적 개수 (이슈 #178). coins.csv 순서와 무관하게 파괴 순으로 쌓이므로,
         /// 조회 쪽(ResultUIController)이 BalanceData.Coins 순서로 다시 정렬해 읽는다.
@@ -113,6 +117,7 @@ namespace NCAIClicker.Economy
 
         public long CurrentCoin => _wallet.CurrentCoin;
         public long RunCoin => _wallet.RunCoin;
+        public long EarnedTotal => _earnedTotal;
 
         public IReadOnlyList<CoinDrop> RunCoinBreakdown
         {
@@ -237,6 +242,13 @@ namespace NCAIClicker.Economy
         /// </summary>
         public void EndRun()
         {
+            // 정산 때 이번 런 순수입을 회차 누적에 더하고, 새로 기준을 넘은 크리처를 알린다 (#301).
+            // 결과 화면은 EndRun 뒤에 열리므로(GameManager.NotifyEndRun) 방금 번 돈까지 반영된 값을 본다.
+            if (_isRunning)
+            {
+                AccumulateEarned(_wallet.RunCoin);
+            }
+
             _isFeverActive = false;
             _isRunning = false;
 
@@ -249,6 +261,35 @@ namespace NCAIClicker.Economy
         private void Update()
         {
             Tick(Time.deltaTime);
+        }
+
+        private void AccumulateEarned(long runCoin)
+        {
+            if (runCoin <= 0L)
+            {
+                return;
+            }
+
+            var before = _earnedTotal;
+            _earnedTotal += runCoin;
+            if (_balanceData == null)
+            {
+                return;
+            }
+
+            foreach (var target in _balanceData.GetUnlockOrder())
+            {
+                if (before < target.UnlockEarned && _earnedTotal >= target.UnlockEarned)
+                {
+                    GameEvents.PublishCreatureUnlocked(target.Id);
+                }
+            }
+        }
+
+        /// <summary>저장 복원·파산 초기화 (#301). 이벤트는 내지 않는다 — 복원은 해금 "순간" 이 아니다.</summary>
+        public void RestoreEarnedTotal(long earnedTotal)
+        {
+            _earnedTotal = earnedTotal < 0L ? 0L : earnedTotal;
         }
 
         /// <summary>

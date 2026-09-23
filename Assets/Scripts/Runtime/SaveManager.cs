@@ -35,6 +35,7 @@ namespace NCAIClicker
         private ILegacyService _legacyPoints;
         private IStageService _stage;
         private IBillPersistence _bill;
+        private IUnlockPersistence _unlock;
 
         public bool HasSave => File.Exists(SavePath);
 
@@ -50,6 +51,12 @@ namespace NCAIClicker
         /// 저장 대상 통로를 넣는다 (이슈 #203). ManagerBootstrap 이 생성 직후 한 번 부른다.
         /// 넘기지 않은 항목은 수집·복원에서 건너뛴다.
         /// </summary>
+        /// <summary>회차 누적 수입 통로 (#301). ManagerBootstrap 이 넣는다. 없으면 건너뛴다.</summary>
+        public void SetUnlockPersistence(IUnlockPersistence unlock)
+        {
+            _unlock = unlock;
+        }
+
         public void SetPersistenceTargets(IEconomyService economy, IWalletPersistence wallet,
                                           IUpgradePersistence upgrades, ILegacyService legacyPoints,
                                           ILegacyPersistence legacy, IStageService stage,
@@ -97,6 +104,10 @@ namespace NCAIClicker
             {
                 data.StageIndex = _stage.CurrentStageIndex;
             }
+            if (_unlock != null)
+            {
+                data.EarnedTotal = _unlock.EarnedTotal;
+            }
             if (_bill != null)
             {
                 data.CurrentDay = _bill.CurrentDay;
@@ -141,6 +152,10 @@ namespace NCAIClicker
             if (_stage != null)
             {
                 _stage.RestoreStage(data.StageIndex);
+            }
+            if (_unlock != null)
+            {
+                _unlock.RestoreEarnedTotal(data.EarnedTotal);
             }
             if (_bill != null)
             {
@@ -267,6 +282,10 @@ namespace NCAIClicker
                     break;
                 case 4:
                     // v4에는 납부 후 화면 흐름 상태가 없었다. 기본값 None으로 복원한다.
+                    break;
+                case 5:
+                    // v5에는 회차 누적 수입이 없었다 (#301). 0 으로 시작해 첫 종류만 해금된 상태가 된다.
+                    // 단계에서 누적액을 거꾸로 추정하지 않는다 — 추정값이 해금을 앞당기면 되돌릴 수 없다.
                     break;
                 case SaveData.CurrentVersion:
                     break;

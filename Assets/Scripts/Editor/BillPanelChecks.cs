@@ -539,6 +539,7 @@ namespace NCAIClicker.EditorTools
         {
             public long CurrentCoin { get; set; } = 158;
             public long RunCoin => 0;
+            public long EarnedTotal => 0L;
             public System.Collections.Generic.IReadOnlyList<Data.CoinDrop> RunCoinBreakdown => null;
             public void AddCoin(decimal rawAmount) { }
             public void AddLoanPrincipal(long amount) { }

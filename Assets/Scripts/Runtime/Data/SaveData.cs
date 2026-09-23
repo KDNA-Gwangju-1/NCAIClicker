@@ -17,7 +17,7 @@ namespace NCAIClicker.Data
     [Serializable]
     public class SaveData
     {
-        public const int CurrentVersion = 5;
+        public const int CurrentVersion = 6;
 
         public int Version = CurrentVersion;
         public long TotalCoin;
@@ -28,6 +28,10 @@ namespace NCAIClicker.Data
         public int CurrentDay = 1;
         public int BillIndex = 1;
         public int CycleIndex = 1;
+
+        // 이번 회차 누적 순수입 (#301, v6). 크리처 해금은 이것에서 계산한다 — 해금 목록은 저장하지 않는다.
+        // 회차 층이라 파산하면 0 이다.
+        public long EarnedTotal;
 
         // JsonUtility는 참조 필드의 null을 직렬화하지 못해 빈 객체로 되살린다.
         // Has* 플래그로 저장 파일에서만 있음/없음을 구분하고, SaveManager가

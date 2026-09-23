@@ -29,6 +29,9 @@ namespace NCAIClicker.Events
         public static event Action<string[]> OnPerkOffered;
         public static event Action<string> OnPerkChosen;
 
+        /// <summary>정산 때 회차 누적 수입이 기준액을 넘어 새로 해금된 크리처 id (#301). 종류마다 한 번.</summary>
+        public static event Action<string> OnCreatureUnlocked;
+
         public static void PublishCoinEarned(long amount) => OnCoinEarned?.Invoke(amount);
         public static void PublishBalanceChanged(long currentBalance) => OnBalanceChanged?.Invoke(currentBalance);
         public static void PublishRunCoinChanged(long runCoin) => OnRunCoinChanged?.Invoke(runCoin);
@@ -48,6 +51,7 @@ namespace NCAIClicker.Events
         public static void PublishStageGoalReached(int stageNumber) => OnStageGoalReached?.Invoke(stageNumber);
         public static void PublishPerkOffered(string[] perkIds) => OnPerkOffered?.Invoke(perkIds);
         public static void PublishPerkChosen(string perkId) => OnPerkChosen?.Invoke(perkId);
+        public static void PublishCreatureUnlocked(string targetId) => OnCreatureUnlocked?.Invoke(targetId);
 
         /// <summary>
         /// 서브시스템 등록 시 정적 이벤트를 초기화한다.
@@ -74,6 +78,7 @@ namespace NCAIClicker.Events
             OnStageGoalReached = null;
             OnPerkOffered = null;
             OnPerkChosen = null;
+            OnCreatureUnlocked = null;
         }
     }
 }

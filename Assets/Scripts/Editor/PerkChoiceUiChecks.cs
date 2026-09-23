@@ -380,6 +380,7 @@ namespace NCAIClicker.EditorTools
             public long CurrentCoin => 0L;
 
             public long RunCoin => 0L;
+            public long EarnedTotal => 0L;
 
             public IReadOnlyList<CoinDrop> RunCoinBreakdown => Array.Empty<CoinDrop>();
 
