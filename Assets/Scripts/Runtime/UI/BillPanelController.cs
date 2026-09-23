@@ -42,6 +42,12 @@ namespace NCAIClicker.UI
         [SerializeField] private Button _billTabButton;
         [SerializeField] private Button _upgradeTabButton;
 
+        // 저금통 도감 탭 (#299). 반지 탭과 같은 방식이다.
+        [SerializeField] private GameObject _codexTabRoot;
+        [SerializeField] private Button _codexTabButton;
+        [SerializeField] private Transform _codexContent;
+        [SerializeField] private GameObject _codexPrefab;
+
         [Header("고지서 종이")]
         [SerializeField] private TextMeshProUGUI _issuerText;
         [SerializeField] private TextMeshProUGUI _titleText;
@@ -120,6 +126,7 @@ namespace NCAIClicker.UI
             Bill,
             Upgrade,
             Ring,
+            Codex,
         }
 
         private Mode _mode = Mode.Modal;
@@ -178,6 +185,10 @@ namespace NCAIClicker.UI
             if (_ringTabButton != null)
             {
                 _ringTabButton.onClick.AddListener(ShowRingTab);
+            }
+            if (_codexTabButton != null)
+            {
+                _codexTabButton.onClick.AddListener(ShowCodexTab);
             }
             if (_declareBankruptcyButton != null)
             {
@@ -266,6 +277,10 @@ namespace NCAIClicker.UI
             if (_ringTabButton != null)
             {
                 _ringTabButton.onClick.RemoveListener(ShowRingTab);
+            }
+            if (_codexTabButton != null)
+            {
+                _codexTabButton.onClick.RemoveListener(ShowCodexTab);
             }
             if (_declareBankruptcyButton != null)
             {
@@ -375,6 +390,7 @@ namespace NCAIClicker.UI
 
         private void ShowUpgradeTab() => ShowAsTab(Tab.Upgrade);
         private void ShowRingTab() => ShowAsTab(Tab.Ring);
+        private void ShowCodexTab() => ShowAsTab(Tab.Codex);
 
         private void Show(Mode mode)
         {
@@ -430,6 +446,7 @@ namespace NCAIClicker.UI
             // 반지 탭 버튼 자체를 숨긴다 — 눌러도 살 수 없는 상점을 보여 줄 이유가 없다.
             // 구매 규칙의 정본은 EconomyManager.TryPurchaseRing 이고, 이 줄은 화면을 맞출 뿐이다.
             var showRing = _mode == Mode.PrestigeOnly && _tab == Tab.Ring;
+            var showCodex = _mode == Mode.Tab && _tab == Tab.Codex;
             if (_ringTabButton != null)
             {
                 _ringTabButton.gameObject.SetActive(_mode == Mode.PrestigeOnly);
@@ -437,7 +454,7 @@ namespace NCAIClicker.UI
 
             if (_billTabRoot != null)
             {
-                _billTabRoot.SetActive(!showUpgrade && !showRing);
+                _billTabRoot.SetActive(!showUpgrade && !showRing && !showCodex);
             }
             if (_upgradeTabRoot != null)
             {
@@ -446,6 +463,10 @@ namespace NCAIClicker.UI
             if (_ringTabRoot != null)
             {
                 _ringTabRoot.SetActive(showRing);
+            }
+            if (_codexTabRoot != null)
+            {
+                _codexTabRoot.SetActive(showCodex);
             }
 
             if (showUpgrade && _upgradeContent != null && _upgradeShopPrefab != null && _upgradeContent.childCount == 0)
@@ -456,12 +477,17 @@ namespace NCAIClicker.UI
             {
                 Instantiate(_ringShopPrefab, _ringContent, false);
             }
+            if (showCodex && _codexContent != null && _codexPrefab != null && _codexContent.childCount == 0)
+            {
+                Instantiate(_codexPrefab, _codexContent, false);
+            }
 
             // 어느 탭에 있는지 버튼 색으로 알린다. 업그레이드를 보고 있는데 고지서가 켜진 것처럼
             // 보이면 탭이 안 먹은 줄 안다.
-            SetTabSelected(_billTabButton, !showUpgrade && !showRing);
+            SetTabSelected(_billTabButton, !showUpgrade && !showRing && !showCodex);
             SetTabSelected(_upgradeTabButton, showUpgrade);
             SetTabSelected(_ringTabButton, showRing);
+            SetTabSelected(_codexTabButton, showCodex);
         }
 
         private static void SetTabSelected(Button tab, bool selected)

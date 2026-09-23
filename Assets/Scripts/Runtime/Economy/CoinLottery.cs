@@ -71,6 +71,32 @@ namespace NCAIClicker.Economy
             return drops;
         }
 
+        /// <summary>
+        /// 한 번 부술 때 기대 금액 = count × (후보 액면의 가중 평균). 후보 규칙은 Draw 와 같다.
+        /// 도감이 "기대 코인"으로 보여 준다 (#299). 즉시 파괴·분노 같은 역할 효과는 넣지 않는다.
+        /// </summary>
+        public static decimal GetExpectedValue(BalanceData balanceData, string minDenomId, int count)
+        {
+            if (balanceData == null || count <= 0)
+            {
+                return 0m;
+            }
+
+            var minDenom = balanceData.GetCoin(minDenomId);
+            var weighted = 0m;
+            var totalWeight = 0;
+            foreach (var coin in balanceData.Coins)
+            {
+                if (coin.Weight <= 0 || (minDenom != null && coin.Value < minDenom.Value))
+                {
+                    continue;
+                }
+                weighted += (decimal)coin.Value * coin.Weight;
+                totalWeight += coin.Weight;
+            }
+            return totalWeight > 0 ? count * weighted / totalWeight : 0m;
+        }
+
         /// <summary>드롭 내역의 합계 금액. BreakInfo.RawCoin 에 그대로 들어간다.</summary>
         public static decimal SumValue(IReadOnlyList<CoinDrop> drops, BalanceData balanceData)
         {
