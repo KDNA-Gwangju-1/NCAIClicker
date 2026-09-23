@@ -20,6 +20,7 @@ namespace NCAIClicker.EditorTools
             checkCount += RunFilterChecks();
             checkCount += RunDistributionChecks();
             checkCount += RunAggregationChecks();
+            checkCount += RunRewardBandChecks();
 
             Debug.Log("[CoinLotteryChecks] PASS " + checkCount + " checks.");
         }
@@ -214,6 +215,127 @@ namespace NCAIClicker.EditorTools
             }
 
             return checkCount;
+        }
+
+        /// <summary>
+        /// 해금 카드의 코인 구간 (이슈 #300). 식으로 구한 구간이 손으로 푼 값과 같은지, 그리고 실제 Draw 를
+        /// 대량으로 돌린 결과(가장 큰 액면별 빈도·합계 범위)와 맞는지 본다 — 카드가 보여 주는 확률이 거짓이면 안 된다.
+        /// </summary>
+        private static int RunRewardBandChecks()
+        {
+            var checkCount = 0;
+
+            // 손으로 푸는 표: a(1원, 가중치 3), b(10원, 가중치 1), 2개 뽑기.
+            // 가장 큰 게 a → 둘 다 a: (3/4)² = 0.5625, 합계 2. 가장 큰 게 b → 1 − 0.5625, 합계 11(b+a)~20(b+b).
+            // 일부러 값 내림차순으로 넣는다 — 구간은 값 오름차순이어야 한다.
+            var small = MakeBalance(("b", 10, 1), ("a", 1, 3));
+            // 다섯 단 액면 + 가중치 0 한 줄. 실제 coins.csv 를 읽지 않는다 — CSV 가 바뀌어도 이 표로만 검사한다.
+            var fiveDenoms = MakeBalance(("c1", 1, 60), ("c5", 5, 25), ("c25", 25, 10), ("c100", 100, 4), ("c1000", 1000, 1), ("c0", 7, 0));
+            try
+            {
+                var bands = CoinLottery.GetRewardBands(small, "a", 2);
+                AssertCondition(bands.Count == 2, "구간이 2개여야 합니다: " + bands.Count);
+                AssertCondition(bands[0].TopDenomId == "a" && bands[0].Min == 2 && bands[0].Max == 2
+                                && Math.Abs(bands[0].Probability - 0.5625) < 1e-9,
+                    "첫 구간은 a · $2 · 56.25% 여야 합니다: " + Describe(bands[0]));
+                AssertCondition(bands[1].TopDenomId == "b" && bands[1].Min == 11 && bands[1].Max == 20
+                                && Math.Abs(bands[1].Probability - 0.4375) < 1e-9,
+                    "둘째 구간은 b · $11–$20 · 43.75% 여야 합니다: " + Describe(bands[1]));
+                checkCount++;
+
+                // 최소 액면 필터는 Draw 와 같다 — b 이상이면 b 하나뿐이고 확률 1, 합계는 3×10.
+                var filtered = CoinLottery.GetRewardBands(small, "b", 3);
+                AssertCondition(filtered.Count == 1 && filtered[0].Min == 30 && filtered[0].Max == 30
+                                && Math.Abs(filtered[0].Probability - 1.0) < 1e-9,
+                    "최소 액면 b 로 3개면 $30 한 구간·100% 여야 합니다.");
+                checkCount++;
+
+                AssertCondition(CoinLottery.GetRewardBands(null, "a", 2).Count == 0
+                                && CoinLottery.GetRewardBands(small, "a", 0).Count == 0,
+                    "balanceData 가 없거나 count 가 0 이면 빈 목록이어야 합니다.");
+                AssertCondition(!ContainsDenom(CoinLottery.GetRewardBands(fiveDenoms, "c1", 3), "c0"),
+                    "가중치 0 인 액면은 구간에 나오면 안 됩니다 (Draw 도 뽑지 않습니다).");
+                checkCount++;
+
+                // 실제 추첨과 대조 — 시드 고정이라 재현된다. 확률 합은 1, 빈도는 ±1.5%, 합계는 그 구간 안.
+                var rng = new System.Random(300);
+                const int trials = 20000;
+                var realBands = CoinLottery.GetRewardBands(fiveDenoms, "c5", 3);
+                var probabilitySum = 0.0;
+                foreach (var band in realBands)
+                {
+                    probabilitySum += band.Probability;
+                }
+                AssertCondition(Math.Abs(probabilitySum - 1.0) < 1e-9, "구간 확률의 합이 1 이 아닙니다: " + probabilitySum);
+
+                var hits = new Dictionary<string, int>();
+                for (var i = 0; i < trials; i++)
+                {
+                    var drops = CoinLottery.Draw(fiveDenoms, "c5", 3, rng.NextDouble);
+                    var top = FindTopDenom(drops, fiveDenoms);
+                    var sum = (long)CoinLottery.SumValue(drops, fiveDenoms);
+                    var band = FindBand(realBands, top);
+                    AssertCondition(band.HasValue, "추첨에서 나온 가장 큰 액면 " + top + " 의 구간이 없습니다.");
+                    AssertCondition(sum >= band.Value.Min && sum <= band.Value.Max,
+                        "합계 " + sum + " 가 구간 " + Describe(band.Value) + " 밖입니다.");
+                    hits.TryGetValue(top, out var n);
+                    hits[top] = n + 1;
+                }
+                foreach (var band in realBands)
+                {
+                    hits.TryGetValue(band.TopDenomId, out var n);
+                    var observed = (double)n / trials;
+                    AssertCondition(Math.Abs(observed - band.Probability) < 0.015,
+                        band.TopDenomId + " 구간 확률이 식 " + band.Probability.ToString("0.###") + ", 추첨 "
+                        + observed.ToString("0.###") + " 로 1.5% 넘게 어긋납니다.");
+                }
+                checkCount++;
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(small);
+                UnityEngine.Object.DestroyImmediate(fiveDenoms);
+            }
+
+            return checkCount;
+        }
+
+        private static string FindTopDenom(IReadOnlyList<CoinDrop> drops, BalanceData balance)
+        {
+            string top = null;
+            var topValue = int.MinValue;
+            foreach (var drop in drops)
+            {
+                var coin = balance.GetCoin(drop.DenomId);
+                if (coin != null && coin.Value > topValue)
+                {
+                    topValue = coin.Value;
+                    top = coin.Id;
+                }
+            }
+            return top;
+        }
+
+        private static CoinRewardBand? FindBand(IReadOnlyList<CoinRewardBand> bands, string denomId)
+        {
+            foreach (var band in bands)
+            {
+                if (band.TopDenomId == denomId)
+                {
+                    return band;
+                }
+            }
+            return null;
+        }
+
+        private static bool ContainsDenom(IReadOnlyList<CoinRewardBand> bands, string denomId)
+        {
+            return FindBand(bands, denomId).HasValue;
+        }
+
+        private static string Describe(CoinRewardBand band)
+        {
+            return band.TopDenomId + " $" + band.Min + "–$" + band.Max + " " + band.Probability.ToString("0.####");
         }
 
         private static void AssertCondition(bool condition, string message)

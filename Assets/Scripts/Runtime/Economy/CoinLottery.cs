@@ -117,6 +117,57 @@ namespace NCAIClicker.Economy
             return sum;
         }
 
+        /// <summary>
+        /// Draw 가 낼 수 있는 합계를 "뽑힌 것 중 가장 큰 액면" 으로 묶은 구간들 (이슈 #300 해금 카드).
+        /// 후보(Draw 와 같은 필터)를 값 오름차순 v0 &lt; v1 &lt; … 로 놓고 가중치 합을 W 라 하면,
+        /// 가장 큰 액면이 vi 일 확률은 (vi 이하 가중치 / W)^count − (vi 미만 가중치 / W)^count 이고,
+        /// 그때 합계는 vi + (count−1)·v0 이상 count·vi 이하다. 추첨을 흉내 내지 않고 식으로 정확히 구한다.
+        /// 값 오름차순으로 돌려준다. 후보가 없거나 count 가 0 이하이면 빈 목록이다.
+        /// </summary>
+        public static IReadOnlyList<CoinRewardBand> GetRewardBands(BalanceData balanceData, string minDenomId, int count)
+        {
+            var bands = new List<CoinRewardBand>();
+            if (balanceData == null || count <= 0)
+            {
+                return bands;
+            }
+
+            var minDenom = balanceData.GetCoin(minDenomId);
+            var pool = new List<CoinDef>();
+            var totalWeight = 0;
+            foreach (var coin in balanceData.Coins)
+            {
+                if (coin.Weight <= 0)
+                {
+                    continue;
+                }
+                if (minDenom != null && coin.Value < minDenom.Value)
+                {
+                    continue;
+                }
+                pool.Add(coin);
+                totalWeight += coin.Weight;
+            }
+            if (pool.Count == 0 || totalWeight <= 0)
+            {
+                return bands;
+            }
+
+            pool.Sort((a, b) => a.Value.CompareTo(b.Value));
+            var lowest = pool[0].Value;
+            var weightBelow = 0;
+            foreach (var coin in pool)
+            {
+                var weightUpTo = weightBelow + coin.Weight;
+                var probability = Math.Pow((double)weightUpTo / totalWeight, count)
+                                  - Math.Pow((double)weightBelow / totalWeight, count);
+                bands.Add(new CoinRewardBand(coin.Id, coin.Value + (long)(count - 1) * lowest, (long)count * coin.Value,
+                    probability));
+                weightBelow = weightUpTo;
+            }
+            return bands;
+        }
+
         private static CoinDef PickOne(List<CoinDef> pool, int totalWeight, double roll)
         {
             var target = roll * totalWeight;

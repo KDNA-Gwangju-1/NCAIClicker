@@ -1,6 +1,6 @@
 # 결과 화면 2종
 
-> 관련 이슈: #34, #178 · 최종 수정: 2026.09.21
+> 관련 이슈: #34, #178, #300 · 최종 수정: 2026.09.23
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -8,6 +8,7 @@
 
 스태미나 소진 시의 하루 정산 화면과 고지서 미납 시의 파산 화면 2종을 분기 표시한다.
 이번 런 획득 코인, 조준 정확도, 고지서 마감 상태, 단계 목표 달성 여부를 사용자에게 시각적으로 전달한다.
+그 정산에서 새 저금통이 해금되면 정산창 위에 **해금 카드**(외형·HP·코인 구간과 확률·역할 한 줄)를 띄운다 (#300).
 
 ## 왜 이 방법인가
 
@@ -17,6 +18,12 @@
   <tr><td>ResultUI 프리팹을 제작하여 제공하고 스크립트로 분기 제어</td><td>✅</td><td>프리팹 형태로 넘기면 씬 수정 충돌 없이 코어 플레이 담당이 캔버스에 배치할 수 있다</td></tr>
   <tr><td>정확도 집계 시 모든 스윙(자동 망치 포함) 누적</td><td>❌</td><td>GDD 220행 및 ARCHITECTURE 361행에서 자동 망치를 정확도 분모 및 분자에서 제외하도록 명시했다. 플레이어의 실력을 순수하게 측정하기 위해 Hover 스윙만 집계한다</td></tr>
   <tr><td>GameEvents.OnStaminaDepleted 및 OnBankrupt 구독 기반 분기</td><td>✅</td><td>새로운 이벤트를 추가하지 않고 기존 동결된 이벤트를 그대로 활용하여 결합도를 낮춘다</td></tr>
+  <tr><td>(#300) 해금 카드를 다음 런 시작 직전에 2~3초 띄움 (이슈 본문 원안)</td><td>❌</td><td>원작 캡처가 정산창 위에 뜨고 원작도 정산 때 해금된다. 런 시작 때 띄우려면 떠 있는 동안 스태미나를 멈춰야 하고, "지난 런 시작 때는 잠겨 있었다"를 판정하려면 저장 스키마가 늘어난다. 정산창은 이미 "이번 정산에 해금된 종류"를 계산하고 있어 그대로 쓴다 (PM 결정, #300 코멘트)</td></tr>
+  <tr><td>(#300) 역할 문구를 <code>targets.csv</code> 새 열로 둠</td><td>❌</td><td>CSV 스키마(공용 계약) 변경이다. 착수 때는 이 이유로 문구를 빼기로 했다가, 먼저 머지된 #299 도감이 수치에서 문구를 만드는 <code>CreatureCodexEntry.GetRoleText</code> 를 두어 그것을 그대로 쓴다 — 두 화면이 한 곳의 문구를 보여 어긋나지 않는다</td></tr>
+  <tr><td>(#300) 코인 구간을 전부 줄로 냄</td><td>❌</td><td>금광석(40개)의 "$40 — 전부 $1" 은 약 10억 분의 1 인데 줄로 보이면 나올 수 있는 결과처럼 읽힌다. 0.1% 미만은 줄을 내지 않고(<code>UnlockCardView.MinShownProbability</code>), 0.1% 이상 1% 미만은 <code>&lt;1%</code> 로 남긴다</td></tr>
+  <tr><td>(#300) 코인 구간을 추첨을 여러 번 돌려 표본으로 구함</td><td>❌</td><td>열 때마다 숫자가 흔들린다. "뽑힌 코인 중 가장 큰 액면"으로 묶으면 구간·확률이 식으로 정확히 나오고(<code>CoinLottery.GetRewardBands</code>), 표본은 검사에서 식을 대조하는 데만 쓴다</td></tr>
+  <tr><td>(#300) 카드 뒤를 반투명으로 깔아 정산창이 비치게 함 (원작 모양)</td><td>❌</td><td>UI_GUIDE 5절 "알파로 톤을 만들지 않는다" — <code>UiGuidelineChecks</code> 가 알파 톤으로 잡고, 뒤 배경에 따라 글자 대비가 무너진다. 불투명한 어두운 배경을 쓴다</td></tr>
+  <tr><td>(#300) 고지서에서 돌아와 정산창이 다시 열릴 때마다 판정</td><td>❌</td><td>고지서를 닫으면 <code>ShowSettlement</code> 가 카운트업을 다시 돌려, 같은 정산인데 카드가 또 뜬다. 마지막으로 띄운 정산의 누적 수입을 기억해 한 번만 띄운다</td></tr>
   <tr><td>정산창 현장 납부·더블 오어 낫싱 처분: 현장 납부만 살리고 더블 오어 낫싱은 뺀다 (#222)</td><td>✅</td><td>코드를 확인해 보니 이미 이 상태였다 — <code>PayButton</code>은 #34 원본 구현부터 <code>HandlePayClicked</code>→<code>BillPanel.ShowAsModal()</code>로 실제 배선돼 있었고, #181·#212가 고지서 모달 쪽 납부·부족액 표시를 완성시키면서 새 규칙 없이 그대로 동작하게 됐다. <code>GambleButton</code>(더블 오어 낫싱)은 애초에 프리팹에 넣은 적이 없다 — <code>ResultUIChecks</code>가 "MVP 범위 밖이라 없어야 한다"고 계속 검증해 왔다. 도박 규칙을 GDD·BALANCE에 새로 정의할 여유가 7일 일정에 없어, 이미 그렇게 된 상태를 그대로 유지하기로 한다</td></tr>
 </table>
 
@@ -57,7 +64,10 @@ flowchart LR
   <tr><td>StaminaHud</td><td>Assets/Scripts/Runtime/UI/StaminaHud.cs</td><td>스태미나 잔여 수치 실시간 표기 (결과창 전환 트리거 확인용 임시 표기)</td></tr>
   <tr><td>InGameUIFallbackLoader</td><td>Assets/Scripts/Runtime/UI/InGameUIFallbackLoader.cs</td><td>Game 씬 로드 시 UI가 없을 때 런타임에 임시 Canvas 및 프리팹을 안전하게 띄우는 로더 (정식 UI 도입 시 자동 양보)</td></tr>
   <tr><td>ResultUIChecks</td><td>Assets/Scripts/Editor/ResultUIChecks.cs</td><td>조준 정확도 공식, 화면 분기 상태 전이, 스태미나 HUD 수치 갱신 자동 검증 (ValidationRunner 통합)</td></tr>
-  <tr><td>ResultUIPrefabCreator</td><td>Assets/Scripts/Editor/ResultUIPrefabCreator.cs</td><td>ResultUI 및 StaminaHud 프리팹 에셋 생성 유틸리티</td></tr>
+  <tr><td>ResultUIPrefabCreator</td><td>Assets/Scripts/Editor/ResultUIPrefabCreator.cs</td><td>ResultUI 및 StaminaHud 프리팹 에셋 생성 유틸리티. 해금 카드는 <code>BuildUnlockCard</code> (#300)</td></tr>
+  <tr><td>UnlockCardView</td><td>Assets/Scripts/Runtime/UI/UnlockCardView.cs</td><td>해금 카드 한 장을 그린다 — 제목·3D 외형(<code>CreaturePreview</code>)·HP·코인 구간·역할 한 줄. 여러 장이면 클릭마다 다음 장, 마지막 장에서 닫고 <code>Closed</code> 를 알린다 (#300)</td></tr>
+  <tr><td>CoinLottery.GetRewardBands</td><td>Assets/Scripts/Runtime/Economy/CoinLottery.cs</td><td>한 번 파괴했을 때 합계를 "가장 큰 액면"별 구간(<code>CoinRewardBand</code>: 최소·최대·확률)으로 식에서 구한다. <code>Draw</code> 와 같은 후보 필터를 쓴다 (#300)</td></tr>
+  <tr><td>UnlockCardChecks</td><td>Assets/Scripts/Editor/UnlockCardChecks.cs</td><td>실제 ResultUI 프리팹으로 카드가 해금된 정산에서만·해금 순서대로·정산마다 한 번만 뜨는지, 파산 화면에서 닫히는지, 프리팹 배선 (#300)</td></tr>
 </table>
 
 ### 이벤트
@@ -118,6 +128,37 @@ ResultUI 생성  → SetServices(경제·고지서·단계) + SetBillPanel(billP
 고지서 발신처와 제목은 `bill_names.csv` 가 정본이다. `BalanceData` 는 `Target`·`HammerSwingController`
 와 같은 방식으로 프리팹에 직렬화해 둔다 — 씬을 건너 주입할 통로를 새로 만들지 않기 위해서다.
 
+## 새 저금통 해금 카드 (#300)
+
+정산창의 카운트업(금액 → 해금 진행률 100%)과 이름 강조가 끝나면 `ResultUIController.ShowUnlockCards` 가 이번 정산에서
+기준액을 넘은 종류(`FindAllJustUnlocked` — 정산창 칸·카운트업과 같은 판정)를 해금 순서대로 `UnlockCardView` 에 넘긴다.
+카운트업 연출이 꺼져 있으면 곧바로 판단한다.
+
+| 영역 | 내용 | 출처 |
+|---|---|---|
+| 제목 | `{이름} 해금!` | `targets.csv` `display_name` |
+| 왼쪽 | 3D 외형(회전) + 뒤에서 도는 빛살(텍스처 없는 막대 12개) | `CreaturePreview` — 정산창 미리보기 (0, −500)·도감 미리보기(x 40 간격, y −500 줄)와 모델이 겹치지 않게 `_stageOrigin` 을 따로 (0, −700, 0) 에 둔다 |
+| 오른쪽 | `HP:` / `코인:` 아래 구간·확률 (0.1% 미만 구간은 줄을 내지 않고, 1% 미만은 `<1%`) | `hp`, `coin_count`, `min_denom_id`, `coins.csv` 가중치 → `CoinLottery.GetRewardBands` |
+| 오른쪽 아래 | 역할 한 줄 (예: `타격마다 10% 즉시 파괴`) | 도감(#299)과 같은 `CreatureCodexEntry.GetRoleText` — CSV 열 없이 수치에서 만든다 |
+
+- 카드는 `PanelRoot` 의 마지막 자식이라 정산창 전부를 덮고, 정산창이 닫히면(`HideAll`) 함께 닫힌다. 파산 화면으로 바뀌면 닫는다.
+- 배경 전체가 닫기 버튼이고 나머지는 그 자식이라 어디를 눌러도 넘어간다.
+- 같은 정산에서는 한 번만 — 마지막으로 띄운 정산의 누적 수입(`_unlockCardShownEarned`)을 기억한다.
+
+코인 구간 예 (현재 데이터, 구리광석 2개·최소 $25): `$50 44%` / `$125–$200 43%` / `$1,025–$2,000 13%`.
+
+### 검증 (2026.09.23, #300)
+
+* [x] `ValidationRunner.RunAll()` **통과 30 / 실패 0 (전체 30)** — 새 스위트 `UnlockCardChecks` 로 29 → 30. 컴파일이 끝나 새 어셈블리가 올라온 것을 확인한 뒤 요약 줄로 확인
+* [x] `CoinLotteryChecks` PASS 18 — 새 4건: 손으로 푼 표(a $2 56.25% / b $11–$20 43.75%), 최소 액면 필터, 빈 입력·가중치 0 제외, **시드 고정 `Draw` 2만 번과 대조**(모든 합계가 제 구간 안, 빈도 ±1.5%, 확률 합 1)
+* [x] `UnlockCardChecks` PASS 11 — 기준 미달 정산엔 없음 / 기준을 넘은 정산에 그 종류(제목·HP·구간 문구·**역할 문구가 도감 `GetRoleText` 와 같음**) / 0.1% 미만 구간 숨김·`<1%`·반올림 / 클릭하면 닫히고 `Closed` 한 번 / **고지서에서 돌아와도 다시 안 뜸** / 한 정산에 둘이면 해금 순서대로 한 장씩 / 파산 뒤(누적 < 런 수입) 없음 / 파산 화면에서 닫힘 / 프리팹 배선·마지막 자식·미리보기 자리 분리(정산창·**도감 미리보기 전부**와 20 이상)·구간 행 수
+* [x] 변이 시험 8종 전부 잡힘 — 재표시 가드 삭제, 첫 종류만 보여 줌, 파산 화면이 카드를 안 닫음, 구간 최소값 식, 확률 식, 클릭이 남은 장을 무시, 남는 구간 행을 안 숨김, 역할 문구 대신 이름
+* [x] 프리팹은 `ResultUIPrefabCreator` 로 다시 만들었다. **다시 만들기 전에** 고치지 않은 생성기 출력과 기존 프리팹을 직렬화 값 전부 대조해 차이 0줄, 새 프리팹과의 차이는 `UnlockCard` 하위 추가뿐(지운 줄 0)
+* [x] `UiGuidelineChecks` — 새 카드가 늘린 권고 0건
+* [x] Play Mode — 누적 190 에서 런 수입 18 로 208(구리광석 기준 200 통과) 정산을 열어, 카운트업 뒤 카드 표시·`구리광석 해금!`·HP 6·위 세 구간·미리보기 `tourist` 를 캡처로 확인. 수치 판 위를 실제 레이캐스트로 눌러도 닫기 버튼이 받아 닫힘. 고지서를 열었다 닫아 정산창이 다시 열려도 카드는 다시 안 뜸. `NanumGothicBoldSDF` 에 `–`(U+2013) 글리프 있음. 콘솔 오류 0건
+* [x] #299(도감)·#316 리베이스 뒤 — 충돌 없이 합쳐졌다(`CoinLottery.cs` 는 #299 의 `GetExpectedValue` 와 다른 자리). 전체 30/30 (#299 의 `UnlockChecks` PASS 5 포함). Play Mode 로 금광석(누적 5990 → 6015) 카드를 캡처: HP 10, 구간 4줄(`$44–$200 <1%` · `$64–$1,000 13%` · `$139–$4,000 54%` · `$1,039–$40,000 33%`, `$40` 줄은 숨김), 역할 `타격마다 10% 즉시 파괴`
+* [ ] 자연스럽게 런을 돌려 기준액을 넘기는 흐름은 누적 값을 심어 대신했다 — 누적 계산 자체는 #301 의 `UnlockChecks` 가 본다. 빌드된 실행 파일에서는 확인하지 않았다
+
 ## 검증
 
 EditMode 검증(ResultUIChecks) 및 Unity MCP 런타임 환경에서 확인했다.
@@ -158,6 +199,8 @@ EditMode 검증(ResultUIChecks) 및 Unity MCP 런타임 환경에서 확인했�
 * 코인 종류별 개수는 표시하지만, `targets.csv`의 `coin_count`/`min_denom_id`와 `coins.csv` 가중치가 아직 잠정값이라 (이슈 #176 대기, [coin-economy.md](coin-economy.md) 참고) 숫자 자체의 밸런스는 검증되지 않았다 — 배선만 검증했다.
 * ~~정산창 현장 납부와 더블 오어 낫싱은 버튼만 배치하고 `interactable = false` 로 잠갔다. 도박 규칙이 GDD·BALANCE 어디에도 없어 동작을 정의할 수 없다.~~ **#222(4.15)에서 처분 확정·문서화(2026.09.21) — 현장 납부(PayButton)는 이미 배선돼 있었고(#34/#181/#212), 더블 오어 낫싱(GambleButton)은 애초에 프리팹에 없어 잠긴 버튼 자체가 남아 있지 않다.** Play Mode 실측으로 PayButton `interactable=true`·클릭 시 고지서 모달 정상 진입, 정산창 버튼 5개(Upgrade/Pay/Continue/Restart/MainMenu) 전부 `interactable=true` 확인, `ValidationRunner` 26개 검증 클래스 전부 PASS 확인.
 * 파산 시 보유 코인 초기화는 공용 지갑 비우기 계약(#158)이 적용되기 전까지 뷰 상의 안내 문구로 먼저 반영되어 있다.
+* **해금 카드를 본 것은 저장하지 않는다 (#300).** 정산창에서 게임을 껐다가 이어하기로 같은 정산창에 돌아오면 카드가 한 번 더 뜰 수 있다.
+* **해금 카드 배경은 원작과 달리 불투명하다 (#300).** 원작은 정산창이 비친다 — UI_GUIDE 알파 규칙 때문에 따르지 않았다.
 
 ## 갱신 이력
 
@@ -172,4 +215,5 @@ EditMode 검증(ResultUIChecks) 및 Unity MCP 런타임 환경에서 확인했�
   <tr><td>2026.09.21</td><td>#222</td><td>Claude</td><td>정산창 잠긴 버튼 2종 처분 확정. 코드 변경 없음 — 현장 납부(PayButton)가 이미 배선돼 있었고 더블 오어 낫싱(GambleButton)은 애초에 없었음을 Play Mode 실측으로 확인하고 알려진 한계·왜 이 방법인가 표에 근거 기록</td></tr>
   <tr><td>2026.09.22</td><td>#249</td><td>saltlake00</td><td>납부 후 퍽 선택 및 스킬 트리 안내 흐름 전체 연결 완료</td></tr>
   <tr><td>2026.09.22</td><td>#261</td><td>saltlake00</td><td>정산창 "내 몫" 이중 징수 제거 — <code>RunCoin</code> 은 이미 순수입이라 <code>gross * cut</code> 을 다시 빼지 않는다. "빅 토니 징수" 줄은 조회 계약이 없어 자리표시자로 되돌림. <code>TotalCoinCount</code> → <code>GetTotalCoinCount</code> (메서드 동사 규칙)</td></tr>
+  <tr><td>2026.09.23</td><td>#300</td><td>twins6375-art</td><td>새 저금통 해금 카드 — 해금이 일어난 정산창 위에 <code>{이름} 해금!</code>·3D 외형·HP·코인 구간과 확률, 클릭으로 닫힘, 여러 종류면 해금 순서대로. <code>UnlockCardView</code>·<code>CoinLottery.GetRewardBands</code>·<code>CoinRewardBand</code>·<code>UnlockCardChecks</code> 추가, 해금 판정을 <code>FindAllJustUnlocked</code> 한 곳으로 모음. 역할 한 줄은 도감(#299)의 <code>GetRoleText</code>, 0.1% 미만 구간은 숨김. 이슈 본문의 '다음 런 시작 직전' 안은 버렸다(왜 이 방법인가)</td></tr>
 </table>
