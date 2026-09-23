@@ -1,4 +1,6 @@
 using System.Linq;
+using NCAIClicker.Core;
+using NCAIClicker.Economy;
 using NCAIClicker.Events;
 using NCAIClicker.Interfaces;
 using UnityEditor;
@@ -88,6 +90,44 @@ namespace NCAIClicker.EditorTools
 
         [MenuItem("NCAI/디버그/날짜 1일 진행", true)]
         private static bool ValidateAdvanceOneDay() => Application.isPlaying;
+
+        /// <summary>
+        /// 고지서를 내지 않고 단계를 하나 올린다 (#247 해금 확인용). 런 중이면 책상 위 저금통을 새 단계 구성으로
+        /// 다시 깐다. 이미 발행된 고지서는 그대로다 — 새 단계 고지서는 다음 납부 뒤에 나온다.
+        /// </summary>
+        [MenuItem("NCAI/디버그/단계 +1", false, MenuPriority.DebugAdvanceStage)]
+        public static void AdvanceStage()
+        {
+            if (!Application.isPlaying)
+            {
+                Debug.LogWarning("[디버그] Play Mode 에서만 실행할 수 있습니다.");
+                return;
+            }
+
+            var stageManager = Object.FindFirstObjectByType<StageGoalManager>(FindObjectsInactive.Include);
+            if (stageManager == null)
+            {
+                Debug.LogWarning("[디버그] StageGoalManager 를 찾을 수 없습니다.");
+                return;
+            }
+
+            if (!stageManager.AdvanceStage())
+            {
+                Debug.LogWarning($"[디버그] 이미 마지막 단계({stageManager.CurrentStageNumber}단계)입니다.");
+                return;
+            }
+
+            var stage = stageManager.CurrentStageNumber;
+            var creatureManager = CreatureManager.Instance;
+            if (creatureManager != null && creatureManager.ActiveCreatures.Count > 0)
+            {
+                creatureManager.InitializeStage(stage);
+            }
+            Debug.Log($"[디버그] {stage}단계로 올렸습니다. 이 상태로 저장되면 세이브에도 남습니다.");
+        }
+
+        [MenuItem("NCAI/디버그/단계 +1", true)]
+        private static bool ValidateAdvanceStage() => Application.isPlaying;
 
         private static IBillPersistence FindBillPersistence()
         {
