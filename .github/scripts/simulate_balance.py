@@ -271,6 +271,7 @@ def simulate_campaign(root, players, seed, uptime, policy, max_days=120):
     for player in range(players):
         wallet, earned, levels = 0, 0, {upgrade_id: 0 for upgrade_id in buyable}
         stage_index, due = 0, int(stages[0]["due_days"])
+        recent = []
         for day in range(1, max_days + 1):
             power = base_power + per_level.get("strong_hammer", {}).get("base_hit_power", 0.0) * levels.get("strong_hammer", 0)
             spawn_bonus = int(per_level.get("desk_expand", {}).get("spawn_count", 0.0) * levels.get("desk_expand", 0))
@@ -282,6 +283,7 @@ def simulate_campaign(root, players, seed, uptime, policy, max_days=120):
                 first_run.append(income)
             wallet += income
             earned += income
+            recent = (recent + [income])[-3:]
             bill = int(stages[stage_index]["bill_amount"])
             if wallet >= bill:
                 wallet -= bill
@@ -294,7 +296,11 @@ def simulate_campaign(root, players, seed, uptime, policy, max_days=120):
             elif day >= due:
                 bankrupt_at.append(stage_index + 1)
                 break
-            reserve = int(stages[stage_index]["bill_amount"])
+            # "살까, 낼까" (#247): 지금 사도 남은 날 수입으로 마감 전에 고지서를 낼 수 있으면 산다. 수입 예상은
+            # 최근 3런 중앙값의 70% — 잭팟이 터진 날 과하게 사지 않는 보수적인 플레이어다.
+            bill_now = int(stages[stage_index]["bill_amount"])
+            days_left = max(0, due - day)
+            expected = sorted(recent)[len(recent) // 2] * 0.7
             bought = True
             while bought:
                 bought = False
@@ -303,7 +309,7 @@ def simulate_campaign(root, players, seed, uptime, policy, max_days=120):
                     if levels[upgrade_id] < int(upgrades[upgrade_id]["max_level"]):
                         options.append((upgrade_cost(upgrades[upgrade_id], levels[upgrade_id], default_growth), upgrade_id))
                 options.sort()
-                if options and wallet - options[0][0] >= reserve:
+                if options and wallet - options[0][0] + expected * days_left >= bill_now:
                     wallet -= options[0][0]
                     levels[options[0][1]] += 1
                     bought = True
