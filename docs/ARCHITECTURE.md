@@ -88,7 +88,7 @@ AudioManager     SFX/BGM
 다른 매니저 구현 클래스를 직접 참조하지 않는다. 요청·조회는 아래 인터페이스로, 상태 변화는 3절 이벤트로 전달한다.
 
 ```csharp
-public enum HitSource { Hover, AutoHammer }
+public enum HitSource { Hover, AutoHammer, Charge }   // Charge = 화난 저금통의 돌진 충돌 (#297)
 
 public readonly struct HitInfo
 {
@@ -482,9 +482,22 @@ BT(비헤이비어 트리)가 아니라 **FSM**을 쓴다.
 
 ```
 Idle → Moving → (호버 감지) BeingHit → (조건 충족) Fleeing → Moving (반복)
+                              └→ (화난 저금통) Charging → (충돌) BeingHit → Charging … (#297)
 ```
 
-**근거**: BT는 여러 목표 사이의 우선순위 판단(공격/도망/순찰 등 다중 분기)이 필요할 때 이점이 있는데, 타격 대상의 행동은 "이동 → 피격 → 경직 → 재이동"이라는 선형적 상태 전이뿐이다. BT 도입은 노드 설계·디버깅 비용만 늘리고 실익이 없다. Enum 기반 커스텀 FSM 클래스(`enum TargetState { Idle, Moving, BeingHit, Fleeing }` + `switch` 전이) 하나로 충분하며, 로직과 애니메이션 상태를 분리해두면 디자이너가 애니메이션만 건드릴 때 코드 충돌이 줄어든다.
+**분노·돌진 (#297)** — `targets.csv` 의 `charge_speed` 가 0 보다 큰 종류만 해당한다.
+
+- 호버·자동 망치 타격을 받으면 분노한다. `HitSource.Charge` 타격으로는 분노하지 않는다 (연쇄 방지).
+- 분노하면 경직 뒤 `Charging` 으로 가장 가까운 다른 저금통에 `charge_speed` 로 돌진한다. 부딪히면 그 대상의
+  `Target.OnHit` 을 `HitSource.Charge` 로 부르고, 짧게 경직한 뒤 다음 목표로 간다. 목표가 없으면 배회하며 기다린다.
+- 돌진 피해 = 분노시킨 타격의 피해 × `charge_damage_ratio`. 호버 피해는 업그레이드·퍼크가 적용된 최종 파워라
+  원작 "기본 피해량의 70%" 와 같다. 호버에 다시 맞으면 그 값으로 갱신한다.
+- 분노한 저금통끼리 부딪히면 서로 피해를 준다.
+- 돌진은 `OnSwingResolved` 를 내지 않는다 → 피버 충전·정확도·자동 망치 발동·화면 흔들림·타격음에 들어가지 않는다.
+  돌진으로 부서진 저금통은 코인·스태미나 회복을 똑같이 준다 (`OnTargetBroken` 그대로).
+- 목표 후보는 `CreatureManager.ActiveCreatures` 목록을 `CreatureMovement.Initialize` 로 넘겨받는다 (매니저를 직접 찾지 않는다).
+
+**근거**: BT는 여러 목표 사이의 우선순위 판단(공격/도망/순찰 등 다중 분기)이 필요할 때 이점이 있는데, 타격 대상의 행동은 "이동 → 피격 → 경직 → 재이동"이라는 선형적 상태 전이뿐이다. BT 도입은 노드 설계·디버깅 비용만 늘리고 실익이 없다. Enum 기반 커스텀 FSM 클래스(`enum CreatureState { Idle, Moving, BeingHit, Fleeing, Charging }` + `switch` 전이) 하나로 충분하며, 로직과 애니메이션 상태를 분리해두면 디자이너가 애니메이션만 건드릴 때 코드 충돌이 줄어든다.
 
 ## 5. 프로파일링 계획 — 상시 아님, 체크포인트 2회
 

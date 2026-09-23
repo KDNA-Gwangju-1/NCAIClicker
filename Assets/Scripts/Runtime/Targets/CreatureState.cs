@@ -12,6 +12,9 @@
         Idle,
         Moving,
         BeingHit,
-        Fleeing
+        Fleeing,
+
+        /// <summary>분노해 다른 저금통을 향해 돌진한다 (#297). targets.csv 의 charge_speed 가 0보다 큰 종류만.</summary>
+        Charging
     }
 }

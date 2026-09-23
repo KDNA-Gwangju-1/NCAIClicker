@@ -132,6 +132,7 @@ TargetNormal (루트)          ← 로직: Target, CreatureMovement, SphereColli
 | `stages.csv` | `spawn_count` | `CreatureManager` 동시 출현 목표 수 |
 | `stage_spawns.csv` | `stage`, `target_id`, `ratio` | `CreatureManager` 단계별 종류 등장 가중치. 행이 없는 종류는 그 단계에 안 나온다 (#293) |
 | `targets.csv` | `instant_break_chance` | `Target.OnHit` 타격마다 즉시 파괴 확률 (#293). 피냐타형만 0 보다 크다 |
+| `targets.csv` | `charge_speed`, `charge_damage_ratio` | `CreatureMovement` 분노 돌진 속도와 충돌 피해 비율 (#297). 화난 저금통만 0 보다 크다 |
 | `economy.csv` | `hit_radius_bonus` | 피격 반경 확대 비율 |
 | `economy.csv` | `spawn_interval_sec` | **미사용 호환 필드** (#156 이후 0 고정, 되돌릴 경우를 대비해 남김) |
 | `economy.csv` | `extra_spawn_chance_on_destroy` | `CreatureManager` 파괴 시 즉시 추가 스폰될 확률(%). 기본 0, 저금통 수집벽이 올림 (#156) |
@@ -348,6 +349,16 @@ instance 로 끼웠다. `TargetAnchor`/`Runner`/`Tourist` 는 대응하는 3D �
 * [x] `NCAI > 전체 검증 실행` 26/26 통과
 * [x] 확률 1/0 에서 즉시 파괴 발생·미발생을 에디터에서 직접 확인
 
+### #297 화난 저금통 분노·돌진 (2026-09-23)
+
+* `HitSource.Charge`, `CreatureState.Charging` 추가. 규칙은 [ARCHITECTURE 4절](../ARCHITECTURE.md) "분노·돌진"
+* `CreatureMovement` 가 목표 후보로 `CreatureManager.ActiveCreatures` 를 `Initialize` 인자로 받는다. 기존 호출(인자 3개)은 그대로 동작하며 돌진하지 않는다
+* 충돌 판정은 물리 없이 XZ 거리(`_chargeContactDistance` 0.6 — 연출·판정 파라미터라 `[SerializeField]`)로 한다. 이동 코드가 원래 물리를 쓰지 않기 때문이다
+* 방금 부딪힌 대상은 다른 후보가 있으면 다음 목표에서 피한다 — 한 대상만 연달아 들이받지 않게
+* 이 PR 에서는 모든 종류가 `charge_speed` 0 이라 게임 동작은 바뀌지 않는다. `angry` 행·프리팹은 #247
+* [x] `ChargeChecks` 7건 추가 — Charge 로는 분노 안 함, 호버로 분노·피해 ×0.7, 경직 후 최근접 돌진·충돌 피해 1회, 스윙 이벤트 미발행, 비돌진 종류 무반응, 분노끼리 반격
+* [x] `NCAI > 전체 검증 실행` 27/27 통과
+
 ## 갱신 이력
 
 | 날짜 | 이슈 | 누가 | 무엇이 바뀌었나 |
@@ -365,3 +376,4 @@ instance 로 끼웠다. `TargetAnchor`/`Runner`/`Tourist` 는 대응하는 3D �
 | 2026-09-21 | #156 | Claude | 원작 재관찰로 슬롯 타이머 기반 자동 리스폰을 폐기. "파괴 시 확률로 즉시 추가 스폰 + 전멸 시 1개 즉시 스폰" 모델로 교체. `economy.csv`·`upgrade_effects.csv`·`BalanceData.StatId` 갱신, 밸런스 시뮬레이터 재작성 |
 | 2026-09-22 | #267 | saltlake00 | `Visual` 상하 바운스·이동 방향 회전 연출 추가 (6.29). 이어서 원작 실측으로 `targets.csv` 속도·주기 재조정, 정지·도망 확률 도입. 검증 2건 추가 |
 | 2026-09-23 | #293 | saltlake00 | 출현 비율을 `stage_spawns.csv` 로 분리, 프리팹 목록을 `target_id` 키로, `instant_break_chance` 즉시 파괴 추가 |
+| 2026-09-23 | #297 | saltlake00 | 화난 저금통 분노·돌진 — `HitSource.Charge`, `CreatureState.Charging`, `targets.csv` 돌진 열 2개 |

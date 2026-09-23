@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NCAIClicker.Data;
 using NCAIClicker.Interfaces;
 using UnityEngine;
@@ -11,6 +12,8 @@ namespace NCAIClicker.Targets
     /// 타격이 누적될수록 공포(패닉)가 누적되어 도망 속도가 가속된다.
     /// 이동 중에는 Visual 자식을 상하로 튀게 하고 루트를 이동 방향으로 돌린다 (#267).
     /// 루트 y 는 고정이라 타격 판정·HP 표시에 영향이 없고, 물리는 쓰지 않는다.
+    /// 화난 저금통(charge_speed 가 0 보다 큰 종류)은 호버·자동 망치에 맞으면 분노해 가장 가까운
+    /// 다른 저금통으로 돌진하고, 부딪힌 대상에 HitSource.Charge 피해를 준다 (#297).
     /// </summary>
     [RequireComponent(typeof(Target))]
     public class CreatureMovement : MonoBehaviour
@@ -36,6 +39,10 @@ namespace NCAIClicker.Targets
         [Tooltip("모델 정면이 +Z 가 아닐 때 Y축 보정 각도")]
         [SerializeField] private float _facingOffsetDeg = 0f;
 
+        [Header("분노 돌진 (#297)")]
+        [Tooltip("돌진 목표와 이 거리(XZ) 안에 들어오면 부딪힌 것으로 본다")]
+        [SerializeField] private float _chargeContactDistance = 0.6f;
+
         private Target _target;
         private CreatureState _currentState = CreatureState.Idle;
         private float _moveSpeed;
@@ -49,6 +56,15 @@ namespace NCAIClicker.Targets
         private Vector3 _visualRestLocalPos;
         private bool _hasVisualRestLocalPos;
 
+        // 분노 돌진 (#297)
+        private float _chargeSpeed;
+        private float _chargeDamageRatio;
+        private bool _isAngry;
+        private float _chargeBaseDamage;
+        private Target _chargeTarget;
+        private Target _lastChargeVictim;
+        private IReadOnlyList<GameObject> _others;
+
         // 타격 누적에 따른 패닉 가속 처리
         private int _consecutiveHits;
         private float _comboResetTimer;
@@ -61,6 +77,11 @@ namespace NCAIClicker.Targets
         public int ConsecutiveHits => _consecutiveHits;
         public float HopHeight => _hopHeight;
         public float FacingOffsetDeg => _facingOffsetDeg;
+        public bool IsAngry => _isAngry;
+        public Target ChargeTarget => _chargeTarget;
+
+        /// <summary>돌진 1회의 피해. 분노시킨 타격의 피해(호버 최종 파워)에 비율을 곱한다 (#297).</summary>
+        public float ChargeDamage => _chargeBaseDamage * _chargeDamageRatio;
 
         private void Awake()
         {
@@ -86,12 +107,21 @@ namespace NCAIClicker.Targets
         /// <summary>
         /// CSV 수치 및 이동 경계로 초기화한다.
         /// </summary>
-        public void Initialize(BalanceData balanceData, string targetId, Bounds bounds)
+        /// <param name="others">돌진 목표를 고를 필드 위 저금통 목록 (CreatureManager.ActiveCreatures). 없으면 돌진하지 않는다.</param>
+        public void Initialize(BalanceData balanceData, string targetId, Bounds bounds,
+                               IReadOnlyList<GameObject> others = null)
         {
             _balanceData = balanceData;
             _movementBounds = bounds;
+            _others = others;
             _consecutiveHits = 0;
             _comboResetTimer = 0f;
+            _isAngry = false;
+            _chargeBaseDamage = 0f;
+            _chargeTarget = null;
+            _lastChargeVictim = null;
+            _chargeSpeed = 0f;
+            _chargeDamageRatio = 0f;
 
             if (_balanceData != null)
             {
@@ -100,6 +130,8 @@ namespace NCAIClicker.Targets
                 {
                     _moveSpeed = def.MoveSpeed;
                     _turnIntervalSec = def.TurnIntervalSec;
+                    _chargeSpeed = def.ChargeSpeed;
+                    _chargeDamageRatio = def.ChargeDamageRatio;
                 }
             }
 
@@ -145,7 +177,8 @@ namespace NCAIClicker.Targets
         /// </summary>
         public void UpdateVisual(float deltaTime)
         {
-            var isHopping = _currentState == CreatureState.Moving || _currentState == CreatureState.Fleeing;
+            var isHopping = _currentState == CreatureState.Moving || _currentState == CreatureState.Fleeing ||
+                            _currentState == CreatureState.Charging;
             // 에디터 검증처럼 Awake 를 거치지 않은 경우를 위해 지연 조회한다
             if (_target == null)
             {
@@ -164,7 +197,7 @@ namespace NCAIClicker.Targets
                 var height = 0f;
                 if (isHopping)
                 {
-                    var period = _currentState == CreatureState.Fleeing ? _fleeHopPeriodSec : _hopPeriodSec;
+                    var period = _currentState == CreatureState.Moving ? _hopPeriodSec : _fleeHopPeriodSec;
                     if (period > 0f)
                     {
                         _hopPhase += deltaTime / period;
@@ -229,6 +262,11 @@ namespace NCAIClicker.Targets
                     break;
 
                 case CreatureState.Moving:
+                    // 분노 중 배회는 돌진 목표가 없을 때뿐이다. 새로 나타나면 바로 돌진한다
+                    if (_isAngry && TryStartCharge())
+                    {
+                        return;
+                    }
                     // 배회 시간 경과 시 대기(Idle) 또는 방향 전환
                     _turnTimer += deltaTime;
                     if (_turnTimer >= _turnIntervalSec && _turnIntervalSec > 0f)
@@ -251,6 +289,10 @@ namespace NCAIClicker.Targets
                     _stateTimer -= deltaTime;
                     if (_stateTimer <= 0f)
                     {
+                        if (_isAngry && TryStartCharge())
+                        {
+                            break;
+                        }
                         ChangeState(_shouldFleeAfterHit ? CreatureState.Fleeing : CreatureState.Moving);
                     }
                     break;
@@ -265,7 +307,111 @@ namespace NCAIClicker.Targets
                         ChangeState(CreatureState.Moving);
                     }
                     break;
+
+                case CreatureState.Charging:
+                    UpdateCharge(deltaTime);
+                    break;
             }
+        }
+
+        private void UpdateCharge(float deltaTime)
+        {
+            if (!IsChargeable(_chargeTarget) && !TryPickChargeTarget())
+            {
+                ChangeState(CreatureState.Moving);
+                return;
+            }
+
+            var toTarget = _chargeTarget.transform.position - transform.position;
+            toTarget.y = 0f;
+            if (toTarget.magnitude <= _chargeContactDistance)
+            {
+                ResolveChargeContact(_chargeTarget);
+                return;
+            }
+
+            _currentDirection = toTarget.normalized;
+            MoveStep(deltaTime, _chargeSpeed);
+        }
+
+        /// <summary>
+        /// 부딪힌 대상에 돌진 피해를 준다. 대상도 분노 중이면 서로 피해를 준다 (#297 규칙 3).
+        /// 부딪힌 뒤에는 짧게 경직했다가 다른 목표로 돌진한다.
+        /// </summary>
+        private void ResolveChargeContact(Target victim)
+        {
+            var contactPoint = (transform.position + victim.transform.position) * 0.5f;
+            var victimMovement = victim.GetComponent<CreatureMovement>();
+            var counterDamage = victimMovement != null && victimMovement.IsAngry ? victimMovement.ChargeDamage : 0f;
+
+            _lastChargeVictim = victim;
+            _chargeTarget = null;
+            victim.OnHit(new HitInfo(HitSource.Charge, ChargeDamage, contactPoint));
+
+            if (counterDamage > 0f && _target != null && _target.IsAlive)
+            {
+                _target.OnHit(new HitInfo(HitSource.Charge, counterDamage, contactPoint));
+            }
+
+            if (_target == null || _target.IsAlive)
+            {
+                _shouldFleeAfterHit = false;
+                ChangeState(CreatureState.BeingHit);
+            }
+        }
+
+        private bool TryStartCharge()
+        {
+            if (!TryPickChargeTarget())
+            {
+                return false;
+            }
+            ChangeState(CreatureState.Charging);
+            return true;
+        }
+
+        /// <summary>
+        /// 가장 가까운 다른 저금통을 돌진 목표로 고른다. 방금 부딪힌 대상은 다른 후보가 있으면 피한다.
+        /// </summary>
+        private bool TryPickChargeTarget()
+        {
+            _chargeTarget = null;
+            if (_others == null)
+            {
+                return false;
+            }
+
+            Target best = null;
+            Target fallback = null;
+            var bestDistance = float.MaxValue;
+            foreach (var other in _others)
+            {
+                var candidate = other != null ? other.GetComponent<Target>() : null;
+                if (!IsChargeable(candidate))
+                {
+                    continue;
+                }
+                if (candidate == _lastChargeVictim)
+                {
+                    fallback = candidate;
+                    continue;
+                }
+                var distance = (candidate.transform.position - transform.position).sqrMagnitude;
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    best = candidate;
+                }
+            }
+
+            _chargeTarget = best != null ? best : fallback;
+            return _chargeTarget != null;
+        }
+
+        private bool IsChargeable(Target candidate)
+        {
+            return candidate != null && candidate != _target && candidate.IsAlive &&
+                   candidate.gameObject.activeInHierarchy;
         }
 
         private void MoveStep(float deltaTime, float speed)
@@ -348,6 +494,17 @@ namespace NCAIClicker.Targets
 
         private void HandleHitReceived(HitInfo info)
         {
+            // 분노는 호버·자동 망치 타격만 일으킨다. 돌진에 맞아서는 분노하지 않는다 (연쇄 방지, #297 규칙 1).
+            // 돌진 피해의 기준은 호버 최종 파워라, 호버 타격이 오면 그 값으로 갱신한다.
+            if (_chargeSpeed > 0f && info.Source != HitSource.Charge)
+            {
+                if (!_isAngry || info.Source == HitSource.Hover)
+                {
+                    _chargeBaseDamage = info.Damage;
+                }
+                _isAngry = true;
+            }
+
             // 타격 누적 및 쿨다운 리셋 타이머 갱신
             _consecutiveHits++;
             _comboResetTimer = 1.5f;

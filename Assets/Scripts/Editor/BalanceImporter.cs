@@ -113,6 +113,8 @@ namespace NCAIClicker.EditorTools
                     CoinCount = ToInt(r["coin_count"]),
                     MinDenomId = r["min_denom_id"],
                     InstantBreakChance = ToFloat(r["instant_break_chance"]),
+                    ChargeSpeed = ToFloat(r["charge_speed"]),
+                    ChargeDamageRatio = ToFloat(r["charge_damage_ratio"]),
                 });
 
                 data.Upgrades = ReadRows("upgrades.csv", r => new UpgradeDef
@@ -434,6 +436,15 @@ namespace NCAIClicker.EditorTools
             foreach (var target in d.Targets)
                 if (target.InstantBreakChance < 0f || target.InstantBreakChance > 1f)
                     _errors.Add("targets.csv: '" + target.Id + "' 의 instant_break_chance 는 0~1 이어야 합니다.");
+            foreach (var target in d.Targets)
+            {
+                if (target.ChargeSpeed < 0f)
+                    _errors.Add("targets.csv: '" + target.Id + "' 의 charge_speed 는 음수일 수 없습니다.");
+                if (target.ChargeDamageRatio < 0f || target.ChargeDamageRatio > 1f)
+                    _errors.Add("targets.csv: '" + target.Id + "' 의 charge_damage_ratio 는 0~1 이어야 합니다.");
+                if (target.ChargeSpeed > 0f && target.ChargeDamageRatio <= 0f)
+                    _errors.Add("targets.csv: '" + target.Id + "' 는 돌진하는데 charge_damage_ratio 가 0 입니다.");
+            }
 
             // ---- stage_spawns.csv (#293) — 종류는 targets.csv, 단계는 stages.csv 에 있어야 한다 ----
             var spawnKeys = new HashSet<string>();

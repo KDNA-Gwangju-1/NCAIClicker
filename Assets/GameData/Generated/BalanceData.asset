@@ -58,6 +58,8 @@ MonoBehaviour:
     CoinCount: 1
     MinDenomId: c5
     InstantBreakChance: 0
+    ChargeSpeed: 0
+    ChargeDamageRatio: 0
   - Id: anchor
     DisplayName: "\uAC70\uCE58\uD615"
     Hp: 12
@@ -67,6 +69,8 @@ MonoBehaviour:
     CoinCount: 1
     MinDenomId: c25
     InstantBreakChance: 0
+    ChargeSpeed: 0
+    ChargeDamageRatio: 0
   - Id: runner
     DisplayName: "\uACE0\uC18D\uD615"
     Hp: 1
@@ -76,6 +80,8 @@ MonoBehaviour:
     CoinCount: 1
     MinDenomId: c1
     InstantBreakChance: 0
+    ChargeSpeed: 0
+    ChargeDamageRatio: 0
   - Id: tourist
     DisplayName: "\uD68C\uBCF5\uD615"
     Hp: 10
@@ -85,6 +91,8 @@ MonoBehaviour:
     CoinCount: 1
     MinDenomId: c5
     InstantBreakChance: 0
+    ChargeSpeed: 0
+    ChargeDamageRatio: 0
   Upgrades:
   - Id: strong_hammer
     DisplayName: "\uC644\uB825 \uB2E8\uB828"
