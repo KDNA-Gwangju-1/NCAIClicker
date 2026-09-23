@@ -41,7 +41,7 @@ flowchart LR
   end
 
   subgraph UI["UI"]
-    panel[BillPanelController<br/>파산 선고 + 확인창<br/>반지 탭]
+    panel[BillPanelController<br/>파산 선고 + 확인창<br/>반지 화면 — 프레스티지 전용 #291]
     shop[RingShopPanel / RingShopEntry<br/>반지 구매]
   end
 
@@ -70,7 +70,7 @@ flowchart LR
 | `ILegacyPersistence` | 〃 | 포인트·반지 레벨 저장 복원. `SaveManager` 만 쓴다 (배선은 #203, [저장·불러오기](save-load.md)) |
 | `EconomyManager` | `Runtime/Economy/EconomyManager.cs` | 위 세 계약의 구현. `OnBillPaid` 를 구독해 적립하고 `GetStat` 에서 반지를 얹는다 |
 | `BillManager` | `Runtime/Economy/BillManager.cs` | `DeclareBankruptcy()` 를 열어 자발적 파산 진입점을 만든다 |
-| `BillPanelController` | `Runtime/UI/BillPanelController.cs` | 파산 선고 버튼·확인창과 반지 탭 |
+| `BillPanelController` | `Runtime/UI/BillPanelController.cs` | 파산 선고 버튼·확인창과 반지 화면. 반지는 파산 뒤 프레스티지 모드에서만 보이고, 매일 여는 탭 모드에서는 반지 탭 버튼을 숨긴다 (#291) |
 | `SaveManager` | `Runtime/SaveManager.cs` | `SaveData` v3 마이그레이션. 포인트·반지 수집·복원 (#203) |
 | `IBillService.DeclareBankruptcy` | `Runtime/Interfaces/IBillService.cs` | 자발적 파산 진입점 |
 | `GrowthFormula` | `Runtime/Economy/GrowthFormula.cs` | 실효값·비용 공식. **업그레이드와 반지가 공유한다** |
@@ -112,7 +112,8 @@ flowchart LR
 때문에 한 이슈로 묶었다. 실제 경로와 시점은 [저장·불러오기](save-load.md)가 정본이다.
 
 요약하면 복원은 앱이 켜질 때 `ManagerBootstrap` 이 한 번, 저장은 `GameManager` 가 고지서 화면을
-떠날 때와 하루가 끝날 때다. **반지를 산 뒤 "다음 날"을 누르면 그 구매가 저장에 실린다.**
+떠날 때와 하루가 끝날 때다. **반지는 파산 뒤 프레스티지 화면에서만 사고(#291), 그 화면의
+"사이클 N 시작"을 누르면 구매가 저장에 실린다** (`ContinueRun` 이 떠나기 전에 저장한다).
 
 `SaveData` 를 v2 → **v3** 으로 올리고 `LegacyPoints`·`RingLevels` 를 더했다. 마이그레이션 분기는 지우지 않고 누적한다.
 
