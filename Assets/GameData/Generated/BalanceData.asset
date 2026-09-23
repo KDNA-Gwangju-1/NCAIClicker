@@ -187,25 +187,49 @@ MonoBehaviour:
       ValuePerLevel: 2
   Stages:
   - Stage: 1
-    BillAmount: 80
-    DueDays: 5
+    BillAmount: 20
+    DueDays: 3
     SpawnCount: 6
   - Stage: 2
-    BillAmount: 465
-    DueDays: 4
+    BillAmount: 45
+    DueDays: 5
     SpawnCount: 7
   - Stage: 3
-    BillAmount: 1300
-    DueDays: 3
+    BillAmount: 200
+    DueDays: 5
     SpawnCount: 8
   - Stage: 4
-    BillAmount: 1470
-    DueDays: 3
+    BillAmount: 750
+    DueDays: 9
     SpawnCount: 8
   - Stage: 5
-    BillAmount: 2550
-    DueDays: 3
+    BillAmount: 1000
+    DueDays: 5
     SpawnCount: 9
+  - Stage: 6
+    BillAmount: 2700
+    DueDays: 5
+    SpawnCount: 9
+  - Stage: 7
+    BillAmount: 5800
+    DueDays: 5
+    SpawnCount: 9
+  - Stage: 8
+    BillAmount: 12000
+    DueDays: 5
+    SpawnCount: 10
+  - Stage: 9
+    BillAmount: 34000
+    DueDays: 5
+    SpawnCount: 10
+  - Stage: 10
+    BillAmount: 65000
+    DueDays: 5
+    SpawnCount: 10
+  - Stage: 11
+    BillAmount: 250000
+    DueDays: 5
+    SpawnCount: 10
   Perks:
   - Id: stamina_restore
     DisplayName: "\uC2A4\uD0DC\uBBF8\uB098 \uD68C\uBCF5"
