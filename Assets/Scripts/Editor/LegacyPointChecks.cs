@@ -418,8 +418,13 @@ namespace NCAIClicker.EditorTools
             public bool TryEnterInvestmentMenu() => false;
             public bool TryCompletePostPaymentFlow() => false;
             public bool TryCloseDay() => false;
-            public void DeclareBankruptcy() { }
-            public void RestoreCycle(int cycle) { }
+            public void DeclareBankruptcy()
+            {
+            }
+
+            public void RestoreCycle(int cycle)
+            {
+            }
         }
 
         private static EconomyManager CreateEconomy(BalanceData balance, out GameObject host)

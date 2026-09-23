@@ -416,8 +416,8 @@ namespace NCAIClicker.EditorTools
             public GameObject RepayButton { get; set; }
             public GameObject SkillTreeNoticePanel;
             public GameObject SkillTreeNoticeConfirmButton;
-            public GameObject RingTabButton;
-            public GameObject RingTabRoot;
+            public GameObject RingTabButton { get; set; }
+            public GameObject RingTabRoot { get; set; }
             public TMPro.TextMeshProUGUI DueValue;
             public TMPro.TextMeshProUGUI PayCaption;
             public TMPro.TextMeshProUGUI LoanCaption { get; set; }
