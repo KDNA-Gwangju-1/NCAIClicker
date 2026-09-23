@@ -1,6 +1,7 @@
 using NCAIClicker.Core;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 namespace NCAIClicker.Core
 {
@@ -28,6 +29,14 @@ namespace NCAIClicker.Core
         private Transform _hammerPivot;
         private Renderer[] _segmentRenderers;
         private Transform _baseQuadTransform;
+
+        /// <summary>
+        /// OS 커서 대신 마우스 위치를 알려 주는 흰 점. 크리처·소품에 가려지지 않도록
+        /// 3D 가 아니라 최상단 Screen Space Overlay 캔버스에 그린다.
+        /// </summary>
+        private RectTransform _cursorDot;
+
+        private const float CursorDotSize = 8f;
 
         /// <summary>
         /// 조준 반경 출처. 판정 범위 확대 퍼크(hit_radius_boost)로 HitRadius 가 바뀌면 Update 에서
@@ -173,9 +182,54 @@ namespace NCAIClicker.Core
         /// <summary>허공의 스윙 망치. 조준 반경과 무관하므로 레티클을 못 그릴 때도 만든다.</summary>
         private void BuildHammer()
         {
+            BuildCursorDot();
             // 모델·배색·치수는 HammerRig 가 단일 출처다. 자동 망치(AutoHammerVisual)도 같은 것을 쓴다.
             _hammerPivot = HammerRig.Build(transform, "HammerPivot");
             SetVisible(_isVisible);
+        }
+
+        private void BuildCursorDot()
+        {
+            var canvasGo = new GameObject("CursorDotCanvas");
+            canvasGo.transform.SetParent(transform, false);
+            var canvas = canvasGo.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = short.MaxValue;
+
+            var dotGo = new GameObject("CursorDot");
+            dotGo.transform.SetParent(canvasGo.transform, false);
+            var image = dotGo.AddComponent<Image>();
+            image.sprite = CreateDotSprite();
+            image.color = Color.white;
+            image.raycastTarget = false;
+
+            _cursorDot = image.rectTransform;
+            _cursorDot.anchorMin = Vector2.zero;
+            _cursorDot.anchorMax = Vector2.zero;
+            _cursorDot.pivot = new Vector2(0.5f, 0.5f);
+            _cursorDot.sizeDelta = new Vector2(CursorDotSize, CursorDotSize);
+        }
+
+        private static Sprite CreateDotSprite()
+        {
+            const int size = 32;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Bilinear;
+            tex.wrapMode = TextureWrapMode.Clamp;
+
+            var center = (size - 1) * 0.5f;
+            var radius = size * 0.5f;
+            for (var y = 0; y < size; y++)
+            {
+                for (var x = 0; x < size; x++)
+                {
+                    var dist = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
+                    var a = Mathf.Clamp01(radius - dist);
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+                }
+            }
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
         }
 
         private static Material CreateTransparentMaterial(Shader shader)
@@ -254,6 +308,10 @@ namespace NCAIClicker.Core
             {
                 _hammerPivot.gameObject.SetActive(isVisible);
             }
+            if (_cursorDot != null)
+            {
+                _cursorDot.gameObject.SetActive(isVisible);
+            }
         }
 
         /// <summary>
@@ -323,6 +381,10 @@ namespace NCAIClicker.Core
             if (mouse != null)
             {
                 var screenPos = mouse.position.ReadValue();
+                if (_cursorDot != null)
+                {
+                    _cursorDot.anchoredPosition = screenPos;
+                }
                 var ray = _aimCamera.ScreenPointToRay(screenPos);
                 if (_deskPlane.Raycast(ray, out var enter))
                 {
