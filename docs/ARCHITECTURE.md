@@ -150,6 +150,7 @@ public interface IBillService
     Bill ActiveBill { get; }           // 마감 전 고지서. 없으면 null
     string[] OfferedPerkIds { get; }   // 납부 직후 골라야 할 퍼크 후보 3개. 고르면 비워진다
     PostPaymentFlowState PaymentFlowState { get; } // 납부 후 화면 흐름 재개 지점 (#249, #255)
+    bool IsPrestigeWindowOpen { get; } // 반지 구매 창 (#291). 파산 뒤 ~ 다음 사이클 첫 런 전까지만 true. 저장하지 않는다
     void DeclareBankruptcy();          // 자발적 파산 (#175). 미납 파산과 같은 처리를 탄다
     bool TryPay(Bill bill);
     bool TryTakeLoan(long amount);     // 두 번째 고지서부터, 동시 1건
