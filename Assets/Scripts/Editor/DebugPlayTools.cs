@@ -129,6 +129,43 @@ namespace NCAIClicker.EditorTools
         [MenuItem("NCAI/디버그/단계 +1", true)]
         private static bool ValidateAdvanceStage() => Application.isPlaying;
 
+        /// <summary>
+        /// 회차 누적 수입을 다음 크리처 해금 기준액 바로 아래로 옮긴다 (#301 확인용). 다음 런을 조금만 벌고
+        /// 끝내면 그 정산에서 해금된다 — 해금 "순간"(이벤트·정산창 연출)을 실제 흐름 그대로 볼 수 있다.
+        /// </summary>
+        [MenuItem("NCAI/디버그/다음 크리처 해금 직전으로", false, MenuPriority.DebugNextUnlock)]
+        public static void JumpToNextUnlock()
+        {
+            if (!Application.isPlaying)
+            {
+                Debug.LogWarning("[디버그] Play Mode 에서만 실행할 수 있습니다.");
+                return;
+            }
+
+            var unlock = Object.FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None)
+                .OfType<IUnlockPersistence>()
+                .FirstOrDefault();
+            var balance = AssetDatabase.LoadAssetAtPath<NCAIClicker.Data.BalanceData>("Assets/GameData/Generated/BalanceData.asset");
+            if (unlock == null || balance == null)
+            {
+                Debug.LogWarning("[디버그] IUnlockPersistence 또는 BalanceData 를 찾을 수 없습니다.");
+                return;
+            }
+
+            var next = balance.GetNextUnlockTarget(unlock.EarnedTotal);
+            if (next == null)
+            {
+                Debug.LogWarning("[디버그] 이미 모든 크리처가 해금됐습니다.");
+                return;
+            }
+
+            unlock.RestoreEarnedTotal(next.UnlockEarned - 1L);
+            Debug.Log($"[디버그] 누적 수입을 ${next.UnlockEarned - 1L:N0} 로 옮겼습니다. 이번 런을 $1 이상 벌고 끝내면 {next.DisplayName} 이(가) 해금됩니다. 저장되면 세이브에도 남습니다.");
+        }
+
+        [MenuItem("NCAI/디버그/다음 크리처 해금 직전으로", true)]
+        private static bool ValidateJumpToNextUnlock() => Application.isPlaying;
+
         private static IBillPersistence FindBillPersistence()
         {
             return Object.FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None)

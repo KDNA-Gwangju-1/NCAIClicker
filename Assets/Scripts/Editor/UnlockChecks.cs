@@ -1,12 +1,15 @@
 using System;
+using System.Collections.Generic;
 using NCAIClicker.Data;
+using NCAIClicker.Economy;
+using NCAIClicker.Events;
 using UnityEditor;
 using UnityEngine;
 
 namespace NCAIClicker.EditorTools
 {
     /// <summary>
-    /// 크리처 단계별 해금 계산을 검증한다 (#247). 기대값은 코드에 적지 않고 stage_spawns.csv 산출물에서 읽는다.
+    /// 크리처 해금을 검증한다 (#247 → #301 회차 누적 수입 기준). 기대값은 코드에 적지 않고 targets.csv 산출물에서 읽는다.
     /// </summary>
     public static class UnlockChecks
     {
@@ -16,62 +19,36 @@ namespace NCAIClicker.EditorTools
             var balance = AssetDatabase.LoadAssetAtPath<BalanceData>("Assets/GameData/Generated/BalanceData.asset");
             Assert(balance != null, "BalanceData 에셋을 찾지 못했습니다.");
 
-            // 1. 해금 단계 = 비율이 0 보다 큰 첫 단계. 행이 없는 종류는 0 (등장하지 않음)
+            // 1. 해금 순서 = spawn_weight > 0 인 종류를 unlock_earned 오름차순. 첫 종류는 기준 0
+            var order = balance.GetUnlockOrder();
+            Assert(order.Count > 0 && order[0].UnlockEarned == 0, "처음부터 나오는 종류(unlock_earned 0)가 없습니다.");
+            for (var i = 1; i < order.Count; i++)
+            {
+                Assert(order[i - 1].UnlockEarned <= order[i].UnlockEarned, "해금 순서가 기준액 순이 아닙니다.");
+            }
             foreach (var target in balance.Targets)
             {
-                var expected = 0;
-                foreach (var spawn in balance.StageSpawns)
-                {
-                    if (spawn.TargetId == target.Id && spawn.Ratio > 0f && (expected == 0 || spawn.Stage < expected))
-                    {
-                        expected = spawn.Stage;
-                    }
-                }
-                Assert(balance.GetUnlockStage(target.Id) == expected,
-                       target.Id + " 해금 단계가 " + balance.GetUnlockStage(target.Id) + " 입니다. " + expected + " 여야 합니다.");
+                Assert(order.Contains(target) == (target.SpawnWeight > 0f),
+                       target.Id + " 는 spawn_weight " + target.SpawnWeight + " 인데 해금 목록 포함 여부가 맞지 않습니다.");
             }
             checkCount++;
 
-            // 2. 해금 목록은 단계마다 늘기만 하고, 그 단계의 스폰 종류를 모두 포함한다
-            var previous = 0;
-            for (var stage = 1; stage <= balance.Stages.Count; stage++)
+            // 2. 누적액이 기준을 넘는 순간 해금되고, 다음 해금 종류가 한 칸씩 넘어간다
+            for (var i = 0; i < order.Count; i++)
             {
-                var unlocked = balance.GetUnlockedTargets(stage);
-                Assert(unlocked.Count >= previous, stage + "단계 해금 목록이 줄었습니다.");
-                foreach (var spawn in balance.GetStageSpawns(stage))
+                var threshold = order[i].UnlockEarned;
+                Assert(balance.GetUnlockedTargets(threshold).Contains(order[i]), order[i].Id + " 가 기준액에서 해금되지 않습니다.");
+                if (threshold > 0)
                 {
-                    if (spawn.Ratio > 0f)
-                    {
-                        Assert(unlocked.Exists(t => t.Id == spawn.TargetId),
-                               stage + "단계에 나오는 " + spawn.TargetId + " 가 해금 목록에 없습니다.");
-                    }
+                    Assert(!balance.GetUnlockedTargets(threshold - 1).Contains(order[i]),
+                           order[i].Id + " 가 기준액보다 1 적을 때 이미 해금돼 있습니다.");
+                    Assert(balance.GetNextUnlockTarget(threshold - 1) == order[i], order[i].Id + " 직전의 다음 해금이 다릅니다.");
                 }
-                for (var i = 1; i < unlocked.Count; i++)
-                {
-                    Assert(balance.GetUnlockStage(unlocked[i - 1].Id) <= balance.GetUnlockStage(unlocked[i].Id),
-                           stage + "단계 해금 목록이 해금 순서가 아닙니다.");
-                }
-                previous = unlocked.Count;
             }
+            Assert(balance.GetNextUnlockTarget(order[order.Count - 1].UnlockEarned) == null, "모두 해금됐는데 다음 해금이 남았습니다.");
             checkCount++;
 
-            // 3. 다음 해금 종류는 다음 단계들 중 가장 먼저 나오는 것, 마지막 단계에서는 없다
-            for (var stage = 1; stage <= balance.Stages.Count; stage++)
-            {
-                var next = balance.GetNextUnlockTarget(stage);
-                if (next != null)
-                {
-                    var nextStage = balance.GetUnlockStage(next.Id);
-                    Assert(nextStage > stage, stage + "단계의 다음 해금 " + next.Id + " 가 이미 해금돼 있습니다.");
-                    foreach (var target in balance.Targets)
-                    {
-                        var s = balance.GetUnlockStage(target.Id);
-                        Assert(s <= stage || s >= nextStage, stage + "단계 다음 해금보다 먼저 오는 " + target.Id + " 가 있습니다.");
-                    }
-                }
-            }
-            Assert(balance.GetNextUnlockTarget(balance.Stages.Count) == null, "마지막 단계에 다음 해금이 남아 있습니다.");
-            checkCount++;
+            checkCount += RunEconomyChecks(balance, order);
 
             // 4. 해금되는 종류는 스포너(Managers)와 결과 화면 미리보기 양쪽에 같은 프리팹이 연결돼 있어야 한다
             var managers = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Resources/Managers.prefab");
@@ -82,7 +59,7 @@ namespace NCAIClicker.EditorTools
             Assert(preview != null, "ResultUI 프리팹에 CreaturePreview 가 없습니다.");
             var spawnerList = new SerializedObject(spawner).FindProperty("_targetPrefabs");
             var previewList = new SerializedObject(preview).FindProperty("_prefabs");
-            foreach (var target in balance.GetUnlockedTargets(balance.Stages.Count))
+            foreach (var target in order)
             {
                 var fromSpawner = FindPrefab(spawnerList, target.Id);
                 Assert(fromSpawner != null, target.Id + " 의 프리팹이 Managers 목록에 없습니다.");
@@ -93,6 +70,71 @@ namespace NCAIClicker.EditorTools
             checkCount++;
 
             Debug.Log("[UnlockChecks] PASS " + checkCount + " checks.");
+        }
+
+        /// <summary>
+        /// 3. EconomyManager 가 정산(EndRun) 때 누적하고, 새로 넘은 종류마다 이벤트를 한 번 낸다.
+        /// 복원(RestoreEarnedTotal)은 이벤트를 내지 않는다.
+        /// </summary>
+        private static int RunEconomyChecks(BalanceData balance, List<TargetDef> order)
+        {
+            Assert(order.Count >= 3, "이 검증은 해금 종류가 3개 이상이어야 합니다.");
+            var go = new GameObject("UnlockChecksEconomy");
+            go.hideFlags = HideFlags.HideAndDontSave;
+            var unlocked = new List<string>();
+            Action<string> onUnlocked = id => unlocked.Add(id);
+            try
+            {
+                GameEvents.OnCreatureUnlocked += onUnlocked;
+                var economy = go.AddComponent<EconomyManager>();
+                var serialized = new SerializedObject(economy);
+                serialized.FindProperty("_balanceData").objectReferenceValue = balance;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                Invoke(economy, "Awake");
+
+                // 복원은 해금 순간이 아니다
+                economy.RestoreEarnedTotal(order[1].UnlockEarned);
+                Assert(unlocked.Count == 0, "복원이 해금 이벤트를 냈습니다.");
+                Assert(economy.EarnedTotal == order[1].UnlockEarned, "복원한 누적 수입이 다릅니다.");
+
+                // 한 번의 정산으로 두 종류를 넘으면 두 번 발행한다
+                economy.RestoreEarnedTotal(order[1].UnlockEarned - 1);
+                economy.BeginRun();
+                economy.AddCoin(order[2].UnlockEarned - order[1].UnlockEarned + 1);
+                var runCoin = economy.RunCoin;
+                economy.EndRun();
+                Assert(economy.EarnedTotal == order[1].UnlockEarned - 1 + runCoin,
+                       "정산 뒤 누적 수입이 " + economy.EarnedTotal + " 입니다.");
+                Assert(unlocked.Count == 2 && unlocked[0] == order[1].Id && unlocked[1] == order[2].Id,
+                       "해금 이벤트가 [" + string.Join(",", unlocked) + "] 입니다. [" + order[1].Id + "," + order[2].Id + "] 여야 합니다.");
+
+                // 같은 종류를 다시 넘지 않으면 다시 발행하지 않는다
+                unlocked.Clear();
+                economy.BeginRun();
+                economy.AddCoin(1);
+                economy.EndRun();
+                Assert(unlocked.Count == 0, "이미 해금된 종류를 다시 알렸습니다.");
+
+                // 음수 복원은 0 으로
+                economy.RestoreEarnedTotal(-5);
+                Assert(economy.EarnedTotal == 0, "음수 누적 수입이 0 으로 보정되지 않았습니다.");
+            }
+            finally
+            {
+                GameEvents.OnCreatureUnlocked -= onUnlocked;
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+            return 1;
+        }
+
+        private static void Invoke(Component component, string methodName)
+        {
+            var method = component.GetType().GetMethod(methodName,
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (method != null)
+            {
+                method.Invoke(component, null);
+            }
         }
 
         private static UnityEngine.Object FindPrefab(SerializedProperty list, string targetId)

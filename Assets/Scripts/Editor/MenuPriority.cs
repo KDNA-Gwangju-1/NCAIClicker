@@ -28,5 +28,6 @@ namespace NCAIClicker.EditorTools
         public const int DebugDepleteStamina = 61;
         public const int DebugAdvanceOneDay = 62;
         public const int DebugAdvanceStage = 63;
+        public const int DebugNextUnlock = 64;
     }
 }
