@@ -208,6 +208,9 @@ obj.transform.position += new Vector3(0, -bounds.min.y, 0); // minY 만큼 끌�
   투명해지는 슈퍼엘립스(둥근 사각형) 그라데이션을 구워 넣고(`n=4, inner=0.95, outer=1.15`,
   파이썬 PIL로 생성), 머티리얼을 Transparent Surface Type으로 전환했다. 바닥의 실제 메시(사각형)와
   크리처 이동 판정은 전혀 건드리지 않는 순수 시각 처리다.
+- **렌더 큐는 2999 로 고정한다 (#316).** Transparent 기본 큐(3000)는 조준 레티클과 같은 큐라
+  카메라 거리순 정렬로 위치에 따라 바닥이 레티클을 덮었다. 바닥을 한 칸 앞(2999)에 두어 항상 먼저
+  그리게 했다. Opaque 로 바꾸면 가장자리 페이드가 사라지므로 **Surface Type 은 Transparent 로 둔다.**
 - **배경(`MineCaveBackdrop`)**: 카메라가 고정이라(회전·이동 없음) 실제 동굴 벽 메시를 새로 만드는
   대신(AGENTS.md 범위 밖 규칙), VARCO로 생성한 동굴 내부 이미지를 카메라 뒤 먼 곳(거리 18유닛)에
   카메라 프러스텀 크기에 정확히 맞춘 평면(Quad) 하나로 깔았다. 크기는
@@ -358,3 +361,4 @@ Unity 6000.3.21f1, 2026-09-22 ~ 2026-09-23.
 | 2026-09-23 | #239 | Claude | VARCO로 동굴 내부 배경 이미지 생성 후 카메라 프러스텀에 정확히 맞춘 평면(`MineCaveBackdrop`)으로 배치 — 카메라가 고정이라 실제 벽 메시 없이 배경판만으로 처리(범위 밖 규칙 준수) |
 | 2026-09-23 | #239 | Claude | 크리처가 소품을 그대로 뚫고 지나가는 문제 발견 — 콜라이더가 아니라 `CreatureMovement`/`CreatureManager`에 장애물 회피 코드(`ObstacleCircle`) 추가. `convention-checker` 점검에서 `ObstacleCircle`의 public 필드를 get-only 프로퍼티로 수정 |
 | 2026-09-23 | #239 | Claude | 이동 공간이 좁다는 피드백으로 타격 대상 통일 높이를 0.8→0.65유닛으로 낮춤(6종 전부, `ASSET_PIPELINE.md` 갱신). 겸사겸사 5종 프리팹의 기존 "`Visual` 스케일=1" 규칙 위반을 정리. `NCAI/전체 검증 실행` 29/29 통과, 1080p 프로파일링(Draw Calls 206) 확인 |
+| 2026-09-23 | #316 | saltlake00 | 바닥이 레티클과 같은 투명 큐(3000)라 레티클을 덮던 문제를 `MineDirtFloor.mat` 렌더 큐 2999 로 해결. 가장자리 페이드를 위해 Transparent 는 유지 |
