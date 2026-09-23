@@ -359,6 +359,19 @@ instance 로 끼웠다. `TargetAnchor`/`Runner`/`Tourist` 는 대응하는 3D �
 * [x] `ChargeChecks` 7건 추가 — Charge 로는 분노 안 함, 호버로 분노·피해 ×0.7, 경직 후 최근접 돌진·충돌 피해 1회, 스윙 이벤트 미발행, 비돌진 종류 무반응, 분노끼리 반격
 * [x] `NCAI > 전체 검증 실행` 27/27 통과
 
+### #247 크리처 단계별 해금 (2026-09-23)
+
+* 5종을 5단계에 하나씩 해금 — `stage_spawns.csv` 행으로만 표현한다 (#293 구조). 고속형은 행이 없어 나오지 않는다
+* `TargetAngry.prefab` 추가 (`TargetAnchor` 복제, `_targetId: angry`), `Managers.prefab` 목록에 등록
+* 외형 재배정은 [광물 크리처 에셋](mineral-creature-assets.md) 참고
+* `TargetChecks` 에 pinata·angry 추가. 피냐타의 즉시 파괴는 확률이라 "HP 만큼 때려야 부서진다" 구간에서만 메모리 값을 0 으로 둔다
+* `StaminaChecks` 회복 검증이 회복량 70 에서 최대치에 잘리던 준비 단계를 고침 (먼저 비운 뒤 회복)
+* `BalanceData.GetUnlockStage` / `GetUnlockedTargets` / `GetNextUnlockTarget` 추가 — 해금은 `stage_spawns.csv` 로만 판정한다
+* 결과 화면: 종류별 파괴 칩을 `targets.csv` 앞 3행 대신 **해금된 종류**(칸이 모자라면 최근 3종)로, "다음 저금통 해금까지" 패널에 다음 종류 이름(마지막 단계는 "모두 해금")을 연결. 도감 탭·최초 해금 카드는 #299·#300
+* 크리처 이름을 광물 이름으로 (철광석·구리광석·은광석·금광석·다이아몬드, `targets.csv` display_name)
+* 결과 화면 "다음 해금" 칸: 다음 크리처를 `CreaturePreview`(Visual 만 복제 → 화면 밖 전용 카메라 → RenderTexture → RawImage, 천천히 회전)로 보여 주고, 캡션에 해금 조건과 진행률(보유 코인 ÷ 고지서, 최대 100%)을 표시. 미리보기 프리팹 목록은 `ResultUIPrefabCreator.AttachCreaturePreview` 가 Managers 목록에서 복사한다
+* [x] `UnlockChecks` 4건 추가(미리보기·스포너 목록 일치 포함), `NCAI > 전체 검증 실행` 28/28 통과
+
 ## 갱신 이력
 
 | 날짜 | 이슈 | 누가 | 무엇이 바뀌었나 |
@@ -377,3 +390,4 @@ instance 로 끼웠다. `TargetAnchor`/`Runner`/`Tourist` 는 대응하는 3D �
 | 2026-09-22 | #267 | saltlake00 | `Visual` 상하 바운스·이동 방향 회전 연출 추가 (6.29). 이어서 원작 실측으로 `targets.csv` 속도·주기 재조정, 정지·도망 확률 도입. 검증 2건 추가 |
 | 2026-09-23 | #293 | saltlake00 | 출현 비율을 `stage_spawns.csv` 로 분리, 프리팹 목록을 `target_id` 키로, `instant_break_chance` 즉시 파괴 추가 |
 | 2026-09-23 | #297 | saltlake00 | 화난 저금통 분노·돌진 — `HitSource.Charge`, `CreatureState.Charging`, `targets.csv` 돌진 열 2개 |
+| 2026-09-23 | #247 | saltlake00 | 크리처 5종 단계별 해금, `TargetAngry` 추가, 외형 재배정, 검증 2건 보정 |
