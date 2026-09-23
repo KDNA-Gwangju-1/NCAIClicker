@@ -224,8 +224,8 @@ namespace NCAIClicker.EditorTools
             actionsRect.anchorMin = new Vector2(0.5f, 0f);
             actionsRect.anchorMax = new Vector2(0.5f, 0f);
             actionsRect.pivot = new Vector2(0.5f, 0f);
-            // 210f: PayCaption 한 줄(#212)이 더해져 180f 로는 LoanColumn 과 겹친다.
-            actionsRect.sizeDelta = new Vector2(760f, 210f);
+            // 302f: RepayColumn(#272) 이 더해져 210f 로는 LoanColumn 과 겹친다.
+            actionsRect.sizeDelta = new Vector2(760f, 302f);
             actionsRect.anchoredPosition = new Vector2(0f, 40f);
             var actionsColumn = actions.AddComponent<VerticalLayoutGroup>();
             actionsColumn.spacing = 12f;
@@ -257,6 +257,20 @@ namespace NCAIClicker.EditorTools
             bound["_loanButton"] = CreateButton("LoanButton", loanColumn, font, new Vector2(420f, 56f), "빅 토니에게 전화하기",
                 new Color(0.141f, 0.102f, 0.071f), new Color(0.36f, 0.27f, 0.15f), new Color(0.784f, 0.663f, 0.471f), 24);
             bound["_loanCaptionText"] = CreateLabel("LoanCaption", loanColumn, font, 18, InkFaint, "대출 불가");
+
+            // 대출 상환 (이슈 #272). 활성 대출이 있을 때만 스크립트가 켠다 — LoanColumn 과 같은 자리 규칙.
+            var repayColumn = CreateObject("RepayColumn", actions);
+            var repayGroup = repayColumn.AddComponent<VerticalLayoutGroup>();
+            repayGroup.spacing = 2f;
+            repayGroup.childAlignment = TextAnchor.UpperCenter;
+            repayGroup.childControlWidth = true;
+            repayGroup.childControlHeight = true;
+            repayGroup.childForceExpandWidth = false;
+            repayGroup.childForceExpandHeight = false;
+            SetPreferred(repayColumn, 420f, 80f);
+            bound["_repayButton"] = CreateButton("RepayButton", repayColumn, font, new Vector2(420f, 56f), "대출 갚기",
+                new Color(0.11f, 0.31f, 0.45f), new Color(0.24f, 0.51f, 0.71f), new Color(0.9f, 0.95f, 0.98f), 24);
+            bound["_repayCaptionText"] = CreateLabel("RepayCaption", repayColumn, font, 18, InkFaint, string.Empty);
 
             // 다음 런으로 가는 버튼 — 탭 상태에서만 보인다.
             var continueRow = CreateObject("ContinueRow", panelRoot);

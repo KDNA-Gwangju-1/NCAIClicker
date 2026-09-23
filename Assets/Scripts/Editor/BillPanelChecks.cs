@@ -191,6 +191,24 @@ namespace NCAIClicker.EditorTools
                        (parts.PayCaption != null ? parts.PayCaption.text : "null"));
                 checkCount++;
 
+                // 대출 거절 사유 구분 (이슈 #272 DoD): "대출 실패" 하나로 뭉치지 않고 사유별로 캡션을 나눈다.
+                service.IsLoanUnlocked = false;
+                controller.ShowAsModal();
+                Assert(parts.LoanCaption != null && parts.LoanCaption.text.Contains("번째 고지서부터"),
+                       "해금 순번 미달이면 안내 캡션이 떠야 합니다: " +
+                       (parts.LoanCaption != null ? parts.LoanCaption.text : "null"));
+                checkCount++;
+
+                service.IsLoanUnlocked = true;
+                service.LoanCooldownDaysRemaining = 3;
+                controller.ShowAsModal();
+                Assert(parts.LoanCaption != null && parts.LoanCaption.text == "3일 후 가능",
+                       "쿨다운 중이면 남은 일수 캡션이 떠야 합니다: " +
+                       (parts.LoanCaption != null ? parts.LoanCaption.text : "null"));
+                checkCount++;
+                service.LoanCooldownDaysRemaining = 0;
+                controller.ShowAsModal(); // 다음 상호작용 검증 전에 정상 상태로 다시 그린다.
+
                 // 이번 회귀 원인은 리스너 누락이었으므로 실제 Button.onClick 경로를 검증한다.
                 // Edit Mode에서는 수명주기가 자동 실행되지 않으므로 한 번 정리한 뒤 명시적으로 배선한다.
                 service.ShouldSucceedLoan = true;
@@ -205,6 +223,35 @@ namespace NCAIClicker.EditorTools
                        "대출 시 고지서 전액을 빌려야 합니다: " + service.LastLoanTakenAmount);
                 Assert(parts.LoanCaption != null && parts.LoanCaption.text == "대출 완료",
                        "대출 성공 시 대출 완료 캡션이 표시되어야 합니다.");
+                checkCount++;
+
+                // 상환 버튼 (이슈 #272): 활성 대출이 있을 때만 보이고, 상환액을 캡션에 보여준다.
+                service.LoanOwedAmount = 1234L;
+                controller.ShowAsModal();
+                Assert(parts.RepayButton.activeSelf, "활성 대출이 있으면 상환 버튼이 보여야 합니다.");
+                Assert(parts.RepayCaption != null && parts.RepayCaption.text.Contains("1,234"),
+                       "상환 캡션에 상환액이 표시돼야 합니다: " +
+                       (parts.RepayCaption != null ? parts.RepayCaption.text : "null"));
+                checkCount++;
+
+                // 잔액 부족으로 상환 실패 시 부족액 캡션이 뜨고, 대출이 남아 있으니 버튼도 그대로 보인다.
+                service.ShouldSucceedRepay = false;
+                var repayButton = parts.RepayButton.GetComponent<Button>();
+                repayButton.onClick.Invoke();
+                Assert(service.RepayAttemptCount == 1,
+                       "상환 버튼 클릭 1회당 TryRepayLoan 이 정확히 한 번 호출돼야 합니다: " + service.RepayAttemptCount);
+                Assert(parts.RepayCaption != null && parts.RepayCaption.text.Contains("부족"),
+                       "상환 실패 시 부족액 안내가 떠야 합니다: " +
+                       (parts.RepayCaption != null ? parts.RepayCaption.text : "null"));
+                Assert(parts.RepayButton.activeSelf, "상환 실패로 대출이 남아 있으면 상환 버튼이 계속 보여야 합니다.");
+                checkCount++;
+
+                // 상환 성공 시 대출이 사라지고, 상환 버튼과 "대출 완료" 캡션도 함께 사라진다 (DoD).
+                service.ShouldSucceedRepay = true;
+                repayButton.onClick.Invoke();
+                Assert(!parts.RepayButton.activeSelf, "상환 성공 후에는 상환 버튼이 사라져야 합니다.");
+                Assert(parts.LoanCaption != null && parts.LoanCaption.text != "대출 완료",
+                       "상환 성공 후에는 대출 완료 캡션이 사라져야 합니다: " + parts.LoanCaption?.text);
                 checkCount++;
 
                 service.ShouldFailPay = false;
@@ -358,11 +405,13 @@ namespace NCAIClicker.EditorTools
             public GameObject LaterButton;
             public GameObject PayButton;
             public GameObject LoanButton { get; set; }
+            public GameObject RepayButton { get; set; }
             public GameObject SkillTreeNoticePanel;
             public GameObject SkillTreeNoticeConfirmButton;
             public TMPro.TextMeshProUGUI DueValue;
             public TMPro.TextMeshProUGUI PayCaption;
             public TMPro.TextMeshProUGUI LoanCaption { get; set; }
+            public TMPro.TextMeshProUGUI RepayCaption { get; set; }
             public TMPro.TextMeshProUGUI BalanceText;
             public TMPro.TextMeshProUGUI LegacyPointText;
         }
@@ -382,11 +431,13 @@ namespace NCAIClicker.EditorTools
                 LaterButton = ((Button)typeof(BillPanelController).GetField("_laterButton", flags).GetValue(controller)).gameObject,
                 PayButton = ((Button)typeof(BillPanelController).GetField("_payButton", flags).GetValue(controller)).gameObject,
                 LoanButton = ((Button)typeof(BillPanelController).GetField("_loanButton", flags).GetValue(controller)).gameObject,
+                RepayButton = ((Button)typeof(BillPanelController).GetField("_repayButton", flags).GetValue(controller)).gameObject,
                 SkillTreeNoticePanel = (GameObject)typeof(BillPanelController).GetField("_skillTreeNoticePanel", flags).GetValue(controller),
                 SkillTreeNoticeConfirmButton = ((Button)typeof(BillPanelController).GetField("_skillTreeNoticeConfirmButton", flags).GetValue(controller)).gameObject,
                 DueValue = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_dueValueText", flags).GetValue(controller),
                 PayCaption = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_payCaptionText", flags).GetValue(controller),
                 LoanCaption = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_loanCaptionText", flags).GetValue(controller),
+                RepayCaption = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_repayCaptionText", flags).GetValue(controller),
                 BalanceText = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_balanceText", flags).GetValue(controller),
                 LegacyPointText = (TMPro.TextMeshProUGUI)typeof(BillPanelController).GetField("_legacyPointText", flags).GetValue(controller),
             };
@@ -427,6 +478,9 @@ namespace NCAIClicker.EditorTools
             public int CurrentCycle { get; set; } = 1;
             public int DaysLeft { get; set; }
             public float LoanDailyCut { get; set; }
+            public long LoanOwedAmount { get; set; }
+            public bool IsLoanUnlocked { get; set; } = true;
+            public int LoanCooldownDaysRemaining { get; set; }
             public Bill ActiveBill { get; set; }
             public string[] OfferedPerkIds => Array.Empty<string>();
             public PostPaymentFlowState PaymentFlowState { get; set; }
@@ -437,6 +491,10 @@ namespace NCAIClicker.EditorTools
             public bool ShouldSucceedLoan { get; set; }
             public int LoanAttemptCount { get; private set; }
             public long LastLoanTakenAmount { get; private set; }
+
+            /// <summary>true면 TryRepayLoan 이 성공한다 — 상환 버튼 검증용 스위치 (이슈 #272).</summary>
+            public bool ShouldSucceedRepay { get; set; }
+            public int RepayAttemptCount { get; private set; }
 
             public bool TryPay(Bill bill)
             {
@@ -461,7 +519,17 @@ namespace NCAIClicker.EditorTools
                 LoanDailyCut = float.Epsilon;
                 return true;
             }
-            public bool TryRepayLoan() => false;
+            public bool TryRepayLoan()
+            {
+                RepayAttemptCount++;
+                if (!ShouldSucceedRepay)
+                {
+                    return false;
+                }
+                LoanDailyCut = 0f;
+                LoanOwedAmount = 0L;
+                return true;
+            }
             public bool TryChoosePerk(string perkId) => false;
             public bool TryConfirmPaidFeedback() => true;
             public bool TryEnterInvestmentMenu()

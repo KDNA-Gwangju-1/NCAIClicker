@@ -12,6 +12,15 @@ namespace NCAIClicker.Interfaces
         int DaysLeft { get; }
         float LoanDailyCut { get; }
 
+        /// <summary>상환해야 할 금액(원금+이자). 활성 대출 없으면 0 (이슈 #306).</summary>
+        long LoanOwedAmount { get; }
+
+        /// <summary>현재 고지서 순번이 대출 해금 순번(loan_unlock_bill_index) 이상인지 (이슈 #306).</summary>
+        bool IsLoanUnlocked { get; }
+
+        /// <summary>완제 후 재대출까지 남은 일수. 대출 가능(쿨다운 아님)하면 0 (이슈 #306).</summary>
+        int LoanCooldownDaysRemaining { get; }
+
         /// <summary>현재 마감 전인 고지서. 없으면 null.</summary>
         Bill ActiveBill { get; }
 
