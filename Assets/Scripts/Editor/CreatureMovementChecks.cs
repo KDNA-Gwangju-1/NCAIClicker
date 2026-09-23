@@ -224,10 +224,14 @@ namespace NCAIClicker.EditorTools
                 var mgr = respawnGo.AddComponent<CreatureManager>();
                 var serialized = new SerializedObject(mgr);
                 serialized.FindProperty("_balanceData").objectReferenceValue = balance;
-                foreach (var field in new[] { "_targetNormalPrefab", "_targetAnchorPrefab",
-                                              "_targetRunnerPrefab", "_targetTouristPrefab" })
+                // 모든 종류를 같은 스텁 프리팹으로 연결한다 (#293 target_id 키 목록).
+                var entries = serialized.FindProperty("_targetPrefabs");
+                entries.arraySize = balance.Targets.Count;
+                for (var i = 0; i < balance.Targets.Count; i++)
                 {
-                    serialized.FindProperty(field).objectReferenceValue = stubPrefab;
+                    var entry = entries.GetArrayElementAtIndex(i);
+                    entry.FindPropertyRelative("_targetId").stringValue = balance.Targets[i].Id;
+                    entry.FindPropertyRelative("_prefab").objectReferenceValue = stubPrefab;
                 }
                 serialized.ApplyModifiedPropertiesWithoutUndo();
 

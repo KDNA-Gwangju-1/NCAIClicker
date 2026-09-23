@@ -21,6 +21,12 @@ namespace NCAIClicker.Data
         public List<TargetDef> Targets = new();
         public List<UpgradeDef> Upgrades = new();
         public List<StageDef> Stages = new();
+
+        /// <summary>
+        /// 단계별 종류 출현 가중치 (stage_spawns.csv, #293). 한 단계에 행이 없는 종류는 그 단계에서
+        /// 등장하지 않는다 — 크리처 해금은 이 행의 유무로 표현한다 (#247).
+        /// </summary>
+        public List<StageSpawnDef> StageSpawns = new();
         public List<PerkDef> Perks = new();
 
         /// <summary>고지서에 찍히는 발신처와 제목. 금액·기한과 무관한 표기용 데이터다 (이슈 #34).</summary>
@@ -43,6 +49,9 @@ namespace NCAIClicker.Data
 
         /// <summary>stageNumber 는 1부터 시작한다.</summary>
         public StageDef GetStage(int stageNumber) => Stages.Find(s => s.Stage == stageNumber);
+
+        /// <summary>stageNumber 단계에 등장하는 종류와 가중치. 파일 순서를 유지한다.</summary>
+        public List<StageSpawnDef> GetStageSpawns(int stageNumber) => StageSpawns.FindAll(s => s.Stage == stageNumber);
 
         /// <summary>
         /// 씨앗값으로 고지서 이름을 고른다. 고지서마다 다른 이름이 나오되, **같은 고지서를 다시 열면
@@ -166,6 +175,9 @@ namespace NCAIClicker.Data
 
         /// <summary>이 값 이상의 액면만 추첨 후보가 된다 (coins.csv 의 CoinDef.Value 기준, 이슈 #178).</summary>
         public string MinDenomId;
+
+        /// <summary>타격마다 남은 내구도와 무관하게 즉시 파괴될 확률 0~1 (#293). 피냐타형만 0보다 크다.</summary>
+        public float InstantBreakChance;
     }
 
     /// <summary>
@@ -277,11 +289,18 @@ namespace NCAIClicker.Data
         /// <summary>이 단계의 고지서 납부 기한(일). 단계가 오르면 짧아진다.</summary>
         public int DueDays;
 
-        public float NormalRatio;
-        public float AnchorRatio;
-        public float RunnerRatio;
-        public float TouristRatio;
         public int SpawnCount;
+    }
+
+    /// <summary>
+    /// 한 단계에서 한 종류가 뽑힐 상대 가중치. stage_spawns.csv 한 행이다 (#293).
+    /// </summary>
+    [Serializable]
+    public class StageSpawnDef
+    {
+        public int Stage;
+        public string TargetId;
+        public float Ratio;
     }
 
     /// <summary>

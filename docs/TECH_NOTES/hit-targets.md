@@ -56,7 +56,7 @@ flowchart LR
   end
 
   events{{"GameEvents"}}
-  balance[("BalanceData<br/>targets.csv · stages.csv · economy.csv")]
+  balance[("BalanceData<br/>targets.csv · stages.csv · stage_spawns.csv · economy.csv")]
 
   swing -- "OnHit(HitInfo)" --> target
   target -- "피격 통지" --> movement
@@ -130,7 +130,8 @@ TargetNormal (루트)          ← 로직: Target, CreatureMovement, SphereColli
 | `targets.csv` | `stamina_restore` | `BreakInfo.StaminaRestore`. 회복형만 0 보다 크다 |
 | `targets.csv` | `move_speed`, `turn_interval_sec` | `CreatureMovement` 배회 이동 속도 및 방향 전환 주기 |
 | `stages.csv` | `spawn_count` | `CreatureManager` 동시 출현 목표 수 |
-| `stages.csv` | `normal_ratio`, `anchor_ratio`, `runner_ratio`, `tourist_ratio` | `CreatureManager` 크리처 종류별 등장 확률 가중치 |
+| `stage_spawns.csv` | `stage`, `target_id`, `ratio` | `CreatureManager` 단계별 종류 등장 가중치. 행이 없는 종류는 그 단계에 안 나온다 (#293) |
+| `targets.csv` | `instant_break_chance` | `Target.OnHit` 타격마다 즉시 파괴 확률 (#293). 피냐타형만 0 보다 크다 |
 | `economy.csv` | `hit_radius_bonus` | 피격 반경 확대 비율 |
 | `economy.csv` | `spawn_interval_sec` | **미사용 호환 필드** (#156 이후 0 고정, 되돌릴 경우를 대비해 남김) |
 | `economy.csv` | `extra_spawn_chance_on_destroy` | `CreatureManager` 파괴 시 즉시 추가 스폰될 확률(%). 기본 0, 저금통 수집벽이 올림 (#156) |
@@ -337,6 +338,15 @@ instance 로 끼웠다. `TargetAnchor`/`Runner`/`Tourist` 는 대응하는 3D �
 * **TargetRunner/Copper 는 이번 Play Mode 검증에서 실제 스폰 장면을 직접 보지 못했다.** 구조
   검증(`get_hierarchy`)은 통과했고 나머지 3종과 동일한 방식으로 생성했으나, 더 긴 Play 세션으로
   실제 스폰까지 육안 확인하는 것이 안전하다.
+### #293 종류별 출현 비율의 행 단위 분리와 즉시 파괴 (2026-09-23)
+
+* `stages.csv` 의 `*_ratio` 4열을 새 파일 `stage_spawns.csv`(`stage,target_id,ratio`)로 옮겼다. 값은 그대로라 게임 동작은 바뀌지 않는다 — 밸런스 시뮬레이터 random 정책 결과가 변경 전과 동일
+* `CreatureManager` 의 종류별 프리팹 필드 4개를 `target_id` 키 목록 `_targetPrefabs` 하나로 바꿨다. 종류를 늘릴 때 코드는 건드리지 않고 목록에 한 줄, CSV 에 행만 더한다. 프리팹이 연결되지 않은 종류는 **다른 종류로 대체하지 않고** 추첨에서 빼고 경고를 남긴다 — 대체하면 비율이 조용히 틀어진다
+* `Managers.prefab` 에 5종(피냐타 포함)을 연결했다. 피냐타는 `stage_spawns.csv` 행이 없어 아직 나오지 않는다 (#247)
+* `Target.OnHit` 에 즉시 파괴 판정 추가. 액면 추첨과 다른 공유 난수기를 쓴다
+* 임포터 검증: `target_id`·`stage` 존재, 음수 비율, 단계별 합 1, 단계당 최소 1행, 중복 행, `instant_break_chance` 0~1. `BalanceImporterChecks` 에 거부 사례 4건 추가
+* [x] `NCAI > 전체 검증 실행` 26/26 통과
+* [x] 확률 1/0 에서 즉시 파괴 발생·미발생을 에디터에서 직접 확인
 
 ## 갱신 이력
 
@@ -354,3 +364,4 @@ instance 로 끼웠다. `TargetAnchor`/`Runner`/`Tourist` 는 대응하는 3D �
 | 2026-09-21 | #215 | Claude | `CreatureHpDisplay._offset.y` 가 저금통 시절 0.4유닛 높이 기준(0.55)에 머물러 있어 #37 의 0.8유닛 재조정 이후 HP 숫자가 몸통에 파묻힘. 1.0으로 조정 |
 | 2026-09-21 | #156 | Claude | 원작 재관찰로 슬롯 타이머 기반 자동 리스폰을 폐기. "파괴 시 확률로 즉시 추가 스폰 + 전멸 시 1개 즉시 스폰" 모델로 교체. `economy.csv`·`upgrade_effects.csv`·`BalanceData.StatId` 갱신, 밸런스 시뮬레이터 재작성 |
 | 2026-09-22 | #267 | saltlake00 | `Visual` 상하 바운스·이동 방향 회전 연출 추가 (6.29). 이어서 원작 실측으로 `targets.csv` 속도·주기 재조정, 정지·도망 확률 도입. 검증 2건 추가 |
+| 2026-09-23 | #293 | saltlake00 | 출현 비율을 `stage_spawns.csv` 로 분리, 프리팹 목록을 `target_id` 키로, `instant_break_chance` 즉시 파괴 추가 |

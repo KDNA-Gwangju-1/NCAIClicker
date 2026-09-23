@@ -50,6 +50,7 @@ namespace NCAIClicker.Targets
         /// 죽을 때 시드가 겹쳐 같은 결과만 나올 수 있어, 타입 전체가 하나를 공유한다.
         /// </summary>
         private static readonly System.Random _coinRandom = new System.Random();
+        private static readonly System.Random _breakRandom = new System.Random();
 
         public bool IsAlive => _isAlive;
 
@@ -174,6 +175,15 @@ namespace NCAIClicker.Targets
 
             _currentHp -= info.Damage;
 
+            // 즉시 파괴 (#293) — 피냐타형처럼 타격마다 운에 맡기는 종류. 호버·자동 망치를 가리지 않는다
+            // (원작 "모든 타격"). 파괴 흐름은 HP 가 0 이 된 것과 똑같이 아래를 탄다.
+            var def = _balanceData != null ? _balanceData.GetTarget(_targetId) : null;
+            if (def != null && def.InstantBreakChance > 0f && _currentHp > 0f &&
+                _breakRandom.NextDouble() < def.InstantBreakChance)
+            {
+                _currentHp = 0f;
+            }
+
             try
             {
                 OnHitReceived(info);
@@ -193,7 +203,6 @@ namespace NCAIClicker.Targets
 
             // 액면 추첨은 파괴되는 지금 한다 (이슈 #178) — Initialize 에서 미리 정하면
             // 같은 프리팹 인스턴스가 매번 같은 액면만 내놓게 된다.
-            var def = _balanceData != null ? _balanceData.GetTarget(_targetId) : null;
             var coins = def != null
                 ? CoinLottery.Draw(_balanceData, def.MinDenomId, def.CoinCount, () => _coinRandom.NextDouble())
                 : System.Array.Empty<CoinDrop>();
