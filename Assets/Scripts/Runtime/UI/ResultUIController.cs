@@ -59,6 +59,14 @@ namespace NCAIClicker.UI
         [SerializeField] private float _countUpDurationSec = 0.8f;
 
         private Coroutine _countUpRoutine;
+        private Coroutine _unlockPunchRoutine;
+
+        [Tooltip("해금 강조 색 (캡션·이름)")]
+        [SerializeField] private Color _unlockHighlightColor = new Color(0.941f, 0.776f, 0.447f, 1f);
+
+        private bool _hasCodexDefaultColors;
+        private Color _codexNameDefaultColor;
+        private Color _codexCaptionDefaultColor;
         [SerializeField] private Button _upgradeButton;
         [SerializeField] private Button _payButton;
         [SerializeField] private TextMeshProUGUI _payCaptionText;
@@ -317,8 +325,25 @@ namespace NCAIClicker.UI
             var runCoin = _economyService.RunCoin;
             var balance = _economyService.CurrentCoin;
             var earned = _economyService.EarnedTotal;
-            var showsProgress = _balanceData != null && FindJustUnlocked(earned, runCoin) == null &&
-                                _balanceData.GetNextUnlockTarget(earned) != null;
+            var before = earned - runCoin;
+
+            // 이번 런에 해금됐더라도 곧바로 "해금!" 을 띄우지 않는다 — 지난 정산의 진행률(첫 런이면 0%)에서
+            // 100% 까지 올라가는 것을 먼저 보여 주고, 끝난 뒤 강조한다 (#247 PM).
+            var firstUnlocked = _balanceData != null ? FindFirstJustUnlocked(earned, runCoin) : null;
+            var progressTarget = firstUnlocked ??
+                                 (_balanceData != null ? _balanceData.GetNextUnlockTarget(earned) : null);
+            if (firstUnlocked != null)
+            {
+                if (_codexProgressText != null)
+                {
+                    _codexProgressText.text = firstUnlocked.DisplayName;
+                }
+                if (_codexPreview != null)
+                {
+                    _codexPreview.Show(firstUnlocked.Id);
+                }
+                ApplyCodexHighlight(false);
+            }
 
             var elapsed = 0f;
             while (elapsed < _countUpDurationSec)
@@ -331,15 +356,64 @@ namespace NCAIClicker.UI
                 SetMoney(_grossText, shown);
                 SetMoney(_netText, shown);
                 SetMoney(_balanceText, balance - runCoin + shown);
-                if (showsProgress)
+                if (progressTarget != null && before >= 0L)
                 {
-                    SetCodexCaption(GetUnlockProgressCaption(earned - runCoin + shown));
+                    SetCodexCaption(GetProgressCaptionToward(progressTarget, before + shown));
                 }
                 yield return null;
             }
 
             _countUpRoutine = null;
             UpdateSettlementView();
+            if (firstUnlocked != null && isActiveAndEnabled)
+            {
+                _unlockPunchRoutine = StartCoroutine(PunchUnlock());
+            }
+        }
+
+        /// <summary>해금 강조: 이름·캡션이 잠깐 커졌다 돌아온다. 색은 UpdateNextUnlock 이 금색으로 바꿔 둔다.</summary>
+        private System.Collections.IEnumerator PunchUnlock()
+        {
+            const float duration = 0.45f;
+            var elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                var t = Mathf.Clamp01(elapsed / duration);
+                var scale = 1f + 0.3f * Mathf.Sin(t * Mathf.PI);
+                SetCodexScale(scale);
+                yield return null;
+            }
+            SetCodexScale(1f);
+            _unlockPunchRoutine = null;
+        }
+
+        private void SetCodexScale(float scale)
+        {
+            if (_codexProgressText != null)
+            {
+                _codexProgressText.rectTransform.localScale = Vector3.one * scale;
+            }
+            if (_codexCaptionText != null)
+            {
+                _codexCaptionText.rectTransform.localScale = Vector3.one * scale;
+            }
+        }
+
+        private void ApplyCodexHighlight(bool isHighlighted)
+        {
+            if (_codexProgressText == null || _codexCaptionText == null)
+            {
+                return;
+            }
+            if (!_hasCodexDefaultColors)
+            {
+                _codexNameDefaultColor = _codexProgressText.color;
+                _codexCaptionDefaultColor = _codexCaptionText.color;
+                _hasCodexDefaultColors = true;
+            }
+            _codexProgressText.color = isHighlighted ? _unlockHighlightColor : _codexNameDefaultColor;
+            _codexCaptionText.color = isHighlighted ? _unlockHighlightColor : _codexCaptionDefaultColor;
         }
 
         private static void SetMoney(TextMeshProUGUI label, long amount)
@@ -466,6 +540,12 @@ namespace NCAIClicker.UI
             if (_countUpRoutine != null)
             {
                 StopCountUp();
+            }
+            if (_unlockPunchRoutine != null)
+            {
+                StopCoroutine(_unlockPunchRoutine);
+                _unlockPunchRoutine = null;
+                SetCodexScale(1f);
             }
 
             if (_titleText != null)
@@ -697,6 +777,7 @@ namespace NCAIClicker.UI
                 _codexPreview.Show(shown != null ? shown.Id : null);
             }
 
+            ApplyCodexHighlight(justUnlocked != null);
             if (shown == null)
             {
                 _codexProgressText.text = "모든 크리처 해금";
@@ -730,6 +811,44 @@ namespace NCAIClicker.UI
                 }
             }
             return latest;
+        }
+
+        /// <summary>이번 런 수입으로 기준을 넘은 종류 중 가장 먼저 것 (카운트업은 여기까지 올린다). 없으면 null.</summary>
+        private TargetDef FindFirstJustUnlocked(long earned, long runCoin)
+        {
+            var before = earned - runCoin;
+            if (before < 0L)
+            {
+                return null;
+            }
+            foreach (var target in _balanceData.GetUnlockOrder())
+            {
+                if (target.UnlockEarned > 0L && target.UnlockEarned > before && target.UnlockEarned <= earned)
+                {
+                    return target;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// target 까지의 진행률 캡션. 직전 해금 기준액부터 target 기준액까지 구간이고 100% 에서 멈춘다 —
+        /// 카운트업 중 해금 순간까지 "100%" 로 올라가는 것을 보여 주는 데 쓴다.
+        /// </summary>
+        private string GetProgressCaptionToward(TargetDef target, long earned)
+        {
+            var previous = 0L;
+            foreach (var other in _balanceData.GetUnlockOrder())
+            {
+                if (other.UnlockEarned < target.UnlockEarned)
+                {
+                    previous = System.Math.Max(previous, other.UnlockEarned);
+                }
+            }
+            var span = System.Math.Max(1L, target.UnlockEarned - previous);
+            var clamped = System.Math.Min(earned, target.UnlockEarned);
+            var percent = Mathf.Clamp(Mathf.FloorToInt(100f * (clamped - previous) / span), 0, 100);
+            return $"누적 ${clamped:N0} / ${target.UnlockEarned:N0} · {percent}%";
         }
 
         /// <summary>
