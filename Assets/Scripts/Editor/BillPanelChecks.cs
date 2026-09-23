@@ -48,7 +48,8 @@ namespace NCAIClicker.EditorTools
             var flags = BindingFlags.NonPublic | BindingFlags.Instance;
             foreach (var field in typeof(BillPanelController).GetFields(flags))
             {
-                if (!field.IsDefined(typeof(SerializeField), true))
+                // 값 타입(파산 암전 시간 같은 수치, #327)은 참조가 아니라 비어 있을 수 없다 — ResultUIChecks 와 같다 (#301).
+                if (!field.IsDefined(typeof(SerializeField), true) || field.FieldType.IsValueType)
                 {
                     continue;
                 }
