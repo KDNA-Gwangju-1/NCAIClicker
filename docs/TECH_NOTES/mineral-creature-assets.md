@@ -68,7 +68,7 @@ flowchart LR
 
 | 에셋 | 경로 | 높이(유닛) | `localScale` | `localPosition.y` |
 |---|---|---|---|---|
-| `MineCreatureIronVisual.prefab` | `Assets/Prefabs/` | 0.65 | 0.6522 (모델 자식) | 0.0000 |
+| `MineCreatureIronVisual.prefab` | `Assets/Prefabs/` | 0.65 | 루트 0.8125 × 모델 0.8027 | 0.0000 |
 | `MineCreatureCopperVisual.prefab` | `Assets/Prefabs/` | 0.8 | 0.7970 | 0.0000 |
 | `MineCreatureSilverVisual.prefab` | `Assets/Prefabs/` | 0.8 | 0.7954 | 0.0000 |
 | `MineCreatureGoldVisual.prefab` | `Assets/Prefabs/` | 0.8 | 0.7979 | 0.0000 |
@@ -170,7 +170,9 @@ Unity 6000.3.21f1, 2026-09-22.
   (ASSET_PIPELINE 1절)라, `Visual` 아래 `PiggyNormalVisual` 인스턴스만 지우고 `MineCreatureIronVisual`
   인스턴스를 붙였다. 루트·`Target`·콜라이더·`_targetId`·프리팹 GUID 는 그대로다.
 - 작업 중 Develop 에 들어온 #313(6.26)이 타격 대상 높이를 **0.8 → 0.65** 로 낮췄다. 이슈 본문의 0.8 대신
-  현재 `TargetChecks.TargetHeight`(0.65)에 맞췄다. 위 표의 다른 4종 값은 #313 이전 기록이다.
+  현재 `TargetChecks.TargetHeight`(0.65)에 맞췄다. 스케일은 #313 이 다른 4종에 쓴 방식을 그대로 따른다 —
+  모델 자식은 0.8 높이 정규화 값(0.8027), `Visual` 프리팹 루트에 0.65/0.8 = 0.8125. 위 표의 다른 4종
+  `localScale` 은 모델 자식 값이며 루트에는 모두 0.8125 가 곱해져 있다.
 
 ## 알려진 한계
 
@@ -190,4 +192,4 @@ Unity 6000.3.21f1, 2026-09-22.
 | 2026-09-21 | #37 | Claude | 조준 원 대비 너무 작다는 사용자 피드백으로 높이 기준 0.4 → 0.8유닛 재조정, 4종 재실측 |
 | 2026-09-22 | #234 | Claude | 광산 작업장 컨셉아트에 맞춰 `MineralCreature*` → `MineCreature*` 로 4종 재생성·전면 교체. `pivotToBottom` 옵션으로 Y 오프셋 전부 0, 구 에셋 8개 삭제. Play Mode 렌더 캡처로 4종 동시 육안 확인 완료 |
 | 2026-09-23 | #247 | saltlake00 | 해금 순서 기준 재배정 — 일반=임시 기본 저금통, 회복=구리, 거치=은, 피냐타=금, 화난 저금통=다이아. `TargetAngry` 추가 |
-| 2026-09-23 | #282 | Claude | 검정 철광석 `MineCreatureIron` 생성(P-35), 일반형 `Visual` 자식을 임시 저금통에서 교체. 세 번째 생성본(tri·텍스처) 채택. #313 의 높이 기준 0.65 에 맞춰 모델 자식 스케일 0.6522, 바닥 0, TargetChecks 통과 |
+| 2026-09-23 | #282 | Claude | 검정 철광석 `MineCreatureIron` 생성(P-35), 일반형 `Visual` 자식을 임시 저금통에서 교체. 세 번째 생성본(tri·텍스처) 채택. #313 의 높이 기준 0.65 에 맞춰 다른 4종처럼 루트 0.8125 × 모델 0.8027, 바닥 0, TargetChecks 통과 |
