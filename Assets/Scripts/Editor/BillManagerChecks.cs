@@ -30,6 +30,7 @@ namespace NCAIClicker.EditorTools
 
             var checkCount = RunManagerChecks(balance);
             checkCount += RunLoanChecks(balance);
+            checkCount += RunLoanFormulaChecks(balance);
             checkCount += RunPrestigeWindowChecks(balance);
             Debug.Log("[BillManagerChecks] PASS " + checkCount + " checks.");
         }
@@ -370,11 +371,51 @@ namespace NCAIClicker.EditorTools
                 AssertCondition(manager.LoanDailyCut >= config.LoanDailyCutMin,
                     "징수율이 하한보다 낮습니다: " + manager.LoanDailyCut);
                 checkCount++;
+
+                // 확정된 값이 LoanTerms 와 같다 — 고지서 화면의 금액 선택 미리보기가 같은 식을 부른다 (이슈 #273).
+                // 여기서 어긋나면 화면이 보여 준 상환액·징수율과 실제로 떼는 값이 다르다.
+                AssertCondition(manager.LoanOwedAmount == LoanTerms.CalculateOwed(1L, config.LoanInterestRate),
+                    "확정된 상환액이 LoanTerms.CalculateOwed 와 다릅니다: " + manager.LoanOwedAmount);
+                AssertCondition(Mathf.Approximately(manager.LoanDailyCut,
+                        LoanTerms.CalculateDailyCut(1L, manager.ActiveBill.Amount, config)),
+                    "확정된 징수율이 LoanTerms.CalculateDailyCut 과 다릅니다: " + manager.LoanDailyCut);
+                checkCount++;
             }
             finally
             {
                 TearDown(ref manager, ref host);
             }
+
+            return checkCount;
+        }
+
+        /// <summary>
+        /// 대출 계산식 자체 (이슈 #273 에서 BillManager 밖 LoanTerms 로 옮겼다).
+        /// 식이 한 곳뿐이라 여기서 틀리면 대출 확정과 화면 미리보기가 함께 틀린다.
+        /// </summary>
+        private static int RunLoanFormulaChecks(BalanceData balance)
+        {
+            var checkCount = 0;
+            var config = balance.Bill;
+
+            // 이자는 올림으로 확정한다. double 로 곱하면 410 × 1.1 이 451.00000000000006 이 되어 452 로 올라간다.
+            AssertCondition(LoanTerms.CalculateOwed(410L, 0.1f) == 451L,
+                "410 을 이자 10% 로 빌리면 451 이어야 합니다: " + LoanTerms.CalculateOwed(410L, 0.1f));
+            AssertCondition(LoanTerms.CalculateOwed(1L, 0.1f) == 2L,
+                "소수 부분은 올려야 합니다 (1 × 1.1 → 2): " + LoanTerms.CalculateOwed(1L, 0.1f));
+            checkCount++;
+
+            // 징수율은 빌린 비율에 선형 비례한다 — 전액이면 상한, 절반이면 중간, 고지서가 0 이면 상한.
+            AssertCondition(Mathf.Approximately(LoanTerms.CalculateDailyCut(1000L, 1000L, config), config.LoanDailyCutMax),
+                "전액 대출 징수율이 상한이 아닙니다.");
+            AssertCondition(Mathf.Approximately(LoanTerms.CalculateDailyCut(500L, 1000L, config),
+                    (config.LoanDailyCutMin + config.LoanDailyCutMax) * 0.5f),
+                "절반 대출 징수율이 하한과 상한의 중간이 아닙니다: " + LoanTerms.CalculateDailyCut(500L, 1000L, config));
+            AssertCondition(Mathf.Approximately(LoanTerms.CalculateDailyCut(2000L, 1000L, config), config.LoanDailyCutMax),
+                "고지서보다 많이 빌려도 징수율은 상한을 넘지 않아야 합니다.");
+            AssertCondition(Mathf.Approximately(LoanTerms.CalculateDailyCut(1L, 0L, config), config.LoanDailyCutMax),
+                "고지서 금액이 0 이면 징수율은 상한이어야 합니다.");
+            checkCount++;
 
             return checkCount;
         }
