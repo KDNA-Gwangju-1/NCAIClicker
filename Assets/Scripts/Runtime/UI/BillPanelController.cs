@@ -84,6 +84,9 @@ namespace NCAIClicker.UI
         private IGameFlowService _gameFlowService;
         private Coroutine _paidFeedbackRoutine;
 
+        /// <summary>이번 회차에 마지막 단계를 냈다 — 이후 고지서는 재발행이라 "더 벌기" 안내를 붙인다 (이슈 #271).</summary>
+        private bool _isFinalStageCleared;
+
         /// <summary>어느 상태로 열려 있는가. 탭일 때만 탭 줄과 계속하기가 보인다.</summary>
         public enum Mode
         {
@@ -121,6 +124,8 @@ namespace NCAIClicker.UI
             GameEvents.OnBillIssued += HandleBillIssued;
             GameEvents.OnBalanceChanged += HandleBalanceChanged;
             GameEvents.OnBillPaid += HandleBillPaid;
+            GameEvents.OnStageGoalReached += HandleStageGoalReached;
+            GameEvents.OnBankrupt += HandleBankrupt;
 
             if (_payButton != null)
             {
@@ -177,6 +182,8 @@ namespace NCAIClicker.UI
             GameEvents.OnBillIssued -= HandleBillIssued;
             GameEvents.OnBalanceChanged -= HandleBalanceChanged;
             GameEvents.OnBillPaid -= HandleBillPaid;
+            GameEvents.OnStageGoalReached -= HandleStageGoalReached;
+            GameEvents.OnBankrupt -= HandleBankrupt;
             if (_paidFeedbackRoutine != null)
             {
                 StopCoroutine(_paidFeedbackRoutine);
@@ -608,11 +615,34 @@ namespace NCAIClicker.UI
 
         private void HandleBillIssued(Bill newBill)
         {
+            // 엔딩을 본 뒤의 고지서는 마지막 단계 재발행이다. 낼 이유가 "더 벌기" 라는 걸 알린다 (이슈 #271).
+            if (_isFinalStageCleared && _payCaptionText != null)
+            {
+                _payCaptionText.text = "고지서는 다 냈다 · 이제부터는 더 벌기";
+            }
+
             // 퍽 선택 완료 직후 새 고지서가 발행되면 모달 상태로 금액과 납기 일수를 보여준다 (이슈 #249).
             if (IsOpen && _mode != Mode.PrestigeOnly)
             {
                 ShowAsModal();
             }
+        }
+
+        /// <summary>
+        /// 판정은 EndingController 와 같다 — 도달한 단계 번호로 본다. IsMaxStage 는 마지막 직전 단계를
+        /// 낸 순간 이미 참이라 쓸 수 없다. 엔딩 컨트롤러의 상태를 직접 읽지 않고 같은 이벤트를 듣는다 (PATTERNS 3절).
+        /// </summary>
+        private void HandleStageGoalReached(int stageNumber)
+        {
+            if (_balanceData != null && stageNumber >= _balanceData.Stages.Count)
+            {
+                _isFinalStageCleared = true;
+            }
+        }
+
+        private void HandleBankrupt()
+        {
+            _isFinalStageCleared = false;
         }
 
         private void HandleLaterClicked()
