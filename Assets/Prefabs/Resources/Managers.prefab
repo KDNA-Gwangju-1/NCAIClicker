@@ -301,6 +301,8 @@ MonoBehaviour:
     _prefab: {fileID: 7395411435693180892, guid: 00144c806ceb7f44fab552c551c2a687, type: 3}
   - _targetId: pinata
     _prefab: {fileID: 7307835849117988394, guid: 8cdfecc443d343608e3bfd763f2536e7, type: 3}
+  - _targetId: angry
+    _prefab: {fileID: 7893189225021298616, guid: 9dde40fe511e33c408839f1b2a50f9f2, type: 3}
   _deskBounds:
     m_Center: {x: 0, y: 0, z: 2}
     m_Extent: {x: 2.4, y: 0.5, z: 2.4}
