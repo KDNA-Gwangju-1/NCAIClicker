@@ -96,6 +96,9 @@ namespace NCAIClicker.EditorTools
 
             bound["_panelRoot"] = panelRoot;
 
+            // 해금 카드 (#300). 정산창의 모든 것 위에 덮여야 하므로 PanelRoot 의 마지막 자식으로 둔다.
+            bound["_unlockCard"] = BuildUnlockCard(panelRoot, font);
+
             bound["_settlementContainer"] = settlement;
             bound["_bankruptcyContainer"] = bankruptcy;
             bound["_mainMenuButton"] = mainMenuButton;
@@ -259,6 +262,161 @@ namespace NCAIClicker.EditorTools
                 new Color(0.49f, 0.12f, 0.1f), new Color(0.7f, 0.25f, 0.21f), new Color(1f, 0.86f, 0.83f), 30);
 
             return bankruptcy;
+        }
+
+        /// <summary>
+        /// 새 저금통 해금 카드 (#300). 원작 캡처 구성 — 위 "{이름} 해금!" 띠, 왼쪽 3D 외형과 뒤에서 도는 빛살,
+        /// 오른쪽 HP 와 코인 구간·확률, 그 아래 역할 한 줄(도감 #299 와 같은 GetRoleText).
+        /// 배경 전체가 닫기 버튼이고 나머지는 그 자식이라 어디를 눌러도 넘어간다.
+        /// 배경은 불투명하다 — 반투명으로 정산창을 비치게 하면 UiGuidelineChecks 가 알파 톤으로 잡는다.
+        /// </summary>
+        private static UnlockCardView BuildUnlockCard(GameObject panelRoot, TMP_FontAsset font)
+        {
+            var host = CreateStretchedObject("UnlockCard", panelRoot);
+            var view = host.AddComponent<UnlockCardView>();
+
+            var cardRoot = CreateStretchedObject("CardRoot", host);
+            var backdrop = CreateStretchedObject("Backdrop", cardRoot);
+            var backdropImage = backdrop.AddComponent<Image>();
+            backdropImage.color = new Color(0.024f, 0.02f, 0.016f);
+            var dismiss = backdrop.AddComponent<Button>();
+            dismiss.targetGraphic = backdropImage;
+            dismiss.transition = Selectable.Transition.None;
+
+            // 제목 띠
+            var banner = CreateObject("TitleBanner", backdrop);
+            var bannerRect = banner.GetComponent<RectTransform>();
+            bannerRect.anchorMin = new Vector2(0.5f, 1f);
+            bannerRect.anchorMax = new Vector2(0.5f, 1f);
+            bannerRect.pivot = new Vector2(0.5f, 1f);
+            bannerRect.sizeDelta = new Vector2(960f, 112f);
+            bannerRect.anchoredPosition = new Vector2(0f, -SafeInset.y - 24f);
+            banner.AddComponent<Image>().color = new Color(0.086f, 0.067f, 0.047f);
+            var title = CreateLabel("TitleText", banner, font, 64, Gold, TextAlignmentOptions.Center, "해금!");
+            StretchToParent(title.gameObject);
+
+            // 빛살 — 텍스처 없이 가는 막대를 돌려 겹친다. UnlockCardView 가 천천히 돌린다.
+            var rays = CreateObject("Rays", backdrop);
+            var raysRect = rays.GetComponent<RectTransform>();
+            raysRect.sizeDelta = new Vector2(640f, 640f);
+            raysRect.anchoredPosition = new Vector2(-400f, -40f);
+            for (var i = 0; i < 12; i++)
+            {
+                var bar = CreateObject("Ray" + i, rays);
+                var barRect = bar.GetComponent<RectTransform>();
+                barRect.sizeDelta = new Vector2(36f, 640f);
+                barRect.localRotation = Quaternion.Euler(0f, 0f, i * 15f);
+                var barImage = bar.AddComponent<Image>();
+                barImage.color = new Color(0.227f, 0.165f, 0.094f);
+                barImage.raycastTarget = false;
+            }
+
+            var previewFrame = CreateObject("PreviewFrame", backdrop);
+            var previewRect = previewFrame.GetComponent<RectTransform>();
+            previewRect.sizeDelta = new Vector2(480f, 480f);
+            previewRect.anchoredPosition = new Vector2(-400f, -40f);
+            var preview = AttachCreaturePreview(previewFrame);
+            // 다른 미리보기와 같은 자리에 모델을 두면 서로의 카메라에 찍힌다 — 정산창 "다음 해금" 은 (0, −500),
+            // 도감(#299)은 x 40 간격으로 y −500 줄을 쓴다. 카메라 먼 쪽 면(10)보다 한참 먼 y −700 줄을 따로 쓴다.
+            var previewSerialized = new SerializedObject(preview);
+            previewSerialized.FindProperty("_stageOrigin").vector3Value = new Vector3(0f, -700f, 0f);
+            previewSerialized.ApplyModifiedPropertiesWithoutUndo();
+
+            // 오른쪽 수치 판
+            var stats = CreateVertical("StatsPanel", backdrop, 12f);
+            var statsRect = stats.GetComponent<RectTransform>();
+            statsRect.sizeDelta = new Vector2(640f, 480f);
+            statsRect.anchoredPosition = new Vector2(380f, 20f);
+            var statsGroup = stats.GetComponent<VerticalLayoutGroup>();
+            statsGroup.padding = new RectOffset(40, 40, 32, 32);
+            statsGroup.childAlignment = TextAnchor.UpperLeft;
+            stats.AddComponent<Image>().color = RowFill;
+
+            var hpRow = CreateHorizontal("HpRow", stats, 16f);
+            SetPreferredHeight(hpRow, 52f);
+            SetFlexibleWidth(CreateLabel("HpLabel", hpRow, font, 40, Muted, TextAlignmentOptions.Left, "HP:").gameObject, 1f);
+            var hpValue = CreateLabel("HpValue", hpRow, font, 40, Cream, TextAlignmentOptions.Right, "0");
+            SetPreferredWidth(hpValue.gameObject, 200f);
+
+            var coinLabel = CreateLabel("CoinLabel", stats, font, 40, Muted, TextAlignmentOptions.Left, "코인:");
+            SetPreferredHeight(coinLabel.gameObject, 52f);
+
+            // 액면 종류만큼 행을 만든다 — 가장 큰 액면으로 묶으니 구간은 액면 수를 넘지 않는다.
+            var coinKinds = 5;
+            var balance = AssetDatabase.LoadAssetAtPath<NCAIClicker.Data.BalanceData>("Assets/GameData/Generated/BalanceData.asset");
+            if (balance != null && balance.Coins != null && balance.Coins.Count > 0)
+            {
+                coinKinds = balance.Coins.Count;
+            }
+            var bandRows = new GameObject[coinKinds];
+            var bandRanges = new TextMeshProUGUI[coinKinds];
+            var bandChances = new TextMeshProUGUI[coinKinds];
+            for (var i = 0; i < coinKinds; i++)
+            {
+                var row = CreateHorizontal("BandRow" + i, stats, 16f);
+                SetPreferredHeight(row, 44f);
+                bandRanges[i] = CreateLabel("RangeText", row, font, 34, Cream, TextAlignmentOptions.Left, "$0");
+                SetFlexibleWidth(bandRanges[i].gameObject, 1f);
+                bandChances[i] = CreateLabel("ChanceText", row, font, 34, Cream, TextAlignmentOptions.Right, "0%");
+                SetPreferredWidth(bandChances[i].gameObject, 140f);
+                bandRows[i] = row;
+            }
+
+            // 역할 한 줄 — 원작 카드의 아래 칸. 수치 판과 같은 폭으로 그 아래에 둔다.
+            var rolePanel = CreateObject("RolePanel", backdrop);
+            var roleRect = rolePanel.GetComponent<RectTransform>();
+            roleRect.sizeDelta = new Vector2(640f, 104f);
+            roleRect.anchoredPosition = new Vector2(380f, -296f);
+            rolePanel.AddComponent<Image>().color = RowFill;
+            var roleText = CreateLabel("RoleText", rolePanel, font, 30, Cream, TextAlignmentOptions.Left, "기본형");
+            roleText.textWrappingMode = TextWrappingModes.Normal;
+            var roleTextRect = roleText.GetComponent<RectTransform>();
+            roleTextRect.anchorMin = Vector2.zero;
+            roleTextRect.anchorMax = Vector2.one;
+            roleTextRect.offsetMin = new Vector2(40f, 12f);
+            roleTextRect.offsetMax = new Vector2(-40f, -12f);
+
+            var hint = CreateLabel("HintText", backdrop, font, 24, Muted, TextAlignmentOptions.Center, "아무 곳이나 눌러 계속");
+            var hintRect = hint.GetComponent<RectTransform>();
+            hintRect.anchorMin = new Vector2(0.5f, 0f);
+            hintRect.anchorMax = new Vector2(0.5f, 0f);
+            hintRect.pivot = new Vector2(0.5f, 0f);
+            hintRect.sizeDelta = new Vector2(600f, 40f);
+            hintRect.anchoredPosition = new Vector2(0f, SafeInset.y + 24f);
+
+            var serialized = new SerializedObject(view);
+            serialized.FindProperty("_cardRoot").objectReferenceValue = cardRoot;
+            serialized.FindProperty("_dismissButton").objectReferenceValue = dismiss;
+            serialized.FindProperty("_titleText").objectReferenceValue = title;
+            serialized.FindProperty("_preview").objectReferenceValue = preview;
+            serialized.FindProperty("_hpValueText").objectReferenceValue = hpValue;
+            serialized.FindProperty("_roleText").objectReferenceValue = roleText;
+            serialized.FindProperty("_rays").objectReferenceValue = raysRect;
+            SetArray(serialized.FindProperty("_bandRows"), bandRows);
+            SetArray(serialized.FindProperty("_bandRangeTexts"), bandRanges);
+            SetArray(serialized.FindProperty("_bandChanceTexts"), bandChances);
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            cardRoot.SetActive(false);
+            return view;
+        }
+
+        private static void StretchToParent(GameObject go)
+        {
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+        }
+
+        private static void SetArray(SerializedProperty property, Object[] values)
+        {
+            property.arraySize = values.Length;
+            for (var i = 0; i < values.Length; i++)
+            {
+                property.GetArrayElementAtIndex(i).objectReferenceValue = values[i];
+            }
         }
 
         private static TextMeshProUGUI[] CreateDenomRow(GameObject parent, TMP_FontAsset font)

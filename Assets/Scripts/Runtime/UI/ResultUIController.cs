@@ -55,6 +55,9 @@ namespace NCAIClicker.UI
         [SerializeField] private TextMeshProUGUI _codexCaptionText;
         [SerializeField] private CreaturePreview _codexPreview;
 
+        // 해금 카드 (#300). 해금이 일어난 정산에서 카운트업·강조가 끝난 뒤 띄운다.
+        [SerializeField] private UnlockCardView _unlockCard;
+
         [Tooltip("정산창이 열릴 때 금액·진행률이 0 에서 올라가는 시간(초). 0 이면 연출 없이 바로 표시")]
         [SerializeField] private float _countUpDurationSec = 0.8f;
 
@@ -66,6 +69,12 @@ namespace NCAIClicker.UI
 
         [Tooltip("해금 강조 색 (캡션·이름)")]
         [SerializeField] private Color _unlockHighlightColor = new Color(0.941f, 0.776f, 0.447f, 1f);
+
+        /// <summary>
+        /// 해금 카드를 마지막으로 띄운 정산의 누적 수입. 고지서를 닫고 돌아오면 ShowSettlement 가 카운트업을
+        /// 다시 돌리는데, 같은 정산이면 카드를 또 띄우지 않는다 (#300). 누적은 정산마다 바뀐다.
+        /// </summary>
+        private long _unlockCardShownEarned = -1L;
 
         private bool _hasCodexDefaultColors;
         private Color _codexNameDefaultColor;
@@ -309,6 +318,8 @@ namespace NCAIClicker.UI
             StopCountUp();
             if (_countUpDurationSec <= 0f || _economyService == null || !isActiveAndEnabled)
             {
+                // 연출이 없으면 기다릴 것도 없다 — 곧바로 해금 카드를 판단한다 (#300).
+                ShowUnlockCards();
                 return;
             }
             _countUpRoutine = StartCoroutine(CountUp());
@@ -403,6 +414,36 @@ namespace NCAIClicker.UI
             }
             SetCodexScale(1f);
             _unlockPunchRoutine = null;
+
+            // 진행률이 100% 까지 차고 이름이 튀는 것까지 본 뒤에 카드를 덮는다 (#300).
+            ShowUnlockCards();
+        }
+
+        /// <summary>
+        /// 이번 정산에서 해금된 종류마다 카드를 한 장씩 띄운다 (#300, 원작처럼 정산창 위). 같은 정산에서는 한 번만.
+        /// "본 적 있음" 은 저장하지 않는다 — 기준액을 넘었다는 조건이 그 정산에서만 참이라 다음 정산에는 다시 뜨지 않는다.
+        /// </summary>
+        private void ShowUnlockCards()
+        {
+            if (_unlockCard == null || _economyService == null || _balanceData == null)
+            {
+                return;
+            }
+
+            var earned = _economyService.EarnedTotal;
+            if (earned == _unlockCardShownEarned)
+            {
+                return;
+            }
+
+            var unlocked = FindAllJustUnlocked(earned, _economyService.RunCoin);
+            if (unlocked.Count == 0)
+            {
+                return;
+            }
+
+            _unlockCardShownEarned = earned;
+            _unlockCard.Show(unlocked, _balanceData);
         }
 
         private void SetCodexScale(float scale)
@@ -459,6 +500,10 @@ namespace NCAIClicker.UI
             {
                 _bankruptcyContainer.SetActive(true);
             }
+            if (_unlockCard != null)
+            {
+                _unlockCard.HideImmediate();
+            }
 
             SetBackgroundBlur(true);
             UpdateBankruptcyView();
@@ -477,6 +522,10 @@ namespace NCAIClicker.UI
             if (_bankruptcyContainer != null)
             {
                 _bankruptcyContainer.SetActive(false);
+            }
+            if (_unlockCard != null)
+            {
+                _unlockCard.HideImmediate();
             }
 
             SetBackgroundBlur(false);
@@ -807,45 +856,42 @@ namespace NCAIClicker.UI
         }
 
         /// <summary>
-        /// 이번 런 수입으로 기준을 넘은 종류 중 가장 나중 것. 없으면 null.
+        /// 이번 런 수입으로 기준을 넘은 종류들, 해금 순서대로. 없으면 빈 목록.
         /// 파산으로 누적이 0 이 됐는데 RunCoin 이 남아 있으면 earned - runCoin 이 음수가 된다 — 그때 기준 0 인
         /// 첫 종류가 "해금!" 으로 잡히지 않도록, 처음부터 있는 종류(기준 0)와 음수 구간은 제외한다.
+        /// 정산창 칸(가장 나중 것)·카운트업(가장 먼저 것)·해금 카드(전부, #300)가 모두 이 판정을 쓴다.
         /// </summary>
-        private TargetDef FindJustUnlocked(long earned, long runCoin)
+        private List<TargetDef> FindAllJustUnlocked(long earned, long runCoin)
         {
+            var found = new List<TargetDef>();
             var before = earned - runCoin;
             if (before < 0L)
             {
-                return null;
+                return found;
             }
 
-            TargetDef latest = null;
             foreach (var target in _balanceData.GetUnlockOrder())
             {
                 if (target.UnlockEarned > 0L && target.UnlockEarned > before && target.UnlockEarned <= earned)
                 {
-                    latest = target;
+                    found.Add(target);
                 }
             }
-            return latest;
+            return found;
+        }
+
+        /// <summary>이번 런 수입으로 기준을 넘은 종류 중 가장 나중 것. 없으면 null.</summary>
+        private TargetDef FindJustUnlocked(long earned, long runCoin)
+        {
+            var found = FindAllJustUnlocked(earned, runCoin);
+            return found.Count > 0 ? found[found.Count - 1] : null;
         }
 
         /// <summary>이번 런 수입으로 기준을 넘은 종류 중 가장 먼저 것 (카운트업은 여기까지 올린다). 없으면 null.</summary>
         private TargetDef FindFirstJustUnlocked(long earned, long runCoin)
         {
-            var before = earned - runCoin;
-            if (before < 0L)
-            {
-                return null;
-            }
-            foreach (var target in _balanceData.GetUnlockOrder())
-            {
-                if (target.UnlockEarned > 0L && target.UnlockEarned > before && target.UnlockEarned <= earned)
-                {
-                    return target;
-                }
-            }
-            return null;
+            var found = FindAllJustUnlocked(earned, runCoin);
+            return found.Count > 0 ? found[0] : null;
         }
 
         /// <summary>
