@@ -144,6 +144,7 @@ AI에게 시켜도 제대로 못 고친다.
 - [단계 목표 판정](stage-goal.md) — StageGoalManager, 런 순수입과 GoalCoin 비교, 런당 1회 발행
 - [효과음](sound-effects.md) — AudioManager, GameEvents 구독 후 PlayOneShot, 타격·코인·피버·고지서 효과음
 - [저금통 일반형 3D 에셋](piggy-normal-asset.md) — VARCO 3D 생성 모델, glTFast 스케일 한계로 Visual 프리팹 분리 제작, PiggyController 부재로 Visual 전용 범위
+- [저금통 도감](creature-codex.md) — 고지서 패널 저금통 탭, 카드별 CreaturePreview 재사용, 색 곱으로 실루엣, 수치에서 만든 역할 문구, 기대 코인 해석해
 - [인게임 HUD](ingame-hud.md) — 위젯별 컴포넌트, 이벤트 구독만으로 갱신, 호버 스윙만 세는 정확도, 게이지 스프라이트
 - [설정 패널](settings-panel.md) — SettingsPanelController, IAudioService로 볼륨·화면 흔들림 조회/적용, 창모드, 저장 데이터 초기화, 메인 메뉴·일시정지 공용 프리팹
 * [일시정지 패널](pause_panel.md) · ESC 키 입력 시 원래 timeScale 안전 복원, 설정 패널(#196) 조립 연동, 코인 유실 경고 확인창

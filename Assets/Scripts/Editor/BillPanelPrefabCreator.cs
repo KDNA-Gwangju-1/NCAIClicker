@@ -54,6 +54,8 @@ namespace NCAIClicker.EditorTools
                 new Color(0.10f, 0.08f, 0.07f), new Color(0.30f, 0.26f, 0.20f), new Color(0.78f, 0.69f, 0.55f), 30);
             bound["_ringTabButton"] = CreateButton("TabRingButton", tabBar, font, new Vector2(200f, 56f), "반지",
                 new Color(0.10f, 0.08f, 0.07f), new Color(0.30f, 0.26f, 0.20f), new Color(0.78f, 0.69f, 0.55f), 30);
+            bound["_codexTabButton"] = CreateButton("TabCodexButton", tabBar, font, new Vector2(200f, 56f), "저금통",
+                new Color(0.10f, 0.08f, 0.07f), new Color(0.30f, 0.26f, 0.20f), new Color(0.78f, 0.69f, 0.55f), 30);
             bound["_tabBar"] = tabBar;
 
             // 탭 내용은 두 덩어리다. 고지서 쪽은 종이와 버튼, 업그레이드 쪽은 상점을 담는 빈 자리.
@@ -89,6 +91,19 @@ namespace NCAIClicker.EditorTools
             bound["_ringShopPrefab"] = AssetDatabase.LoadAssetAtPath<GameObject>(
                 "Assets/Prefabs/UI/RingShopPanel.prefab");
             ringTabRoot.SetActive(false);
+
+            // 저금통 도감 탭 (#299). 반지 탭과 같은 상자·같은 방식이다.
+            var codexTabRoot = CreateStretched("CodexTabRoot", panelRoot);
+            var codexRect = codexTabRoot.GetComponent<RectTransform>();
+            codexRect.anchorMin = new Vector2(0.5f, 0.5f);
+            codexRect.anchorMax = new Vector2(0.5f, 0.5f);
+            codexRect.pivot = new Vector2(0.5f, 0.5f);
+            codexRect.sizeDelta = new Vector2(1100f, 760f);
+            codexRect.anchoredPosition = new Vector2(0f, -20f);
+            bound["_codexTabRoot"] = codexTabRoot;
+            bound["_codexContent"] = codexTabRoot.transform;
+            bound["_codexPrefab"] = AssetDatabase.LoadAssetAtPath<GameObject>(CreatureCodexPrefabCreator.PrefabPath);
+            codexTabRoot.SetActive(false);
 
             // 원작 고지서 화면 우측 상단 HUD: 현재 사이클 보유 금액 및 레거시 포인트 알약 박스 (이슈 249)
             var coinBox = CreateObject("CoinBox", panelRoot);

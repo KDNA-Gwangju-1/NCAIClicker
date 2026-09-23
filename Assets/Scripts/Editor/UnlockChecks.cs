@@ -69,6 +69,8 @@ namespace NCAIClicker.EditorTools
             }
             checkCount++;
 
+            checkCount += RunCodexChecks(balance, order, spawnerList);
+
             Debug.Log("[UnlockChecks] PASS " + checkCount + " checks.");
         }
 
@@ -135,6 +137,49 @@ namespace NCAIClicker.EditorTools
             {
                 method.Invoke(component, null);
             }
+        }
+
+        /// <summary>
+        /// 5. 저금통 도감 (#299). 카드가 해금 순서와 같고, 미리보기 프리팹이 스포너와 같고, 모델을 두는 좌표가 겹치지 않는다.
+        /// 기대 코인은 실제 추첨 평균과 맞아야 한다 — 도감 숫자가 게임과 다른 말을 하면 안 된다.
+        /// </summary>
+        private static int RunCodexChecks(BalanceData balance, List<TargetDef> order, SerializedProperty spawnerList)
+        {
+            var codex = AssetDatabase.LoadAssetAtPath<GameObject>(CreatureCodexPrefabCreator.PrefabPath);
+            Assert(codex != null, "저금통 도감 프리팹이 없습니다. NCAI/UI/저금통 도감 프리팹 생성을 실행하세요.");
+            var entries = codex.GetComponentsInChildren<NCAIClicker.UI.CreatureCodexEntry>(true);
+            Assert(entries.Length == order.Count,
+                   "도감 카드 " + entries.Length + "장이 해금 종류 " + order.Count + "종과 다릅니다. NCAI/UI/저금통 도감 프리팹 생성을 다시 실행하세요.");
+            var origins = new HashSet<Vector3>();
+            for (var i = 0; i < entries.Length; i++)
+            {
+                Assert(entries[i].TargetId == order[i].Id, "도감 " + (i + 1) + "번째 카드가 " + order[i].Id + " 가 아닙니다.");
+                var preview = entries[i].GetComponentInChildren<NCAIClicker.UI.CreaturePreview>(true);
+                Assert(preview != null, order[i].Id + " 도감 카드에 CreaturePreview 가 없습니다.");
+                var serialized = new SerializedObject(preview);
+                Assert(FindPrefab(serialized.FindProperty("_prefabs"), order[i].Id) == FindPrefab(spawnerList, order[i].Id),
+                       order[i].Id + " 도감 미리보기 프리팹이 Managers 목록과 다릅니다.");
+                Assert(origins.Add(serialized.FindProperty("_stageOrigin").vector3Value),
+                       order[i].Id + " 도감 미리보기 좌표가 다른 카드와 겹칩니다 — 한 카메라에 두 모델이 찍힙니다.");
+            }
+
+            var random = new System.Random(299);
+            foreach (var target in order)
+            {
+                const int draws = 100000;
+                var sum = 0m;
+                for (var i = 0; i < draws; i++)
+                {
+                    sum += CoinLottery.SumValue(
+                        CoinLottery.Draw(balance, target.MinDenomId, target.CoinCount, random.NextDouble), balance);
+                }
+                var expected = CoinLottery.GetExpectedValue(balance, target.MinDenomId, target.CoinCount);
+                var average = sum / draws;
+                Assert(expected > 0m && System.Math.Abs(average - expected) <= expected * 0.05m,
+                       target.Id + " 기대 코인 " + expected + " 이 추첨 평균 " + average + " 과 5% 넘게 다릅니다.");
+                Assert(!string.IsNullOrEmpty(NCAIClicker.UI.CreatureCodexEntry.GetRoleText(target)), target.Id + " 역할 문구가 비었습니다.");
+            }
+            return 1;
         }
 
         private static UnityEngine.Object FindPrefab(SerializedProperty list, string targetId)
