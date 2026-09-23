@@ -93,8 +93,9 @@ namespace NCAIClicker.UI
 
         // 파산 → 반지 화면 전환 암전 (7.14 #324). 회차가 끝났다는 것을 한 박자로 보여 준다.
         [Header("파산 암전")]
-        [SerializeField, Min(0f)] private float _bankruptFadeOutSec = 0.4f;
-        [SerializeField, Min(0f)] private float _bankruptFadeInSec = 0.4f;
+        [SerializeField, Min(0f)] private float _bankruptFadeOutSec = 1.0f;
+        [SerializeField, Min(0f)] private float _bankruptHoldSec = 0.4f;
+        [SerializeField, Min(0f)] private float _bankruptFadeInSec = 0.5f;
 
         [Header("스킬 트리 안내")]
         [SerializeField] private GameObject _skillTreeNoticePanel;
@@ -390,6 +391,7 @@ namespace NCAIClicker.UI
 
             yield return FadeOverlay(image, 0f, 1f, _bankruptFadeOutSec);
             ShowAsPrestige();
+            yield return new WaitForSecondsRealtime(_bankruptHoldSec);
             yield return FadeOverlay(image, 1f, 0f, _bankruptFadeInSec);
             Destroy(overlay);
         }
