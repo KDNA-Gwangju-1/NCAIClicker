@@ -131,6 +131,7 @@ Keep this creature exactly as it is: same body, face, eyes, legs, pale-blue skin
 | P-32 | (폐기) Amethyst | nano-banana-2 | `the ore lobes become AMETHYST (vivid violet-purple with soft lavender highlights and low facets, slightly translucent glow), and the shell base becomes a muted dusky purple-gray tone slightly darker than the ore` — 4번째 종을 다이아몬드로 확정하며 폐기 |
 | P-33 | (폐기) Diamond 1차 | nano-banana-2 | `... clear icy white with pale cyan and light-blue tints ...` — **얼음처럼 나와서 폐기.** 다이아몬드에 blue/icy 를 쓰지 않는다 |
 | P-34 | CreatureDiamond | **gpt-2.5** | `the ore lobes become cut DIAMOND gemstones — brilliant clear white, NOT blue and NOT icy: crisp geometric facet planes with sharp bright specular highlights, tiny rainbow prismatic sparkles (pink, yellow, green flashes) inside, and a faint warm-white glow. Facets are flat and clean like a jeweler's cut but the overall lobe silhouettes stay the same rounded shapes. The shell base becomes a muted warm silver-gray (champagne platinum) tone` |
+| P-35 | CreatureIron (#282) | nano-banana-2 | `the ore lobes become raw black IRON ore (matte dark charcoal-black rock with subtle blue-gray metallic glints on the low facets, almost no rust, at most a faint trace of warm brown in a crevice), and the shell base becomes a muted dark slate-gray tone slightly lighter than the ore so the lobes still read against it` — 1회 생성으로 채택. 로브와 껍질을 같은 검정으로 두면 로브가 묻히므로 껍질을 한 톤 **밝게** 지정했다 |
 
 ## 5. 배운 것
 

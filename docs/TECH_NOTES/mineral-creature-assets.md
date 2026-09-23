@@ -1,6 +1,6 @@
-# 광물 크리처 3D 에셋 (구리·은·금·다이아몬드)
+# 광물 크리처 3D 에셋 (철·구리·은·금·다이아몬드)
 
-> 관련 이슈: #234, #37, #9 · 최종 수정: 2026-09-22
+> 관련 이슈: #282, #247, #234, #37, #9 · 최종 수정: 2026-09-23
 
 **이 문서는 로그다.** 이 기능을 고칠 때마다 갱신한다. 새 문서를 만들지 않는다.
 
@@ -34,7 +34,7 @@
 
 | 해금 | `_targetId` | 외형 | 비고 |
 |---|---|---|---|
-| 1 | `normal` | 임시 `PiggyNormalVisual` (스케일 0.9546, 바닥 0) | 검정 철광석 제작·교체는 #282 |
+| 1 | `normal` | Iron (검정 철광석) | #282 에서 임시 `PiggyNormalVisual` 을 교체 |
 | 2 | `tourist` | Copper (구리) | |
 | 3 | `anchor` | Silver (은) | |
 | 4 | `pinata` | Gold (금) | #292 그레이박스 교체, 그레이박스 재질 삭제 |
@@ -68,6 +68,7 @@ flowchart LR
 
 | 에셋 | 경로 | 높이(유닛) | `localScale` | `localPosition.y` |
 |---|---|---|---|---|
+| `MineCreatureIronVisual.prefab` | `Assets/Prefabs/` | 0.8 | 0.8027 | 0.0000 |
 | `MineCreatureCopperVisual.prefab` | `Assets/Prefabs/` | 0.8 | 0.7970 | 0.0000 |
 | `MineCreatureSilverVisual.prefab` | `Assets/Prefabs/` | 0.8 | 0.7954 | 0.0000 |
 | `MineCreatureGoldVisual.prefab` | `Assets/Prefabs/` | 0.8 | 0.7979 | 0.0000 |
@@ -153,6 +154,22 @@ Unity 6000.3.21f1, 2026-09-22.
   스폰된 장면에서 "조가비 + 광물 로브"의 공통 실루엣과 종별 색 구분이 컨셉아트 의도대로 보임.
   분홍 머티리얼(임포트 실패 시 나타나는 증상) 없음, 바닥 밀착·조준 원 대비 크기도 정상
 
+## 철광석 추가 — 일반형 외형 (2026-09-23, #282)
+
+#247 재배정으로 일반형이 임시 기본 저금통을 쓰고 있었다. 5번째 광물로 **검정 철광석**을 같은 골격으로 추가했다.
+
+- 입력 이미지: 구리 원형(P-25 v6)을 source 로 색 변형 골격에 재질만 바꾼 **P-35** (nano-banana-2, 1회 채택).
+  로브와 껍질이 둘 다 검으면 로브가 묻히므로 껍질을 로브보다 한 톤 **밝은** 슬레이트 회색으로 지정했다
+  — 다른 종은 껍질이 로브보다 어둡다.
+- Generate3D 는 **`generateTexture=1` 을 명시해야 텍스처가 붙는다.** MCP 로 노드를 만들 때 이 값을 빼면
+  기본값이 꺼짐이라 회색 메시만 나온다(첫 시도가 그랬다).
+- 두 번째 시도는 텍스처는 붙었지만 노드 `topology` 가 `quad` 로 바뀌어 있어 사각면 1,500개가 삼각형
+  4,058개로 쪼개졌다(완료 기준 1,000~2,000 초과). **`tri` 로 되돌려 세 번째로 생성한 결과를 채택했다** —
+  삼각형 1,500개, 베이스컬러 1024px, `pivotToBottom=true` 로 받아 raw 높이 0.9967, 바닥 0.
+- `TargetNormal` 은 다른 종과 달리 `Visual` 이 빈 GameObject 이고 그 아래 모델 프리팹이 붙는 구조
+  (ASSET_PIPELINE 1절)라, `Visual` 아래 `PiggyNormalVisual` 인스턴스만 지우고 `MineCreatureIronVisual`
+  인스턴스를 붙였다. 루트·`Target`·콜라이더·`_targetId`·프리팹 GUID 는 그대로다.
+
 ## 알려진 한계
 
 - **피기 방향으로 만들었던 `PiggyNormalVisual.prefab`·`PiggyNormal.glb` 는 이제 어디에서도
@@ -171,3 +188,4 @@ Unity 6000.3.21f1, 2026-09-22.
 | 2026-09-21 | #37 | Claude | 조준 원 대비 너무 작다는 사용자 피드백으로 높이 기준 0.4 → 0.8유닛 재조정, 4종 재실측 |
 | 2026-09-22 | #234 | Claude | 광산 작업장 컨셉아트에 맞춰 `MineralCreature*` → `MineCreature*` 로 4종 재생성·전면 교체. `pivotToBottom` 옵션으로 Y 오프셋 전부 0, 구 에셋 8개 삭제. Play Mode 렌더 캡처로 4종 동시 육안 확인 완료 |
 | 2026-09-23 | #247 | saltlake00 | 해금 순서 기준 재배정 — 일반=임시 기본 저금통, 회복=구리, 거치=은, 피냐타=금, 화난 저금통=다이아. `TargetAngry` 추가 |
+| 2026-09-23 | #282 | Claude | 검정 철광석 `MineCreatureIron` 생성(P-35), 일반형 `Visual` 자식을 임시 저금통에서 교체. 세 번째 생성본(tri·텍스처) 채택, 스케일 0.8027, 바닥 0, TargetChecks 통과 |
