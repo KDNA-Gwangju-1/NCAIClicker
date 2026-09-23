@@ -83,6 +83,31 @@ namespace NCAIClicker.Economy
         /// </summary>
         public float LoanDailyCut => _activeLoan == null ? 0f : _activeLoan.DailyCut;
 
+        /// <summary>상환해야 할 금액. 대출이 없으면 0 (이슈 #306, IBillService 계약).</summary>
+        public long LoanOwedAmount => _activeLoan == null ? 0L : _activeLoan.Owed;
+
+        /// <summary>
+        /// 현재 고지서 순번이 해금 순번 이상인지. `_billIndex` 는 다음에 발행할 순번이라
+        /// 지금 손에 든 고지서는 그 하나 앞이다 — TryTakeLoan 의 해금 판정과 같은 식이다 (이슈 #306).
+        /// </summary>
+        public bool IsLoanUnlocked => _balanceData != null
+            && _billIndex - 1 >= _balanceData.Bill.LoanUnlockBillIndex;
+
+        /// <summary>쿨다운 아니면 0. TryTakeLoan 의 쿨다운 판정과 같은 식을 읽기 전용으로 노출한다 (이슈 #306).</summary>
+        public int LoanCooldownDaysRemaining
+        {
+            get
+            {
+                if (_balanceData == null || _lastLoanRepaidDay < 0)
+                {
+                    return 0;
+                }
+
+                var remaining = _balanceData.Bill.LoanCooldownDays - (_currentDay - _lastLoanRepaidDay);
+                return Mathf.Max(0, remaining);
+            }
+        }
+
         public Bill ActiveBill => _activeBill;
 
         public string[] OfferedPerkIds => _offeredPerkIds;

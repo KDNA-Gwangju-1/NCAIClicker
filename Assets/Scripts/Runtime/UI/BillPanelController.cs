@@ -59,6 +59,8 @@ namespace NCAIClicker.UI
         [SerializeField] private Button _laterButton;
         [SerializeField] private Button _loanButton;
         [SerializeField] private TextMeshProUGUI _loanCaptionText;
+        [SerializeField] private Button _repayButton;
+        [SerializeField] private TextMeshProUGUI _repayCaptionText;
         [SerializeField] private Button _continueButton;
         [SerializeField] private Button _declareBankruptcyButton;
         [SerializeField] private TextMeshProUGUI _declareBankruptcyCaptionText;
@@ -140,6 +142,10 @@ namespace NCAIClicker.UI
             {
                 _loanButton.onClick.AddListener(HandleLoanClicked);
             }
+            if (_repayButton != null)
+            {
+                _repayButton.onClick.AddListener(HandleRepayClicked);
+            }
             if (_continueButton != null)
             {
                 _continueButton.onClick.AddListener(HandleContinueClicked);
@@ -202,6 +208,10 @@ namespace NCAIClicker.UI
             if (_loanButton != null)
             {
                 _loanButton.onClick.RemoveListener(HandleLoanClicked);
+            }
+            if (_repayButton != null)
+            {
+                _repayButton.onClick.RemoveListener(HandleRepayClicked);
             }
             if (_continueButton != null)
             {
@@ -552,10 +562,13 @@ namespace NCAIClicker.UI
                 _laterButton.gameObject.SetActive(_mode == Mode.Modal && hasUnpaidBill && !isDueToday);
             }
 
+            var hasActiveLoan = _billService != null && _billService.LoanDailyCut > 0f;
+
             if (_loanButton != null)
             {
-                var hasActiveLoan = _billService != null && _billService.LoanDailyCut > 0f;
-                var canLoan = hasUnpaidBill && !hasActiveLoan;
+                var isUnlocked = _billService != null && _billService.IsLoanUnlocked;
+                var cooldownDaysLeft = _billService != null ? _billService.LoanCooldownDaysRemaining : 0;
+                var canLoan = hasUnpaidBill && !hasActiveLoan && isUnlocked && cooldownDaysLeft <= 0;
                 _loanButton.interactable = canLoan;
                 if (_loanCaptionText != null)
                 {
@@ -563,11 +576,37 @@ namespace NCAIClicker.UI
                     {
                         _loanCaptionText.text = "대출 완료";
                     }
+                    else if (!hasUnpaidBill)
+                    {
+                        _loanCaptionText.text = string.Empty;
+                    }
+                    else if (!isUnlocked)
+                    {
+                        // 해금 순번은 CSV(loan_unlock_bill_index) 원본이다 (AGENTS.md 데이터 규칙, 이슈 #306).
+                        var unlockOrdinal = _balanceData != null ? _balanceData.Bill.LoanUnlockBillIndex + 1 : 0;
+                        _loanCaptionText.text = $"{unlockOrdinal}번째 고지서부터";
+                    }
+                    else if (cooldownDaysLeft > 0)
+                    {
+                        _loanCaptionText.text = $"{cooldownDaysLeft}일 후 가능";
+                    }
                     else
                     {
-                        _loanCaptionText.text = canLoan ? string.Empty : "대출 불가";
+                        _loanCaptionText.text = string.Empty;
                     }
                 }
+            }
+
+            // 활성 대출이 있을 때만 상환 버튼과 상환액을 보인다 (이슈 #272 DoD).
+            if (_repayButton != null)
+            {
+                _repayButton.gameObject.SetActive(hasActiveLoan);
+            }
+            if (_repayCaptionText != null)
+            {
+                _repayCaptionText.text = hasActiveLoan && _billService != null
+                    ? $"상환액 ${_billService.LoanOwedAmount:N0}"
+                    : string.Empty;
             }
 
             // 자발적 파산 (#175). 고지서가 살아 있을 때만 의미가 있다 — 낼 것이 없는데
@@ -863,6 +902,36 @@ namespace NCAIClicker.UI
                 {
                     _loanCaptionText.text = "대출 실패";
                 }
+            }
+        }
+
+        /// <summary>
+        /// 전액 상환만 있다 — 부분 상환 없음(이슈 #272 범위 밖). 성공하면 대출이 사라져
+        /// 다음 Render() 에서 일일 징수 표시("대출 완료" 캡션)도 함께 사라진다.
+        /// </summary>
+        private void HandleRepayClicked()
+        {
+            if (_billService == null)
+            {
+                return;
+            }
+
+            if (_billService.TryRepayLoan())
+            {
+                if (_repayCaptionText != null)
+                {
+                    _repayCaptionText.text = string.Empty;
+                }
+                Render();
+                return;
+            }
+
+            // 잔액 부족으로 상환 실패 — HandlePayClicked 의 부족액 캡션과 같은 패턴(이슈 #212).
+            if (_repayCaptionText != null)
+            {
+                var coin = _economyService != null ? _economyService.CurrentCoin : 0L;
+                var owed = _billService.LoanOwedAmount;
+                _repayCaptionText.text = $"${owed - coin:N0} 부족";
             }
         }
 

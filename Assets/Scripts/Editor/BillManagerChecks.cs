@@ -287,6 +287,9 @@ namespace NCAIClicker.EditorTools
                 AssertCondition(firstBill != null, "첫 고지서가 발행되지 않았습니다.");
                 AssertCondition(manager.TryTakeLoan(1L) == false, "첫 고지서인데 대출이 성공했습니다.");
                 AssertCondition(manager.LoanDailyCut == 0f, "대출이 없는데 LoanDailyCut 이 0 이 아닙니다: " + manager.LoanDailyCut);
+                AssertCondition(manager.LoanOwedAmount == 0L, "대출이 없는데 LoanOwedAmount 가 0 이 아닙니다: " + manager.LoanOwedAmount);
+                AssertCondition(manager.IsLoanUnlocked == false, "첫 고지서인데 IsLoanUnlocked 가 true 입니다 (이슈 #306).");
+                AssertCondition(manager.LoanCooldownDaysRemaining == 0, "빌린 적 없는데 쿨다운이 남아 있습니다: " + manager.LoanCooldownDaysRemaining);
                 checkCount++;
 
                 // 첫 고지서를 내고 하루를 넘기면 두 번째 고지서가 나오고 대출이 열린다.
@@ -299,6 +302,7 @@ namespace NCAIClicker.EditorTools
                 manager.BeginRun();
                 var secondBill = manager.ActiveBill;
                 AssertCondition(secondBill != null, "두 번째 고지서가 발행되지 않았습니다.");
+                AssertCondition(manager.IsLoanUnlocked, "두 번째 고지서인데 IsLoanUnlocked 가 false 입니다 (이슈 #306).");
                 checkCount++;
 
                 // 한도는 활성 고지서 금액이다. 한 푼이라도 넘으면 거부한다.
@@ -313,6 +317,8 @@ namespace NCAIClicker.EditorTools
                     "원금이 AddLoanPrincipal 로 입금되지 않았습니다: " + economy.LastLoanPrincipal);
                 AssertCondition(Mathf.Approximately(manager.LoanDailyCut, config.LoanDailyCutMax),
                     "전액 대출인데 징수율이 상한이 아닙니다: " + manager.LoanDailyCut);
+                AssertCondition(manager.LoanOwedAmount == expectedOwed,
+                    "LoanOwedAmount 가 이자 포함 상환액과 다릅니다: " + manager.LoanOwedAmount + " (기대 " + expectedOwed + ")");
                 checkCount++;
 
                 // 동시 1건. 갚기 전에는 다시 빌릴 수 없다.
@@ -324,6 +330,8 @@ namespace NCAIClicker.EditorTools
                 AssertCondition(manager.TryRepayLoan() == false, "잔액이 없는데 상환이 성공했습니다.");
                 AssertCondition(Mathf.Approximately(manager.LoanDailyCut, config.LoanDailyCutMax),
                     "실패한 상환이 징수율을 바꿨습니다: " + manager.LoanDailyCut);
+                AssertCondition(manager.LoanOwedAmount == expectedOwed,
+                    "실패한 상환이 LoanOwedAmount 를 바꿨습니다: " + manager.LoanOwedAmount);
                 checkCount++;
 
                 // 상환은 이자 포함 전액을 떼고, 끝나면 징수가 멎는다.
@@ -332,11 +340,14 @@ namespace NCAIClicker.EditorTools
                 AssertCondition(economy.LastSpendAmount == expectedOwed,
                     "상환액이 이자 포함 금액과 다릅니다: " + economy.LastSpendAmount + " (기대 " + expectedOwed + ")");
                 AssertCondition(manager.LoanDailyCut == 0f, "상환 뒤에도 징수가 남아 있습니다: " + manager.LoanDailyCut);
+                AssertCondition(manager.LoanOwedAmount == 0L, "상환 뒤에도 LoanOwedAmount 가 남아 있습니다: " + manager.LoanOwedAmount);
                 checkCount++;
 
                 // 완제 직후에는 재대출 쿨다운에 걸린다.
                 manager.BeginRun();
                 AssertCondition(manager.TryTakeLoan(1L) == false, "완제 직후인데 재대출이 성공했습니다.");
+                AssertCondition(manager.LoanCooldownDaysRemaining > 0,
+                    "완제 직후인데 LoanCooldownDaysRemaining 이 0 입니다 (이슈 #306).");
                 checkCount++;
 
                 // 쿨다운 일수만큼 날이 지나면 다시 빌릴 수 있고, 조금만 빌리면 징수율은 하한에 가깝다.
@@ -344,6 +355,8 @@ namespace NCAIClicker.EditorTools
                 {
                     manager.BeginRun();
                 }
+                AssertCondition(manager.LoanCooldownDaysRemaining == 0,
+                    "쿨다운이 지났는데 LoanCooldownDaysRemaining 이 남아 있습니다: " + manager.LoanCooldownDaysRemaining);
                 AssertCondition(manager.TryTakeLoan(1L), "쿨다운이 지났는데 재대출이 실패했습니다.");
                 AssertCondition(manager.LoanDailyCut < config.LoanDailyCutMax,
                     "소액 대출인데 징수율이 상한입니다: " + manager.LoanDailyCut);

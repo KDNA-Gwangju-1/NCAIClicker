@@ -144,6 +144,9 @@ public interface IBillService
     int CurrentCycle { get; }
     int DaysLeft { get; }              // max(0, DueDay - CurrentDay + 1)
     float LoanDailyCut { get; }        // 대출이 없으면 0
+    long LoanOwedAmount { get; }       // 상환액(원금+이자). 대출이 없으면 0 (#306)
+    bool IsLoanUnlocked { get; }       // 현재 고지서 순번이 loan_unlock_bill_index 이상인지 (#306)
+    int LoanCooldownDaysRemaining { get; } // 재대출까지 남은 일수. 가능하면 0 (#306)
     Bill ActiveBill { get; }           // 마감 전 고지서. 없으면 null
     string[] OfferedPerkIds { get; }   // 납부 직후 골라야 할 퍼크 후보 3개. 고르면 비워진다
     PostPaymentFlowState PaymentFlowState { get; } // 납부 후 화면 흐름 재개 지점 (#249, #255)
