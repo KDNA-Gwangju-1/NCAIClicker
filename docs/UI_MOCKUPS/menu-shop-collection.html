@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>메인 메뉴 · 상점 · 도감 — UI 목업 (#184)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; padding: 40px 24px 80px; background: #0d0908; color: #fdf3df; font-family: 'Noto Sans KR', sans-serif; }
+  .page { max-width: 1280px; margin: 0 auto; }
+  .lead { margin: 0 0 8px; font-family: 'Black Han Sans', sans-serif; font-size: 34px; letter-spacing: 2px; }
+  .sub { margin: 0 0 6px; font-size: 17px; line-height: 1.6; color: #c8b79a; }
+  .sub a { color: #e8b04b; }
+  .caption { margin: 48px 0 12px; font-size: 19px; font-weight: 900; color: #e8b04b; letter-spacing: 2px; }
+  .note { margin: 10px 0 0; font-size: 16px; line-height: 1.6; color: #c8b79a; }
+  .note code { color: #fdf3df; }
+  .screen { width: 1280px; height: 720px; box-sizing: border-box; position: relative; overflow: hidden;
+            background: #0a0705; color: #fdf3df; border: 1px solid #3b3530; }
+  /* 1280 보다 좁은 창에서는 화면비를 유지한 채 줄여 보여 준다 — 수치 자체는 1280x720 기준이다 */
+  .frame { width: 100%; max-width: 1280px; aspect-ratio: 16 / 9; overflow: hidden; }
+  .frame > .screen { transform-origin: top left; transform: scale(var(--s, 1)); }
+
+  /* 공통 부품 — pause-menu.html 과 같은 팔레트. 새 색을 만들지 않는다 */
+  .bg { position: absolute; inset: 0; background: radial-gradient(90% 80% at 50% 45%, #1d140d 0%, #0e0907 60%, #060403 100%); }
+  .panel { position: absolute; box-sizing: border-box; border-radius: 6px; background: #1b1410; border: 2px solid #8c7f6a; box-shadow: 0 22px 60px #000000; }
+  .h2 { margin: 0; font-family: 'Black Han Sans', sans-serif; line-height: 1.1; color: #fdf3df; }
+  .rule { margin: 0; border: 0; border-top: 1px solid #8c7f6a; }
+  .btn { box-sizing: border-box; border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 12px; font-family: 'Noto Sans KR', sans-serif; }
+  .btn-primary { background: #e8b04b; border: 2px solid #f0c672; color: #16130f; font-family: 'Black Han Sans', sans-serif; }
+  .btn-secondary { background: #16130f; border: 2px solid #9a7c46; color: #fdf3df; font-weight: 900; }
+  .btn-quiet { background: #3b3530; border: 1px solid #8c7f6a; color: #e8ddcb; font-weight: 700; }
+  .btn-danger { background: #2a1512; border: 2px solid #c08a5a; color: #ffb4a2; font-weight: 700; }
+  .btn-disabled { background: #221c17; border: 1px solid #4a4239; color: #7d7364; font-weight: 700; cursor: default; }
+  .eyebrow { font-size: 16px; font-weight: 900; letter-spacing: 2px; color: #e8b04b; }
+  .muted { color: #c8b79a; }
+  .warn { display: flex; gap: 10px; align-items: flex-start; padding: 13px 15px; border-radius: 5px; background: #2a1512; border: 1px solid #c08a5a; color: #ffb4a2; font-size: 16px; line-height: 1.5; }
+
+  /* 고지서 화면 탭 바 — billing.md 의 모달/탭 겸용 패널에 탭 둘을 더한 모양 */
+  .tabs { display: flex; gap: 8px; }
+  .tab { height: 48px; padding: 0 22px; box-sizing: border-box; border-radius: 5px 5px 0 0; display: flex; align-items: center; font-size: 19px; font-weight: 700; background: #16130f; border: 1px solid #8c7f6a; border-bottom: 0; color: #c8b79a; }
+  .tab.on { background: #e8b04b; border-color: #f0c672; color: #16130f; font-weight: 900; }
+
+  /* 상점·도감 카드 */
+  .card { box-sizing: border-box; border-radius: 6px; background: #16130f; border: 1px solid #8c7f6a; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .card.equipped { border: 2px solid #e8b04b; }
+  .card.locked { background: #110d0a; border: 1px dashed #4a4239; }
+  .thumb { height: 112px; border-radius: 5px; background: #241a12; display: flex; align-items: center; justify-content: center; }
+  .card.locked .thumb { background: #1a1410; }
+  .pill { display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border-radius: 999px; font-size: 15px; font-weight: 900; letter-spacing: 1px; }
+  .pill-gold { background: #e8b04b; color: #16130f; }
+  .pill-dim { background: #3b3530; color: #e8ddcb; }
+  .kv { display: flex; justify-content: space-between; font-size: 17px; }
+  .kv b { font-weight: 900; }
+  .bar { height: 8px; border-radius: 999px; background: #3b3530; border: 1px solid #8c7f6a; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: #e8b04b; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1 class="lead">메인 메뉴 · 상점 · 저금통 도감 — UI 목업</h1>
+  <p class="sub">
+    이슈 <a href="https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/184">#184</a> (6.12) 의 시안이다.
+    기준 해상도 <b>1280×720</b> (16:9). 1920×1080 으로 올릴 때는 1.5배 한다.
+    팔레트·부품은 <a href="pause-menu.html">pause-menu.html</a> (#192) 과 같다 — 이슈 완료 기준대로
+    <b>새 스타일을 만들지 않고 일시정지·설정 패널의 톤을 따른다.</b>
+  </p>
+  <p class="sub">
+    구현물이 아니다. 버튼은 눌러도 아무 일도 일어나지 않는다. 밸런스 수치는 <code>[값]</code> 으로 비워 둔다 — CSV 가 원본이다.
+  </p>
+
+  <!-- ───────────────────────── 1. 메인 메뉴 ───────────────────────── -->
+  <div class="caption">1 · 메인 메뉴</div>
+
+  <div class="frame">
+  <div class="screen">
+    <div class="bg">
+      <!-- 뒤쪽 장면 자리 — 광산 작업장 배경(6.20 컨셉)이 들어갈 곳. 목업에서는 실루엣만 -->
+      <div style="position: absolute; left: 700px; top: 300px; width: 420px; height: 320px; border-radius: 40px 40px 0 0; background: #17110c;"></div>
+      <div style="position: absolute; left: 840px; top: 420px; width: 150px; height: 150px; border-radius: 24px; background: #241a12;"></div>
+      <div style="position: absolute; left: 1010px; top: 470px; width: 110px; height: 110px; border-radius: 20px; background: #201810;"></div>
+      <div style="position: absolute; left: 760px; top: 500px; width: 90px; height: 90px; border-radius: 18px; background: #201810;"></div>
+    </div>
+
+    <!-- 타이틀 — 좌상단 세이프존(96·54 의 2/3 = 64·36) 안 -->
+    <div style="position: absolute; left: 96px; top: 104px;">
+      <div class="eyebrow" style="font-size: 18px; letter-spacing: 6px;">NCAI CLICKER</div>
+      <h2 class="h2" style="margin-top: 6px; font-size: 76px; letter-spacing: 6px;">고지서는<br>내야 한다</h2>
+      <div class="muted" style="margin-top: 14px; font-size: 18px; font-weight: 700;">시간 제한형 액티브 인크리멘탈</div>
+    </div>
+
+    <!-- 버튼 열 — 110px 등간격(main-menu.md #192 배치 유지). 세로 중심 정렬 -->
+    <div style="position: absolute; left: 96px; top: 372px; width: 400px; display: flex; flex-direction: column; gap: 14px;">
+      <button type="button" class="btn btn-primary" style="height: 64px; font-size: 26px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="#16130f" aria-hidden="true"><path d="M7 4l12 8-12 8z"></path></svg>
+        새 회차 시작
+      </button>
+      <button type="button" class="btn btn-secondary" style="height: 58px; font-size: 22px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e8b04b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7"></path><path d="M4 4v5h5"></path></svg>
+        이어하기
+        <span class="muted" style="font-size: 16px; font-weight: 700;">· 7일차</span>
+      </button>
+      <button type="button" class="btn btn-quiet" style="height: 58px; font-size: 22px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e8ddcb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"></circle><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"></path></svg>
+        설정
+      </button>
+      <button type="button" class="btn btn-danger" style="height: 58px; font-size: 22px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffb4a2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 5H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4"></path><path d="M15 12H9M13 8l4 4-4 4"></path></svg>
+        종료
+      </button>
+    </div>
+
+    <!-- 우하단 — 버전·저장 상태. 캡션 크기(16) 는 보조 정보에만 -->
+    <div style="position: absolute; right: 96px; bottom: 54px; text-align: right; font-size: 16px; font-weight: 700;" class="muted">
+      저장됨 · 7일차 · 레거시 [값] LP<br>v0.1 · NCAI Team Two
+    </div>
+  </div>
+  </div>
+
+  <p class="note">
+    저장이 없으면 <b>이어하기</b>는 <code>.btn-disabled</code> 톤(#221c17 / #7d7364)으로 잠근다 — 비활성은 대비 검사 면제.
+    타이틀 문구는 자리표시자다. 뒤쪽 실루엣은 6.20 광산 작업장 배경이 들어올 자리이며 없어도 완성이다.
+  </p>
+
+  <!-- ───────────────────────── 2. 덮어쓰기 확인 ───────────────────────── -->
+  <div class="caption">2 · 덮어쓰기 확인 다이얼로그</div>
+
+  <div class="frame">
+  <div class="screen">
+    <div class="bg" style="background: radial-gradient(90% 80% at 50% 45%, #120d09 0%, #0a0705 60%, #050302 100%);"></div>
+
+    <div class="panel" style="left: 390px; top: 190px; width: 500px; padding: 34px 40px 30px; display: flex; flex-direction: column; gap: 22px;">
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+        <h2 class="h2" style="font-size: 40px; letter-spacing: 5px;">새 회차 시작</h2>
+        <div class="muted" style="font-size: 17px; font-weight: 700;">저장된 회차가 있다 · 7일차</div>
+      </div>
+      <hr class="rule">
+      <div class="warn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffb4a2" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="flex-shrink: 0; margin-top: 1px;"><path d="M12 8v5M12 16.5v.5"></path><circle cx="12" cy="12" r="9"></circle></svg>
+        <div>새 회차를 시작하면 <b>지금 저장된 회차를 덮어쓴다.</b> 반지와 레거시 포인트는 남는다.</div>
+      </div>
+      <div style="display: flex; gap: 12px;">
+        <button type="button" class="btn btn-quiet" style="flex: 1; height: 58px; font-size: 22px;">취소</button>
+        <button type="button" class="btn btn-danger" style="flex: 1; height: 58px; font-size: 22px;">덮어쓰기</button>
+      </div>
+      <div class="muted" style="text-align: center; font-size: 16px; font-weight: 700;">ESC — 취소</div>
+    </div>
+  </div>
+  </div>
+
+  <p class="note">
+    파괴적 동작은 오른쪽·<code>.btn-danger</code>, 안전한 쪽은 왼쪽·<code>.btn-quiet</code>. 기본 포커스는 <b>취소</b>에 둔다.
+    뒤쪽 어두운 면은 알파 스크림이 아니라 이미 어두워진 색이다 (UI_GUIDE 5-(2)).
+  </p>
+
+  <!-- ───────────────────────── 3. 상점 탭 ───────────────────────── -->
+  <div class="caption">3 · 상점 탭 (고지서 화면 안)</div>
+
+  <div class="frame">
+  <div class="screen">
+    <div class="bg"></div>
+
+    <div class="panel" style="left: 120px; top: 40px; width: 1040px; height: 640px; padding: 24px 32px 28px; display: flex; flex-direction: column; gap: 16px;">
+
+      <!-- 탭 바 + 잔액 -->
+      <div style="display: flex; align-items: flex-end; justify-content: space-between;">
+        <div class="tabs">
+          <div class="tab">고지서</div>
+          <div class="tab">업그레이드</div>
+          <div class="tab">반지</div>
+          <div class="tab on">상점</div>
+          <div class="tab">도감</div>
+        </div>
+        <div style="display: flex; gap: 20px; font-size: 19px; font-weight: 900; padding-bottom: 8px;">
+          <span><span class="muted" style="font-weight: 700;">코인</span> [값]</span>
+          <span><span class="muted" style="font-weight: 700;">레거시</span> [값] LP</span>
+        </div>
+      </div>
+      <hr class="rule">
+
+      <div style="display: flex; align-items: baseline; justify-content: space-between;">
+        <div>
+          <h2 class="h2" style="font-size: 32px; letter-spacing: 3px;">망치</h2>
+          <div class="muted" style="margin-top: 4px; font-size: 17px;">하나만 장착한다. 파산해도 남는다.</div>
+        </div>
+        <div class="muted" style="font-size: 16px; font-weight: 700;">장착 중 · <b style="color: #fdf3df;">기본 망치</b></div>
+      </div>
+
+      <!-- 망치 4종 카드 -->
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+
+        <div class="card equipped">
+          <div class="thumb" style="position: relative;">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#e8b04b" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4l6 6-3 3-6-6z"></path><path d="M12 8L4 16l4 4 8-8"></path></svg>
+            <span class="pill pill-gold" style="position: absolute; left: 10px; top: 10px;">장착 중</span>
+          </div>
+          <div style="font-size: 21px; font-weight: 900;">기본 망치</div>
+          <div class="kv"><span class="muted">파워</span><b>[값]</b></div>
+          <div class="kv"><span class="muted">스윙 주기</span><b>[값]s</b></div>
+          <div class="kv"><span class="muted">판정 반경</span><b>[값]</b></div>
+          <button type="button" class="btn btn-disabled" style="height: 48px; font-size: 18px;">장착됨</button>
+        </div>
+
+        <div class="card">
+          <div class="thumb">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#e8ddcb" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3l8 8-4 4-8-8z"></path><path d="M11 9L3 17l4 4 8-8"></path></svg>
+          </div>
+          <div style="font-size: 21px; font-weight: 900;">무거운 망치</div>
+          <div class="kv"><span class="muted">파워</span><b>[값] <span style="color: #e8b04b;">▲</span></b></div>
+          <div class="kv"><span class="muted">스윙 주기</span><b>[값]s <span style="color: #ffb4a2;">▼</span></b></div>
+          <div class="kv"><span class="muted">판정 반경</span><b>[값]</b></div>
+          <button type="button" class="btn btn-primary" style="height: 48px; font-size: 20px;">[값] 코인 · 구매</button>
+        </div>
+
+        <div class="card">
+          <div class="thumb">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#e8ddcb" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4l6 6-3 3-6-6z"></path><path d="M12 8L4 16l4 4 8-8"></path><path d="M17 3l1-1M20 6l1-1M15 2v-1"></path></svg>
+          </div>
+          <div style="font-size: 21px; font-weight: 900;">가시 망치</div>
+          <div class="kv"><span class="muted">파워</span><b>[값]</b></div>
+          <div class="kv"><span class="muted">스윙 주기</span><b>[값]s</b></div>
+          <div class="kv"><span class="muted">치명타</span><b>[값]% <span style="color: #e8b04b;">▲</span></b></div>
+          <button type="button" class="btn btn-secondary" style="height: 48px; font-size: 18px; color: #ffb4a2; border-color: #c08a5a;">[값] 코인 · 부족</button>
+        </div>
+
+        <div class="card locked">
+          <div class="thumb">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#7d7364" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+          </div>
+          <div style="font-size: 21px; font-weight: 900; color: #7d7364;">황금 망치</div>
+          <div class="kv" style="color: #7d7364;"><span>해금 조건</span><b>[값]단계 도달</b></div>
+          <div class="kv" style="color: #7d7364;"><span>&nbsp;</span><b>&nbsp;</b></div>
+          <div class="kv" style="color: #7d7364;"><span>&nbsp;</span><b>&nbsp;</b></div>
+          <button type="button" class="btn btn-disabled" style="height: 48px; font-size: 18px;">잠김</button>
+        </div>
+      </div>
+
+      <div style="margin-top: auto; display: flex; justify-content: space-between; align-items: center;">
+        <div class="muted" style="font-size: 16px;">▲ 기본 망치보다 높음 · ▼ 낮음 — 색과 함께 부호로 표기 (UI_GUIDE 5-(1))</div>
+        <button type="button" class="btn btn-secondary" style="height: 48px; padding: 0 28px; font-size: 20px;">닫기</button>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <p class="note">
+    <b>이 화면은 #184 의 "정해야 할 것" 셋에 걸려 있다</b> — 망치 도입 여부, 구매 화폐(코인 / 레거시), 파산 잔존 여부.
+    시안은 <i>코인으로 사고 파산해도 남는다</i>(원작)로 그렸다. 결정이 바뀌면 잔액 표시와 부제만 바꾸면 된다.
+    반지는 이미 <code>RingShopPanel</code>(#183)이 별도 탭으로 있으므로 상점에 넣지 않았다.
+  </p>
+
+  <!-- ───────────────────────── 4. 도감 탭 ───────────────────────── -->
+  <div class="caption">4 · 저금통 도감 탭</div>
+
+  <div class="frame">
+  <div class="screen">
+    <div class="bg"></div>
+
+    <div class="panel" style="left: 120px; top: 40px; width: 1040px; height: 640px; padding: 24px 32px 28px; display: flex; flex-direction: column; gap: 16px;">
+
+      <div style="display: flex; align-items: flex-end; justify-content: space-between;">
+        <div class="tabs">
+          <div class="tab">고지서</div>
+          <div class="tab">업그레이드</div>
+          <div class="tab">반지</div>
+          <div class="tab">상점</div>
+          <div class="tab on">도감</div>
+        </div>
+        <div style="font-size: 19px; font-weight: 900; padding-bottom: 8px;"><span class="muted" style="font-weight: 700;">수집</span> 3 / 4</div>
+      </div>
+      <hr class="rule">
+
+      <div style="display: flex; align-items: baseline; justify-content: space-between;">
+        <div>
+          <h2 class="h2" style="font-size: 32px; letter-spacing: 3px;">저금통 도감</h2>
+          <div class="muted" style="margin-top: 4px; font-size: 17px;">종류마다 처음 부수면 등록된다. 등록 보너스는 파산해도 남는다.</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 900;">
+          <span class="muted" style="font-weight: 700;">도감 보너스 합계</span>
+          <span class="pill pill-gold">코인 +[값]%</span>
+        </div>
+      </div>
+
+      <!-- targets.csv 4종 — 일반형·거치형·고속형·회복형 -->
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+
+        <div class="card">
+          <div class="thumb" style="position: relative;">
+            <div style="width: 72px; height: 56px; border-radius: 18px 18px 14px 14px; background: #e8b04b;"></div>
+            <span class="pill pill-dim" style="position: absolute; right: 10px; top: 10px;">등록</span>
+          </div>
+          <div style="font-size: 21px; font-weight: 900;">일반형</div>
+          <div class="kv"><span class="muted">부순 수</span><b>[값]</b></div>
+          <div class="kv"><span class="muted">보너스</span><b style="color: #e8b04b;">코인 +[값]%</b></div>
+          <div>
+            <div class="kv" style="font-size: 15px;"><span class="muted">다음 단계까지</span><span class="muted">[값] / [값]</span></div>
+            <div class="bar" style="margin-top: 6px;"><i style="width: 65%;"></i></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="thumb" style="position: relative;">
+            <div style="width: 84px; height: 64px; border-radius: 10px; background: #9a7c46;"></div>
+            <span class="pill pill-dim" style="position: absolute; right: 10px; top: 10px;">등록</span>
+          </div>
+          <div style="font-size: 21px; font-weight: 900;">거치형</div>
+          <div class="kv"><span class="muted">부순 수</span><b>[값]</b></div>
+          <div class="kv"><span class="muted">보너스</span><b style="color: #e8b04b;">파괴 보너스 +[값]</b></div>
+          <div>
+            <div class="kv" style="font-size: 15px;"><span class="muted">다음 단계까지</span><span class="muted">[값] / [값]</span></div>
+            <div class="bar" style="margin-top: 6px;"><i style="width: 20%;"></i></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="thumb" style="position: relative;">
+            <div style="width: 60px; height: 40px; border-radius: 999px; background: #e8ddcb;"></div>
+            <span class="pill pill-dim" style="position: absolute; right: 10px; top: 10px;">등록</span>
+          </div>
+          <div style="font-size: 21px; font-weight: 900;">고속형</div>
+          <div class="kv"><span class="muted">부순 수</span><b>[값]</b></div>
+          <div class="kv"><span class="muted">보너스</span><b style="color: #e8b04b;">런 시작 시 +[값]마리</b></div>
+          <div>
+            <div class="kv" style="font-size: 15px;"><span class="muted">다음 단계까지</span><span class="muted">[값] / [값]</span></div>
+            <div class="bar" style="margin-top: 6px;"><i style="width: 90%;"></i></div>
+          </div>
+        </div>
+
+        <div class="card locked">
+          <div class="thumb">
+            <div style="width: 76px; height: 60px; border-radius: 16px; background: #2a221b;"></div>
+          </div>
+          <div style="font-size: 21px; font-weight: 900; color: #7d7364;">? ? ?</div>
+          <div class="kv" style="color: #7d7364;"><span>등록 조건</span><b>한 번 부수기</b></div>
+          <div class="kv" style="color: #7d7364;"><span>보너스</span><b>미공개</b></div>
+          <div>
+            <div class="kv" style="font-size: 15px; color: #7d7364;"><span>&nbsp;</span><span>0 / 1</span></div>
+            <div class="bar" style="margin-top: 6px; border-color: #4a4239;"><i style="width: 0;"></i></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: auto; display: flex; justify-content: space-between; align-items: center;">
+        <div class="muted" style="font-size: 16px;">미등록 항목은 실루엣과 이름을 가린다. 등록 조건만 보여 준다.</div>
+        <button type="button" class="btn btn-secondary" style="height: 48px; padding: 0 28px; font-size: 20px;">닫기</button>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <p class="note">
+    수집 대상은 <code>targets.csv</code> 4종(이슈의 "우리는 저금통 종류가 자연스럽다")으로 그렸다.
+    보너스 종류는 원작 툴팁(컬렉션 코인 +1% / 듀오 코인 +2개)을 저금통에 옮긴 예시이며 <b>수치·효과 모두 미정</b>이다 —
+    효과를 주면 #176 밸런스 재계산의 입력이 하나 는다. "효과 없이 열람만" 으로 결정되면 보너스 행과 상단 합계 알약만 뺀다.
+  </p>
+
+  <p class="note">
+    <b>이 목업에 없는 것</b>: 상점·도감 탭이 붙는 고지서 화면 본체(이미 구현됨, billing.md), 반지 탭(#183 구현됨),
+    구매 확인창. 원작의 5탭 중 "저금통" 탭은 우리에게 대응물이 없어 넣지 않았다.
+  </p>
+</div>
+
+<script>
+  // 창이 1280 보다 좁으면 화면비를 유지한 채 축소한다. 수치는 언제나 1280x720 기준이다.
+  function fit() {
+    document.querySelectorAll('.frame').forEach(function (frame) {
+      var scale = Math.min(1, frame.clientWidth / 1280);
+      frame.style.setProperty('--s', scale);
+      frame.style.height = (720 * scale) + 'px';
+    });
+  }
+  window.addEventListener('resize', fit);
+  fit();
+</script>
+</body>
+</html>
