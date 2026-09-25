@@ -93,16 +93,18 @@ namespace NCAIClicker.EditorTools
             titleLayout.childForceExpandWidth = true;
             titleLayout.childForceExpandHeight = false;
 
-            var eyebrow = CreateLabel("EyebrowText", titleBlockGo, bodyFont, 28, TextGold, TextAlignmentOptions.Left, "NCAI CLICKER");
-            eyebrow.characterSpacing = 24;
-            eyebrow.gameObject.AddComponent<LayoutElement>().preferredHeight = 36;
-
-            var title = CreateLabel("TitleText", titleBlockGo, displayFont, 112, TextCream, TextAlignmentOptions.Left, "고지서는\n내야 한다");
+            // 위계: 게임 이름(대제목) → 장르(소제목) → 원작 표기(본문, 흐린 색). 게임 이름은 NCAI CLICKER 이고
+            // 원작 「Bills Must Be Paid」의 이름을 제목처럼 쓰지 않는다 — 모작임은 맨 아래 줄에서 밝힌다 (#45).
+            var title = CreateLabel("TitleText", titleBlockGo, displayFont, 112, TextCream, TextAlignmentOptions.Left, "NCAI\nCLICKER");
             title.lineSpacing = -12;
+            title.characterSpacing = 4;
             title.gameObject.AddComponent<LayoutElement>().preferredHeight = 248;
 
-            var tagline = CreateLabel("TaglineText", titleBlockGo, bodyFont, 28, TextMuted, TextAlignmentOptions.Left, "시간 제한형 액티브 인크리멘탈");
+            var tagline = CreateLabel("TaglineText", titleBlockGo, bodyFont, 28, TextGold, TextAlignmentOptions.Left, "시간 제한형 액티브 인크리멘탈");
             tagline.gameObject.AddComponent<LayoutElement>().preferredHeight = 36;
+
+            var credit = CreateLabel("OriginalCreditText", titleBlockGo, bodyFont, 24, TextMuted, TextAlignmentOptions.Left, "「Bills Must Be Paid」 (Rike Games) 모작");
+            credit.gameObject.AddComponent<LayoutElement>().preferredHeight = 32;
 
             // 4. 버튼 열 — 좌측 (목업 96,372 · 폭 400 → 144,558 · 폭 600)
             var buttonColumnGo = CreateObject("ButtonColumn", rootGo);
