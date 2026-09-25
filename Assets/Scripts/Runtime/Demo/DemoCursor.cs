@@ -54,6 +54,7 @@ namespace NCAIClicker.Demo
         private bool _isButtonDown;
         private Coroutine _scenarioRoutine;
         private Mouse _virtualMouse;
+        private Keyboard _virtualKeyboard;
         private readonly List<InputDevice> _disabledDevices = new List<InputDevice>();
         private bool _wasRunInBackground;
         private InputSettings.BackgroundBehavior _previousBackgroundBehavior;
@@ -156,6 +157,8 @@ namespace NCAIClicker.Demo
             }
             _virtualMouse = InputSystem.AddDevice<Mouse>("DemoMouse");
             _virtualMouse.MakeCurrent();
+            // 키보드는 끄지 않는다. 누를 때만 가상 키보드를 current 로 올린다 (PressKey).
+            _virtualKeyboard = InputSystem.AddDevice<Keyboard>("DemoKeyboard");
             _sentPosition = _position;
 
             BuildVisuals();
@@ -219,6 +222,10 @@ namespace NCAIClicker.Demo
             if (_virtualMouse != null && _virtualMouse.added)
             {
                 InputSystem.RemoveDevice(_virtualMouse);
+            }
+            if (_virtualKeyboard != null && _virtualKeyboard.added)
+            {
+                InputSystem.RemoveDevice(_virtualKeyboard);
             }
             foreach (var device in _disabledDevices)
             {
@@ -316,6 +323,9 @@ namespace NCAIClicker.Demo
                     case DemoStepKind.StopHunting:
                         StopHunting();
                         break;
+                    case DemoStepKind.PressKey:
+                        yield return PressKey(step.Label);
+                        break;
                 }
             }
             StopHunting();
@@ -323,6 +333,22 @@ namespace NCAIClicker.Demo
             _scenarioRoutine = null;
             WriteCaptions();
             OnScenarioFinished();
+        }
+
+        /// <summary>가상 키보드로 키를 한 번 눌렀다 뗀다. 게임은 Keyboard.current 의 wasPressedThisFrame 을 읽는다.</summary>
+        private IEnumerator PressKey(string keyName)
+        {
+            if (!System.Enum.TryParse<Key>(keyName, true, out var key))
+            {
+                Debug.LogWarning($"[DemoCursor] 알 수 없는 키 '{keyName}' 입니다 (예: Escape).");
+                yield break;
+            }
+            _virtualKeyboard.MakeCurrent();
+            InputSystem.QueueStateEvent(_virtualKeyboard, new KeyboardState(key));
+            yield return null;
+            yield return null;
+            InputSystem.QueueStateEvent(_virtualKeyboard, new KeyboardState());
+            yield return null;
         }
 
         private static void OnScenarioFinished()

@@ -156,7 +156,7 @@ namespace NCAIClicker.EditorTools
         }
 
         /// <summary>
-        /// 시연 시나리오 에셋 4종을 만든다. 이미 있으면 덮어쓴다.
+        /// 시연 시나리오 에셋 5종을 만든다. 이미 있으면 덮어쓴다.
         /// 자막 문구는 docs/SUBMISSION_VIDEO.md 5·6장 초안을 따른다.
         /// </summary>
         [MenuItem("NCAI/시연/시나리오 에셋 생성", false, MenuPriority.DemoCreateDefault)]
@@ -170,8 +170,9 @@ namespace NCAIClicker.EditorTools
             SaveScenario(ScenarioFolder + "/DemoBankruptcyCycle.asset", BuildBankruptcyCycle());
             SaveScenario(ScenarioFolder + "/DemoLoan.asset", BuildLoan());
             SaveScenario(ScenarioFolder + "/DemoEnding.asset", BuildEnding());
+            SaveScenario(ScenarioFolder + "/DemoFeatures.asset", BuildFeatures());
             AssetDatabase.SaveAssets();
-            Debug.Log($"[DemoCursor] 시나리오 에셋 4종을 만들었습니다: {ScenarioFolder}");
+            Debug.Log($"[DemoCursor] 시나리오 에셋 5종을 만들었습니다: {ScenarioFolder}");
         }
 
         private static void SaveScenario(string path, List<DemoStep> steps)
@@ -308,6 +309,115 @@ namespace NCAIClicker.EditorTools
             steps.Add(new DemoStep(DemoStepKind.ClickButton, "계속 부수기", 3f));
             steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 2f));
             return steps;
+        }
+
+        /// <summary>
+        /// 콘티 6장 나머지 기능 — 설정, 자동 망치, ESC 일시정지, 해금 카드·도감, 화난 저금통(다이아몬드).
+        /// 해금은 회차 누적 수입 기준이라 디버그 "다음 크리처 해금 직전으로" 뒤 하루를 벌면 한 종씩 풀린다.
+        /// 구리 → 은 → 금 → 다이아몬드 네 번이다. 편집 때 필요한 구간만 잘라 쓴다.
+        /// </summary>
+        private static List<DemoStep> BuildFeatures()
+        {
+            var steps = new List<DemoStep>();
+
+            // 설정 — 메인 메뉴에서 연다
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 1.5f));
+            steps.Add(new DemoStep(DemoStepKind.ClickButton, "SettingsButton", 5f));
+            Caption(steps, "볼륨·화면 흔들림 설정", 3f);
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 3f));
+            steps.Add(new DemoStep(DemoStepKind.ClickButton, "CloseButton|BackButton", 3f));
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 1f));
+
+            // 1일차 — 납부하고 자동 망치(카페인 중독)를 산다
+            steps.Add(new DemoStep(DemoStepKind.ClickButton, "새 회차 시작", 10f));
+            steps.Add(new DemoStep(DemoStepKind.ClickButton, "YesButton", 2f));
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 1.5f));
+            steps.Add(new DemoStep(DemoStepKind.HuntCreatures, "ContinueButton|PayButton", 180f));
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 1.5f));
+            AddCloseUnlockCards(steps);
+            steps.Add(new DemoStep(DemoStepKind.ClickButton, "PayButton", 2f));
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 1f));
+            steps.Add(new DemoStep(DemoStepKind.ClickButton, "PayButton", 2f));
+            steps.Add(new DemoStep(DemoStepKind.ClickIndex, "CardRow", 5f, 1));
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 1f));
+            steps.Add(new DemoStep(DemoStepKind.ClickButton, "LaterButton", 2f));
+            steps.Add(new DemoStep(DemoStepKind.ClickButton, "UpgradeButton|TabUpgradeButton", 2f));
+            steps.Add(new DemoStep(DemoStepKind.ClickButton, "SkillTreeNoticeConfirmButton", 2f));
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 1f));
+            Caption(steps, "카페인 중독 — 자동 망치를 산다", 3f);
+            // 업그레이드 행 순서: 완력 단련, 카페인 중독, ...
+            steps.Add(new DemoStep(DemoStepKind.ClickIndex, "BuyRow", 2f, 1));
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 1.5f));
+            steps.Add(new DemoStep(DemoStepKind.ClickButton, "ContinueButton", 5f));
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 1.5f));
+
+            // 2일차 — 자동 망치, ESC 일시정지. 다음 해금(구리광석)도 이날 정산에서 풀린다
+            steps.Add(new DemoStep(DemoStepKind.MenuItem, "NCAI/디버그/다음 크리처 해금 직전으로"));
+            Caption(steps, "업그레이드하면 자동 망치가 함께 내려칩니다", 3.5f);
+            steps.Add(new DemoStep(DemoStepKind.StartHunting));
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 5f));
+            steps.Add(new DemoStep(DemoStepKind.PressKey, "Escape"));
+            Caption(steps, "ESC — 일시정지", 2.5f);
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 2.5f));
+            steps.Add(new DemoStep(DemoStepKind.ClickButton, "ResumeButton", 3f));
+            steps.Add(new DemoStep(DemoStepKind.StartHunting));
+            steps.Add(new DemoStep(DemoStepKind.WaitForEvent, "StaminaDepleted", 180f));
+            steps.Add(new DemoStep(DemoStepKind.StopHunting));
+            steps.Add(new DemoStep(DemoStepKind.WaitUntilButton, "ContinueButton|PayButton|Backdrop", 10f));
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 2f));
+            Caption(steps, "처음 만난 광석은 카드로 알리고 도감에 남깁니다", 3.5f);
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 2.5f));
+            AddCloseUnlockCards(steps);
+            AddPayAndContinue(steps);
+
+            // 3~4일차 — 은광석·금광석 해금
+            for (var i = 0; i < 2; i++)
+            {
+                steps.Add(new DemoStep(DemoStepKind.MenuItem, "NCAI/디버그/다음 크리처 해금 직전으로"));
+                steps.Add(new DemoStep(DemoStepKind.HuntCreatures, "ContinueButton|PayButton", 180f));
+                steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 1.5f));
+                AddCloseUnlockCards(steps);
+                AddPayAndContinue(steps);
+            }
+
+            // 5일차 — 다이아몬드(화난 저금통) 해금
+            steps.Add(new DemoStep(DemoStepKind.MenuItem, "NCAI/디버그/다음 크리처 해금 직전으로"));
+            steps.Add(new DemoStep(DemoStepKind.HuntCreatures, "ContinueButton|PayButton", 180f));
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 1.5f));
+            Caption(steps, "수입이 쌓이면 새 광석이 해금됩니다", 3f);
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 2f));
+            AddCloseUnlockCards(steps);
+
+            // 도감 — 업그레이드 창의 저금통 탭
+            steps.Add(new DemoStep(DemoStepKind.ClickButton, "UpgradeButton", 3f));
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 1f));
+            steps.Add(new DemoStep(DemoStepKind.ClickButton, "TabCodexButton", 3f));
+            Caption(steps, "광석마다 체력·속도·보상이 다릅니다", 3.5f);
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 4f));
+            steps.Add(new DemoStep(DemoStepKind.ClickButton, "ContinueButton", 5f));
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 1.5f));
+
+            // 6일차 — 다이아몬드가 섞인 필드. 맞으면 화가 나 다른 광석에 돌진한다
+            steps.Add(new DemoStep(DemoStepKind.StartHunting));
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 3f));
+            Caption(steps, "어떤 광석은 화가 나면 돌진합니다", 3.5f);
+            steps.Add(new DemoStep(DemoStepKind.WaitForEvent, "StaminaDepleted", 180f));
+            steps.Add(new DemoStep(DemoStepKind.StopHunting));
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 2f));
+            return steps;
+        }
+
+        /// <summary>결과창에서 낼 수 있으면 내고(퍼크까지), 다음 날로 넘어간다. 못 내면 납부 단계는 건너뛴다.</summary>
+        private static void AddPayAndContinue(List<DemoStep> steps)
+        {
+            steps.Add(new DemoStep(DemoStepKind.ClickButton, "PayButton", 2f));
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 1f));
+            steps.Add(new DemoStep(DemoStepKind.ClickButton, "PayButton", 2f));
+            steps.Add(new DemoStep(DemoStepKind.ClickIndex, "CardRow", 3f, 1));
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 1f));
+            steps.Add(new DemoStep(DemoStepKind.ClickButton, "LaterButton", 2f));
+            steps.Add(new DemoStep(DemoStepKind.ClickButton, "ContinueButton", 5f));
+            steps.Add(new DemoStep(DemoStepKind.Wait, seconds: 1.5f));
         }
 
         private static void AddNewRun(List<DemoStep> steps)

@@ -39,6 +39,9 @@ namespace NCAIClicker.Demo
 
         /// <summary>뒤에서 쫓던 것을 멈춘다.</summary>
         StopHunting,
+
+        /// <summary>라벨 이름의 키(Input System Key, 예: Escape)를 한 번 누른다.</summary>
+        PressKey,
     }
 }
 #endif

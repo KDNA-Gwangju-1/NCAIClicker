@@ -12,6 +12,7 @@ ffmpeg(libass 포함 빌드)가 PATH 에 있어야 한다.
 쓰는 법:
     python tools/video_edit.py burn Recordings/DefaultDemoScenario_20260925_192034.mp4
     python tools/video_edit.py slide "2조" "김성훈 · 강찬양 · 김훈일 · 김창준 · 정야후" --seconds 4 -o Recordings/team.mp4
+    python tools/video_edit.py trim Recordings/DemoFeatures_..._sub.mp4 --start 170 -o Recordings/cut.mp4
     python tools/video_edit.py concat Recordings/team.mp4 Recordings/DefaultDemoScenario_..._sub.mp4 -o Recordings/final.mp4 --bgm music.mp3
 """
 
@@ -77,8 +78,9 @@ def slide(lines, seconds, output):
     output = Path(output).resolve()
     # 첫 줄은 제목, 나머지는 작게. 앞뒤로 0.3초 페이드.
     title, rest = lines[0], lines[1:]
-    body = "\\N".join(["{\\fs52}" + line for line in rest])
-    text = "{\\fad(300,300)}" + title + ("\\N" + body if body else "")
+    # 제목과 본문 사이에 작은 빈 줄을 둬 위계를 벌린다.
+    body = "\\N".join(["{\\fs54}" + line for line in rest])
+    text = "{\\fad(300,300)}{\\fs96}" + title + ("\\N{\\fs36} \\N" + body if body else "")
     end = f"0:{int(seconds) // 60:02d}:{seconds % 60:05.2f}"
     with tempfile.TemporaryDirectory() as work:
         ass = Path(work) / "slide.ass"
@@ -87,6 +89,16 @@ def slide(lines, seconds, output):
             "-f", "lavfi", "-i", f"color=c=black:s={WIDTH}x{HEIGHT}:d={seconds}:r={FPS}",
             "-vf", ass_filter(ass, work), *encode_args(), str(output),
         ], cwd=work)
+    print(output)
+
+
+def trim(video, start, end, output):
+    """반복 구간을 빼려고 앞뒤를 자른다. 자막을 입힌 뒤에 자르면 자막도 함께 잘린다."""
+    args = ["-ss", str(start), "-i", str(Path(video).resolve())]
+    if end is not None:
+        args += ["-t", str(end - start)]
+    output = Path(output).resolve()
+    run_ffmpeg([*args, "-an", *encode_args(), str(output)], cwd=ROOT)
     print(output)
 
 
@@ -134,6 +146,12 @@ def main():
     p_slide.add_argument("--seconds", type=float, default=4.0)
     p_slide.add_argument("-o", "--output", required=True)
 
+    p_trim = sub.add_parser("trim", help="영상의 일부 구간만 남긴다 (초 단위)")
+    p_trim.add_argument("video")
+    p_trim.add_argument("--start", type=float, default=0.0)
+    p_trim.add_argument("--end", type=float, help="끝 (기본: 영상 끝까지)")
+    p_trim.add_argument("-o", "--output", required=True)
+
     p_concat = sub.add_parser("concat", help="조각들을 순서대로 이어 붙인다")
     p_concat.add_argument("inputs", nargs="+")
     p_concat.add_argument("-o", "--output", required=True)
@@ -143,6 +161,8 @@ def main():
     args = parser.parse_args()
     if args.command == "burn":
         burn(args.video, args.ass, args.output)
+    elif args.command == "trim":
+        trim(args.video, args.start, args.end, args.output)
     elif args.command == "slide":
         slide(args.lines, args.seconds, args.output)
     else:
