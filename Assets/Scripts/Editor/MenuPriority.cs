@@ -29,5 +29,12 @@ namespace NCAIClicker.EditorTools
         public const int DebugAdvanceOneDay = 62;
         public const int DebugAdvanceStage = 63;
         public const int DebugNextUnlock = 64;
+
+        // 시연 (Play Mode, 녹화용)
+        public const int DemoStart = 80;
+        public const int DemoPause = 81;
+        public const int DemoResume = 82;
+        public const int DemoStop = 83;
+        public const int DemoCreateDefault = 93;
     }
 }
