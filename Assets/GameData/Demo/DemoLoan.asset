@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6ef383bb549a40246a808d1ee31d653f, type: 3}
-  m_Name: DefaultDemoScenario
+  m_Name: DemoLoan
   m_EditorClassIdentifier: Assembly-CSharp::NCAIClicker.Demo.DemoScenario
   _steps:
   - _kind: 4
@@ -33,77 +33,89 @@ MonoBehaviour:
     _seconds: 1.5
     _index: 0
     _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 6
-    _label: "\uD558\uB8E8\uAC00 \uC2DC\uC791\uB429\uB2C8\uB2E4\n\uC2A4\uD0DC\uBBF8\uB098\uAC00
-      \uACE7 \uB0A8\uC740 \uC2DC\uAC04\uC785\uB2C8\uB2E4"
-    _seconds: 4
-    _index: 0
-    _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 9
-    _label: 
+  - _kind: 8
+    _label: "NCAI/\uB514\uBC84\uADF8/\uB2E8\uACC4 +1"
     _seconds: 5
     _index: 0
     _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 4
-    _label: 
-    _seconds: 4.5
+  - _kind: 8
+    _label: "NCAI/\uB514\uBC84\uADF8/\uB2E8\uACC4 +1"
+    _seconds: 5
     _index: 0
     _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 6
-    _label: "\uC2A4\uD0DC\uBBF8\uB098\uB294 \uACC4\uC18D \uC904\uC5B4\uB4ED\uB2C8\uB2E4"
-    _seconds: 3
+  - _kind: 8
+    _label: "NCAI/\uB514\uBC84\uADF8/\uB2E8\uACC4 +1"
+    _seconds: 5
     _index: 0
     _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 7
-    _label: TargetBroken
-    _seconds: 15
-    _index: 0
-    _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 6
-    _label: "\uBD80\uC218\uBA74 \uCF54\uC778\uC774 \uC3DF\uC544\uC9D1\uB2C8\uB2E4"
-    _seconds: 3
-    _index: 1
-    _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 7
-    _label: FeverStart
-    _seconds: 20
-    _index: 0
-    _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 6
-    _label: "\uC801\uC911\uC744 \uC313\uC73C\uBA74 \uD53C\uBC84 \u2014 \uC218\uC785\uC774
-      \uB298\uC5B4\uB0A9\uB2C8\uB2E4"
-    _seconds: 3
-    _index: 1
-    _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 7
-    _label: StaminaDepleted
+  - _kind: 2
+    _label: ContinueButton|PayButton
     _seconds: 180
     _index: 0
     _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 6
-    _label: "\uC2A4\uD0DC\uBBF8\uB098\uAC00 \uBC14\uB2E5\uB098\uBA74 \uD558\uB8E8\uAC00
-      \uB05D\uB0A9\uB2C8\uB2E4"
-    _seconds: 3
+  - _kind: 4
+    _label: 
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: Backdrop
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: Backdrop
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: PayButton
+    _seconds: 2
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: PayButton
+    _seconds: 2
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 1
+    _label: CardRow
+    _seconds: 5
     _index: 1
     _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 10
+  - _kind: 4
     _label: 
+    _seconds: 1
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: LaterButton
+    _seconds: 2
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: ContinueButton
     _seconds: 5
     _index: 0
     _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 3
-    _label: ContinueButton|PayButton|Backdrop
-    _seconds: 10
+  - _kind: 4
+    _label: 
+    _seconds: 1.5
     _index: 0
     _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 6
-    _label: "\uD558\uB8E8 \uC218\uC785\uC744 \uC815\uC0B0\uD569\uB2C8\uB2E4"
-    _seconds: 3
+  - _kind: 2
+    _label: ContinueButton|PayButton
+    _seconds: 180
     _index: 0
     _viewportPoint: {x: 0.5, y: 0.5}
   - _kind: 4
     _label: 
-    _seconds: 3
+    _seconds: 2
     _index: 0
     _viewportPoint: {x: 0.5, y: 0.5}
   - _kind: 0
@@ -116,15 +128,45 @@ MonoBehaviour:
     _seconds: 1.5
     _index: 0
     _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 6
-    _label: "\uB9C8\uAC10\uC77C\uC5D0\uB294 \uACE0\uC9C0\uC11C\uB97C \uB0B4\uC57C
-      \uD569\uB2C8\uB2E4"
+  - _kind: 0
+    _label: PayButton
     _seconds: 3
     _index: 0
     _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 6
+    _label: "\uB3C8\uC774 \uBAA8\uC790\uB77C\uBA74 \uBE45 \uD1A0\uB2C8\uC5D0\uAC8C
+      \uBE4C\uB9B4 \uC218 \uC788\uC9C0\uB9CC"
+    _seconds: 3.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
   - _kind: 0
-    _label: PayButton
-    _seconds: 2
+    _label: LoanButton
+    _seconds: 3
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: LoanShortfallPresetButton|LoanFullPresetButton
+    _seconds: 3
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: LoanConfirmButton
+    _seconds: 3
     _index: 0
     _viewportPoint: {x: 0.5, y: 0.5}
   - _kind: 4
@@ -134,23 +176,7 @@ MonoBehaviour:
     _viewportPoint: {x: 0.5, y: 0.5}
   - _kind: 0
     _label: PayButton
-    _seconds: 2
-    _index: 0
-    _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 7
-    _label: PerkOffered
     _seconds: 3
-    _index: 0
-    _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 6
-    _label: "\uB0A9\uBD80\uD558\uBA74 \uB2E8\uACC4 \uD074\uB9AC\uC5B4, \uD37C\uD06C
-      \uD558\uB098\uB97C \uACE0\uB985\uB2C8\uB2E4"
-    _seconds: 3
-    _index: 1
-    _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 4
-    _label: 
-    _seconds: 2
     _index: 0
     _viewportPoint: {x: 0.5, y: 0.5}
   - _kind: 1
@@ -169,43 +195,38 @@ MonoBehaviour:
     _index: 0
     _viewportPoint: {x: 0.5, y: 0.5}
   - _kind: 0
-    _label: UpgradeButton|TabUpgradeButton
-    _seconds: 2
-    _index: 0
-    _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 0
-    _label: SkillTreeNoticeConfirmButton
-    _seconds: 2
-    _index: 0
-    _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 4
-    _label: 
-    _seconds: 1
-    _index: 0
-    _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 6
-    _label: "\uBC88 \uB3C8\uC73C\uB85C \uC5C5\uADF8\uB808\uC774\uB4DC\uD558\uACE0
-      \uB2E4\uC74C \uB0A0\uB85C"
-    _seconds: 3
-    _index: 0
-    _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 1
-    _label: BuyRow
-    _seconds: 2
-    _index: 0
-    _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 4
-    _label: 
-    _seconds: 1.5
-    _index: 0
-    _viewportPoint: {x: 0.5, y: 0.5}
-  - _kind: 0
     _label: ContinueButton
     _seconds: 5
     _index: 0
     _viewportPoint: {x: 0.5, y: 0.5}
   - _kind: 4
     _label: 
-    _seconds: 3
+    _seconds: 2
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 2
+    _label: ContinueButton|PayButton
+    _seconds: 180
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: Backdrop
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: Backdrop
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 6
+    _label: "\uAC1A\uC744 \uB54C\uAE4C\uC9C0 \uB9E4\uC77C \uC218\uC785\uC744 \uB5BC
+      \uAC11\uB2C8\uB2E4"
+    _seconds: 4
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 4.5
     _index: 0
     _viewportPoint: {x: 0.5, y: 0.5}

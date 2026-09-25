@@ -1,6 +1,8 @@
 #if UNITY_EDITOR
 using System.Collections;
 using System.Collections.Generic;
+using NCAIClicker.Data;
+using NCAIClicker.Events;
 using NCAIClicker.Targets;
 using TMPro;
 using UnityEngine;
@@ -19,10 +21,14 @@ namespace NCAIClicker.Demo
     /// 시연 동안 실제 마우스는 꺼 둔다 — 켜 두면 OS 커서 이벤트가 가상 입력을 덮어쓴다.
     /// 기존 커서 점은 플레이 중에만 보이므로 메뉴에서도 보이는 점을 따로 그린다.
     /// </para>
+    /// <para>
+    /// 시나리오의 Caption 단계는 화면에 그리지 않고 자막 파일(.ass)로 모은다 (#344). 녹화와 함께 시작하면
+    /// 녹화 프레임 수로 시각을 재서 영상과 자막이 어긋나지 않는다.
+    /// </para>
     /// </summary>
     public class DemoCursor : MonoBehaviour
     {
-        [SerializeField] private float _dotSize = 14f;
+        [SerializeField] private float _dotSize = 20f;
         [SerializeField] private Color _dotColor = Color.white;
         [SerializeField] private Color _rippleColor = new Color(1f, 0.85f, 0.35f, 0.9f);
         [SerializeField] private float _rippleSize = 64f;
@@ -52,13 +58,27 @@ namespace NCAIClicker.Demo
         private bool _wasRunInBackground;
         private InputSettings.BackgroundBehavior _previousBackgroundBehavior;
         private InputSettings.EditorInputBehaviorInPlayMode _previousEditorBehavior;
+        private Coroutine _huntRoutine;
+        private DemoCaptionTrack _captions = new DemoCaptionTrack();
+        private string _captionPath;
+        private float _timelineFrameRate;
+        private int _timelineStartFrame;
+        private float _timelineStartTime;
+        private bool _isLastWaitSucceeded;
+        private readonly Dictionary<string, int> _eventCounts = new Dictionary<string, int>();
+        private readonly Dictionary<string, int> _eventBaseline = new Dictionary<string, int>();
+
+        /// <summary>시나리오를 끝까지 실행했을 때. 에디터 메뉴가 녹화를 멈추는 데 쓴다.</summary>
+        public static event System.Action ScenarioFinished;
 
         public static DemoCursor Instance { get; private set; }
         public bool IsPaused { get; private set; }
         public bool IsRunning => _scenarioRoutine != null;
 
         /// <summary>시연 커서를 만들고 시나리오를 실행한다. 이미 있으면 새 시나리오로 다시 시작한다.</summary>
-        public static DemoCursor StartDemo(DemoScenario scenario)
+        /// <param name="captionPath">자막 파일 경로. 비우면 자막을 쓰지 않는다.</param>
+        /// <param name="timelineFrameRate">녹화 프레임레이트. 0보다 크면 자막 시각을 프레임 수로 잰다.</param>
+        public static DemoCursor StartDemo(DemoScenario scenario, string captionPath = null, float timelineFrameRate = 0f)
         {
             if (Instance == null)
             {
@@ -66,6 +86,8 @@ namespace NCAIClicker.Demo
                 DontDestroyOnLoad(go);
                 Instance = go.AddComponent<DemoCursor>();
             }
+            Instance._captionPath = captionPath;
+            Instance._timelineFrameRate = timelineFrameRate;
             Instance.RunScenario(scenario);
             return Instance;
         }
@@ -86,6 +108,9 @@ namespace NCAIClicker.Demo
                 StopCoroutine(_scenarioRoutine);
             }
             IsPaused = false;
+            _captions = new DemoCaptionTrack();
+            _timelineStartFrame = Time.frameCount;
+            _timelineStartTime = Time.unscaledTime;
             _scenarioRoutine = StartCoroutine(RunSteps(scenario));
         }
 
@@ -136,8 +161,55 @@ namespace NCAIClicker.Demo
             BuildVisuals();
         }
 
+        private void OnEnable()
+        {
+            GameEvents.OnFeverStart += OnFeverStarted;
+            GameEvents.OnBankrupt += OnBankrupted;
+            GameEvents.OnBillPaid += OnBillPaid;
+            GameEvents.OnBillIssued += OnBillIssued;
+            GameEvents.OnTargetBroken += OnTargetBroken;
+            GameEvents.OnStaminaDepleted += OnStaminaDepleted;
+            GameEvents.OnPerkOffered += OnPerkOffered;
+            GameEvents.OnCreatureUnlocked += OnCreatureUnlocked;
+            GameEvents.OnDayEnded += OnDayEnded;
+            GameEvents.OnStageGoalReached += OnStageGoalReached;
+        }
+
+        private void OnDisable()
+        {
+            GameEvents.OnFeverStart -= OnFeverStarted;
+            GameEvents.OnBankrupt -= OnBankrupted;
+            GameEvents.OnBillPaid -= OnBillPaid;
+            GameEvents.OnBillIssued -= OnBillIssued;
+            GameEvents.OnTargetBroken -= OnTargetBroken;
+            GameEvents.OnStaminaDepleted -= OnStaminaDepleted;
+            GameEvents.OnPerkOffered -= OnPerkOffered;
+            GameEvents.OnCreatureUnlocked -= OnCreatureUnlocked;
+            GameEvents.OnDayEnded -= OnDayEnded;
+            GameEvents.OnStageGoalReached -= OnStageGoalReached;
+        }
+
+        // 시나리오의 WaitForEvent 라벨은 GameEvents 이름에서 On 을 뺀 것이다 (예: FeverStart).
+        private void OnFeverStarted() => CountEvent("FeverStart");
+        private void OnBankrupted() => CountEvent("Bankrupt");
+        private void OnBillPaid(Bill bill) => CountEvent("BillPaid");
+        private void OnBillIssued(Bill bill) => CountEvent("BillIssued");
+        private void OnTargetBroken(BreakInfo info) => CountEvent("TargetBroken");
+        private void OnStaminaDepleted() => CountEvent("StaminaDepleted");
+        private void OnPerkOffered(string[] perkIds) => CountEvent("PerkOffered");
+        private void OnCreatureUnlocked(string targetId) => CountEvent("CreatureUnlocked");
+        private void OnDayEnded(int day) => CountEvent("DayEnded");
+        private void OnStageGoalReached(int stage) => CountEvent("StageGoalReached");
+
+        private void CountEvent(string eventName)
+        {
+            _eventCounts.TryGetValue(eventName, out var count);
+            _eventCounts[eventName] = count + 1;
+        }
+
         private void OnDestroy()
         {
+            WriteCaptions();
             if (Instance == this)
             {
                 Instance = null;
@@ -194,6 +266,12 @@ namespace NCAIClicker.Demo
                 var step = scenario.Steps[i];
                 yield return WaitWhilePaused();
                 Debug.Log($"[DemoCursor] {i + 1}/{scenario.Steps.Count} {step.Kind} {step.Label}");
+                if (IsActionStep(step.Kind))
+                {
+                    // 연달아 둔 WaitForEvent 들은 같은 기준(직전 동작)으로 센다. 앞 대기 중에 뒤 이벤트가
+                    // 이미 일어났어도 놓치지 않는다.
+                    SnapshotEventBaseline();
+                }
                 switch (step.Kind)
                 {
                     case DemoStepKind.ClickButton:
@@ -212,13 +290,120 @@ namespace NCAIClicker.Demo
                         yield return WaitUnpaused(step.Seconds);
                         break;
                     case DemoStepKind.MoveTo:
+                        StopHunting();
                         var target = Vector2.Scale(step.ViewportPoint, new Vector2(Screen.width, Screen.height));
                         yield return MoveTo(target);
                         break;
+                    case DemoStepKind.Caption:
+                        if (step.Index != 1 || _isLastWaitSucceeded)
+                        {
+                            _captions.AddCue(GetTimelineSeconds(), step.Seconds, step.Label);
+                        }
+                        break;
+                    case DemoStepKind.WaitForEvent:
+                        yield return WaitForGameEvent(step.Label, step.Seconds);
+                        break;
+                    case DemoStepKind.MenuItem:
+                        if (!UnityEditor.EditorApplication.ExecuteMenuItem(step.Label))
+                        {
+                            Debug.LogWarning($"[DemoCursor] 메뉴 '{step.Label}' 를 실행하지 못했습니다.");
+                        }
+                        break;
+                    case DemoStepKind.StartHunting:
+                        StopHunting();
+                        _huntRoutine = StartCoroutine(HuntCreatures(float.MaxValue, null));
+                        break;
+                    case DemoStepKind.StopHunting:
+                        StopHunting();
+                        break;
                 }
             }
+            StopHunting();
             Debug.Log("[DemoCursor] 시나리오를 끝까지 실행했습니다.");
             _scenarioRoutine = null;
+            WriteCaptions();
+            OnScenarioFinished();
+        }
+
+        private static void OnScenarioFinished()
+        {
+            ScenarioFinished?.Invoke();
+        }
+
+        private void StopHunting()
+        {
+            if (_huntRoutine != null)
+            {
+                StopCoroutine(_huntRoutine);
+                _huntRoutine = null;
+            }
+        }
+
+        private float GetTimelineSeconds()
+        {
+            return _timelineFrameRate > 0f
+                ? (Time.frameCount - _timelineStartFrame) / _timelineFrameRate
+                : Time.unscaledTime - _timelineStartTime;
+        }
+
+        private static bool IsActionStep(DemoStepKind kind)
+        {
+            return kind != DemoStepKind.WaitForEvent && kind != DemoStepKind.Caption && kind != DemoStepKind.Wait;
+        }
+
+        private void SnapshotEventBaseline()
+        {
+            _eventBaseline.Clear();
+            foreach (var pair in _eventCounts)
+            {
+                _eventBaseline[pair.Key] = pair.Value;
+            }
+        }
+
+        private bool HasEventSinceBaseline(string eventName)
+        {
+            _eventCounts.TryGetValue(eventName, out var now);
+            _eventBaseline.TryGetValue(eventName, out var before);
+            return now > before;
+        }
+
+        /// <summary>
+        /// 직전 동작 단계 뒤로 이벤트가 일어났는지 기다린다. 기다리는 사이 하루가 끝나면(StaminaDepleted)
+        /// 플레이 중에만 나는 이벤트는 더 오지 않으므로 바로 포기한다.
+        /// </summary>
+        private IEnumerator WaitForGameEvent(string eventName, float timeout)
+        {
+            const string DayEndEvent = "StaminaDepleted";
+            var elapsed = 0f;
+            _isLastWaitSucceeded = false;
+            while (elapsed < timeout)
+            {
+                if (HasEventSinceBaseline(eventName))
+                {
+                    _isLastWaitSucceeded = true;
+                    yield break;
+                }
+                if (eventName != DayEndEvent && HasEventSinceBaseline(DayEndEvent))
+                {
+                    break;
+                }
+                if (!IsPaused)
+                {
+                    elapsed += Time.unscaledDeltaTime;
+                }
+                yield return null;
+            }
+            Debug.Log($"[DemoCursor] '{eventName}' 이벤트가 {timeout}초 안에 일어나지 않았습니다.");
+        }
+
+        private void WriteCaptions()
+        {
+            if (string.IsNullOrEmpty(_captionPath) || _captions.Count == 0)
+            {
+                return;
+            }
+            _captions.WriteTo(_captionPath);
+            Debug.Log($"[DemoCursor] 자막 {_captions.Count}장을 썼습니다: {_captionPath}");
         }
 
         private IEnumerator ClickButton(string label, int index, float timeout)
@@ -230,6 +415,7 @@ namespace NCAIClicker.Demo
                 Debug.Log($"[DemoCursor] '{label}' 버튼이 {timeout}초 안에 나타나지 않아 건너뜁니다.");
                 yield break;
             }
+            StopHunting();
             yield return MoveTo(GetScreenCenter(found));
             yield return WaitUnpaused(_clickHoverDelay);
             yield return Click();

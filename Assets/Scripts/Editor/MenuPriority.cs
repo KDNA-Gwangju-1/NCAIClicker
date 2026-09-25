@@ -32,9 +32,10 @@ namespace NCAIClicker.EditorTools
 
         // 시연 (Play Mode, 녹화용)
         public const int DemoStart = 80;
-        public const int DemoPause = 81;
-        public const int DemoResume = 82;
-        public const int DemoStop = 83;
+        public const int DemoRecord = 81;
+        public const int DemoPause = 82;
+        public const int DemoResume = 83;
+        public const int DemoStop = 84;
         public const int DemoCreateDefault = 93;
     }
 }
