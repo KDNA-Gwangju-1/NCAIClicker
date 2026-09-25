@@ -148,3 +148,4 @@ AI에게 시켜도 제대로 못 고친다.
 - [인게임 HUD](ingame-hud.md) — 위젯별 컴포넌트, 이벤트 구독만으로 갱신, 호버 스윙만 세는 정확도, 게이지 스프라이트
 - [설정 패널](settings-panel.md) — SettingsPanelController, IAudioService로 볼륨·화면 흔들림 조회/적용, 창모드, 저장 데이터 초기화, 메인 메뉴·일시정지 공용 프리팹
 * [일시정지 패널](pause_panel.md) · ESC 키 입력 시 원래 timeScale 안전 복원, 설정 패널(#196) 조립 연동, 코인 유실 경고 확인창
+- [시연 녹화 도구](demo-recording.md) — 가상 Mouse·Keyboard 로 게임 조작, 시나리오 에셋, 녹화 프레임 기준 .ass 자막, Recorder 연동, ffmpeg 편집 스크립트 (에디터 전용)

@@ -1,0 +1,337 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6ef383bb549a40246a808d1ee31d653f, type: 3}
+  m_Name: DemoBankruptcyCycle
+  m_EditorClassIdentifier: Assembly-CSharp::NCAIClicker.Demo.DemoScenario
+  _steps:
+  - _kind: 4
+    _label: 
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: "\uC0C8 \uD68C\uCC28 \uC2DC\uC791"
+    _seconds: 10
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: YesButton
+    _seconds: 2
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 2
+    _label: ContinueButton|PayButton
+    _seconds: 180
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: Backdrop
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: Backdrop
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: PayButton
+    _seconds: 2
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: PayButton
+    _seconds: 2
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 1
+    _label: CardRow
+    _seconds: 5
+    _index: 1
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: LaterButton
+    _seconds: 2
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: ContinueButton
+    _seconds: 5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 2
+    _label: ContinueButton|PayButton
+    _seconds: 180
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: Backdrop
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: Backdrop
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: PayButton
+    _seconds: 2
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: PayButton
+    _seconds: 2
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 1
+    _label: CardRow
+    _seconds: 5
+    _index: 1
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: LaterButton
+    _seconds: 2
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: ContinueButton
+    _seconds: 5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 2
+    _label: ContinueButton|PayButton
+    _seconds: 180
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: Backdrop
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: Backdrop
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: PayButton
+    _seconds: 2
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: PayButton
+    _seconds: 2
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 1
+    _label: CardRow
+    _seconds: 5
+    _index: 1
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: LaterButton
+    _seconds: 2
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: ContinueButton
+    _seconds: 5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 2
+    _label: ContinueButton|PayButton
+    _seconds: 180
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 2
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: Backdrop
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: Backdrop
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: PayButton
+    _seconds: 3
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 6
+    _label: "\uB9C8\uAC10\uC744 \uBABB \uB118\uAE30\uBA74 \uD30C\uC0B0 \u2014 \uC2A4\uC2A4\uB85C
+      \uC120\uC5B8\uD560 \uC218\uB3C4 \uC788\uC2B5\uB2C8\uB2E4"
+    _seconds: 3.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: DeclareBankruptcyButton
+    _seconds: 3
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: BankruptcyConfirmYesButton
+    _seconds: 3
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 7
+    _label: Bankrupt
+    _seconds: 5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 6
+    _label: "\uD30C\uC0B0\uD558\uBA74 1\uC77C\uCC28\uB85C \uB3CC\uC544\uAC11\uB2C8\uB2E4"
+    _seconds: 3
+    _index: 1
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 3
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 6
+    _label: "\uD30C\uC0B0\uD574\uB3C4 \uB808\uAC70\uC2DC \uD3EC\uC778\uD2B8\uC640
+      \uBC18\uC9C0\uB294 \uB0A8\uC2B5\uB2C8\uB2E4"
+    _seconds: 3.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 1
+    _label: BuyButton
+    _seconds: 3
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 6
+    _label: "\uB2E4\uC74C \uD68C\uCC28\uAC00 \uC870\uAE08 \uB354 \uC26C\uC6CC\uC9D1\uB2C8\uB2E4"
+    _seconds: 3
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 2.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: RestartButton|ContinueButton
+    _seconds: 5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 2
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 6
+    _label: "\uC0C8 \uD68C\uCC28 \u2014 1\uC77C\uCC28\uBD80\uD130 \uB2E4\uC2DC"
+    _seconds: 3
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 9
+    _label: 
+    _seconds: 5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 8
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 10
+    _label: 
+    _seconds: 5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}

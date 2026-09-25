@@ -1,0 +1,156 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6ef383bb549a40246a808d1ee31d653f, type: 3}
+  m_Name: DemoEnding
+  m_EditorClassIdentifier: Assembly-CSharp::NCAIClicker.Demo.DemoScenario
+  _steps:
+  - _kind: 4
+    _label: 
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: "\uC0C8 \uD68C\uCC28 \uC2DC\uC791"
+    _seconds: 10
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: YesButton
+    _seconds: 2
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 8
+    _label: "NCAI/\uB514\uBC84\uADF8/\uB2E8\uACC4 +1"
+    _seconds: 5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 8
+    _label: "NCAI/\uB514\uBC84\uADF8/\uB2E8\uACC4 +1"
+    _seconds: 5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 8
+    _label: "NCAI/\uB514\uBC84\uADF8/\uB2E8\uACC4 +1"
+    _seconds: 5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 8
+    _label: "NCAI/\uB514\uBC84\uADF8/\uB2E8\uACC4 +1"
+    _seconds: 5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 8
+    _label: "NCAI/\uB514\uBC84\uADF8/\uB2E8\uACC4 +1"
+    _seconds: 5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 8
+    _label: "NCAI/\uB514\uBC84\uADF8/\uB2E8\uACC4 +1"
+    _seconds: 5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 8
+    _label: "NCAI/\uB514\uBC84\uADF8/\uB2E8\uACC4 +1"
+    _seconds: 5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 8
+    _label: "NCAI/\uB514\uBC84\uADF8/\uB2E8\uACC4 +1"
+    _seconds: 5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 8
+    _label: "NCAI/\uB514\uBC84\uADF8/\uB2E8\uACC4 +1"
+    _seconds: 5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 8
+    _label: "NCAI/\uB514\uBC84\uADF8/\uB2E8\uACC4 +1"
+    _seconds: 5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 2
+    _label: ContinueButton|PayButton
+    _seconds: 180
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 2
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: Backdrop
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: Backdrop
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: PayButton
+    _seconds: 3
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 1.5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 6
+    _label: "\uB9C8\uC9C0\uB9C9 \uACE0\uC9C0\uC11C\uAE4C\uC9C0 \uB0B4\uBA74"
+    _seconds: 3
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: PayButton
+    _seconds: 3
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 1
+    _label: CardRow
+    _seconds: 5
+    _index: 1
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 3
+    _label: "\uACC4\uC18D \uBD80\uC218\uAE30"
+    _seconds: 5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 6
+    _label: "\uC5D4\uB529 \u2014 \uAC78\uB9B0 \uB0A0\uACFC \uCD1D \uB0A9\uBD80\uC561\uC744
+      \uBCF4\uC5EC \uC90D\uB2C8\uB2E4"
+    _seconds: 4
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 5
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 0
+    _label: "\uACC4\uC18D \uBD80\uC218\uAE30"
+    _seconds: 3
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}
+  - _kind: 4
+    _label: 
+    _seconds: 2
+    _index: 0
+    _viewportPoint: {x: 0.5, y: 0.5}

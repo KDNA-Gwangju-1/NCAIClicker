@@ -21,6 +21,27 @@ namespace NCAIClicker.Demo
 
         /// <summary>화면 비율 좌표(0~1)로 이동한다.</summary>
         MoveTo,
+
+        /// <summary>
+        /// 자막 한 장을 자막 파일(.ass)에 기록한다. 기다리지 않고 다음 단계로 넘어간다.
+        /// 라벨이 문구, 초가 표시 시간. 순번이 1이면 직전 WaitForEvent 가 성공했을 때만 기록한다.
+        /// </summary>
+        Caption,
+
+        /// <summary>라벨의 게임 이벤트(FeverStart 등)가 이 단계 시작 뒤 일어날 때까지 기다린다.</summary>
+        WaitForEvent,
+
+        /// <summary>라벨 경로의 에디터 메뉴를 실행한다 (예: NCAI/디버그/단계 +1).</summary>
+        MenuItem,
+
+        /// <summary>뒤에서 계속 크리처를 쫓기 시작한다. 버튼 클릭·MoveTo 단계나 StopHunting 에서 멈춘다.</summary>
+        StartHunting,
+
+        /// <summary>뒤에서 쫓던 것을 멈춘다.</summary>
+        StopHunting,
+
+        /// <summary>라벨 이름의 키(Input System Key, 예: Escape)를 한 번 누른다.</summary>
+        PressKey,
     }
 }
 #endif
