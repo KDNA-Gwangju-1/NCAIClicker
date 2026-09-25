@@ -20,7 +20,7 @@
 | 화면 | 파일 | 이슈 | 상태 |
 |---|---|---|---|
 | ESC 일시정지 · 설정 | [pause-menu.html](pause-menu.html) | [#192](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/192) | 구현됨 (#209) |
-| 메인 메뉴 · 상점 · 저금통 도감 | [menu-shop-collection.html](menu-shop-collection.html) | [#184](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/184) | 도감 구현됨 (#299) · 상점은 시안 — 미구현 |
+| 메인 메뉴 · 상점 · 저금통 도감 | [menu-shop-collection.html](menu-shop-collection.html) | [#184](https://github.com/KDNA-Gwangju-1/NCAIClicker/issues/184) | 메인 메뉴 구현됨 (#248) · 도감 구현됨 (#299) · 상점은 시안 — 미구현 |
 
 ## GitHub 웹에서는 렌더링되지 않는다
 
